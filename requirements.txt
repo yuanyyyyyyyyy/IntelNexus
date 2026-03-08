@@ -10,3 +10,10 @@ backports.tarfile
 langchain-anthropic
 langchain_community
 langchain_google_genai
+arxiv
+semantic-scholar
+newsapi-python
+tweepy
+praw
+fpdf
+python-docx

@@ -1,0 +1,20 @@
+[
+  {
+    "id": "20260307222234271255",
+    "query": "test",
+    "mode": "academic",
+    "results_count": 10,
+    "model": "qwen2.5:7b",
+    "timestamp": "2026-03-07T22:22:34.271255",
+    "status": "completed"
+  },
+  {
+    "id": "20260307222012772711",
+    "query": "test query",
+    "mode": "academic",
+    "results_count": 10,
+    "model": "qwen2.5:7b",
+    "timestamp": "2026-03-07T22:20:12.772711",
+    "status": "completed"
+  }
+]

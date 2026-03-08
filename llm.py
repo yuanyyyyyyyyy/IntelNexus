@@ -39,13 +39,13 @@ def get_llm(model_choice):
 
 def refine_query(llm, user_input):
     system_prompt = """
-    You are a Cybercrime Threat Intelligence Expert. Your task is to refine the provided user query that needs to be sent to darkweb search engines. 
+    You are a Network Intelligence Analyst. Your task is to refine the provided user query for optimal search results across multiple sources including academic papers, news articles, social media, and web content.
     
     Rules:
-    1. Analyze the user query and think about how it can be improved to use as search engine query
-    2. Refine the user query by adding or removing words so that it returns the best result from dark web search engines
+    1. Analyze the user query and improve it for better search results
+    2. Refine by adding or removing words to get the best results
     3. Don't use any logical operators (AND, OR, etc.)
-    4. Output just the user query and nothing else
+    4. Output just the refined query and nothing else
 
     INPUT:
     """
@@ -61,10 +61,10 @@ def filter_results(llm, query, results):
         return []
 
     system_prompt = """
-    You are a Cybercrime Threat Intelligence Expert. You are given a dark web search query and a list of search results in the form of index, link and title. 
-    Your task is select the Top 20 relevant results that best match the search query for user to investigate more.
+    You are a Network Intelligence Analyst. You are given a search query and a list of search results from multiple sources (academic papers, news, social media, web).
+    Your task is to select the Top 20 most relevant results that best match the search query.
     Rule:
-    1. Output ONLY atmost top 20 indices (comma-separated list) no more than that that best match the input query
+    1. Output ONLY at most top 20 indices (comma-separated list) that best match the input query
 
     Search Query: {query}
     Search Results:
@@ -121,60 +121,51 @@ def _generate_final_string(results, truncate=False):
     """
 
     if truncate:
-        # Use only the first 35 characters of the title
         max_title_length = 30
-        # Do not use link at all
         max_link_length = 0
 
     final_str = []
     for i, res in enumerate(results):
-        # Truncate link at .onion for display
-        truncated_link = re.sub(r"(?<=\.onion).*", "", res["link"])
-        title = re.sub(r"[^0-9a-zA-Z\-\.]", " ", res["title"])
-        if truncated_link == "" and title == "":
+        title = res.get("title", "")
+        link = res.get("link", "") or res.get("url", "") or res.get("pdf_url", "")
+        
+        title = re.sub(r"[^0-9a-zA-Z\-\.\s]", " ", str(title))
+        link = re.sub(r"(?<=\.onion).*", "", str(link))
+        
+        if not link and not title:
             continue
 
         if truncate:
-            # Truncate title to max_title_length characters
-            title = (
-                title[:max_title_length] + "..."
-                if len(title) > max_title_length
-                else title
-            )
-            # Truncate link to max_link_length characters
-            truncated_link = (
-                truncated_link[:max_link_length] + "..."
-                if len(truncated_link) > max_link_length
-                else truncated_link
-            )
+            title = title[:max_title_length] + "..." if len(title) > max_title_length else title
+            link = link[:max_link_length] + "..." if len(link) > max_link_length else link
 
-        final_str.append(f"{i+1}. {truncated_link} - {title}")
+        final_str.append(f"{i+1}. {link} - {title}")
 
     return "\n".join(s for s in final_str)
 
 
 def generate_summary(llm, query, content):
     system_prompt = """
-    You are an Cybercrime Threat Intelligence Expert tasked with generating context-based technical investigative insights from dark web osint search engine results.
+    You are a Network Intelligence Analyst tasked with generating comprehensive analysis from multi-source search results.
 
     Rules:
-    1. Analyze the Darkweb OSINT data provided using links and their raw text.
-    2. Output the Source Links referenced for the analysis.
-    3. Provide a detailed, contextual, evidence-based technical analysis of the data.
-    4. Provide intellgience artifacts along with their context visible in the data.
-    5. The artifacts can include indicators like name, email, phone, cryptocurrency addresses, domains, darkweb markets, forum names, threat actor information, malware names, TTPs, etc.
-    6. Generate 3-5 key insights based on the data.
-    7. Each insight should be specific, actionable, context-based, and data-driven.
-    8. Include suggested next steps and queries for investigating more on the topic.
-    9. Be objective and analytical in your assessment.
-    10. Ignore not safe for work texts from the analysis
+    1. Analyze data from academic papers, news articles, social media, and web sources
+    2. Reference all source links used in the analysis
+    3. Provide detailed, evidence-based analysis of the information
+    4. Identify key themes, trends, and patterns across different sources
+    5. When relevant, extract technical artifacts (names, organizations, dates, statistics)
+    6. Generate 3-5 key insights based on the data
+    7. Each insight should be specific, actionable, context-based, and data-driven
+    8. Include suggested next steps for further research
+    9. Be objective and analytical in your assessment
+    10. Organize results by source type (academic, news, social, web) when relevant
 
     Output Format:
     1. Input Query: {query}
-    2. Source Links Referenced for Analysis - this heading will include all source links used for the analysis
-    3. Investigation Artifacts - this heading will include all technical artifacts identified including name, email, phone, cryptocurrency addresses, domains, darkweb markets, forum names, threat actor information, malware names, etc.
-    4. Key Insights
-    5. Next Steps - this includes next investigative steps including search queries to search more on a specific artifacts for example or any other topic.
+    2. Source Links Referenced - all source links used for analysis
+    3. Key Insights (3-5 points)
+    4. Source Analysis - breakdown by source type
+    5. Next Steps - suggested further research directions
 
     Format your response in a structured way with clear section headings.
 
