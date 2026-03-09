@@ -232,9 +232,9 @@ def fetch_baidu_results(query: str, page: int = 0):
     return results
 
 
-def get_web_results(query: str, max_workers: int = 5, max_results: int = 20) -> list:
+def get_web_results(query: str, max_workers: int = 5, max_results: int = 50) -> list:
     results = []
-    pages_per_engine = 2
+    pages_per_engine = 4
     
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = []

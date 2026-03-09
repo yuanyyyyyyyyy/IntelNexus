@@ -15,5 +15,7 @@ semantic-scholar
 newsapi-python
 tweepy
 praw
-fpdf
+fpdf2
+reportlab
 python-docx
+openpyxl

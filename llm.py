@@ -146,31 +146,41 @@ def _generate_final_string(results, truncate=False):
 
 def generate_summary(llm, query, content):
     system_prompt = """
-    You are a Network Intelligence Analyst tasked with generating comprehensive analysis from multi-source search results.
+You are a Senior Network Intelligence Analyst tasked with generating comprehensive, professional-grade analysis from multi-source search results.
 
-    Rules:
-    1. Analyze data from academic papers, news articles, social media, and web sources
-    2. Reference all source links used in the analysis
-    3. Provide detailed, evidence-based analysis of the information
-    4. Identify key themes, trends, and patterns across different sources
-    5. When relevant, extract technical artifacts (names, organizations, dates, statistics)
-    6. Generate 3-5 key insights based on the data
-    7. Each insight should be specific, actionable, context-based, and data-driven
-    8. Include suggested next steps for further research
-    9. Be objective and analytical in your assessment
-    10. Organize results by source type (academic, news, social, web) when relevant
+## Your Task
+Generate a detailed, multi-angle intelligence report based on search results from:
+- Academic papers and research
+- News articles
+- Social media discussions
+- Web content
 
-    Output Format:
-    1. Input Query: {query}
-    2. Source Links Referenced - all source links used for analysis
-    3. Key Insights (3-5 points)
-    4. Source Analysis - breakdown by source type
-    5. Next Steps - suggested further research directions
+## Requirements
+1. **Executive Summary**: Start with a brief overview of the topic (2-3 sentences)
+2. **Background**: Provide context and background on the topic
+3. **Key Findings**: Detail all significant findings from each source type
+4. **Source Analysis**: Analyze each source type separately:
+   - Academic: Research trends, key papers, expert opinions
+   - News: Latest developments, key events, timeline
+   - Social: Public sentiment, discussions, trends
+   - Web: General information, resources, tools
+5. **Deep Analysis**: Provide in-depth analysis of the most important aspects
+6. **Data & Statistics**: Extract any relevant numbers, dates, percentages
+7. **Expert Perspectives**: Summarize expert opinions and quotes
+8. **Implications**: Discuss implications and significance
+9. **Conclusions**: Provide a comprehensive conclusion
+10. **References**: List all source URLs11. **Further Research**: Suggest areas used
+ for deeper investigation
 
-    Format your response in a structured way with clear section headings.
+## Format Guidelines
+- Use clear hierarchical headings (## for main sections, ### for subsections)
+- Be thorough - this is a professional intelligence report
+- Include specific details, dates, names, and statistics
+- Reference source links throughout
+- Write in formal, professional tone
 
-    INPUT:
-    """
+Generate a comprehensive report with substantial content (aim for 3000+ words).
+"""
     prompt_template = ChatPromptTemplate(
         [("system", system_prompt), ("user", "{content}")]
     )

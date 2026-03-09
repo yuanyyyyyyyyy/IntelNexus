@@ -9,17 +9,18 @@ import base64
 import streamlit as st
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
-
+from scrape import scrape_multiple
 
 from report_export import export_report, get_export_formats
 from web_search import get_web_results
-from academic_search import get_academic_results
 from news_search import get_news_results
 from social_search import get_social_results
+from academic_search import get_academic_results
 from darkweb_search import get_darkweb_results, is_available as darkweb_available
 
 from llm_utils import BufferedStreamingHandler, get_model_choices
 from llm import get_llm, refine_query, filter_results, generate_summary
+from custom_models import add_custom_model, get_custom_model_names, remove_custom_model
 
 
 LANG = {
@@ -47,16 +48,37 @@ LANG = {
         "download": "下载报告",
         "download_format": "下载格式",
         "complete": "完成",
-        "darkweb_warning": "暗网模式已禁用，可在.env中启用",
+        "darkweb_warning": "暗网搜索已启用",
         "mode_all": "全部来源",
         "mode_web": "网页搜索",
-        "mode_academic": "学术论文",
         "mode_news": "新闻资讯",
         "mode_social": "社交媒体",
+        "mode_academic": "学术论文",
         "mode_darkweb": "暗网搜索",
         "results_count": "条结果",
         "zh": "中文",
         "en": "English",
+        "add_custom_model": "添加自定义模型",
+        "model_name": "模型名称",
+        "model_type": "模型类型",
+        "base_url": "Base URL (可选)",
+        "api_key": "API密钥",
+        "model_id": "模型ID",
+        "add_model": "添加模型",
+        "model_exists": "模型名称已存在或添加失败",
+        "fill_fields": "请填写所有必填字段",
+        "ok": "确定",
+        "deleted": "已删除",
+        "custom_models_list": "已添加的模型",
+        "model_add_success": "模型已添加",
+        "error": "错误",
+        "download_ready": "准备下载",
+        "download_failed": "下载失败",
+        "pdf_ready": "PDF已准备",
+        "word_ready": "Word已准备",
+        "md_ready": "Markdown已准备",
+        "ollama_base_url": "Ollama Base URL",
+        "delete": "删除",
     },
     "en": {
         "title": "IntelNexus",
@@ -82,26 +104,47 @@ LANG = {
         "download": "Download",
         "download_format": "Format",
         "complete": "Complete",
-        "darkweb_warning": "Dark web mode disabled. Enable in .env",
+        "darkweb_warning": "Dark web mode enabled",
         "mode_all": "All Sources",
         "mode_web": "Web Search",
-        "mode_academic": "Academic Papers",
         "mode_news": "News",
         "mode_social": "Social Media",
+        "mode_academic": "Academic Papers",
         "mode_darkweb": "Dark Web",
         "results_count": "results",
-        "zh": "中文",
+        "zh": "Chinese",
         "en": "English",
+        "add_custom_model": "Add Custom Model",
+        "model_name": "Model Name",
+        "model_type": "Model Type",
+        "base_url": "Base URL (optional)",
+        "api_key": "API Key",
+        "model_id": "Model ID",
+        "add_model": "Add Model",
+        "model_exists": "Model name already exists or failed to add",
+        "fill_fields": "Please fill all required fields",
+        "ok": "OK",
+        "deleted": "Deleted",
+        "custom_models_list": "Custom Models",
+        "model_add_success": "Model added",
+        "error": "Error",
+        "download_ready": "Ready to download",
+        "download_failed": "Download failed",
+        "pdf_ready": "PDF Ready",
+        "word_ready": "Word Ready",
+        "md_ready": "Markdown Ready",
+        "ollama_base_url": "Ollama Base URL",
+        "delete": "Delete",
     }
 }
 
 SEARCH_MODES = {
-    "all": ["mode_all", "All Sources"],
-    "web": ["mode_web", "Web Search"],
-    "academic": ["mode_academic", "Academic Papers"],
-    "news": ["mode_news", "News"],
-    "social": ["mode_social", "Social Media"],
-    "darkweb": ["mode_darkweb", "Dark Web"],
+    "all": ["mode_all", "全部来源"],
+    "web": ["mode_web", "网页搜索"],
+    "news": ["mode_news", "新闻资讯"],
+    "social": ["mode_social", "社交媒体"],
+    "academic": ["mode_academic", "学术论文"],
+    "darkweb": ["mode_darkweb", "暗网搜索"],
 }
 
 
@@ -118,16 +161,16 @@ def cached_search(mode, refined_query, threads):
         futures = []
         
         if mode in ["web", "all"]:
-            futures.append(executor.submit(get_web_results, refined_query, threads, 20))
-        
-        if mode in ["academic", "all"]:
-            futures.append(executor.submit(get_academic_results, refined_query, 15))
+            futures.append(executor.submit(get_web_results, refined_query, threads, 40))
         
         if mode in ["news", "all"]:
-            futures.append(executor.submit(get_news_results, refined_query, 15))
+            futures.append(executor.submit(get_news_results, refined_query, 30))
         
         if mode in ["social", "all"]:
-            futures.append(executor.submit(get_social_results, refined_query, 15))
+            futures.append(executor.submit(get_social_results, refined_query, 30))
+        
+        if mode in ["academic", "all"]:
+            futures.append(executor.submit(get_academic_results, refined_query, 20))
         
         if mode in ["darkweb", "all"] and darkweb_available():
             futures.append(executor.submit(get_darkweb_results, refined_query, threads))
@@ -152,8 +195,39 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# Force Light theme
+st.markdown("""
+<style>
+    /* Force Light Theme */
+    .stApp {
+        background-color: #FFFFFF !important;
+        color: #1E1E1E !important;
+    }
+    [data-testid="stSidebar"] {
+        background-color: #F5F5F5 !important;
+    }
+    div[data-testid="stMarkdownContainer"] {
+        color: #1E1E1E !important;
+    }
+    .stTextInput > div > div > input {
+        background-color: #FFFFFF !important;
+        color: #1E1E1E !important;
+    }
+    /* Remove dark theme gradient background */
+    header[data-testid="stHeader"] {
+        background-color: transparent !important;
+    }
+    .stDeployButton {
+        display: none !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 if "lang" not in st.session_state:
     st.session_state.lang = "zh"
+
+if "query_cache" not in st.session_state:
+    st.session_state.query_cache = ""
 
 st.markdown("""
 <style>
@@ -171,6 +245,10 @@ st.markdown("""
         --morandi-text-light: #8A8A8A;
         --morandi-border: #C9C5C0;
         --morandi-accent: #9CB5B0;
+    }
+    
+    #stDecoration {
+        display: none !important;
     }
     
     * {
@@ -260,20 +338,31 @@ st.markdown("""
     div[data-testid="stRadio"] label {
         border-radius: 12px !important;
         padding: 12px 16px !important;
-        background: var(--morandi-card) !important;
+        background: var(--morandi-sidebar) !important;
         border: 1px solid transparent !important;
         transition: all 0.2s ease !important;
         color: var(--morandi-text) !important;
     }
     
     div[data-testid="stRadio"] label:hover {
-        background: #EAE7E2 !important;
+        background: var(--morandi-sidebar) !important;
     }
     
     div[data-testid="stRadio"] input:checked + div {
-        background: var(--morandi-blue) !important;
-        border-color: var(--morandi-blue) !important;
-        color: #FFFFFF !important;
+        background: var(--morandi-sidebar) !important;
+        border-color: transparent !important;
+        color: var(--morandi-text) !important;
+    }
+    
+    div[data-testid="stSelectbox"] > div {
+        background: var(--morandi-sidebar) !important;
+        border: 1px solid var(--morandi-border) !important;
+        border-radius: 12px !important;
+    }
+    
+    div[data-testid="stSelectbox"] > div:focus-within {
+        border-color: var(--morandi-border) !important;
+        box-shadow: none !important;
     }
     
     .lang-switch {
@@ -415,6 +504,18 @@ st.markdown("""
     .stTextInput > div > div > input {
         border-radius: 14px !important;
     }
+    
+    header {
+        background: none !important;
+    }
+    
+    [data-testid="stHeaderContainer"] {
+        background: var(--morandi-bg) !important;
+    }
+    
+    div[data-testid="stHeaderContainer"]::before {
+        display: none !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -450,17 +551,128 @@ with st.sidebar:
     
     # 语言切换 - 在设置中
     lang_options = {get_text("zh"): "zh", get_text("en"): "en"}
-    current_lang_display = "中文" if st.session_state.lang == "zh" else "English"
+    current_lang_display = get_text("zh") if st.session_state.lang == "zh" else get_text("en")
     selected_lang = st.selectbox(get_text("language"), list(lang_options.keys()), 
                                   index=0 if st.session_state.lang == "zh" else 1, 
                                   key="lang_selector")
     if lang_options.get(selected_lang) != st.session_state.lang:
         st.session_state.lang = lang_options[selected_lang]
         st.rerun()
+    
+    # 自定义模型管理
+    st.markdown("---")
+    with st.expander(get_text("add_custom_model")):
+        col_name, col_type = st.columns(2)
+        with col_name:
+            custom_model_name = st.text_input(
+                get_text("model_name"),
+                key="custom_model_name"
+            )
+        with col_type:
+            model_type = st.selectbox(
+                get_text("model_type"),
+                [
+                    "OpenAI", "Azure OpenAI", "Anthropic", "Google", "Cohere", 
+                    "Mistral", "DeepSeek", "Ollama", "通义千问", "智谱AI", 
+                    "百度文心一言", "讯飞星火", "Moonshot", "01.AI"
+                ],
+                key="model_type_selector"
+            )
+        
+        if model_type == "OpenAI":
+            base_url = st.text_input(get_text("base_url"))
+            api_key = st.text_input(get_text("api_key"), type="password", key="openai_api_key")
+            model_id = st.text_input(get_text("model_id"))
+        elif model_type == "Anthropic":
+            api_key = st.text_input(get_text("api_key"), type="password", key="anthropic_api_key")
+            model_id = st.text_input(get_text("model_id"))
+        elif model_type in ["Google", "Cohere", "Mistral", "DeepSeek", "通义千问", "智谱AI", "百度文心一言", "讯飞星火", "Moonshot", "01.AI"]:
+            api_key = st.text_input(get_text("api_key"), type="password", key=f"{model_type.lower()}_api_key")
+            base_url = st.text_input(get_text("base_url"), key=f"{model_type.lower()}_base_url")
+            model_id = st.text_input(get_text("model_id"))
+        else:  # Ollama
+            base_url = st.text_input(get_text("ollama_base_url"), value="http://127.0.0.1:11434", key="ollama_base_url")
+            api_key = None
+            model_id = st.text_input(get_text("model_name"))
+        
+        if st.button(get_text("add_model")):
+            if custom_model_name and model_id:
+                config = {"model_name": model_id}
+                if model_type in ["OpenAI", "Azure OpenAI"]:
+                    if base_url:
+                        config["base_url"] = base_url
+                    if api_key:
+                        config["api_key"] = api_key
+                elif model_type == "Anthropic":
+                    if api_key:
+                        config["api_key"] = api_key
+                elif model_type in ["Google", "Cohere", "Mistral", "DeepSeek", "通义千问", "智谱AI", "百度文心一言", "讯飞星火", "Moonshot", "01.AI"]:
+                    if api_key:
+                        config["api_key"] = api_key
+                    if base_url:
+                        config["base_url"] = base_url
+                else:  # Ollama
+                    config["base_url"] = base_url
+                
+                if add_custom_model(custom_model_name, model_type.lower(), config):
+                    st.success(get_text("model_add_success"))
+                    st.rerun()
+                else:
+                    st.error(get_text("model_exists"))
+            else:
+                st.error(get_text("fill_fields"))
+    
+    # 显示已添加的自定义模型
+    custom_models = get_custom_model_names()
+    if custom_models:
+        with st.expander(get_text("custom_models_list")):
+            for custom_model in custom_models:
+                col_model, col_delete = st.columns([3, 1])
+                with col_model:
+                    st.write(custom_model)
+                with col_delete:
+                    if st.button(get_text("delete"), key=f"delete_{custom_model}"):
+                        if remove_custom_model(custom_model):
+                            st.success(get_text("deleted"))
+                            st.rerun()
 
     st.markdown("---")
+    st.markdown(f'<div class="section-header">{get_text("download_format")}</div>', unsafe_allow_html=True)
+    
+    # 初始化下载格式
+    if "sidebar_download_format" not in st.session_state:
+        st.session_state.sidebar_download_format = "md"
+    
+    # 初始化下载状态（用于解决页面消失问题）
+    if "download_ready" not in st.session_state:
+        st.session_state.download_ready = False
+    if "download_data" not in st.session_state:
+        st.session_state.download_data = None
+    if "download_filename" not in st.session_state:
+        st.session_state.download_filename = None
+    if "download_mime" not in st.session_state:
+        st.session_state.download_mime = None
+    
+    format_options = ["md", "pdf", "docx", "xlsx"]
+    format_labels = {
+        "md": "Markdown",
+        "pdf": "PDF",
+        "docx": "Word",
+        "xlsx": "Excel"
+    }
+    
+    sidebar_format = st.selectbox(
+        "选择下载格式",
+        format_options,
+        format_func=lambda x: format_labels[x],
+        label_visibility="collapsed",
+        key="sidebar_format_select"
+    )
+    st.session_state.sidebar_download_format = sidebar_format
+    
+    st.markdown("---")
     st.markdown(f'<div class="section-header">{get_text("sources")}</div>', unsafe_allow_html=True)
-    st.caption("ArXiv, Semantic Scholar, RSS, Reddit, Bing")
+    st.caption("Semantic Scholar, RSS, Reddit, Bing")
 
 
 col1, col2 = st.columns([8, 2])
@@ -468,7 +680,7 @@ with col1:
     st.markdown(f'<div class="main-title">{get_text("title")}</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="main-subtitle">{get_text("subtitle")}</div>', unsafe_allow_html=True)
 
-with st.form("search_form", clear_on_submit=True):
+with st.form("search_form", clear_on_submit=False):
     col_input, col_button = st.columns([10, 1])
     with col_input:
         query = st.text_input(
@@ -480,10 +692,17 @@ with st.form("search_form", clear_on_submit=True):
     with col_button:
         run_button = st.form_submit_button(get_text("search_button"))
 
-
 status_slot = st.empty()
 
+# 搜索逻辑
 if run_button and query:
+    # 保存搜索词到session_state
+    st.session_state.query_cache = query
+    st.session_state.search_mode_cache = search_mode
+    st.session_state.threads_cache = threads
+    st.session_state.model_cache = model
+    
+    # 清空之前的搜索结果
     for k in ["refined", "results", "filtered", "scraped", "streamed_summary"]:
         st.session_state.pop(k, None)
     
@@ -552,66 +771,116 @@ if run_button and query:
             _ = generate_summary(llm, query, st.session_state.scraped)
     
     now = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    st.session_state.report_timestamp = now
     
-    # 创建两列：格式选择和下载按钮
-    col_format, col_download = st.columns([2, 3])
+    # 标记搜索已完成
+    st.session_state.search_completed = True
+    st.session_state.status_slot = "complete"
+    st.session_state.export_format_choice = "md"
     
-    with col_format:
-        available_formats = get_export_formats()
-        download_format = st.selectbox(
-            get_text("download_format"), 
-            available_formats,
-            index=0,
-            key="export_format"
-        )
-    
-    with col_download:
-        if st.button("📥 " + get_text("download"), use_container_width=True, key="download_btn"):
-            # 生成文件内容
-            import io
-            from pathlib import Path
-            
-            try:
-                filename = f"report_{now}"
-                if download_format == 'pdf':
-                    from report_export import export_pdf
-                    buffer = io.BytesIO()
-                    pdf_path = export_pdf(st.session_state.streamed_summary, st.session_state.refined, filename)
-                    with open(pdf_path, 'rb') as f:
-                        buffer = io.BytesIO(f.read())
-                    st.download_button(
-                        label="✓ PDF已准备",
-                        data=buffer,
-                        file_name=f"{filename}.pdf",
-                        mime="application/pdf",
-                        disabled=True
-                    )
-                    Path(pdf_path).unlink()  # 删除临时文件
-                    st.success("PDF已下载！")
-                    
-                elif download_format == 'docx':
-                    from report_export import export_word
-                    buffer = io.BytesIO()
-                    docx_path = export_word(st.session_state.streamed_summary, st.session_state.refined, filename)
-                    with open(docx_path, 'rb') as f:
-                        buffer = io.BytesIO(f.read())
-                    st.download_button(
-                        label="✓ Word已准备",
-                        data=buffer,
-                        file_name=f"{filename}.docx",
-                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        disabled=True
-                    )
-                    Path(docx_path).unlink()  # 删除临时文件
-                    st.success("Word已下载！")
-                    
-                else:  # markdown
-                    b64 = base64.b64encode(st.session_state.streamed_summary.encode()).decode()
-                    href = f'<a href="data:file/markdown;base64,{b64}" download="{filename}.md">✓ Markdown已准备</a>'
-                    st.markdown(href, unsafe_allow_html=True)
-                    st.success("Markdown已下载！")
-            except Exception as e:
-                st.error(f"下载失败: {str(e)}")
-    
-    st.markdown("<br>", unsafe_allow_html=True)
     status_slot.success(get_text("complete"))
+
+
+# 显示搜索结果和下载区域（独立于run_button）
+if st.session_state.get("search_completed", False) and st.session_state.get("streamed_summary"):
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # 获取sidebar中选择的下载格式
+    download_format = st.session_state.get('sidebar_download_format', 'md')
+    format_labels_display = {"md": "Markdown", "pdf": "PDF", "docx": "Word", "xlsx": "Excel"}
+    
+    st.info(f"下载格式: **{format_labels_display.get(download_format)}**")
+    
+    # 直接生成并下载，不使用rerun
+    if st.button(get_text("download"), use_container_width=True, key="download_btn"):
+        from pathlib import Path
+        
+        try:
+            filename = f"report_{st.session_state.report_timestamp}"
+            if download_format == 'pdf':
+                from report_export import export_pdf
+                pdf_path = export_pdf(st.session_state.streamed_summary, st.session_state.refined, filename)
+                with open(pdf_path, 'rb') as f:
+                    pdf_data = f.read()
+                st.download_button(
+                    label=get_text("pdf_ready"),
+                    data=pdf_data,
+                    file_name=f"{filename}.pdf",
+                    mime="application/pdf",
+                    key="pdf_download_now"
+                )
+                try:
+                    Path(pdf_path).unlink()
+                except:
+                    pass
+                
+            elif download_format == 'docx':
+                from report_export import export_word
+                docx_path = export_word(st.session_state.streamed_summary, st.session_state.refined, filename)
+                with open(docx_path, 'rb') as f:
+                    docx_data = f.read()
+                st.download_button(
+                    label=get_text("word_ready"),
+                    data=docx_data,
+                    file_name=f"{filename}.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    key="docx_download_now"
+                )
+                try:
+                    Path(docx_path).unlink()
+                except:
+                    pass
+                
+            elif download_format == 'xlsx':
+                from report_export import export_excel
+                xlsx_path = export_excel(st.session_state.streamed_summary, st.session_state.refined, filename)
+                with open(xlsx_path, 'rb') as f:
+                    xlsx_data = f.read()
+                st.download_button(
+                    label="Excel已准备",
+                    data=xlsx_data,
+                    file_name=f"{filename}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="xlsx_download_now"
+                )
+                try:
+                    Path(xlsx_path).unlink()
+                except:
+                    pass
+                
+            else:  # markdown
+                st.download_button(
+                    label=get_text("md_ready"),
+                    data=st.session_state.streamed_summary,
+                    file_name=f"{filename}.md",
+                    mime="text/markdown",
+                    key="md_download_now"
+                )
+        except Exception as e:
+            st.error(f"{get_text('error')}: {str(e)}")
+    
+    # 显示搜索结果实际内容
+    if st.session_state.get("filtered") and len(st.session_state.get("filtered", [])) > 0:
+        st.markdown("---")
+        st.markdown(f'<div class="report-title">📋 搜索结果详情 ({len(st.session_state.filtered)}条)</div>', unsafe_allow_html=True)
+        
+        # 按来源分组显示
+        source_groups = {}
+        for item in st.session_state.filtered:
+            source = item.get("source", "Unknown")
+            if source not in source_groups:
+                source_groups[source] = []
+            source_groups[source].append(item)
+        
+        for source, items in source_groups.items():
+            with st.expander(f"📌 {source} ({len(items)}条)", expanded=False):
+                for i, item in enumerate(items):
+                    st.markdown(f"**{i+1}. {item.get('title', '无标题')[:100]}**")
+                    if item.get('description'):
+                        st.markdown(f"📝 {item.get('description', '')[:300]}...")
+                    elif item.get('summary'):
+                        st.markdown(f"📝 {item.get('summary', '')[:300]}...")
+                    if item.get('link') or item.get('url'):
+                        link = item.get('link') or item.get('url')
+                        st.markdown(f"🔗 [查看原文]({link})")
+                    st.markdown("---")

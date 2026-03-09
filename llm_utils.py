@@ -177,40 +177,124 @@ def fetch_ollama_models() -> List[str]:
 
 def get_model_choices() -> List[str]:
     """
-    Combine the statically configured cloud models with the locally available Ollama models.
+    Combine the statically configured cloud models with the locally available Ollama models and custom models.
     """
     base_models = list(_llm_config_map.keys())
     dynamic_models = fetch_ollama_models()
+    
+    # Import custom models
+    try:
+        from custom_models import get_custom_model_names
+        custom_models = get_custom_model_names()
+    except ImportError:
+        custom_models = []
 
     normalized = {_normalize_model_name(m): m for m in base_models}
+    
+    # Add Ollama models
     for dm in dynamic_models:
         key = _normalize_model_name(dm)
         if key not in normalized:
             normalized[key] = dm
+    
+    # Add custom models
+    for cm in custom_models:
+        key = _normalize_model_name(cm)
+        if key not in normalized:
+            normalized[key] = cm
 
-    # Preserve the order: original base models first, then the dynamic ones in alphabetical order
+    # Preserve the order: original base models first, then custom models, then dynamic ones in alphabetical order
     ordered_dynamic = sorted(
-        [name for key, name in normalized.items() if name not in base_models],
+        [name for key, name in normalized.items() if name not in base_models and name not in custom_models],
         key=_normalize_model_name,
     )
-    return base_models + ordered_dynamic
+    return base_models + custom_models + ordered_dynamic
 
 
 def resolve_model_config(model_choice: str):
     """
     Resolve a model choice (case-insensitive) to the corresponding configuration.
-    Supports both the predefined remote models and any locally installed Ollama models.
+    Supports predefined remote models, locally installed Ollama models, and custom models.
     """
     model_choice_lower = _normalize_model_name(model_choice)
+    
+    # Check predefined models first
     config = _llm_config_map.get(model_choice_lower)
     if config:
         return config
 
+    # Check Ollama models
     for ollama_model in fetch_ollama_models():
         if _normalize_model_name(ollama_model) == model_choice_lower:
             return {
                 "class": ChatOllama,
                 "constructor_params": {"model": ollama_model, "base_url": OLLAMA_BASE_URL},
             }
+    
+    # Check custom models
+    try:
+        from custom_models import get_model_config, get_custom_model_names
+        for custom_model_name in get_custom_model_names():
+            if _normalize_model_name(custom_model_name) == model_choice_lower:
+                model_config = get_model_config(custom_model_name)
+                if model_config:
+                    model_type = model_config.get("type", "").lower()
+                    config_params = model_config.get("config", {})
+                    
+                    # Handle different custom model types
+                    if model_type == "openai":
+                        return {
+                            "class": ChatOpenAI,
+                            "constructor_params": {
+                                "model_name": config_params.get("model_name", custom_model_name),
+                                "base_url": config_params.get("base_url"),
+                                "api_key": config_params.get("api_key"),
+                            }
+                        }
+                    elif model_type == "azure openai":
+                        return {
+                            "class": ChatOpenAI,
+                            "constructor_params": {
+                                "model_name": config_params.get("model_name", custom_model_name),
+                                "azure_endpoint": config_params.get("base_url"),
+                                "api_key": config_params.get("api_key"),
+                                "api_version": "2024-02-01",
+                            }
+                        }
+                    elif model_type == "ollama":
+                        return {
+                            "class": ChatOllama,
+                            "constructor_params": {
+                                "model": config_params.get("model_name", custom_model_name),
+                                "base_url": config_params.get("base_url", OLLAMA_BASE_URL),
+                            }
+                        }
+                    elif model_type == "anthropic":
+                        return {
+                            "class": ChatAnthropic,
+                            "constructor_params": {
+                                "model": config_params.get("model_name", custom_model_name),
+                                "api_key": config_params.get("api_key"),
+                            }
+                        }
+                    elif model_type == "google":
+                        return {
+                            "class": ChatGoogleGenerativeAI,
+                            "constructor_params": {
+                                "model": config_params.get("model_name", custom_model_name),
+                                "google_api_key": config_params.get("api_key"),
+                            }
+                        }
+                    elif model_type in ["cohere", "mistral", "deepseek", "通义千问", "智谱ai", "百度文心一言", "讯飞星火", "moonshot", "01.ai"]:
+                        return {
+                            "class": ChatOpenAI,
+                            "constructor_params": {
+                                "model_name": config_params.get("model_name", custom_model_name),
+                                "base_url": config_params.get("base_url"),
+                                "api_key": config_params.get("api_key"),
+                            }
+                        }
+    except ImportError:
+        pass
 
     return None

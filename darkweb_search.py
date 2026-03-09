@@ -19,7 +19,7 @@ from urllib3.util.retry import Retry
 import warnings
 warnings.filterwarnings("ignore")
 
-ENABLE_DARKWEB = os.getenv("ENABLE_DARKWEB", "false").lower() == "true"
+ENABLE_DARKWEB = os.getenv("ENABLE_DARKWEB", "true").lower() == "true"
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
@@ -29,6 +29,7 @@ USER_AGENTS = [
 ]
 
 DARKWEB_SEARCH_ENGINES = [
+    "https://breachedmw4otc2lhx7nqe4wyxfhpvy32ooz26opvqkmmrgbg73c7ooad.onion/Thread-SELLING-China-Shopping-Order-Delivery-Address-Leak-Name-phone-Address-14-2M-rows",
     "http://juhanurmihxlp77nkq76byazcldy2hlmovfu2epvl5ankdibsot4csyd.onion/search/?q={query}",
     "http://3bbad7fauom4d6sgppalyqddsqbf5u5p56b5k5uk2zxsy3d6ey2jobad.onion/search?q={query}",
     "http://darkhuntyla64h75a3re5e2l3367lqn7ltmdzpgmr6b4nbz3q2iaxrid.onion/search?q={query}",
