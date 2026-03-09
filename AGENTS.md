@@ -133,17 +133,15 @@ IntelNexus/
 ├── config.py            # 配置管理
 ├── llm.py               # LLM集成
 ├── llm_utils.py         # LLM工具
+├── custom_models.py     # 自定义模型管理
 ├── web_search.py        # 网页搜索模块
 ├── academic_search.py   # 学术论文搜索
 ├── news_search.py       # 新闻搜索模块
 ├── social_search.py     # 社交媒体搜索
-├── darkweb_search.py    # 暗网搜索(可选)
+├── darkweb_search.py   # 暗网搜索(可选)
 ├── scrape.py            # 内容抓取
-├── report_export.py     # 报告导出(PDF/Word)
-├── search_history.py    # 搜索历史管理
-├── trend_analysis.py    # 趋势分析
-├── keyword_extraction.py # 关键词提取
-├── multilang.py         # 多语言支持
+├── report_export.py    # 报告导出(PDF/Word/Excel/Markdown)
+├── search_history.py   # 搜索历史管理
 └── requirements.txt    # 依赖
 ```
 
