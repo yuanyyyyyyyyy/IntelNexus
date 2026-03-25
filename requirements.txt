@@ -2,7 +2,7 @@ bs4
 yaspin
 pysocks
 requests
-streamlit
+customtkinter
 python-dotenv
 langchain-openai
 langchain-ollama
