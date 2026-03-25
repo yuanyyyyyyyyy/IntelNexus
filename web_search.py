@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -63,7 +63,8 @@ def get_session():
 def fetch_bing_results(query: str, page: int = 0):
     results = []
     try:
-        url = f"https://www.bing.com/search?q={quote(query)}&first={page * 10 + 1}"
+        encoded_query = quote(query, safe='')
+        url = f"https://www.bing.com/search?q={encoded_query}&first={page * 10 + 1}"
         headers = {"User-Agent": random.choice(USER_AGENTS)}
         session = get_session()
         response = session.get(url, headers=headers, timeout=20)
@@ -73,7 +74,10 @@ def fetch_bing_results(query: str, page: int = 0):
             
             for item in soup.select('li.b_algo'):
                 try:
-                    a_tag = item.find('a')
+                    # 修复：使用h2 a获取正确标题，而不是第一个链接
+                    a_tag = item.select_one('h2 a')
+                    if not a_tag:
+                        a_tag = item.select_one('a[href]:not(.tilk)')
                     if a_tag:
                         title = a_tag.get_text(strip=True)
                         href = a_tag.get('href', '')
@@ -98,7 +102,8 @@ def fetch_bing_results(query: str, page: int = 0):
 def fetch_ddg_results(query: str, page: int = 0):
     results = []
     try:
-        url = f"https://html.duckduckgo.com/html/?q={quote(query)}&b={page * 11}"
+        encoded_query = quote(query, safe='')
+        url = f"https://html.duckduckgo.com/html/?q={encoded_query}&b={page * 11}"
         headers = {"User-Agent": random.choice(USER_AGENTS)}
         session = get_session()
         response = session.get(url, headers=headers, timeout=20)
@@ -133,7 +138,8 @@ def fetch_ddg_results(query: str, page: int = 0):
 def fetch_yahoo_results(query: str, page: int = 0):
     results = []
     try:
-        url = f"https://search.yahoo.com/search?p={quote(query)}&b={page * 10 + 1}"
+        encoded_query = quote(query, safe='')
+        url = f"https://search.yahoo.com/search?p={encoded_query}&b={page * 10 + 1}"
         headers = {"User-Agent": random.choice(USER_AGENTS)}
         session = get_session()
         response = session.get(url, headers=headers, timeout=20)
@@ -168,7 +174,8 @@ def fetch_yahoo_results(query: str, page: int = 0):
 def fetch_yandex_results(query: str, page: int = 0):
     results = []
     try:
-        url = f"https://yandex.com/search/?text={quote(query)}&page={page + 1}"
+        encoded_query = quote(query, safe='')
+        url = f"https://yandex.com/search/?text={encoded_query}&page={page + 1}"
         headers = {"User-Agent": random.choice(USER_AGENTS)}
         session = get_session()
         response = session.get(url, headers=headers, timeout=20)
@@ -203,7 +210,8 @@ def fetch_yandex_results(query: str, page: int = 0):
 def fetch_baidu_results(query: str, page: int = 0):
     results = []
     try:
-        url = f"https://www.baidu.com/s?wd={quote(query)}&pn={page * 10}"
+        encoded_query = quote(query, safe='')
+        url = f"https://www.baidu.com/s?wd={encoded_query}&pn={page * 10}"
         headers = {"User-Agent": random.choice(USER_AGENTS)}
         session = get_session()
         response = session.get(url, headers=headers, timeout=20)
@@ -232,19 +240,29 @@ def fetch_baidu_results(query: str, page: int = 0):
     return results
 
 
-def get_web_results(query: str, max_workers: int = 5, max_results: int = 50) -> list:
+def get_web_results(query, max_workers: int = 5, max_results: int = 50) -> list:
     results = []
-    pages_per_engine = 4
+    pages_per_engine = 2  # 减少翻页数以提升速度
+    
+    # 支持多查询（列表或用|分隔的字符串）
+    if isinstance(query, list):
+        queries = query
+    elif '|' in query:
+        queries = [q.strip() for q in query.split('|')]
+    else:
+        queries = [query]
     
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = []
         
-        for page in range(pages_per_engine):
-            futures.append(executor.submit(fetch_bing_results, query, page))
-            futures.append(executor.submit(fetch_ddg_results, query, page))
-            futures.append(executor.submit(fetch_yahoo_results, query, page))
-            futures.append(executor.submit(fetch_yandex_results, query, page))
-            futures.append(executor.submit(fetch_baidu_results, query, page))
+        # 对每个查询进行搜索
+        for q in queries:
+            for page in range(pages_per_engine):
+                futures.append(executor.submit(fetch_bing_results, q, page))
+                futures.append(executor.submit(fetch_ddg_results, q, page))
+                futures.append(executor.submit(fetch_yahoo_results, q, page))
+                futures.append(executor.submit(fetch_yandex_results, q, page))
+                futures.append(executor.submit(fetch_baidu_results, q, page))
         
         for future in as_completed(futures):
             try:

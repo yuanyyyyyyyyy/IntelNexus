@@ -87,14 +87,17 @@ def _format_content_for_pdf(content: str) -> str:
 
 def export_markdown(content: str, query: str, output_path: str) -> str:
     """Export to Markdown format with enhanced structure."""
+    # 清理内容，移除所有特殊字符
+    content = _clean_content(content)
+    
     with open(output_path, 'w', encoding='utf-8') as f:
-        f.write("# 📊 IntelNexus 智能情报报告\n\n")
+        f.write("# IntelNexus 智能情报报告\n\n")
         f.write(f"## 报告信息\n\n")
         f.write(f"- **查询内容**: {query}\n")
         f.write(f"- **生成时间**: {datetime.now().strftime('%Y年%m月%d日 %H:%M:%S')}\n")
         f.write(f"- **报告类型**: 多源网络情报分析\n\n")
         f.write("---\n\n")
-        f.write("## 📝 分析结果\n\n")
+        f.write("## 分析结果\n\n")
         f.write(content)
         f.write("\n\n---\n\n")
         f.write(f"*报告生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n")
@@ -117,9 +120,37 @@ def _clean_markdown_for_word(text: str) -> str:
     text = re.sub(r'```[\s\S]*?```', '', text)
     # 处理链接
     text = re.sub(r'\[([^\]]+)\]\(([^\)]+)\)', r'\1 (\2)', text)
-    # 移除可能产生问题的特殊Unicode字符（黑色方块等）
-    text = re.sub(r'[■▸◆★☆☑✓✗→←↑↓©]', '', text)
     return text
+
+
+def _clean_content(content: str) -> str:
+    """清理内容特殊字符，用于所有导出格式。"""
+    if not content:
+        return content
+    
+    # 逐个替换特殊字符
+    chars_to_remove = [
+        '■', '□', '▢', '▣', '▤', '▥', '▦', '▧', '▨', '▩', '▪', '▫', '▬', '▭', '▮', '▯',
+        '▰', '▱', '△', '▽', '▷', '◁', '◆', '◇', '○', '●', '◐', '◑', '◒', '◓', '◔', '◕',
+        '◖', '◗', '★', '☆', '☉', '♠', '♣', '♥', '♦', '♩', '♪', '♫', '⚐', '⚑', '⚡',
+        '⚪', '⚫', '⚬', '✓', '✗', '✘', '✔', '✖', '✚', '✽', '✿', '❀', '❖', '❤',
+    ]
+    for char in chars_to_remove:
+        content = content.replace(char, '')
+    
+    # 移除emoji范围
+    try:
+        emoji_pattern = re.compile("["
+            u"\U0001F600-\U0001F64F"
+            u"\U0001F300-\U0001F5FF"
+            u"\U0001F680-\U0001F6FF"
+            u"\U0001F1E0-\U0001F1FF"
+            "]+", flags=re.UNICODE)
+        content = emoji_pattern.sub('', content)
+    except:
+        pass
+    
+    return content
 
 
 def export_pdf(content: str, query: str, output_path: str) -> str:
@@ -203,12 +234,16 @@ def export_pdf(content: str, query: str, output_path: str) -> str:
     # Analysis Results
     story.append(Paragraph("Analysis Results", heading_style))
     
-    # Process content
+    # Process content - clean ALL content including special characters
     max_length = 15000
     if len(content) > max_length:
         display_content = content[:max_length] + "\n\n[Content too long. Please check the full Markdown or Word report.]"
     else:
         display_content = content
+    
+    # Clean content to remove ALL special Unicode characters
+    display_content = _clean_content(display_content)
+    display_content = _clean_markdown_for_word(display_content)
     
     # Split content and add paragraphs
     lines = display_content.split('\n')
@@ -218,12 +253,15 @@ def export_pdf(content: str, query: str, output_path: str) -> str:
             story.append(Spacer(1, 5))
             continue
         
-        # Handle headings
+        # Handle headings - remove markdown markers
         if line.startswith('# '):
-            story.append(Paragraph(line[2:].strip(), title_style))
+            clean_title = re.sub(r'^#+\s+', '', line)
+            story.append(Paragraph(clean_title, title_style))
         elif line.startswith('## '):
-            story.append(Paragraph(line[3:].strip(), heading_style))
+            clean_title = re.sub(r'^#+\s+', '', line)
+            story.append(Paragraph(clean_title, heading_style))
         elif line.startswith('### '):
+            clean_title = re.sub(r'^#+\s+', '', line)
             sub_heading = ParagraphStyle(
                 'SubHeading',
                 parent=styles['Heading3'],
@@ -232,12 +270,10 @@ def export_pdf(content: str, query: str, output_path: str) -> str:
                 spaceAfter=8,
                 spaceBefore=10
             )
-            story.append(Paragraph(line[4:].strip(), sub_heading))
+            story.append(Paragraph(clean_title, sub_heading))
         else:
-            # Clean markdown formatting
-            clean_line = _clean_markdown_for_word(line)
-            if clean_line:
-                story.append(Paragraph(clean_line, normal_style))
+            if line:
+                story.append(Paragraph(line, normal_style))
     
     # Footer
     story.append(Spacer(1, 20))
@@ -440,6 +476,9 @@ def export_word(content: str, query: str, output_path: str) -> str:
     
     # 分析结果
     result_heading = doc.add_heading('分析结果', level=1)
+    
+    # 清理内容，移除所有特殊字符
+    content = _clean_content(content)
     
     # 处理markdown格式的内容 - 正确渲染markdown格式
     lines = content.split('\n')

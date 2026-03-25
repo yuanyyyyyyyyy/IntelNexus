@@ -6,6 +6,7 @@ Apple-inspired minimalist design.
 """
 
 import base64
+import socket
 import streamlit as st
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
@@ -14,12 +15,10 @@ from scrape import scrape_multiple
 from report_export import export_report, get_export_formats
 from web_search import get_web_results
 from news_search import get_news_results
-from social_search import get_social_results
-from academic_search import get_academic_results
 from darkweb_search import get_darkweb_results, is_available as darkweb_available
 
 from llm_utils import BufferedStreamingHandler, get_model_choices
-from llm import get_llm, refine_query, filter_results, generate_summary
+from llm import get_llm, refine_query, filter_results, generate_summary, expand_query_for_search
 from custom_models import add_custom_model, get_custom_model_names, remove_custom_model
 
 
@@ -48,12 +47,10 @@ LANG = {
         "download": "下载报告",
         "download_format": "下载格式",
         "complete": "完成",
-        "darkweb_warning": "暗网搜索已启用",
+        "darkweb_warning": "暗网搜索：基于公开索引（无需登录）",
         "mode_all": "全部来源",
         "mode_web": "网页搜索",
         "mode_news": "新闻资讯",
-        "mode_social": "社交媒体",
-        "mode_academic": "学术论文",
         "mode_darkweb": "暗网搜索",
         "results_count": "条结果",
         "zh": "中文",
@@ -79,6 +76,32 @@ LANG = {
         "md_ready": "Markdown已准备",
         "ollama_base_url": "Ollama Base URL",
         "delete": "删除",
+        "darkweb_settings": "暗网设置",
+        "tor_status": "Tor状态",
+        "tor_running": "已运行",
+        "tor_not_running": "未运行",
+        "tor_port": "Tor端口",
+        "detect_tor": "检测Tor",
+        "advanced_mode": "高级模式",
+        "advanced_mode_desc": "启用Tor代理搜索（需要Tor运行）",
+        "breached_forum": "Breached论坛",
+        "breached_username": "用户名",
+        "breached_password": "密码",
+        "breached_register": "没有账号？点击注册",
+        "breached_saved": "已保存",
+        "tor_setup_guide": "Tor配置指引",
+        "tor_download": "下载Tor浏览器",
+        "default_mode": "默认模式（仅Ahmia，无需Tor）",
+        "breached_hint": "💡 使用自己的账号可访问更多内容",
+        "custom_onion_sites": "自定义暗网站点",
+        "site_name": "站点名称",
+        "site_url": "站点URL",
+        "site_need_auth": "需要认证",
+        "add_site": "添加站点",
+        "added_sites": "已添加的站点",
+        "no_sites": "暂无自定义站点",
+        "site_saved": "站点已保存",
+        "site_deleted": "站点已删除",
     },
     "en": {
         "title": "IntelNexus",
@@ -104,12 +127,10 @@ LANG = {
         "download": "Download",
         "download_format": "Format",
         "complete": "Complete",
-        "darkweb_warning": "Dark web mode enabled",
+        "darkweb_warning": "Dark web: Based on public indexes (no login required)",
         "mode_all": "All Sources",
         "mode_web": "Web Search",
         "mode_news": "News",
-        "mode_social": "Social Media",
-        "mode_academic": "Academic Papers",
         "mode_darkweb": "Dark Web",
         "results_count": "results",
         "zh": "Chinese",
@@ -135,6 +156,32 @@ LANG = {
         "md_ready": "Markdown Ready",
         "ollama_base_url": "Ollama Base URL",
         "delete": "Delete",
+        "darkweb_settings": "Dark Web Settings",
+        "tor_status": "Tor Status",
+        "tor_running": "Running",
+        "tor_not_running": "Not Running",
+        "tor_port": "Tor Port",
+        "detect_tor": "Detect Tor",
+        "advanced_mode": "Advanced Mode",
+        "advanced_mode_desc": "Enable Tor proxy search (requires Tor running)",
+        "breached_forum": "Breached Forum",
+        "breached_username": "Username",
+        "breached_password": "Password",
+        "breached_register": "No account? Click to register",
+        "breached_saved": "Saved",
+        "tor_setup_guide": "Tor Setup Guide",
+        "tor_download": "Download Tor Browser",
+        "default_mode": "Default mode (Ahmia only, no Tor needed)",
+        "breached_hint": "💡 Use your own account to access more content",
+        "custom_onion_sites": "Custom Onion Sites",
+        "site_name": "Site Name",
+        "site_url": "Site URL",
+        "site_need_auth": "Requires Auth",
+        "add_site": "Add Site",
+        "added_sites": "Added Sites",
+        "no_sites": "No custom sites yet",
+        "site_saved": "Site saved",
+        "site_deleted": "Site deleted",
     }
 }
 
@@ -142,10 +189,26 @@ SEARCH_MODES = {
     "all": ["mode_all", "全部来源"],
     "web": ["mode_web", "网页搜索"],
     "news": ["mode_news", "新闻资讯"],
-    "social": ["mode_social", "社交媒体"],
-    "academic": ["mode_academic", "学术论文"],
     "darkweb": ["mode_darkweb", "暗网搜索"],
 }
+
+BREACHED_URL = "http://breachedmw4otc2lhx7nqe4wyxfhpvy32ooz26opvqkmmrbg73c7ooad.onion"
+DEFAULT_TOR_PORT = 9150
+
+def check_tor_status(port=DEFAULT_TOR_PORT):
+    """检测Tor代理端口是否开放"""
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(2)
+        result = sock.connect_ex(('127.0.0.1', port))
+        sock.close()
+        return result == 0
+    except:
+        return False
+
+def get_tor_port():
+    """获取Tor代理端口"""
+    return st.session_state.get("tor_port", DEFAULT_TOR_PORT)
 
 
 def get_text(key):
@@ -154,7 +217,7 @@ def get_text(key):
 
 
 @st.cache_data(ttl=200, show_spinner=False)
-def cached_search(mode, refined_query, threads):
+def cached_search(mode, refined_query, threads, advanced_mode=False, tor_port=DEFAULT_TOR_PORT, ui_sites=None):
     results = []
     
     with ThreadPoolExecutor(max_workers=threads) as executor:
@@ -166,14 +229,11 @@ def cached_search(mode, refined_query, threads):
         if mode in ["news", "all"]:
             futures.append(executor.submit(get_news_results, refined_query, 30))
         
-        if mode in ["social", "all"]:
-            futures.append(executor.submit(get_social_results, refined_query, 30))
-        
-        if mode in ["academic", "all"]:
-            futures.append(executor.submit(get_academic_results, refined_query, 20))
-        
-        if mode in ["darkweb", "all"] and darkweb_available():
-            futures.append(executor.submit(get_darkweb_results, refined_query, threads))
+        if mode in ["darkweb", "all"]:
+            if darkweb_available():
+                futures.append(executor.submit(get_darkweb_results, refined_query, threads, advanced_mode, tor_port, ui_sites))
+            else:
+                print("警告: 暗网搜索已启用但Tor未连接或Ahmia不可用")
         
         for f in futures:
             try:
@@ -538,6 +598,179 @@ with st.sidebar:
 
     if search_mode == "darkweb" and not darkweb_available():
         st.warning(get_text("darkweb_warning"))
+    
+    # 暗网设置区域
+    if search_mode == "darkweb":
+        st.markdown("---")
+        with st.expander(f"🧅 {get_text('darkweb_settings')}", expanded=True):
+            # Tor状态检测
+            tor_port = st.number_input(
+                get_text("tor_port"),
+                min_value=1,
+                max_value=65535,
+                value=st.session_state.get("tor_port", DEFAULT_TOR_PORT),
+                key="tor_port"
+            )
+            
+            # 检测Tor状态
+            tor_running = check_tor_status(tor_port)
+            if tor_running:
+                st.success(f"🟢 {get_text('tor_running')}")
+            else:
+                st.error(f"🔴 {get_text('tor_not_running')}")
+            
+            col_tor1, col_tor2 = st.columns([1, 1])
+            with col_tor1:
+                if st.button(get_text("detect_tor"), key="detect_tor_btn"):
+                    st.rerun()
+            
+            # 高级模式选项
+            advanced_mode = st.checkbox(
+                get_text("advanced_mode"),
+                value=st.session_state.get("advanced_mode", False),
+                help=get_text("advanced_mode_desc"),
+                key="advanced_mode"
+            )
+            
+            if not tor_running and advanced_mode:
+                st.warning(f"⚠️ {get_text('tor_not_running')} - {get_text('default_mode')}")
+            
+            # Breached论坛配置
+            st.markdown("---")
+            st.markdown(f"**{get_text('breached_forum')}**")
+            
+            # 注册链接 + 提示
+            st.markdown(f"""
+            <a href="{BREACHED_URL}" target="_blank" style="text-decoration: none;">
+                <span style="color: #4A90D9;">🔗 {get_text('breached_register')}</span>
+            </a>
+            <br><br>
+            <span style="color: #6B7280; font-size: 0.9em;">{get_text('breached_hint')}</span>
+            """, unsafe_allow_html=True)
+            
+            col_breach1, col_breach2 = st.columns(2)
+            with col_breach1:
+                breached_user = st.text_input(
+                    get_text("breached_username"),
+                    value=st.session_state.get("breached_username", ""),
+                    key="breached_user"
+                )
+            with col_breach2:
+                breached_pass = st.text_input(
+                    get_text("breached_password"),
+                    value=st.session_state.get("breached_password", ""),
+                    type="password",
+                    key="breached_pass"
+                )
+            
+            if breached_user and breached_pass:
+                st.session_state.breached_username = breached_user
+                st.session_state.breached_password = breached_pass
+                st.success(f"✓ {get_text('breached_saved')}")
+            
+            # 自定义暗网站点配置
+            st.markdown("---")
+            st.markdown(f"**{get_text('custom_onion_sites')}**")
+            
+            # 初始化自定义站点列表
+            if "custom_onion_sites" not in st.session_state:
+                st.session_state.custom_onion_sites = []
+            
+            # 添加新站点表单（使用container代替expander避免嵌套）
+            with st.container():
+                st.markdown(f"**{get_text('add_site')}**")
+                col_site1, col_site2 = st.columns(2)
+                with col_site1:
+                    new_site_name = st.text_input(
+                        get_text("site_name"),
+                        key="new_site_name",
+                        placeholder="My Site"
+                    )
+                    new_site_url = st.text_input(
+                        get_text("site_url"),
+                        key="new_site_url",
+                        placeholder="http://xxx.onion/search?q="
+                    )
+                with col_site2:
+                    new_site_auth = st.checkbox(
+                        get_text("site_need_auth"),
+                        key="new_site_auth"
+                    )
+                    new_site_user = ""
+                    new_site_pass = ""
+                    if new_site_auth:
+                        new_site_user = st.text_input(
+                            get_text("breached_username"),
+                            key="new_site_user"
+                        )
+                        new_site_pass = st.text_input(
+                            get_text("breached_password"),
+                            type="password",
+                            key="new_site_pass"
+                        )
+                
+                if st.button(get_text("add_site"), key="add_site_btn"):
+                    if new_site_name and new_site_url:
+                        new_site = {
+                            "name": new_site_name,
+                            "url": new_site_url,
+                        }
+                        if new_site_auth and new_site_user and new_site_pass:
+                            new_site["auth"] = {
+                                "type": "basic",
+                                "username": new_site_user,
+                                "password": new_site_pass
+                            }
+                        # 保存到session
+                        st.session_state.custom_onion_sites.append(new_site)
+                        # 持久化保存到文件
+                        try:
+                            import json
+                            import os
+                            os.makedirs("data", exist_ok=True)
+                            sites_file = "data/custom_onion_sites.json"
+                            with open(sites_file, "w", encoding="utf-8") as f:
+                                json.dump(st.session_state.custom_onion_sites, f, ensure_ascii=False, indent=2)
+                        except Exception as e:
+                            print(f"保存站点失败: {e}")
+                        st.success(f"✓ {get_text('site_saved')}")
+                        st.rerun()
+            
+            # 显示已添加的站点
+            # 尝试从文件加载站点
+            try:
+                import json
+                sites_file = "data/custom_onion_sites.json"
+                if os.path.exists(sites_file):
+                    with open(sites_file, "r", encoding="utf-8") as f:
+                        loaded_sites = json.load(f)
+                        if loaded_sites and not st.session_state.custom_onion_sites:
+                            st.session_state.custom_onion_sites = loaded_sites
+            except:
+                pass
+            
+            if st.session_state.custom_onion_sites:
+                st.markdown(f"**{get_text('added_sites')}**")
+                for i, site in enumerate(st.session_state.custom_onion_sites):
+                    col_site, col_del = st.columns([4, 1])
+                    with col_site:
+                        auth_info = " 🔒" if site.get("auth") else ""
+                        st.markdown(f"- {site.get('name', 'Unknown')}{auth_info}")
+                    with col_del:
+                        if st.button("🗑️", key=f"del_site_{i}"):
+                            st.session_state.custom_onion_sites.pop(i)
+                            # 更新文件
+                            try:
+                                import json
+                                import os
+                                sites_file = "data/custom_onion_sites.json"
+                                with open(sites_file, "w", encoding="utf-8") as f:
+                                    json.dump(st.session_state.custom_onion_sites, f, ensure_ascii=False, indent=2)
+                            except:
+                                pass
+                            st.rerun()
+            else:
+                st.markdown(f"_{get_text('no_sites')}_")
 
     st.markdown("---")
     st.markdown(f'<div class="section-header">{get_text("settings")}</div>', unsafe_allow_html=True)
@@ -712,18 +945,27 @@ if run_button and query:
     
     with status_slot.container():
         with st.spinner(get_text("refining")):
-            st.session_state.refined = refine_query(llm, query)
+            # refine_query现在返回查询列表（原始+翻译）
+            query_variants = refine_query(llm, query)
+            # 保存原始查询用于导出
+            st.session_state.refined = query
+            # 转换为搜索字符串
+            search_query = expand_query_for_search(query_variants)
     
     st.markdown(f"""
     <div class="result-card">
         <div class="section-header">{get_text("refined_query")}</div>
-        <div class="result-title">{st.session_state.refined}</div>
+        <div class="result-title">原始查询: {query}</div>
+        <div class="result-title" style="color: var(--morandi-blue);">多语言查询: {search_query}</div>
     </div>
     """, unsafe_allow_html=True)
     
     with status_slot.container():
         with st.spinner(get_text("searching")):
-            st.session_state.results = cached_search(search_mode, st.session_state.refined, threads)
+            advanced_mode = st.session_state.get("advanced_mode", False)
+            tor_port = st.session_state.get("tor_port", DEFAULT_TOR_PORT)
+            ui_sites = st.session_state.get("custom_onion_sites", [])
+            st.session_state.results = cached_search(search_mode, search_query, threads, advanced_mode, tor_port, ui_sites)
     
     source_counts = {}
     for r in st.session_state.results:
@@ -732,6 +974,8 @@ if run_button and query:
     
     results_count = len(st.session_state.results)
     
+    # 显示搜索源统计
+    source_info = " | ".join([f"{k}: {v}" for k, v in source_counts.items()])
     st.markdown(f"""
     <div class="result-card">
         <div class="result-stats">
@@ -740,16 +984,24 @@ if run_button and query:
                 <div class="stat-label">{get_text("results_count")}</div>
             </div>
         </div>
+        <div class="stat-label" style="margin-top: 10px;">数据来源: {source_info}</div>
     </div>
     """, unsafe_allow_html=True)
     
-    with status_slot.container():
-        with st.spinner(get_text("filtering")):
-            st.session_state.filtered = filter_results(llm, st.session_state.refined, st.session_state.results)
+    # 保留所有搜索结果（不过滤）
+    st.session_state.filtered = st.session_state.results
     
     with status_slot.container():
         with st.spinner(get_text("scraping")):
             st.session_state.scraped = cached_scrape(st.session_state.filtered, threads)
+            # 调试日志
+            print(f"=== SCRAPING DEBUG ===")
+            print(f"Filtered results count: {len(st.session_state.filtered)}")
+            print(f"Scraped keys: {list(st.session_state.scraped.keys())[:5]}")
+            if st.session_state.scraped:
+                first_content = list(st.session_state.scraped.values())[0]
+                print(f"First content length: {len(first_content)}")
+                print(f"First content preview: {first_content[:300]}")
     
     st.session_state.streamed_summary = ""
     
@@ -768,7 +1020,7 @@ if run_button and query:
         with st.spinner(get_text("generating")):
             stream_handler = BufferedStreamingHandler(ui_callback=ui_emit)
             llm.callbacks = [stream_handler]
-            _ = generate_summary(llm, query, st.session_state.scraped)
+            _ = generate_summary(llm, query, st.session_state.scraped, search_mode)
     
     now = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     st.session_state.report_timestamp = now
@@ -862,11 +1114,46 @@ if st.session_state.get("search_completed", False) and st.session_state.get("str
     # 显示搜索结果实际内容
     if st.session_state.get("filtered") and len(st.session_state.get("filtered", [])) > 0:
         st.markdown("---")
-        st.markdown(f'<div class="report-title">📋 搜索结果详情 ({len(st.session_state.filtered)}条)</div>', unsafe_allow_html=True)
         
-        # 按来源分组显示
+        # 初始化分页状态
+        if "result_page" not in st.session_state:
+            st.session_state.result_page = 1
+        
+        all_results = st.session_state.filtered
+        total_results = len(all_results)
+        
+        # 每页显示数量
+        ITEMS_PER_PAGE = 40
+        total_pages = (total_results + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE
+        
+        # 标题和分页控件
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            st.markdown(f'<div class="report-title">📋 搜索结果详情 ({total_results}条)</div>', unsafe_allow_html=True)
+        with col2:
+            # 分页导航
+            page_cols = st.columns([1, 1, 1])
+            with page_cols[0]:
+                if st.session_state.result_page > 1:
+                    if st.button("◀ 上一页", key="prev_page"):
+                        st.session_state.result_page -= 1
+                        st.rerun()
+            with page_cols[1]:
+                st.markdown(f"**{st.session_state.result_page}/{total_pages}**")
+            with page_cols[2]:
+                if st.session_state.result_page < total_pages:
+                    if st.button("下一页 ▶", key="next_page"):
+                        st.session_state.result_page += 1
+                        st.rerun()
+        
+        # 计算当前页显示范围
+        start_idx = (st.session_state.result_page - 1) * ITEMS_PER_PAGE
+        end_idx = min(start_idx + ITEMS_PER_PAGE, total_results)
+        page_results = all_results[start_idx:end_idx]
+        
+        # 按来源分组显示当前页
         source_groups = {}
-        for item in st.session_state.filtered:
+        for item in page_results:
             source = item.get("source", "Unknown")
             if source not in source_groups:
                 source_groups[source] = []
@@ -875,11 +1162,12 @@ if st.session_state.get("search_completed", False) and st.session_state.get("str
         for source, items in source_groups.items():
             with st.expander(f"📌 {source} ({len(items)}条)", expanded=False):
                 for i, item in enumerate(items):
-                    st.markdown(f"**{i+1}. {item.get('title', '无标题')[:100]}**")
+                    actual_idx = start_idx + i + 1
+                    st.markdown(f"**{actual_idx}. {item.get('title', '无标题')[:150]}**")
                     if item.get('description'):
-                        st.markdown(f"📝 {item.get('description', '')[:300]}...")
+                        st.markdown(f"📝 {item.get('description', '')[:500]}...")
                     elif item.get('summary'):
-                        st.markdown(f"📝 {item.get('summary', '')[:300]}...")
+                        st.markdown(f"📝 {item.get('summary', '')[:500]}...")
                     if item.get('link') or item.get('url'):
                         link = item.get('link') or item.get('url')
                         st.markdown(f"🔗 [查看原文]({link})")

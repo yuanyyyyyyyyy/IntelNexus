@@ -50,30 +50,42 @@ def scrape_single(url_data, rotate=False, rotate_interval=5, control_port=9051, 
     Returns a tuple (url, scraped_text).
     """
     url = url_data['link']
+    
+    # 跳过PDF和其他不支持的格式
+    if url.lower().endswith('.pdf') or '.pdf?' in url.lower():
+        return (url, f"{url_data['title']} - [PDF文件，请直接下载查看]")
+    
     use_tor = ".onion" in url
     
     headers = {
-        "User-Agent": random.choice(USER_AGENTS)
+        "User-Agent": random.choice(USER_AGENTS),
+        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
     }
     
     try:
         if use_tor:
             session = get_tor_session()
-            # Increased timeout for Tor latency
             response = session.get(url, headers=headers, timeout=45)
         else:
-            # Fallback for clearweb if needed, though tool focuses on dark web
             response = requests.get(url, headers=headers, timeout=30)
 
         if response.status_code == 200:
+            # 强制使用UTF-8解码，解决中文乱码问题
+            response.encoding = 'utf-8'
+            
             soup = BeautifulSoup(response.text, "html.parser")
             # Clean up text: remove scripts/styles
             for script in soup(["script", "style"]):
                 script.extract()
-            text = soup.get_text(separator=' ')
+            text = soup.get_text(separator=' ', strip=True)
             # Normalize whitespace
             text = ' '.join(text.split())
-            scraped_text = f"{url_data['title']} - {text}"
+            
+            # 如果抓取内容太短（少于100字符），说明可能失败了，返回标题
+            if len(text) < 100:
+                scraped_text = url_data['title']
+            else:
+                scraped_text = f"{url_data['title']} - {text}"
         else:
             scraped_text = url_data['title']
     except Exception as e:

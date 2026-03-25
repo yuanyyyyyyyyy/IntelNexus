@@ -1,7 +1,7 @@
 """
 IntelNexus - AI Multi-Source Network Intelligence Platform
 =========================================================
-A unified search interface for academic papers, news, social media, and web content.
+A unified search interface for news and web content.
 """
 
 import os
@@ -11,12 +11,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from scrape import scrape_multiple
 from web_search import get_web_results
-from academic_search import get_academic_results
 from news_search import get_news_results
-from social_search import get_social_results
 from darkweb_search import get_darkweb_results, is_available as darkweb_available
 
-from llm import get_llm, refine_query, filter_results, generate_summary
+from llm import get_llm, refine_query, generate_summary
 from llm_utils import get_model_choices
 
 
@@ -24,9 +22,7 @@ MODEL_CHOICES = get_model_choices()
 
 SEARCH_MODES = {
     "web": "Web Search",
-    "academic": "Academic Papers",
     "news": "News Articles",
-    "social": "Social Media",
     "darkweb": "Dark Web (Optional)",
     "all": "All Sources"
 }
@@ -41,14 +37,8 @@ def execute_search(mode, query, max_workers):
         if mode in ["web", "all"]:
             futures.append(executor.submit(get_web_results, query, max_workers, 20))
         
-        if mode in ["academic", "all"]:
-            futures.append(executor.submit(get_academic_results, query, 15))
-        
         if mode in ["news", "all"]:
             futures.append(executor.submit(get_news_results, query, 15))
-        
-        if mode in ["social", "all"]:
-            futures.append(executor.submit(get_social_results, query, 15))
         
         if mode in ["darkweb", "all"] and darkweb_available():
             futures.append(executor.submit(get_darkweb_results, query, max_workers))
@@ -83,7 +73,7 @@ def intelnexus():
 @click.option(
     "--mode", "-s",
     default="all",
-    type=click.Choice(["web", "academic", "news", "social", "darkweb", "all"]),
+    type=click.Choice(["web", "news", "darkweb", "all"]),
     help="Search mode"
 )
 @click.option("--threads", "-t", default=5, show_default=True, type=int, help="Number of threads")
@@ -109,9 +99,9 @@ def search(model, query, mode, threads, output):
         click.echo("No results found.")
         return
     
-    click.echo("[3/4] Filtering results...")
-    search_filtered = filter_results(llm, refined_query, search_results)
-    click.echo(f"    Filtered to {len(search_filtered)} relevant results")
+    # 保留所有搜索结果（不过滤）
+    search_filtered = search_results
+    click.echo(f"[3/4] Keeping all {len(search_filtered)} results")
     
     click.echo("[4/4] Scraping content...")
     scraped_results = scrape_multiple(search_filtered, max_workers=threads)
