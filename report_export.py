@@ -9,6 +9,8 @@ import os
 from datetime import datetime
 from typing import Dict, List, Optional
 import re
+import warnings
+warnings.filterwarnings("ignore")
 
 try:
     from reportlab.lib.pagesizes import letter, A4
@@ -17,6 +19,8 @@ try:
     from reportlab.lib.units import inch
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle
     from reportlab.pdfgen import canvas
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
     REPORTLAB_AVAILABLE = True
 except ImportError:
     REPORTLAB_AVAILABLE = False
@@ -164,6 +168,34 @@ def export_pdf(content: str, query: str, output_path: str) -> str:
         clean_query = "[Query processing error]"
     
     output_dir = os.path.dirname(output_path)
+    if output_dir and not os.path.exists(output_path):
+        os.makedirs(output_dir)
+    
+    # ===== 注册中文字体的函数 =====
+    def register_chinese_font():
+        """注册中文字体，支持中文显示"""
+        font_paths = [
+            "C:/Windows/Fonts/simhei.ttf",   # 黑体
+            "C:/Windows/Fonts/simsun.ttc",  # 宋体
+            "C:/Windows/Fonts/msyh.ttc",   # 微软雅黑
+            "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",  # Linux
+            "/System/Library/Fonts/PingFang.ttc",  # macOS
+        ]
+        font_name = None
+        for font_path in font_paths:
+            if os.path.exists(font_path):
+                try:
+                    pdfmetrics.registerFont(TTFont("Chinese", font_path))
+                    font_name = "Chinese"
+                    break
+                except:
+                    continue
+        return font_name
+    
+    # 注册字体
+    chinese_font = register_chinese_font()
+    
+    output_dir = os.path.dirname(output_path)
     if output_dir and not os.path.exists(output_dir):
         os.makedirs(output_dir)
     
@@ -179,9 +211,12 @@ def export_pdf(content: str, query: str, output_path: str) -> str:
     
     # Styles
     styles = getSampleStyleSheet()
+    font_for_cjk = chinese_font if chinese_font else "Helvetica"
+    
     title_style = ParagraphStyle(
         'CustomTitle',
         parent=styles['Heading1'],
+        fontName=font_for_cjk,
         fontSize=20,
         textColor=colors.HexColor('#1F4E88'),
         spaceAfter=20,
@@ -190,6 +225,7 @@ def export_pdf(content: str, query: str, output_path: str) -> str:
     heading_style = ParagraphStyle(
         'CustomHeading',
         parent=styles['Heading2'],
+        fontName=font_for_cjk,
         fontSize=14,
         textColor=colors.HexColor('#1F4E88'),
         spaceAfter=10,
@@ -198,6 +234,7 @@ def export_pdf(content: str, query: str, output_path: str) -> str:
     normal_style = ParagraphStyle(
         'CustomNormal',
         parent=styles['Normal'],
+        fontName=font_for_cjk,
         fontSize=10,
         spaceAfter=8,
         alignment=0
