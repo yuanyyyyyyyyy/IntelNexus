@@ -122,10 +122,26 @@ def search(model, query, mode, threads, output):
 
 
 @intelnexus.command()
-def ui():
-    """Run IntelNexus in GUI mode."""
-    from gui import run_gui
-    run_gui()
+@click.option("--ui-port", default=8501, show_default=True, type=int, help="Port for Streamlit UI")
+@click.option("--ui-host", default="localhost", show_default=True, type=str, help="Host for Streamlit UI")
+def ui(ui_port, ui_host):
+    """Run IntelNexus in Web UI mode."""
+    import sys, os
+    from streamlit.web import cli as stcli
+    
+    if getattr(sys, "frozen", False):
+        base = sys._MEIPASS
+    else:
+        base = os.path.dirname(__file__)
+    
+    ui_script = os.path.join(base, "ui.py")
+    sys.argv = [
+        "streamlit", "run", ui_script,
+        f"--server.port={ui_port}",
+        f"--server.address={ui_host}",
+        "--global.developmentMode=false",
+    ]
+    sys.exit(stcli.main())
 
 
 if __name__ == "__main__":
