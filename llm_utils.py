@@ -40,6 +40,8 @@ _common_llm_params = {
     "temperature": 0,
     "streaming": True,
     "callbacks": _common_callbacks,
+    "request_timeout": 120,  # API 请求超时 120 秒
+    "max_retries": 3,       # 失败后最多重试 3 次
 }
 
 # Map input model choices (lowercased) to their configuration

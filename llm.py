@@ -336,4 +336,41 @@ def generate_summary(llm, query, content, search_mode="all"):
         [("system", system_prompt), ("user", "搜索结果内容:\n{content}")]
     )
     chain = prompt_template | llm | StrOutputParser()
-    return chain.invoke({"content": content})
+    try:
+        return chain.invoke({"content": content})
+    except Exception as e:
+        error_msg = str(e)
+        print(f"=== LLM API ERROR ===")
+        print(f"Error type: {type(e).__name__}")
+        print(f"Error message: {error_msg}")
+        # 如果是超时或网络错误，返回友好的错误报告
+        if "timeout" in error_msg.lower() or "timed out" in error_msg.lower():
+            return f"""## 一、执行摘要
+
+报告生成请求超时，可能因网络延迟或模型响应过慢导致。
+
+## 二、建议
+
+1. 请检查网络连接状态
+2. 尝试切换至其他可用的 AI 模型
+3. 减少搜索范围后重试
+
+## 三、错误详情
+
+API 请求超时，模型未能在规定时间内返回结果。
+"""
+        else:
+            return f"""## 一、执行摘要
+
+报告生成过程中遇到错误。
+
+## 二、错误信息
+
+{error_msg}
+
+## 三、建议
+
+1. 请检查 API 密钥配置是否正确
+2. 尝试切换至其他可用的 AI 模型
+3. 检查 Ollama 服务是否正常运行（如使用本地模型）
+"""
