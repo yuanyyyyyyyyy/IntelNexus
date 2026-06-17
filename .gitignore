@@ -10,6 +10,10 @@ dist/
 *.egg-info/
 *.egg
 
+# Build artifacts
+unpacked_intelnexus/
+*.spec
+
 # Virtual environments
 .venv/
 venv/
@@ -32,14 +36,19 @@ Thumbs.db
 # Logs
 *.log
 
-# Data files (保留目录结构)
+# Data files
 data/*.json
 data/*.csv
 
-# Reports
+# Output & Reports
+output/
+report_*.md
 *.pdf
 *.docx
 *.xlsx
 
-# Test files (如有)
+# Test files
 test_*.py
+
+# Streamlit
+.streamlit/

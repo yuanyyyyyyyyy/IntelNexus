@@ -576,6 +576,28 @@ st.markdown("""
     div[data-testid="stHeaderContainer"]::before {
         display: none !important;
     }
+    
+    /* 修复 selectbox 下拉菜单被遮挡问题 */
+    div[data-testid="stSidebar"] {
+        overflow: visible !important;
+    }
+    
+    div[data-testid="stSidebar"] section {
+        overflow: visible !important;
+    }
+    
+    div[data-testid="stSelectbox"] {
+        pointer-events: auto !important;
+    }
+    
+    div[data-testid="stSelectbox"] ul,
+    div[data-testid="stSelectbox"] [role="listbox"],
+    div[data-testid="stSelectbox"] [data-baseweb="popover"],
+    div[data-testid="stSelectbox"] [data-baseweb="menu"] {
+        z-index: 999999 !important;
+        position: relative !important;
+        pointer-events: auto !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
