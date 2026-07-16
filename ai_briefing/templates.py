@@ -4,6 +4,8 @@ AI简报模板
 定义简报的Markdown和HTML格式模板
 """
 
+import html
+import re
 from datetime import datetime
 
 
@@ -63,172 +65,136 @@ MARKDOWN_TEMPLATE = """
 """
 
 
-# ========== 邮件HTML模板 ==========
+# ========== 邮件HTML模板（table布局，兼容Gmail/Outlook） ==========
 EMAIL_HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
-<head>
-    <meta charset="UTF-8">
-    <style>
-        body {{
-            font-family: 'Microsoft YaHei', 'Segoe UI', Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }}
-        .container {{
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            padding: 30px;
-        }}
-        .header {{
-            text-align: center;
-            border-bottom: 2px solid #1F4E88;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
-        }}
-        .header h1 {{
-            color: #1F4E88;
-            margin: 0;
-        }}
-        .header .date {{
-            color: #666;
-            font-size: 14px;
-            margin-top: 10px;
-        }}
-        .header .org {{
-            color: #888;
-            font-size: 12px;
-        }}
-        .section {{
-            margin-bottom: 25px;
-        }}
-        .section h2 {{
-            color: #1F4E88;
-            border-left: 4px solid #1F4E88;
-            padding-left: 10px;
-            margin-bottom: 15px;
-            font-size: 18px;
-        }}
-        .section h3 {{
-            color: #2E5A88;
-            margin-top: 15px;
-            font-size: 15px;
-        }}
-        .news-item {{
-            margin-bottom: 15px;
-            padding: 12px;
-            background-color: #f9f9f9;
-            border-radius: 6px;
-            border-left: 3px solid #1F4E88;
-        }}
-        .news-item .tag {{
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 3px;
-            font-size: 12px;
-            font-weight: bold;
-            margin-right: 5px;
-        }}
-        .tag-important {{ background-color: #e3f2fd; color: #1565c0; }}
-        .tag-warning {{ background-color: #fff3e0; color: #e65100; }}
-        .tag-danger {{ background-color: #ffebee; color: #c62828; }}
-        .tag-info {{ background-color: #e8f5e9; color: #2e7d32; }}
-        .tag-new {{ background-color: #f3e5f5; color: #7b1fa2; }}
-        .source {{
-            color: #888;
-            font-size: 12px;
-            margin-top: 5px;
-        }}
-        .insight-box {{
-            background-color: #e8f4fd;
-            border-radius: 6px;
-            padding: 15px;
-            margin-bottom: 15px;
-        }}
-        .insight-box h4 {{
-            color: #1F4E88;
-            margin-top: 0;
-        }}
-        .links {{
-            margin-top: 20px;
-        }}
-        .links a {{
-            color: #1F4E88;
-            text-decoration: none;
-            display: block;
-            margin-bottom: 5px;
-        }}
-        .links a:hover {{
-            text-decoration: underline;
-        }}
-        .footer {{
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #ddd;
-            text-align: center;
-            color: #888;
-            font-size: 12px;
-        }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🔐 AI领域每日情报简报</h1>
-            <div class="date">{generated_date}</div>
-            <div class="org">{organization_name}</div>
-        </div>
-        
-        <div class="section">
-            <h2>📌 近日要闻TOP3</h2>
-            {top3_html}
-        </div>
-        
-        <div class="section">
-            <h2>🏛️ 美欧机构AI应用动态</h2>
-            {ai_gov_usage_html}
-        </div>
-        
-        <div class="section">
-            <h2>🇨🇳 涉我AI舆论动态</h2>
-            {ai_china_narrative_html}
-        </div>
-        
-        <div class="section">
-            <h2>📜 AI新法案与政策</h2>
-            {ai_legislation_html}
-        </div>
-        
-        <div class="section">
-            <h2>🔒 AI数据泄露与安全事件</h2>
-            {ai_data_leak_html}
-        </div>
-        
-        <div class="section">
-            <h2>💡 趋势研判与防护建议</h2>
-            {insights_html}
-        </div>
-        
-        <div class="section">
-            <h2>📚 重要链接</h2>
-            <div class="links">
-                {links_html}
-            </div>
-        </div>
-        
-        <div class="footer">
-            <p>本简报基于公开信息整理，不构成投资或其他专业建议。</p>
-            <p>{organization_name}</p>
-        </div>
-    </div>
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background-color:#f5f5f5;font-family:'Microsoft YaHei','Segoe UI',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f5f5;">
+<tr><td align="center" style="padding:20px;">
+<table width="800" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:8px;">
+<!-- Header -->
+<tr><td style="text-align:center;padding:30px 30px 20px;border-bottom:2px solid #1F4E88;">
+<h1 style="color:#1F4E88;margin:0;font-size:24px;">🔐 AI领域每日情报简报</h1>
+<p style="color:#666;font-size:14px;margin:10px 0 0;">{generated_date}</p>
+<p style="color:#888;font-size:12px;margin:5px 0 0;">{organization_name}</p>
+</td></tr>
+<!-- TOP3 -->
+<tr><td style="padding:25px 30px;">
+<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">📌 近日要闻TOP3</h2>
+{top3_html}
+</td></tr>
+<!-- 美欧机构AI应用动态 -->
+<tr><td style="padding:0 30px 25px;">
+<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">🏛️ 美欧机构AI应用动态</h2>
+{ai_gov_usage_html}
+</td></tr>
+<!-- 涉我AI舆论动态 -->
+<tr><td style="padding:0 30px 25px;">
+<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">🇨🇳 涉我AI舆论动态</h2>
+{ai_china_narrative_html}
+</td></tr>
+<!-- AI新法案与政策 -->
+<tr><td style="padding:0 30px 25px;">
+<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">📜 AI新法案与政策</h2>
+{ai_legislation_html}
+</td></tr>
+<!-- AI数据泄露与安全事件 -->
+<tr><td style="padding:0 30px 25px;">
+<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">🔒 AI数据泄露与安全事件</h2>
+{ai_data_leak_html}
+</td></tr>
+<!-- 趋势研判与防护建议 -->
+<tr><td style="padding:0 30px 25px;">
+<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">💡 趋势研判与防护建议</h2>
+{insights_html}
+</td></tr>
+<!-- 重要链接 -->
+<tr><td style="padding:0 30px 25px;">
+<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">📚 重要链接</h2>
+{links_html}
+</td></tr>
+<!-- Footer -->
+<tr><td style="padding:20px 30px;border-top:1px solid #ddd;text-align:center;color:#888;font-size:12px;">
+<p style="margin:5px 0;">本简报基于公开信息整理，不构成投资或其他专业建议。</p>
+<p style="margin:5px 0;">{organization_name}</p>
+</td></tr>
+</table>
+</td></tr>
+</table>
 </body>
 </html>
 """
+
+
+def _md_to_html(text: str) -> str:
+    """
+    简单的 Markdown 转 HTML（内联样式，兼容邮件客户端）
+    对用户/LLM内容做HTML转义，防止XSS。
+    
+    Args:
+        text: Markdown格式的文本
+    
+    Returns:
+        str: 带内联样式的HTML
+    """
+    lines = text.strip().split("\n")
+    html_lines = []
+    
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            html_lines.append('<p style="margin:5px 0;height:16px;">&nbsp;</p>')
+            continue
+        
+        # 标题
+        if stripped.startswith("### "):
+            safe = html.escape(stripped[4:])
+            html_lines.append(
+                f'<h3 style="color:#2E5A88;font-size:15px;margin:15px 0 8px;">{safe}</h3>'
+            )
+        elif stripped.startswith("## "):
+            safe = html.escape(stripped[3:])
+            html_lines.append(
+                f'<h2 style="color:#1F4E88;font-size:18px;margin:20px 0 10px;">{safe}</h2>'
+            )
+        elif stripped.startswith("# "):
+            safe = html.escape(stripped[2:])
+            html_lines.append(
+                f'<h1 style="color:#1F4E88;font-size:24px;margin:20px 0 10px;">{safe}</h1>'
+            )
+        # 分割线
+        elif stripped == "---":
+            html_lines.append('<hr style="border:none;border-top:1px solid #ddd;margin:15px 0;">')
+        # 无序列表
+        elif stripped.startswith("- ") or stripped.startswith("* "):
+            item = html.escape(stripped[2:])
+            item = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', item)
+            html_lines.append(
+                f'<p style="margin:5px 0;padding-left:20px;">• {item}</p>'
+            )
+        # 有序列表（简单处理）
+        elif len(stripped) > 2 and stripped[0].isdigit() and stripped[1] in '.):':
+            item = html.escape(stripped[2:].strip())
+            item = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', item)
+            num = stripped[0]
+            html_lines.append(
+                f'<p style="margin:5px 0;padding-left:20px;">{num}. {item}</p>'
+            )
+        # 粗体段落
+        elif stripped.startswith("**") and stripped.endswith("**"):
+            safe = html.escape(stripped[2:-2])
+            html_lines.append(
+                f'<p style="margin:8px 0;"><strong>{safe}</strong></p>'
+            )
+        # 普通段落（处理行内粗体）
+        else:
+            processed = html.escape(stripped)
+            processed = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', processed)
+            html_lines.append(f'<p style="margin:5px 0;">{processed}</p>')
+    
+    return "\n".join(html_lines)
 
 
 def render_markdown_briefing(
@@ -357,6 +323,11 @@ def markdown_to_html_sections(markdown_content: str) -> dict:
     if current_section and section_content:
         sections[current_section] = "\n".join(section_content)
     
+    # 将每个section的Markdown内容转换为HTML
+    for key in sections:
+        if sections[key]:
+            sections[key] = _md_to_html(sections[key])
+    
     return sections
 
 
@@ -378,36 +349,4 @@ def format_news_item(title: str, content: str, source: str, date: str, tag: str 
     return f"""{tag_str}**{title}**
 {content}
 （来源：{source} / {date}）
-"""
-
-
-def format_news_item_html(title: str, content: str, source: str, date: str, tag: str = "") -> str:
-    """
-    格式化单条新闻为HTML格式
-    
-    Args:
-        title: 新闻标题
-        content: 新闻内容
-        source: 来源
-        date: 日期
-        tag: 标签
-    
-    Returns:
-        str: 格式化的HTML内容
-    """
-    tag_class = "tag-info"
-    if "重要" in tag:
-        tag_class = "tag-important"
-    elif "高危" in tag or "数据泄露" in tag:
-        tag_class = "tag-danger"
-    elif "新发布" in tag:
-        tag_class = "tag-new"
-    
-    tag_html = f'<span class="tag {tag_class}">{tag}</span> ' if tag else ""
-    
-    return f"""<div class="news-item">
-{tag_html}<strong>{title}</strong>
-<p>{content}</p>
-<div class="source">来源：{source} / {date}</div>
-</div>
 """

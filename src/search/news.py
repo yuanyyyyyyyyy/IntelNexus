@@ -12,11 +12,10 @@ try:
 except ImportError:
     NewsApiClient = None
 
-USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
-]
+from src.logger import get_logger
+from src.search import USER_AGENTS
+
+logger = get_logger(__name__)
 
 RSS_SOURCES = [
     {"name": "Google News", "url": "https://news.google.com/rss/search?q={query}"},
@@ -38,7 +37,7 @@ class NewsSearch:
             try:
                 self.news_client = NewsApiClient(api_key=api_key)
             except Exception as e:
-                print(f"NewsAPI init error: {e}")
+                logger.warning(f"NewsAPI init error: {e}")
                 self.news_client = None
         else:
             self.news_client = None
@@ -69,7 +68,7 @@ class NewsSearch:
                         "image_url": article.get("urlToImage", "")
                     })
         except Exception as e:
-            print(f"NewsAPI search error: {e}")
+            logger.warning(f"NewsAPI search error: {e}")
         
         return results
     
@@ -93,7 +92,7 @@ class NewsSearch:
                 if response.status_code == 200:
                     try:
                         soup = BeautifulSoup(response.content, "xml")
-                    except:
+                    except Exception:
                         soup = BeautifulSoup(response.content, "html.parser")
                     
                     items = soup.find_all("item")[:max_results]
@@ -133,7 +132,7 @@ class NewsSearch:
                                 "image_url": ""
                             })
             except Exception as e:
-                print(f"RSS search error from {source['name']}: {e}")
+                logger.warning(f"RSS search error from {source['name']}: {e}")
         
         return results
     
@@ -165,10 +164,10 @@ class NewsSearch:
                                 "published_at": "",
                                 "image_url": ""
                             })
-                    except:
+                    except Exception:
                         continue
         except Exception as e:
-            print(f"Bing news search error: {e}")
+            logger.warning(f"Bing news search error: {e}")
         return results
     
     def search_google_news(self, query: str, max_results: int = 10) -> List[Dict]:
@@ -200,10 +199,10 @@ class NewsSearch:
                                 "published_at": pub_date.get_text(strip=True) if pub_date else "",
                                 "image_url": ""
                             })
-                    except:
+                    except Exception:
                         continue
         except Exception as e:
-            print(f"Google News search error: {e}")
+            logger.warning(f"Google News search error: {e}")
         return results
     
     def search(self, query: str, max_results: int = 10) -> List[Dict]:
@@ -225,7 +224,7 @@ class NewsSearch:
                     if r:
                         results.extend(r)
                 except Exception as e:
-                    print(f"Search error: {e}")
+                    logger.warning(f"Search error: {e}")
         
         seen_urls = set()
         unique_results = []

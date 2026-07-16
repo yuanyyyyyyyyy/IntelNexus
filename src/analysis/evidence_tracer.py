@@ -11,6 +11,8 @@ coverage analysis.
 import re
 import numpy as np
 
+from src.analysis import load_sentence_model
+
 
 class EvidenceTracer:
     """
@@ -21,7 +23,7 @@ class EvidenceTracer:
     """
 
     def __init__(self):
-        self._model = None
+        self._model = load_sentence_model()
 
     def trace(self, report, scraped_content):
         """
@@ -46,7 +48,6 @@ class EvidenceTracer:
         sections = re.split(r'(##\s+\S[^\n]*)', report)
         current_section = "未知"
 
-        self._load_model()
         if self._model is None:
             return {"claims": [], "coverage": 0.0}
 
@@ -92,14 +93,6 @@ class EvidenceTracer:
 
         return {"claims": claims, "coverage": coverage}
 
-    def _load_model(self):
-        if self._model is None:
-            try:
-                from sentence_transformers import SentenceTransformer
-                self._model = SentenceTransformer('all-MiniLM-L6-v2')
-            except:
-                self._model = None
-
     def _similarity(self, text_a, text_b):
         if self._model is None:
             return 0.0
@@ -108,5 +101,5 @@ class EvidenceTracer:
             sim = float(np.dot(emb[0], emb[1]) / (
                 np.linalg.norm(emb[0]) * np.linalg.norm(emb[1]) + 1e-10))
             return sim
-        except:
+        except Exception:
             return 0.0

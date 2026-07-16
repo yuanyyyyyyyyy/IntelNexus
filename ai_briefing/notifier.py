@@ -14,6 +14,9 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Dict, Optional
 import requests
+from src.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class AIBriefingNotifier:
@@ -75,7 +78,7 @@ class AIBriefingNotifier:
     
     def send_email(self, email: str, subject: str, content: str, html_content: str = None) -> bool:
         """
-        通过邮件发送简报
+        通过邮件发送简报（带重试）
         
         Args:
             email: 收件人邮箱
@@ -87,51 +90,47 @@ class AIBriefingNotifier:
             bool: 是否发送成功
         """
         if not self.email_config:
-            print("Email config not set")
+            logger.warning("Email config not set")
+            return False
+        return self._retry(self._send_email_once, email, subject, content, html_content)
+    
+    def _send_email_once(self, email: str, subject: str, content: str, html_content: str = None) -> bool:
+        """单次邮件发送（供 _retry 调用）"""
+        smtp_server = self.email_config.get("smtp_server", "")
+        smtp_port = self.email_config.get("smtp_port", 587)
+        use_tls = self.email_config.get("use_tls", True)
+        username = self.email_config.get("username", "")
+        password = self.email_config.get("password", "")
+        from_name = self.email_config.get("from_name", "AI简报系统")
+        
+        if not smtp_server or not username or not password:
+            logger.warning("Email SMTP config incomplete")
             return False
         
-        try:
-            smtp_server = self.email_config.get("smtp_server", "")
-            smtp_port = self.email_config.get("smtp_port", 587)
-            use_tls = self.email_config.get("use_tls", True)
-            username = self.email_config.get("username", "")
-            password = self.email_config.get("password", "")
-            from_name = self.email_config.get("from_name", "AI简报系统")
-            
-            if not smtp_server or not username or not password:
-                print("Email SMTP config incomplete")
-                return False
-            
-            msg = MIMEMultipart("alternative")
-            msg["From"] = f"{from_name} <{username}>"
-            msg["To"] = email
-            msg["Subject"] = subject
-            
-            # 添加纯文本版本
-            text_part = MIMEText(content, "plain", "utf-8")
-            msg.attach(text_part)
-            
-            # 添加HTML版本
-            if html_content:
-                html_part = MIMEText(html_content, "html", "utf-8")
-                msg.attach(html_part)
-            
-            # 发送邮件
-            with smtplib.SMTP(smtp_server, smtp_port) as server:
-                if use_tls:
-                    server.starttls()
-                server.login(username, password)
-                server.send_message(msg)
-            
-            print(f"Email sent to {email}")
-            return True
-        except Exception as e:
-            print(f"Error sending email: {e}")
-            return False
+        msg = MIMEMultipart("alternative")
+        msg["From"] = f"{from_name} <{username}>"
+        msg["To"] = email
+        msg["Subject"] = subject
+        
+        text_part = MIMEText(content, "plain", "utf-8")
+        msg.attach(text_part)
+        
+        if html_content:
+            html_part = MIMEText(html_content, "html", "utf-8")
+            msg.attach(html_part)
+        
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            if use_tls:
+                server.starttls()
+            server.login(username, password)
+            server.send_message(msg)
+        
+        logger.info(f"Email sent to {email}")
+        return True
     
     def send_wecom(self, webhook_url: str, content: str) -> bool:
         """
-        通过企业微信Webhook发送简报
+        通过企业微信Webhook发送简报（带重试）
         
         Args:
             webhook_url: 企业微信Webhook URL
@@ -140,37 +139,36 @@ class AIBriefingNotifier:
         Returns:
             bool: 是否发送成功
         """
-        try:
-            # 企业微信消息长度限制为4096字节
-            truncated_content = self._truncate_for_platform(content, "wecom", 4000)
-            
-            payload = {
-                "msgtype": "markdown",
-                "markdown": {
-                    "content": truncated_content
-                }
+        return self._retry(self._send_wecom_once, webhook_url, content)
+    
+    def _send_wecom_once(self, webhook_url: str, content: str) -> bool:
+        """单次企业微信发送（供 _retry 调用）"""
+        truncated_content = self._truncate_for_platform(content, "wecom", 4000)
+        
+        payload = {
+            "msgtype": "markdown",
+            "markdown": {
+                "content": truncated_content
             }
-            
-            response = requests.post(webhook_url, json=payload, timeout=10)
-            
-            if response.status_code == 200:
-                result = response.json()
-                if result.get("errcode") == 0:
-                    print("Wecom message sent successfully")
-                    return True
-                else:
-                    print(f"Wecom error: {result}")
-                    return False
+        }
+        
+        response = requests.post(webhook_url, json=payload, timeout=10)
+        
+        if response.status_code == 200:
+            result = response.json()
+            if result.get("errcode") == 0:
+                logger.info("Wecom message sent successfully")
+                return True
             else:
-                print(f"Wecom HTTP error: {response.status_code}")
+                logger.error(f"Wecom error: {result}")
                 return False
-        except Exception as e:
-            print(f"Error sending wecom message: {e}")
+        else:
+            logger.error(f"Wecom HTTP error: {response.status_code}")
             return False
     
     def send_dingtalk(self, webhook_url: str, content: str, title: str = "AI简报", secret: str = None) -> bool:
         """
-        通过钉钉Webhook发送简报
+        通过钉钉Webhook发送简报（带重试）
         
         Args:
             webhook_url: 钉钉Webhook URL
@@ -181,46 +179,59 @@ class AIBriefingNotifier:
         Returns:
             bool: 是否发送成功
         """
-        try:
-            # 钉钉消息长度限制为5000字节
-            truncated_content = self._truncate_for_platform(content, "dingtalk", 4500)
-            
-            # 如果有签名密钥，计算签名
-            if secret:
-                timestamp = str(round(time.time() * 1000))
-                string_to_sign = f"{timestamp}\n{secret}"
-                hmac_code = hmac.new(
-                    secret.encode("utf-8"),
-                    string_to_sign.encode("utf-8"),
-                    digestmod=hashlib.sha256
-                ).digest()
-                sign = urllib.parse.quote_plus(base64.b64encode(hmac_code))
-                webhook_url = f"{webhook_url}&timestamp={timestamp}&sign={sign}"
-            
-            payload = {
-                "msgtype": "markdown",
-                "markdown": {
-                    "title": title,
-                    "text": truncated_content
-                }
+        return self._retry(self._send_dingtalk_once, webhook_url, content, title, secret)
+    
+    def _send_dingtalk_once(self, webhook_url: str, content: str, title: str = "AI简报", secret: str = None) -> bool:
+        """单次钉钉发送（供 _retry 调用）"""
+        truncated_content = self._truncate_for_platform(content, "dingtalk", 4500)
+        
+        if secret:
+            timestamp = str(round(time.time() * 1000))
+            string_to_sign = f"{timestamp}\n{secret}"
+            hmac_code = hmac.new(
+                secret.encode("utf-8"),
+                string_to_sign.encode("utf-8"),
+                digestmod=hashlib.sha256
+            ).digest()
+            sign = urllib.parse.quote_plus(base64.b64encode(hmac_code))
+            webhook_url = f"{webhook_url}&timestamp={timestamp}&sign={sign}"
+        
+        payload = {
+            "msgtype": "markdown",
+            "markdown": {
+                "title": title,
+                "text": truncated_content
             }
-            
-            response = requests.post(webhook_url, json=payload, timeout=10)
-            
-            if response.status_code == 200:
-                result = response.json()
-                if result.get("errcode") == 0:
-                    print("Dingtalk message sent successfully")
-                    return True
-                else:
-                    print(f"Dingtalk error: {result}")
-                    return False
+        }
+        
+        response = requests.post(webhook_url, json=payload, timeout=10)
+        
+        if response.status_code == 200:
+            result = response.json()
+            if result.get("errcode") == 0:
+                logger.info("Dingtalk message sent successfully")
+                return True
             else:
-                print(f"Dingtalk HTTP error: {response.status_code}")
+                logger.error(f"Dingtalk error: {result}")
                 return False
-        except Exception as e:
-            print(f"Error sending dingtalk message: {e}")
+        else:
+            logger.error(f"Dingtalk HTTP error: {response.status_code}")
             return False
+    
+    def _retry(self, func, max_retries=3, *args, **kwargs):
+        """带重试的执行包装器"""
+        last_error = None
+        for attempt in range(max_retries):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                last_error = e
+                if attempt < max_retries - 1:
+                    wait_time = 2 ** attempt
+                    logger.warning(f"Retry {attempt + 1}/{max_retries} after {wait_time}s: {e}")
+                    time.sleep(wait_time)
+        logger.error(f"All {max_retries} retries failed: {last_error}")
+        return False
     
     def _truncate_for_platform(self, content: str, platform: str, max_length: int) -> str:
         """
@@ -292,7 +303,7 @@ class AIBriefingNotifier:
             
             return True
         except Exception as e:
-            print(f"Email connection test failed: {e}")
+            logger.error(f"Email connection test failed: {e}")
             return False
     
     def _test_wecom_connection(self) -> bool:
@@ -310,7 +321,7 @@ class AIBriefingNotifier:
             response = requests.post(self.wecom_webhook, json=payload, timeout=10)
             return response.status_code == 200 and response.json().get("errcode") == 0
         except Exception as e:
-            print(f"Wecom connection test failed: {e}")
+            logger.error(f"Wecom connection test failed: {e}")
             return False
     
     def _test_dingtalk_connection(self) -> bool:
@@ -328,5 +339,5 @@ class AIBriefingNotifier:
             response = requests.post(self.dingtalk_webhook, json=payload, timeout=10)
             return response.status_code == 200 and response.json().get("errcode") == 0
         except Exception as e:
-            print(f"Dingtalk connection test failed: {e}")
+            logger.error(f"Dingtalk connection test failed: {e}")
             return False

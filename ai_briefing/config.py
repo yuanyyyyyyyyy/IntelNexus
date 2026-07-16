@@ -7,6 +7,10 @@ AI简报关注点配置
 from datetime import datetime
 
 
+# 动态年份
+YEAR = datetime.now().year
+
+
 # ========== 4个关注点配置 ==========
 WATCH_CATEGORIES = {
     "ai_gov_usage": {
@@ -28,7 +32,7 @@ WATCH_CATEGORIES = {
             "军事 人工智能", "国防 AI系统"
         ],
         "search_queries": [
-            "Pentagon artificial intelligence 2026",
+            f"Pentagon artificial intelligence {YEAR}",
             "NATO AI strategy implementation",
             "EU AI Act government agencies",
             "US intelligence community AI tools",
@@ -54,7 +58,7 @@ WATCH_CATEGORIES = {
             "AI限制 中国", "中国 AI监管"
         ],
         "search_queries": [
-            "China AI chip export controls 2026",
+            f"China AI chip export controls {YEAR}",
             "Chinese AI companies global expansion",
             "US restrictions China AI technology",
             "DeepSeek AI model capabilities",
@@ -79,11 +83,11 @@ WATCH_CATEGORIES = {
             "AI安全监管", "AI透明度"
         ],
         "search_queries": [
-            "EU AI Act implementation 2026",
+            f"EU AI Act implementation {YEAR}",
             "US AI regulation new bill",
             "AI legislation affecting China",
             "artificial intelligence governance policy",
-            "AI regulation news 2026"
+            f"AI regulation news {YEAR}"
         ]
     },
     "ai_data_leak": {
@@ -105,7 +109,7 @@ WATCH_CATEGORIES = {
             "AI供应链攻击", "提示注入"
         ],
         "search_queries": [
-            "AI data breach incident 2026",
+            f"AI data breach incident {YEAR}",
             "large language model security vulnerability",
             "AI powered cyber attack news",
             "training data privacy breach AI",
@@ -145,26 +149,6 @@ BRIEFING_CONFIG = {
         "markdown": True,
         "html_email": True,
         "pdf": True
-    }
-}
-
-
-# ========== 推送渠道配置 ==========
-NOTIFIER_CONFIG = {
-    "email": {
-        "smtp_server": "",
-        "smtp_port": 587,
-        "use_tls": True,
-        "username": "",
-        "password": "",
-        "from_name": "AI简报系统"
-    },
-    "wecom": {
-        "webhook_url": ""
-    },
-    "dingtalk": {
-        "webhook_url": "",
-        "secret": ""
     }
 }
 

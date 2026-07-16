@@ -11,9 +11,8 @@ WARNING: This module is for educational and authorized research purposes only.
 """
 
 import os
-from dotenv import load_dotenv
-load_dotenv()
 
+import base64
 import requests
 import random
 import re
@@ -24,8 +23,10 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import platform
 
-import warnings
-warnings.filterwarnings("ignore")
+from src.logger import get_logger
+from src.search import USER_AGENTS
+
+logger = get_logger(__name__)
 
 ENABLE_DARKWEB = os.getenv("ENABLE_DARKWEB", "false").lower() == "true"
 
@@ -48,7 +49,7 @@ def get_custom_onion_sites(ui_sites=None):
     if CUSTOM_ONION_SITES:
         try:
             sites = json.loads(CUSTOM_ONION_SITES)
-        except:
+        except Exception:
             pass
     
     # 2. 从本地文件加载
@@ -61,7 +62,7 @@ def get_custom_onion_sites(ui_sites=None):
                 for fs in file_sites:
                     if fs not in sites:
                         sites.append(fs)
-    except:
+    except Exception:
         pass
     
     # 3. 合并UI传递的站点
@@ -69,23 +70,6 @@ def get_custom_onion_sites(ui_sites=None):
         for us in ui_sites:
             if us not in sites:
                 sites.append(us)
-    
-    # 4. 默认添加Breached论坛（如果配置了认证）
-    breached_user = os.getenv("BREACHED_USERNAME", "")
-    breached_pass = os.getenv("BREACHED_PASSWORD", "")
-    if breached_user and breached_pass:
-        breached_site = {
-            "name": "Breached Forum",
-            "url": "http://breachedmw4otc2lhx7nqe4wyxfhpvy32ooz26opvqkmmrbg73c7ooad.onion",
-            "auth": {
-                "type": "basic",
-                "username": breached_user,
-                "password": breached_pass
-            }
-        }
-        # 检查是否已存在
-        if not any(s.get("name") == "Breached Forum" for s in sites):
-            sites.append(breached_site)
     
     return sites
 
@@ -116,7 +100,7 @@ def fetch_with_auth(url, auth=None):
     try:
         response = session.get(url, timeout=30)
         return response
-    except:
+    except Exception:
         return None
 
 
@@ -127,9 +111,16 @@ def search_custom_onion_site(site_config, query):
         base_url = site_config.get("url", "")
         auth = site_config.get("auth")
         name = site_config.get("name", "Custom")
-        
+
+        # Decode base64-encoded password if present
+        if auth and isinstance(auth.get("password"), str):
+            try:
+                auth = dict(auth)
+                auth["password"] = base64.b64decode(auth["password"].encode("utf-8")).decode("utf-8")
+            except Exception:
+                pass
+
         # 尝试访问站点并搜索
-        # Breached论坛搜索URL格式
         search_url = f"{base_url}?search={query}"
         
         response = fetch_with_auth(search_url, auth)
@@ -151,24 +142,12 @@ def search_custom_onion_site(site_config, query):
                                 "link": href if href.startswith('http') else f"{base_url}{href}",
                                 "source": name
                             })
-                except:
+                except Exception:
                     continue
-    except:
+    except Exception:
         pass
     
     return results
-
-USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:137.0) Gecko/20100101 Firefox/137.0",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14.7; rv:137.0) Gecko/20100101 Firefox/137.0",
-    "Mozilla/5.0 (X11; Linux i686; rv:137.0) Gecko/20100101 Firefox/137.0",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_7_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3 Safari/605.1.15",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.3179.54",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.3179.54"
-]
 
 # 完整的暗网搜索引擎列表（来自原始项目）
 DARKWEB_SEARCH_ENGINES = [
@@ -201,7 +180,7 @@ def get_tor_proxy_port():
     if custom_port:
         try:
             return int(custom_port)
-        except:
+        except Exception:
             pass
     
     # 默认端口
@@ -251,9 +230,9 @@ def fetch_ahmia_results(query):
                             "link": href,
                             "source": "Ahmia"
                         })
-                except:
+                except Exception:
                     continue
-    except:
+    except Exception:
         pass
     
     return results
@@ -280,9 +259,9 @@ def fetch_onionlink_search(query):
                             "link": href,
                             "source": "OnionLink"
                         })
-                except:
+                except Exception:
                     continue
-    except:
+    except Exception:
         pass
     
     return results
@@ -294,9 +273,10 @@ def fetch_tordex_search(query):
     try:
         url = f"https://tordexu72joez4ofvtvk6hxdlh3cvt7qexvzuwcyhyhj5f5xt22b5gfqd.onion/search?q={query}"
         headers = {"User-Agent": random.choice(USER_AGENTS)}
+        port = get_tor_proxy_port()
         response = requests.get(url, headers=headers, timeout=12, proxies={
-            "http": "socks5h://127.0.0.1:9150",
-            "https": "socks5h://127.0.0.1:9150"
+            "http": f"socks5h://127.0.0.1:{port}",
+            "https": f"socks5h://127.0.0.1:{port}"
         })
         
         if response.status_code == 200:
@@ -312,9 +292,9 @@ def fetch_tordex_search(query):
                             "link": href,
                             "source": "TorDex"
                         })
-                except:
+                except Exception:
                     continue
-    except:
+    except Exception:
         pass
     
     return results
@@ -355,7 +335,7 @@ def get_darkweb_results(refined_query, max_workers=5, advanced_mode=False, tor_p
             search_results = fetch_ahmia_results(query)
             if search_results:
                 results.extend(search_results)
-        except:
+        except Exception:
             pass
         
         # 2. 高级模式：使用Tor代理搜索
@@ -365,7 +345,7 @@ def get_darkweb_results(refined_query, max_workers=5, advanced_mode=False, tor_p
                 search_results = fetch_onionlink_search(query)
                 if search_results:
                     results.extend(search_results)
-            except:
+            except Exception:
                 pass
             
             # TorDex搜索（需要Tor）
@@ -373,7 +353,7 @@ def get_darkweb_results(refined_query, max_workers=5, advanced_mode=False, tor_p
                 search_results = fetch_tordex_search(query)
                 if search_results:
                     results.extend(search_results)
-            except:
+            except Exception:
                 pass
         
         # 3. 自定义暗网站点（支持认证）
@@ -383,7 +363,7 @@ def get_darkweb_results(refined_query, max_workers=5, advanced_mode=False, tor_p
                 site_results = search_custom_onion_site(site, query)
                 if site_results:
                     results.extend(site_results)
-            except:
+            except Exception:
                 pass
     
     # 去重

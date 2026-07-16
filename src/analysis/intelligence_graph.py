@@ -173,7 +173,7 @@ class IntelligenceGraph:
         try:
             pr = nx.pagerank(self.graph, alpha=0.85)
             return dict(sorted(pr.items(), key=lambda x: x[1], reverse=True))
-        except:
+        except Exception:
             return {}
 
     def detect_communities(self):
@@ -183,7 +183,7 @@ class IntelligenceGraph:
             from networkx.algorithms.community import greedy_modularity_communities
             communities = greedy_modularity_communities(self.graph)
             return [sorted(list(c)) for c in communities]
-        except:
+        except Exception:
             return []
 
     def export_html(self, output_path):
@@ -220,7 +220,7 @@ class IntelligenceGraph:
             os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
             net.save_graph(output_path)
             return output_path
-        except:
+        except Exception:
             return ""
 
     def to_dict(self):

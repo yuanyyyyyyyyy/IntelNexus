@@ -10,6 +10,9 @@ from datetime import datetime
 
 from ai_briefing.config import WATCH_CATEGORIES
 from src.config.sources import get_enabled_sources, get_sources_by_category
+from src.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class AIBriefingCollector:
@@ -28,7 +31,7 @@ class AIBriefingCollector:
                 from src.search.web import get_web_results
                 self._web_search = get_web_results
             except ImportError:
-                print("Warning: web_search module not available")
+                logger.warning("web_search module not available")
                 self._web_search = lambda q, max_r=10: []
         return self._web_search
     
@@ -39,7 +42,7 @@ class AIBriefingCollector:
                 from src.search.news import get_news_results
                 self._news_search = get_news_results
             except ImportError:
-                print("Warning: news_search module not available")
+                logger.warning("news_search module not available")
                 self._news_search = lambda q, max_r=10, api_key=None: []
         return self._news_search
     
@@ -50,7 +53,7 @@ class AIBriefingCollector:
                 from src.search.scraper import scrape_multiple
                 self._scrape = scrape_multiple
             except ImportError:
-                print("Warning: scrape module not available")
+                logger.warning("scrape module not available")
                 self._scrape = lambda urls, max_workers=5: {}
         return self._scrape
     
@@ -66,7 +69,7 @@ class AIBriefingCollector:
             List[Dict]: 搜索结果列表
         """
         if category not in WATCH_CATEGORIES:
-            print(f"Unknown category: {category}")
+            logger.warning(f"Unknown category: {category}")
             return []
         
         cat_config = WATCH_CATEGORIES[category]
@@ -105,17 +108,30 @@ class AIBriefingCollector:
     
     def collect_all_categories(self) -> Dict[str, List[Dict]]:
         """
-        为所有关注点采集数据
+        为所有关注点采集数据（并行执行）
         
         Returns:
             Dict[str, List[Dict]]: {category_id: [results]}
         """
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
         results = {}
-        
-        for category_id in WATCH_CATEGORIES.keys():
-            print(f"Collecting data for: {WATCH_CATEGORIES[category_id]['name']}")
-            results[category_id] = self.collect_for_category(category_id)
-        
+        category_ids = list(WATCH_CATEGORIES.keys())
+
+        with ThreadPoolExecutor(max_workers=len(category_ids)) as executor:
+            futures = {
+                executor.submit(self.collect_for_category, cat_id): cat_id
+                for cat_id in category_ids
+            }
+            for future in as_completed(futures):
+                cat_id = futures[future]
+                try:
+                    results[cat_id] = future.result()
+                    logger.info(f"Collected {len(results[cat_id])} results for {WATCH_CATEGORIES[cat_id]['name']}")
+                except Exception as e:
+                    logger.error(f"Error collecting {cat_id}: {e}")
+                    results[cat_id] = []
+
         return results
     
     def _search_by_keywords(self, queries: List[str], max_results: int = 10) -> List[Dict]:
@@ -157,7 +173,7 @@ class AIBriefingCollector:
                         "source": r.get("source", "News Search")
                     })
             except Exception as e:
-                print(f"Search error for query '{query}': {e}")
+                logger.warning(f"Search error for query '{query}': {e}")
                 continue
         
         return results
@@ -187,7 +203,7 @@ class AIBriefingCollector:
         try:
             return scrape(urls_data, max_workers=5)
         except Exception as e:
-            print(f"Scrape error: {e}")
+            logger.warning(f"Scrape error: {e}")
             return {}
     
     def _deduplicate_results(self, results: List[Dict]) -> List[Dict]:

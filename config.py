@@ -12,9 +12,7 @@ OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/ap
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 # ========== 搜索配置 ==========
-SEMANTIC_SCHOLAR_API_KEY = os.getenv("SEMANTIC_SCHOLAR_API_KEY")
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
-TWITTER_BEARER_TOKEN = os.getenv("TWITTER_BEARER_TOKEN")
 
 # ========== 功能开关 ==========
 ENABLE_DARKWEB = os.getenv("ENABLE_DARKWEB", "false").lower() == "true"
