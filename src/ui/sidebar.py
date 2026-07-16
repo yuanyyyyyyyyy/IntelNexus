@@ -282,7 +282,7 @@ def _render_data_sources():
                     st.write(f"**{source['name']}**")
                     st.caption(f"{source['url'][:50]}...")
                 with col_toggle:
-                    enabled = st.toggle("", value=source.get("enabled", True), key=f"toggle_{source['id']}")
+                    enabled = st.toggle("启用", value=source.get("enabled", True), key=f"toggle_{source['id']}", label_visibility="collapsed")
                     if enabled != source.get("enabled", True):
                         toggle_source(source['id'], enabled)
                         st.rerun()
