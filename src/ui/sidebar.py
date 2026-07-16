@@ -494,6 +494,42 @@ def render_sidebar():
             else:
                 st.info(get_text("no_subscribers"))
 
+        # AI简报 - 立即生成
+        st.markdown("---")
+        st.markdown(f'<div class="section-header">🚀 {get_text("generate_briefing")}</div>', unsafe_allow_html=True)
+        
+        if st.button(get_text("generate_briefing"), key="generate_briefing_btn", use_container_width=True):
+            from ai_briefing.collector import AIBriefingCollector
+            from ai_briefing.analyzer import AIBriefingAnalyzer
+            from ai_briefing.notifier import AIBriefingNotifier
+            from src.config.subscriptions import get_active_subscribers
+            
+            with st.spinner("正在生成简报..."):
+                try:
+                    collector = AIBriefingCollector()
+                    collected = {}
+                    for cat in ["ai_gov_usage", "ai_china_narrative", "ai_legislation", "ai_data_leak"]:
+                        collected[cat] = collector.collect_for_category(cat)
+                    
+                    analyzer = AIBriefingAnalyzer()
+                    briefing_md = analyzer.generate_briefing(collected)
+                    
+                    email_config = st.session_state.get("email_config", {})
+                    notifier = AIBriefingNotifier(email_config=email_config)
+                    subscribers = get_active_subscribers()
+                    
+                    if not subscribers:
+                        st.warning("暂无订阅者，请先添加订阅者")
+                    else:
+                        success_count = 0
+                        for sub in subscribers:
+                            results = notifier.notify(sub, briefing_md)
+                            if any(results.values()):
+                                success_count += 1
+                        st.success(f"简报已生成并推送给 {success_count}/{len(subscribers)} 位订阅者")
+                except Exception as e:
+                    st.error(f"生成简报失败: {str(e)}")
+
         # AI简报 - 邮件设置
         st.markdown("---")
         st.markdown(f'<div class="section-header">📧 {get_text("email_settings")}</div>', unsafe_allow_html=True)

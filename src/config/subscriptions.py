@@ -11,7 +11,7 @@ from pathlib import Path
 from datetime import datetime
 
 
-SUBSCRIPTIONS_FILE = os.path.join(os.path.dirname(__file__), "data", "subscriptions.json")
+SUBSCRIPTIONS_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "data", "subscriptions.json")
 
 
 def _ensure_subscriptions_file():
