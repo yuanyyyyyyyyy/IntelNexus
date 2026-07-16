@@ -1,5 +1,4 @@
 import streamlit as st
-from src.ui.i18n import get_text
 
 
 def render_results_detail():

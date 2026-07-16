@@ -6,17 +6,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-st.markdown("""
-<style>
-    .stApp { background-color: #FFFFFF !important; color: #1E1E1E !important; }
-    [data-testid="stSidebar"] { background-color: #F5F5F5 !important; }
-    div[data-testid="stMarkdownContainer"] { color: #1E1E1E !important; }
-    .stTextInput > div > div > input { background-color: #FFFFFF !important; color: #1E1E1E !important; }
-    header[data-testid="stHeader"] { background-color: transparent !important; }
-    .stDeployButton { display: none !important; }
-</style>
-""", unsafe_allow_html=True)
-
 from src.ui.i18n import get_text
 from src.ui.styles import render_light_theme_css, render_morandi_theme_css
 from src.ui.sidebar import render_sidebar

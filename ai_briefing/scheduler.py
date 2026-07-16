@@ -4,8 +4,6 @@ AI简报定时调度器
 管理定时任务，触发简报生成和推送
 """
 
-import sys
-import os
 from typing import Dict, List, Optional
 from datetime import datetime
 import threading
@@ -133,7 +131,7 @@ class AIBriefingScheduler:
         """执行简报生成和推送"""
         with self._lock:
             try:
-                from subscription_config import get_subscriber
+                from src.config.subscriptions import get_subscriber
                 
                 subscriber = get_subscriber(subscriber_id)
                 if not subscriber:
@@ -209,7 +207,7 @@ class AIBriefingScheduler:
         if not self.scheduler:
             return
         
-        from subscription_config import get_subscriber
+        from src.config.subscriptions import get_subscriber
         
         subscriber = get_subscriber(subscriber_id)
         if subscriber:

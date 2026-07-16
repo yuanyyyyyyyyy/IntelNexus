@@ -4,7 +4,7 @@ import time
 import hashlib
 from datetime import datetime, timedelta
 
-CACHE_DIR = os.path.join(os.path.dirname(__file__), "data", "cache")
+CACHE_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data", "cache")
 CACHE_TTL = 86400
 
 

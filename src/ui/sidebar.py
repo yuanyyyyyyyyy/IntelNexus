@@ -1,6 +1,6 @@
 import streamlit as st
 from src.ui.i18n import get_text
-from src.ui.helpers import SEARCH_MODES, BREACHED_URL, DEFAULT_TOR_PORT, check_tor_status, get_tor_port
+from src.ui.helpers import SEARCH_MODES, BREACHED_URL, DEFAULT_TOR_PORT, check_tor_status
 from src.llm.utils import get_model_choices
 from src.llm.models import add_custom_model, get_custom_model_names, remove_custom_model
 from src.search.darkweb import is_available as darkweb_available

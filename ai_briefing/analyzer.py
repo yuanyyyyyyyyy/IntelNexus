@@ -4,9 +4,7 @@ AI简报分析生成器
 使用LLM分析搜索结果并生成简报内容
 """
 
-import sys
-import os
-from typing import Dict, List, Optional
+from typing import Dict, List
 from datetime import datetime
 
 from ai_briefing.config import WATCH_CATEGORIES, BRIEFING_CONFIG
@@ -78,13 +76,13 @@ class AIBriefingAnalyzer:
         briefing = render_markdown_briefing(
             generated_date=generated_date,
             organization_name=organization_name,
-            top3_section=top3_content,
-            ai_gov_usage_section=gov_usage_content,
-            ai_china_narrative_section=china_narrative_content,
-            ai_legislation_section=legislation_content,
-            ai_data_leak_section=data_leak_content,
-            insights_section=insights_content,
-            links_section=links_content
+            top3_content=top3_content,
+            ai_gov_usage_content=gov_usage_content,
+            ai_china_narrative_content=china_narrative_content,
+            ai_legislation_content=legislation_content,
+            ai_data_leak_content=data_leak_content,
+            insights_content=insights_content,
+            links_content=links_content
         )
         
         return briefing

@@ -11,7 +11,6 @@ and conflict detection for multi-source intelligence analysis.
 import re
 import numpy as np
 from urllib.parse import urlparse
-from typing import Optional
 
 
 class SourceScorer:

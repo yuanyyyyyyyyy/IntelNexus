@@ -4,8 +4,6 @@ AI简报数据采集器
 根据关注点配置，从多个来源采集数据
 """
 
-import sys
-import os
 from typing import Dict, List, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
@@ -27,7 +25,7 @@ class AIBriefingCollector:
         """延迟加载web_search模块"""
         if self._web_search is None:
             try:
-                from web_search import get_web_results
+                from src.search.web import get_web_results
                 self._web_search = get_web_results
             except ImportError:
                 print("Warning: web_search module not available")
@@ -38,7 +36,7 @@ class AIBriefingCollector:
         """延迟加载news_search模块"""
         if self._news_search is None:
             try:
-                from news_search import get_news_results
+                from src.search.news import get_news_results
                 self._news_search = get_news_results
             except ImportError:
                 print("Warning: news_search module not available")
@@ -49,7 +47,7 @@ class AIBriefingCollector:
         """延迟加载scrape模块"""
         if self._scrape is None:
             try:
-                from scrape import scrape_multiple
+                from src.search.scraper import scrape_multiple
                 self._scrape = scrape_multiple
             except ImportError:
                 print("Warning: scrape module not available")
@@ -218,65 +216,3 @@ class AIBriefingCollector:
                     unique_results.append(r)
         
         return unique_results
-    
-    def collect_rss_feeds(self, feeds: List[Dict]) -> List[Dict]:
-        """
-        从RSS订阅源采集数据
-        
-        Args:
-            feeds: RSS源列表
-        
-        Returns:
-            List[Dict]: RSS条目列表
-        """
-        results = []
-        
-        try:
-            import requests
-            from bs4 import BeautifulSoup
-            import random
-            
-            USER_AGENTS = [
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101"
-            ]
-            
-            for feed in feeds:
-                try:
-                    headers = {"User-Agent": random.choice(USER_AGENTS)}
-                    response = requests.get(feed["url"], headers=headers, timeout=10)
-                    
-                    if response.status_code == 200:
-                        try:
-                            soup = BeautifulSoup(response.content, "xml")
-                        except:
-                            soup = BeautifulSoup(response.content, "html.parser")
-                        
-                        items = soup.find_all("item")[:10]
-                        if not items:
-                            items = soup.find_all("entry")[:10]
-                        
-                        for item in items:
-                            title = item.find("title")
-                            link = item.find("link")
-                            desc = item.find("description") or item.find("summary")
-                            pub_date = item.find("pubDate") or item.find("published")
-                            
-                            if title and link:
-                                link_text = link.get_text(strip=True) if hasattr(link, 'get_text') else str(link)
-                                results.append({
-                                    "title": title.get_text(strip=True) if hasattr(title, 'get_text') else str(title),
-                                    "url": link_text,
-                                    "content": desc.get_text(strip=True) if desc and hasattr(desc, 'get_text') else "",
-                                    "description": desc.get_text(strip=True)[:200] if desc and hasattr(desc, 'get_text') else "",
-                                    "source": feed.get("name", "RSS Feed"),
-                                    "published_at": pub_date.get_text(strip=True) if pub_date and hasattr(pub_date, 'get_text') else ""
-                                })
-                except Exception as e:
-                    print(f"RSS feed error for {feed.get('name', 'unknown')}: {e}")
-                    continue
-        except ImportError:
-            print("Warning: requests or bs4 not available for RSS parsing")
-        
-        return results

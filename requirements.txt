@@ -31,9 +31,10 @@ sentence-transformers>=2.2.0
 spacy>=3.6.0
 networkx>=3.1
 pyvis>=0.3.1
-scikit-learn>=1.2.0
 numpy>=1.24.0
+
+# CLI框架
+click>=8.0.0
 
 # AI简报模块
 apscheduler>=3.10.0
-markdown>=3.5
