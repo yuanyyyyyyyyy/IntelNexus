@@ -186,7 +186,7 @@ def get_model_choices() -> List[str]:
     
     # Import custom models
     try:
-        from custom_models import get_custom_model_names
+        from src.llm.models import get_custom_model_names
         custom_models = get_custom_model_names()
     except ImportError:
         custom_models = []
@@ -235,7 +235,7 @@ def resolve_model_config(model_choice: str):
     
     # Check custom models
     try:
-        from custom_models import get_model_config, get_custom_model_names
+        from src.llm.models import get_model_config, get_custom_model_names
         for custom_model_name in get_custom_model_names():
             if _normalize_model_name(custom_model_name) == model_choice_lower:
                 model_config = get_model_config(custom_model_name)

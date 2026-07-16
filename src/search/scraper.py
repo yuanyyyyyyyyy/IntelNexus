@@ -1,0 +1,124 @@
+import random
+import requests
+import threading
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+from bs4 import BeautifulSoup
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from src.config.cache import get_cached, set_cached
+
+import warnings
+warnings.filterwarnings("ignore")
+
+# Define a list of rotating user agents.
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:137.0) Gecko/20100101 Firefox/137.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14.7; rv:137.0) Gecko/20100101 Firefox/137.0",
+    "Mozilla/5.0 (X11; Linux i686; rv:137.0) Gecko/20100101 Firefox/137.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_7_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3 Safari/605.1.15",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.3179.54",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.3179.54"
+]
+
+def get_tor_session():
+    """
+    Creates a requests Session with Tor SOCKS proxy and automatic retries.
+    """
+    session = requests.Session()
+    retry = Retry(
+        total=3,
+        read=3,
+        connect=3,
+        backoff_factor=0.3,
+        status_forcelist=[500, 502, 503, 504]
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    
+    session.proxies = {
+        "http": "socks5h://127.0.0.1:9150",
+        "https": "socks5h://127.0.0.1:9150"
+    }
+    return session
+
+def scrape_single(url_data, rotate=False, rotate_interval=5, control_port=9051, control_password=None):
+    """
+    Scrapes a single URL using a robust Tor session.
+    Returns a tuple (url, scraped_text).
+    """
+    url = url_data['link']
+    
+    cached = get_cached(url)
+    if cached is not None:
+        return (url, cached)
+    
+    # 跳过PDF和其他不支持的格式
+    if url.lower().endswith('.pdf') or '.pdf?' in url.lower():
+        return (url, f"{url_data['title']} - [PDF文件，请直接下载查看]")
+    
+    use_tor = ".onion" in url
+    
+    headers = {
+        "User-Agent": random.choice(USER_AGENTS),
+        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+    }
+    
+    try:
+        if use_tor:
+            session = get_tor_session()
+            response = session.get(url, headers=headers, timeout=45)
+        else:
+            response = requests.get(url, headers=headers, timeout=15)
+
+        if response.status_code == 200:
+            # 强制使用UTF-8解码，解决中文乱码问题
+            response.encoding = 'utf-8'
+            
+            soup = BeautifulSoup(response.text, "html.parser")
+            # Clean up text: remove scripts/styles
+            for script in soup(["script", "style"]):
+                script.extract()
+            text = soup.get_text(separator=' ', strip=True)
+            # Normalize whitespace
+            text = ' '.join(text.split())
+            
+            # 如果抓取内容太短（少于100字符），说明可能失败了，返回标题
+            if len(text) < 100:
+                scraped_text = url_data['title']
+            else:
+                scraped_text = f"{url_data['title']} - {text}"
+        else:
+            scraped_text = url_data['title']
+    except Exception as e:
+        # Return title only on failure, so we don't lose the reference
+        scraped_text = url_data['title']
+    
+    return url, scraped_text
+
+def scrape_multiple(urls_data, max_workers=5):
+    """
+    Scrapes multiple URLs concurrently using a thread pool.
+    """
+    results = {}
+    max_chars = 1000  # Reduced for speed
+    
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_url = {
+            executor.submit(scrape_single, url_data): url_data
+            for url_data in urls_data
+        }
+        for future in as_completed(future_to_url):
+            try:
+                url, content = future.result()
+                if len(content) > max_chars:
+                    content = content[:max_chars] + "...(truncated)"
+                results[url] = content
+                set_cached(url, content)
+            except Exception:
+                continue
+                
+    return results

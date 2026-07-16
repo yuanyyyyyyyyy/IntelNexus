@@ -39,6 +39,8 @@ Thumbs.db
 # Data files
 data/*.json
 data/*.csv
+data/cache/
+src/config/data/
 
 # Output & Reports
 output/
