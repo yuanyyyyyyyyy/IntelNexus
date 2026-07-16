@@ -12,7 +12,6 @@ Provides:
 import re
 import os
 import networkx as nx
-from typing import Optional
 
 
 class EntityExtractor:

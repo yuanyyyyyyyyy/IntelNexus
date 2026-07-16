@@ -3,9 +3,6 @@ import openai
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from src.llm.utils import _common_llm_params, resolve_model_config, get_model_choices
-from config import OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_API_KEY
-import logging
-import re
 
 import warnings
 

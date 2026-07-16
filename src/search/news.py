@@ -1,4 +1,3 @@
-import os
 import requests
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta

@@ -11,7 +11,6 @@ WARNING: This module is for educational and authorized research purposes only.
 """
 
 import os
-import sys
 from dotenv import load_dotenv
 load_dotenv()
 

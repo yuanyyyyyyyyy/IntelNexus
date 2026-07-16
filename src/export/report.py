@@ -7,7 +7,7 @@ Supports Chinese and English with professional formatting.
 
 import os
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import List, Optional
 import re
 import warnings
 warnings.filterwarnings("ignore")
@@ -326,92 +326,6 @@ def export_pdf(content: str, query: str, output_path: str) -> str:
     
     # Build PDF
     doc.build(story)
-    return output_path
-    
-    # 分割线
-    pdf.set_draw_color(200, 200, 200)
-    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-    pdf.ln(5)
-    
-    # 报告信息
-    pdf.set_font(font_name, 'B', 12)
-    pdf.set_text_color(50, 50, 50)
-    pdf.cell(0, 8, '报告信息', ln=True)
-    pdf.set_font(font_name, '', 11)
-    
-    pdf.cell(40, 6, '查询内容：', ln=False)
-    pdf.multi_cell(0, 6, clean_query[:100] if clean_query else '[No query]')
-    
-    pdf.cell(40, 6, '生成时间：', ln=False)
-    pdf.cell(0, 6, datetime.now().strftime('%Y年%m月%d日 %H:%M:%S'), ln=True)
-    
-    pdf.cell(40, 6, '平台版本：', ln=False)
-    pdf.cell(0, 6, 'IntelNexus v1.0', ln=True)
-    
-    pdf.ln(5)
-    
-    # 分割线
-    pdf.set_draw_color(200, 200, 200)
-    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-    pdf.ln(5)
-    
-    # 分析结果
-    pdf.set_font(font_name, 'B', 12)
-    pdf.set_text_color(31, 71, 136)
-    pdf.cell(0, 8, '分析结果', ln=True)
-    pdf.set_font(font_name, '', 11)
-    pdf.set_text_color(50, 50, 50)
-    
-    # 处理内容
-    max_length = 8000
-    if len(content) > max_length:
-        display_content = content[:max_length] + "\n[内容过长，请查看完整的Markdown或Word格式报告]"
-    else:
-        display_content = content
-    
-    lines = display_content.split('\n')
-    for line in lines:
-        if not line.strip():
-            pdf.ln(2)
-        else:
-            # 处理标题
-            if line.startswith('# '):
-                pdf.set_font(font_name, 'B', 13)
-                pdf.set_text_color(31, 71, 136)
-                pdf.multi_cell(0, 6, line.replace('# ', '').strip())
-                pdf.set_font(font_name, '', 11)
-                pdf.set_text_color(50, 50, 50)
-            elif line.startswith('## '):
-                pdf.set_font(font_name, 'B', 12)
-                pdf.set_text_color(31, 71, 136)
-                pdf.multi_cell(0, 6, line.replace('## ', '').strip())
-                pdf.set_font(font_name, '', 11)
-                pdf.set_text_color(50, 50, 50)
-            elif line.startswith('### '):
-                pdf.set_font(font_name, 'B', 11)
-                pdf.multi_cell(0, 6, line.replace('### ', '').strip())
-                pdf.set_font(font_name, '', 11)
-            else:
-                # 检查页面剩余空间，如需要则添加新页
-                if pdf.get_y() > 250:
-                    pdf.add_page()
-                    pdf.set_font(font_name, '', 11)
-                    pdf.set_text_color(50, 50, 50)
-                
-                pdf.multi_cell(0, 5, line)
-    
-    # 页脚
-    pdf.ln(10)
-    pdf.set_draw_color(200, 200, 200)
-    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-    pdf.ln(2)
-    pdf.set_font(font_name, 'I', 9)
-    pdf.set_text_color(128, 128, 128)
-    footer_text = f"© 2026 IntelNexus Platform | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-    pdf.cell(0, 5, footer_text, align='C')
-    
-    # 保存PDF
-    pdf.output(output_path, 'F')
     return output_path
 
 
