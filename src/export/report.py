@@ -9,8 +9,10 @@ import os
 from datetime import datetime
 from typing import List, Optional
 import re
-import warnings
-warnings.filterwarnings("ignore")
+
+from src.logger import get_logger
+
+logger = get_logger(__name__)
 
 try:
     from reportlab.lib.pagesizes import letter, A4
@@ -24,34 +26,6 @@ try:
     REPORTLAB_AVAILABLE = True
 except ImportError:
     REPORTLAB_AVAILABLE = False
-
-try:
-    from fpdf import FPDF
-    
-    class PDFReport(FPDF):
-        def __init__(self, is_chinese=False):
-            super().__init__()
-            self.is_chinese = is_chinese
-            self.set_auto_page_break(auto=True, margin=15)
-        
-        def header(self):
-            # 标题
-            self.set_font('Arial', 'B', 18)
-            self.cell(0, 15, 'IntelNexus Intelligence Report', 0, 1, 'C')
-            
-            # 分割线
-            self.set_draw_color(100, 100, 100)
-            self.line(15, 20, 195, 20)
-            self.ln(8)
-        
-        def footer(self):
-            self.set_y(-15)
-            self.set_font('Arial', 'I', 9)
-            self.cell(0, 10, f'Page {self.page_no()}  |  Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', 0, 0, 'C')
-    
-except ImportError:
-    FPDF = None
-    PDFReport = None
 
 
 try:
@@ -151,7 +125,7 @@ def _clean_content(content: str) -> str:
             u"\U0001F1E0-\U0001F1FF"
             "]+", flags=re.UNICODE)
         content = emoji_pattern.sub('', content)
-    except:
+    except Exception:
         pass
     
     return content
@@ -164,7 +138,7 @@ def export_pdf(content: str, query: str, output_path: str) -> str:
     
     try:
         clean_query = query[:100] if query else "[No query content]"
-    except:
+    except Exception:
         clean_query = "[Query processing error]"
     
     output_dir = os.path.dirname(output_path)
@@ -188,7 +162,7 @@ def export_pdf(content: str, query: str, output_path: str) -> str:
                     pdfmetrics.registerFont(TTFont("Chinese", font_path))
                     font_name = "Chinese"
                     break
-                except:
+                except Exception:
                     continue
         return font_name
     

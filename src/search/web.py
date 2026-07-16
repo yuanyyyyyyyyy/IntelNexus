@@ -6,15 +6,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from urllib.parse import quote, urlencode
-import warnings
-warnings.filterwarnings("ignore")
 
-USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
-]
+from src.logger import get_logger
+from src.search import USER_AGENTS
+
+logger = get_logger(__name__)
 
 SEARCH_ENGINES = [
     {
@@ -92,10 +88,10 @@ def fetch_bing_results(query: str, page: int = 0):
                                 "description": description[:200],
                                 "source": "Bing"
                             })
-                except:
+                except Exception:
                     continue
     except Exception as e:
-        print(f"Bing search error: {e}")
+        logger.warning(f"Bing search error: {e}")
     return results
 
 
@@ -128,10 +124,10 @@ def fetch_ddg_results(query: str, page: int = 0):
                                 "description": description[:200],
                                 "source": "DuckDuckGo"
                             })
-                except:
+                except Exception:
                     continue
     except Exception as e:
-        print(f"DuckDuckGo search error: {e}")
+        logger.warning(f"DuckDuckGo search error: {e}")
     return results
 
 
@@ -164,10 +160,10 @@ def fetch_yahoo_results(query: str, page: int = 0):
                                 "description": description[:200],
                                 "source": "Yahoo"
                             })
-                except:
+                except Exception:
                     continue
     except Exception as e:
-        print(f"Yahoo search error: {e}")
+        logger.warning(f"Yahoo search error: {e}")
     return results
 
 
@@ -200,10 +196,10 @@ def fetch_yandex_results(query: str, page: int = 0):
                                 "description": description[:200],
                                 "source": "Yandex"
                             })
-                except:
+                except Exception:
                     continue
     except Exception as e:
-        print(f"Yandex search error: {e}")
+        logger.warning(f"Yandex search error: {e}")
     return results
 
 
@@ -233,10 +229,10 @@ def fetch_baidu_results(query: str, page: int = 0):
                                 "description": "",
                                 "source": "Baidu"
                             })
-                except:
+                except Exception:
                     continue
     except Exception as e:
-        print(f"Baidu search error: {e}")
+        logger.warning(f"Baidu search error: {e}")
     return results
 
 
@@ -285,7 +281,7 @@ def get_web_results(query, max_workers: int = 5, max_results: int = 50) -> list:
             try:
                 results.extend(future.result())
             except Exception as e:
-                print(f"Search error: {e}")
+                logger.warning(f"Search error: {e}")
 
     # 如果快速引擎结果足够，跳过慢速引擎
     unique_so_far = _dedup_results(results)
@@ -301,9 +297,9 @@ def get_web_results(query, max_workers: int = 5, max_results: int = 50) -> list:
                 try:
                     results.extend(future.result())
                 except Exception as e:
-                    print(f"Search error: {e}")
+                    logger.warning(f"Search error: {e}")
     else:
-        print(f"快速引擎已返回 {len(unique_so_far)} 条结果，跳过慢速引擎")
+        logger.info(f"快速引擎已返回 {len(unique_so_far)} 条结果，跳过慢速引擎")
 
     unique_results = _dedup_results(results)
     return unique_results[:max_results]

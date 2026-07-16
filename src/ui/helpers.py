@@ -8,7 +8,6 @@ SEARCH_MODES = {
     "darkweb": ["mode_darkweb", "暗网搜索"],
 }
 
-BREACHED_URL = "http://breachedmw4otc2lhx7nqe4wyxfhpvy32ooz26opvqkmmrbg73c7ooad.onion"
 DEFAULT_TOR_PORT = 9150
 
 
@@ -19,7 +18,7 @@ def check_tor_status(port=DEFAULT_TOR_PORT):
         result = sock.connect_ex(('127.0.0.1', port))
         sock.close()
         return result == 0
-    except:
+    except Exception:
         return False
 
 

@@ -14,6 +14,8 @@ from ai_briefing.analyzer import AIBriefingAnalyzer
 from ai_briefing.notifier import AIBriefingNotifier
 from ai_briefing.templates import render_markdown_briefing, render_email_html, markdown_to_html_sections
 from src.config.subscriptions import get_active_subscribers, update_last_sent
+from src.logger import get_logger
+logger = get_logger(__name__)
 
 
 class AIBriefingScheduler:
@@ -56,19 +58,19 @@ class AIBriefingScheduler:
             self._load_all_schedules()
             self.scheduler.start()
             self._running = True
-            print("Scheduler started")
+            logger.info("Scheduler started")
         except ImportError:
-            print("Warning: APScheduler not installed. Running in manual mode only.")
+            logger.warning("APScheduler not installed. Running in manual mode only.")
             self._running = True
         except Exception as e:
-            print(f"Error starting scheduler: {e}")
+            logger.error(f"Error starting scheduler: {e}")
     
     def stop(self):
         """停止调度器"""
         if self.scheduler:
             self.scheduler.shutdown()
         self._running = False
-        print("Scheduler stopped")
+        logger.info("Scheduler stopped")
     
     def _load_all_schedules(self):
         """加载所有订阅者的定时任务"""
@@ -92,7 +94,7 @@ class AIBriefingScheduler:
         # 解析时间
         try:
             hour, minute = map(int, time_str.split(":"))
-        except:
+        except Exception:
             hour, minute = 8, 0
         
         # 映射星期
@@ -125,7 +127,7 @@ class AIBriefingScheduler:
             replace_existing=True
         )
         
-        print(f"Added schedule for {subscriber.get('name', subscriber['id'])}: {time_str} on {days}")
+        logger.info(f"Added schedule for {subscriber.get('name', subscriber['id'])}: {time_str} on {days}")
     
     def _execute_briefing(self, subscriber_id: str):
         """执行简报生成和推送"""
@@ -135,10 +137,10 @@ class AIBriefingScheduler:
                 
                 subscriber = get_subscriber(subscriber_id)
                 if not subscriber:
-                    print(f"Subscriber {subscriber_id} not found")
+                    logger.warning(f"Subscriber {subscriber_id} not found")
                     return
                 
-                print(f"Executing briefing for {subscriber.get('name', subscriber_id)}")
+                logger.info(f"Executing briefing for {subscriber.get('name', subscriber_id)}")
                 
                 # 1. 获取订阅者关注的类别
                 categories = subscriber.get("categories", list(WATCH_CATEGORIES.keys()))
@@ -163,18 +165,19 @@ class AIBriefingScheduler:
                         **sections
                     )
                 except Exception as e:
-                    print(f"Error generating HTML: {e}")
+                    logger.error(f"Error generating HTML: {e}")
                 
                 # 5. 推送简报
                 results = self.notifier.notify(subscriber, briefing_md, briefing_html)
                 
-                # 6. 更新最后发送时间
-                update_last_sent(subscriber_id)
+                # 6. 更新最后发送时间（仅在至少一个渠道成功时）
+                if any(results.values()):
+                    update_last_sent(subscriber_id)
                 
-                print(f"Briefing executed for {subscriber.get('name', subscriber_id)}: {results}")
+                logger.info(f"Briefing executed for {subscriber.get('name', subscriber_id)}: {results}")
                 
             except Exception as e:
-                print(f"Error executing briefing: {e}")
+                logger.error(f"Error executing briefing: {e}")
     
     def trigger_now(self, subscriber_id: str):
         """手动触发某个订阅者的简报"""
@@ -221,6 +224,6 @@ class AIBriefingScheduler:
         job_id = f"briefing_{subscriber_id}"
         try:
             self.scheduler.remove_job(job_id)
-            print(f"Removed schedule for {subscriber_id}")
-        except:
+            logger.info(f"Removed schedule for {subscriber_id}")
+        except Exception:
             pass

@@ -1,12 +1,11 @@
 import re
-import openai
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from src.llm.utils import _common_llm_params, resolve_model_config, get_model_choices
 
-import warnings
+from src.logger import get_logger
 
-warnings.filterwarnings("ignore")
+logger = get_logger(__name__)
 
 
 def get_llm(model_choice):
@@ -34,7 +33,7 @@ def get_llm(model_choice):
     return llm_instance
 
 
-def refine_query(llm, user_input):
+def refine_query(user_input):
     """
     查询优化 - 原始查询 + 多语言翻译
     返回: 原始查询 + 英文翻译 + 中文翻译（如果原文不是英文/中文）
@@ -94,102 +93,6 @@ def expand_query_for_search(query_variants):
     return query_variants
 
 
-def filter_results(llm, query, results):
-    if not results:
-        return []
-
-    # 过滤掉PDF链接（LLM无法读取PDF）
-    filtered = []
-    for r in results:
-        link = r.get("link", "") or r.get("url", "") or r.get("pdf_url", "")
-        if link.lower().endswith('.pdf') or '.pdf?' in link.lower():
-            continue
-        filtered.append(r)
-    
-    if not filtered:
-        return []
-    
-    # 如果全部是PDF，返回空
-    if len(filtered) == 0:
-        return []
-
-    # Extract key query terms for basic filtering
-    query_terms = set(query.lower().split()) if isinstance(query, str) else set()
-    
-    # Pre-filter: remove results with NO relevance to query
-    prefiltered = []
-    for r in results:
-        title = r.get("title", "").lower()
-        desc = r.get("description", "").lower()
-        summary = r.get("summary", "").lower()
-        
-        # Check if any query term appears in title or description
-        has_match = any(term in title or term in desc or term in summary for term in query_terms)
-        
-        # Also check for Chinese character overlap
-        if not has_match and any('\u4e00' <= c <= '\u9fff' for c in query):
-            # For Chinese queries, check if any Chinese chars appear
-            has_match = any(c in title or c in desc or c in summary for c in query)
-        
-        if has_match:
-            prefiltered.append(r)
-    
-    # If pre-filtering removed too many, fall back to all results
-    if len(prefiltered) < len(results) * 0.3:
-        prefiltered = results[:min(len(results), 50)]
-    
-    # Use LLM to further refine
-    system_prompt = """
-You are a Network Intelligence Analyst. Given a search query and search results, select the MOST RELEVANT results.
-
-CRITICAL RULES:
-1. Only select results that are DIRECTLY related to the query topic
-2. For query "九江", do NOT select results about "AI", "人工智能", "machine learning", etc.
-3. Results must match the query's subject matter exactly
-4. Output ONLY a comma-separated list of result indices (e.g., "1,3,5")
-
-Search Query: {query}
-
-Search Results:
-"""
-
-    final_str = _generate_final_string(prefiltered)
-
-    prompt_template = ChatPromptTemplate(
-        [("system", system_prompt), ("user", "{results}")]
-    )
-    chain = prompt_template | llm | StrOutputParser()
-    try:
-        result_indices = chain.invoke({"query": query, "results": final_str})
-    except openai.RateLimitError as e:
-        print(f"Rate limit error: {e}")
-        result_indices = ""
-
-    # Parse indices
-    parsed_indices = []
-    for match in re.findall(r"\d+", result_indices):
-        try:
-            idx = int(match)
-            if 1 <= idx <= len(prefiltered):
-                parsed_indices.append(idx)
-        except ValueError:
-            continue
-
-    # Remove duplicates while preserving order
-    seen = set()
-    parsed_indices = [
-        i for i in parsed_indices if not (i in seen or seen.add(i))
-    ]
-
-    if not parsed_indices:
-        # Fallback: use prefiltered results directly
-        parsed_indices = list(range(1, min(len(prefiltered), 20) + 1))
-
-    top_results = [prefiltered[i - 1] for i in parsed_indices[:20]]
-
-    return top_results
-
-
 def _generate_final_string(results, truncate=False):
     """
     Generate a formatted string from the search results for LLM processing.
@@ -224,18 +127,16 @@ def generate_summary(llm, query, content, search_mode="all",
     """生成情报报告，根据搜索模式调整分析重点"""
     
     # 调试日志
-    print(f"=== LLM INPUT DEBUG ===")
-    print(f"Content type: {type(content)}")
+    logger.debug(f"Content type: {type(content)}")
     if isinstance(content, dict):
-        print(f"Content keys count: {len(content)}")
-        print(f"Content keys: {list(content.keys())[:5]}")
+        logger.debug(f"Content keys count: {len(content)}")
+        logger.debug(f"Content keys: {list(content.keys())[:5]}")
         if content:
             first_val = list(content.values())[0]
-            print(f"First value length: {len(first_val)}")
-            print(f"First value preview: {first_val[:300]}")
+            logger.debug(f"First value length: {len(first_val)}")
+            logger.debug(f"First value preview: {first_val[:300]}")
     elif isinstance(content, list):
-        print(f"Content is list, length: {len(content)}")
-    print(f"=======================")
+        logger.debug(f"Content is list, length: {len(content)}")
     
     # 根据搜索模式设置不同的分析重点
     mode_descriptions = {
@@ -361,9 +262,7 @@ def generate_summary(llm, query, content, search_mode="all",
         return chain.invoke({"content": augmented_content})
     except Exception as e:
         error_msg = str(e)
-        print(f"=== LLM API ERROR ===")
-        print(f"Error type: {type(e).__name__}")
-        print(f"Error message: {error_msg}")
+        logger.error(f"LLM API error ({type(e).__name__}): {error_msg}")
         # 如果是超时或网络错误，返回友好的错误报告
         if "timeout" in error_msg.lower() or "timed out" in error_msg.lower():
             return f"""## 一、执行摘要

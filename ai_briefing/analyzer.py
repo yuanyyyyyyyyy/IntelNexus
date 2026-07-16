@@ -13,6 +13,9 @@ from ai_briefing.templates import (
     render_markdown_briefing,
     format_news_item
 )
+from src.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class AIBriefingAnalyzer:
@@ -38,7 +41,7 @@ class AIBriefingAnalyzer:
             self._llm = get_llm("qwen2.5:7b")
             return self._llm
         except Exception as e:
-            print(f"Warning: Could not load LLM: {e}")
+            logger.warning(f"Could not load LLM: {e}")
             return None
     
     def generate_briefing(
@@ -128,7 +131,7 @@ class AIBriefingAnalyzer:
             result = chain.invoke({"prompt": prompt})
             return result
         except Exception as e:
-            print(f"Error generating TOP3: {e}")
+            logger.error(f"Error generating TOP3: {e}")
             return "简报生成过程中出现错误，请检查LLM配置。"
     
     def _generate_section(self, category: str, results: List[Dict], llm) -> str:
@@ -174,7 +177,7 @@ class AIBriefingAnalyzer:
             result = chain.invoke({"prompt": prompt})
             return result
         except Exception as e:
-            print(f"Error generating section {category}: {e}")
+            logger.error(f"Error generating section {category}: {e}")
             return "简报生成过程中出现错误。"
     
     def _generate_insights(self, collected_data: Dict[str, List[Dict]], llm) -> str:
@@ -223,7 +226,7 @@ class AIBriefingAnalyzer:
             result = chain.invoke({"prompt": prompt})
             return result
         except Exception as e:
-            print(f"Error generating insights: {e}")
+            logger.error(f"Error generating insights: {e}")
             return "趋势分析生成过程中出现错误。"
     
     def _generate_links(self, collected_data: Dict[str, List[Dict]]) -> str:

@@ -10,6 +10,7 @@ import click
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from src.logger import get_logger
 from src.search.scraper import scrape_multiple
 from src.search.web import get_web_results
 from src.search.news import get_news_results
@@ -18,8 +19,8 @@ from src.search.darkweb import get_darkweb_results, is_available as darkweb_avai
 from src.llm.core import get_llm, refine_query, generate_summary
 from src.llm.utils import get_model_choices
 
+logger = get_logger(__name__)
 
-MODEL_CHOICES = get_model_choices()
 
 SEARCH_MODES = {
     "web": "Web Search",
@@ -53,7 +54,7 @@ def execute_search(mode, query, max_workers):
                 if source:
                     results.extend(source)
             except Exception as e:
-                print(f"Search error: {e}")
+                logger.warning(f"Search error: {e}")
     
     return results
 
@@ -70,7 +71,6 @@ def intelnexus():
     "--model", "-m",
     default="qwen2.5:7b",
     show_default=True,
-    type=click.Choice(MODEL_CHOICES),
     help="Select LLM model (local or cloud)"
 )
 @click.option("--query", "-q", required=True, type=str, help="Search query")
@@ -90,10 +90,14 @@ def search(model, query, mode, threads, output, no_credibility):
     click.echo(f"Model: {model}")
     click.echo(f"Query: {query}")
     
-    llm = get_llm(model)
+    try:
+        llm = get_llm(model)
+    except ValueError as e:
+        click.echo(f"Error: {e}")
+        return
     
     click.echo("[1/4] Refining query...")
-    refined_query = refine_query(llm, query)
+    refined_query = refine_query(query)
     click.echo(f"    Refined: {refined_query}")
     
     click.echo(f"[2/4] Searching {mode}...")
@@ -121,6 +125,17 @@ def search(model, query, mode, threads, output, no_credibility):
         from src.analysis.credibility import SourceScorer, ConflictDetector
         scorer = SourceScorer()
         scorer.evaluate(search_filtered, scraped_results)
+
+        # Build credibility context from scored results
+        cred_lines = []
+        for r in search_filtered[:15]:
+            score = r.get("credibility_score", 0.5)
+            details = r.get("credibility_details", {})
+            reason = details.get("reason", "")
+            source = r.get("source", "Unknown")
+            cred_lines.append(f"- {source}: 可信度 {score:.2f} ({reason})")
+        credibility_context = "\n".join(cred_lines)
+
         detector = ConflictDetector()
         conflicts_list = detector.detect(search_filtered, scraped_results)
         if conflicts_list:
@@ -200,18 +215,18 @@ def _start_ai_scheduler():
             from ui import st
             if hasattr(st, 'session_state') and 'email_config' in st.session_state:
                 email_config = st.session_state.email_config
-        except:
+        except Exception:
             pass
         
         _ai_scheduler = AIBriefingScheduler(
             email_config=email_config
         )
         _ai_scheduler.start()
-        print("AI Briefing Scheduler started")
+        logger.info("AI Briefing Scheduler started")
     except ImportError as e:
-        print(f"Warning: Could not start AI scheduler: {e}")
+        logger.warning(f"Could not start AI scheduler: {e}")
     except Exception as e:
-        print(f"Error starting AI scheduler: {e}")
+        logger.error(f"Error starting AI scheduler: {e}")
 
 
 @intelnexus.command()

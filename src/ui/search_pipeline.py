@@ -3,6 +3,7 @@ import streamlit as st
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 
+from src.logger import get_logger
 from src.search.web import get_web_results
 from src.search.news import get_news_results
 from src.search.darkweb import get_darkweb_results, is_available as darkweb_available
@@ -14,6 +15,8 @@ from src.analysis.intelligence_graph import EntityExtractor, IntelligenceGraph
 from src.analysis.evidence_tracer import EvidenceTracer
 from src.ui.helpers import DEFAULT_TOR_PORT
 from src.ui.i18n import get_text
+
+logger = get_logger(__name__)
 
 
 @st.cache_data(ttl=200, show_spinner=False)
@@ -33,13 +36,13 @@ def cached_search(mode, refined_query, threads, advanced_mode=False, tor_port=DE
             if darkweb_available():
                 futures.append(executor.submit(get_darkweb_results, refined_query, threads, advanced_mode, tor_port, ui_sites))
             else:
-                print("警告: 暗网搜索已启用但Tor未连接或Ahmia不可用")
+                logger.warning("暗网搜索已启用但Tor未连接或Ahmia不可用")
         
         for f in futures:
             try:
                 results.extend(f.result())
             except Exception as e:
-                print(f"Search error: {e}")
+                logger.warning(f"Search error: {e}")
     
     return results
 
@@ -65,7 +68,7 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
 
     with status_slot.container():
         with st.spinner(get_text("refining")):
-            query_variants = refine_query(llm, query)
+            query_variants = refine_query(query)
             st.session_state.refined = query
             search_query = expand_query_for_search(query_variants)
 
@@ -109,13 +112,12 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
     with status_slot.container():
         with st.spinner(get_text("scraping")):
             st.session_state.scraped = cached_scrape(st.session_state.filtered, threads)
-            print(f"=== SCRAPING DEBUG ===")
-            print(f"Filtered results count: {len(st.session_state.filtered)}")
-            print(f"Scraped keys: {list(st.session_state.scraped.keys())[:5]}")
+            logger.debug(f"Filtered results count: {len(st.session_state.filtered)}")
+            logger.debug(f"Scraped keys: {list(st.session_state.scraped.keys())[:5]}")
             if st.session_state.scraped:
                 first_content = list(st.session_state.scraped.values())[0]
-                print(f"First content length: {len(first_content)}")
-                print(f"First content preview: {first_content[:300]}")
+                logger.debug(f"First content length: {len(first_content)}")
+                logger.debug(f"First content preview: {first_content[:300]}")
 
     with status_slot.container():
         with st.spinner("评估来源可信度..."):
@@ -166,7 +168,7 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
                             f"- ⚠️ [{c['type']}] {c['description']} (严重度: {c['severity']:.2f})")
                     conflicts_context = "\n".join(c_lines)
             except Exception as e:
-                print(f"可信度评估失败: {e}")
+                logger.error(f"可信度评估失败: {e}")
                 st.session_state.credibility_data = None
                 st.session_state.conflicts = []
                 credibility_context = ""
@@ -200,7 +202,7 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
                            for e in top_entities]
                 kg_context = "\n".join(kg_lines)
             except Exception as e:
-                print(f"知识图谱构建失败: {e}")
+                logger.error(f"知识图谱构建失败: {e}")
                 st.session_state.kg_entities = []
                 st.session_state.kg_html_path = ""
                 kg_context = ""
@@ -244,5 +246,5 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
                     st.session_state.streamed_summary,
                     st.session_state.scraped)
             except Exception as e:
-                print(f"证据链追踪失败: {e}")
+                logger.error(f"证据链追踪失败: {e}")
                 st.session_state.evidence_data = None

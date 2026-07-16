@@ -51,7 +51,7 @@ class SearchHistory:
         try:
             with open(self.history_file, 'r', encoding='utf-8') as f:
                 return json.load(f)[:limit]
-        except:
+        except Exception:
             return []
     
     def save_report(self, query: str, content: str, mode: str) -> str:
@@ -97,7 +97,7 @@ class SearchHistory:
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
                 return f.read()
-        except:
+        except Exception:
             return None
     
     def delete_report(self, filename: str) -> bool:

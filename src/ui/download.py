@@ -32,7 +32,7 @@ def render_download_section():
                 )
                 try:
                     Path(pdf_path).unlink()
-                except:
+                except Exception:
                     pass
 
             elif download_format == 'docx':
@@ -49,7 +49,7 @@ def render_download_section():
                 )
                 try:
                     Path(docx_path).unlink()
-                except:
+                except Exception:
                     pass
 
             elif download_format == 'xlsx':
@@ -66,7 +66,7 @@ def render_download_section():
                 )
                 try:
                     Path(xlsx_path).unlink()
-                except:
+                except Exception:
                     pass
 
             else:  # markdown

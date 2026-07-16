@@ -12,6 +12,8 @@ import re
 import numpy as np
 from urllib.parse import urlparse
 
+from src.analysis import load_sentence_model
+
 
 class SourceScorer:
     """
@@ -45,7 +47,7 @@ class SourceScorer:
                     'Reuters', 'TechCrunch', 'The Verge', 'Wired', 'BBC', 'CNN'}
 
     def __init__(self):
-        self._model = None
+        self._model = load_sentence_model()
 
     def evaluate(self, results, scraped_content):
         """
@@ -60,22 +62,33 @@ class SourceScorer:
               - credibility_score: float 0-1
               - credibility_details: dict with sub-scores and reason
         """
-        all_texts = list(scraped_content.values())
+        # Batch-encode all texts once to avoid O(N²) re-encoding
+        url_list = list(scraped_content.keys())
+        text_list = [scraped_content[u] for u in url_list]
+        emb_cache = {}
+        if self._model is not None and text_list:
+            try:
+                valid_texts = [t if t else "" for t in text_list]
+                embs = self._model.encode(valid_texts, show_progress_bar=False)
+                for u, e in zip(url_list, embs):
+                    emb_cache[u] = e
+            except Exception:
+                emb_cache = {}
 
         for r in results:
             url = r.get("link") or r.get("url", "")
             source_name = r.get("source", "Unknown")
-            detail = self._build_detail(url, source_name, scraped_content, all_texts)
+            detail = self._build_detail(url, source_name, scraped_content, emb_cache)
             r["credibility_score"] = detail["final_score"]
             r["credibility_details"] = detail
 
         return results
 
-    def _build_detail(self, url, source_name, scraped, all_texts):
+    def _build_detail(self, url, source_name, scraped, emb_cache):
         domain_score = self._domain_authority(url, source_name)
         freshness_score = self._freshness(source_name)
         depth_score = self._content_depth(url, scraped)
-        consis_score = self._consistency(url, scraped, all_texts)
+        consis_score = self._consistency(url, scraped, emb_cache)
 
         final = (domain_score * 0.30 + freshness_score * 0.25
                  + depth_score * 0.20 + consis_score * 0.25)
@@ -119,7 +132,7 @@ class SourceScorer:
             for tld, score in self.TLD_SCORES.items():
                 if domain.endswith(tld):
                     return score
-        except:
+        except Exception:
             pass
         return 0.4
 
@@ -139,34 +152,24 @@ class SourceScorer:
             return 0.3
         return 0.1
 
-    def _consistency(self, url, scraped, all_texts):
-        text = scraped.get(url, "")
-        if not text or len(all_texts) < 2:
+    def _consistency(self, url, scraped, emb_cache):
+        """Compute consistency using pre-computed embeddings (no re-encoding)."""
+        if len(emb_cache) < 2:
             return 0.5
-        if self._model is None:
-            self._model = self._load_model()
-        if self._model is None:
+        emb = emb_cache.get(url)
+        if emb is None:
             return 0.5
         try:
-            emb = self._model.encode(text, show_progress_bar=False)
             similarities = []
-            for other_url, other_text in scraped.items():
-                if other_url == url or not other_text:
+            for other_url, other_emb in emb_cache.items():
+                if other_url == url or other_emb is None:
                     continue
-                other_emb = self._model.encode(other_text, show_progress_bar=False)
                 sim = float(np.dot(emb, other_emb) / (
                     np.linalg.norm(emb) * np.linalg.norm(other_emb) + 1e-10))
                 similarities.append(sim)
             return float(np.mean(similarities)) if similarities else 0.5
-        except:
+        except Exception:
             return 0.5
-
-    def _load_model(self):
-        try:
-            from sentence_transformers import SentenceTransformer
-            return SentenceTransformer('all-MiniLM-L6-v2')
-        except:
-            return None
 
 
 class ConsistencyAnalyzer:
@@ -175,7 +178,7 @@ class ConsistencyAnalyzer:
     """
 
     def __init__(self):
-        self._model = None
+        self._model = load_sentence_model()
 
     def analyze(self, results, scraped_content):
         """
@@ -210,8 +213,6 @@ class ConsistencyAnalyzer:
             }
 
         if self._model is None:
-            self._model = self._load_model()
-        if self._model is None:
             return {
                 "consistency_matrix": [[1.0]],
                 "overall_consistency": 1.0,
@@ -241,20 +242,13 @@ class ConsistencyAnalyzer:
                 "outlier_indices": outliers,
                 "source_labels": [labels[i] for i in valid_indices]
             }
-        except:
+        except Exception:
             return {
                 "consistency_matrix": [[1.0]],
                 "overall_consistency": 1.0,
                 "outlier_indices": [],
                 "source_labels": labels
             }
-
-    def _load_model(self):
-        try:
-            from sentence_transformers import SentenceTransformer
-            return SentenceTransformer('all-MiniLM-L6-v2')
-        except:
-            return None
 
 
 class ConflictDetector:
@@ -314,7 +308,7 @@ class ConflictDetector:
                     ctx_end = min(len(t), m.end() + 30)
                     context = t[ctx_start:ctx_end]
                     entries.append((i, context, norm, unit))
-                except:
+                except Exception:
                     continue
 
         for a in range(len(entries)):
@@ -359,7 +353,7 @@ class ConflictDetector:
                     ctx_end = min(len(t), pos + 20)
                     context = t[ctx_start:ctx_end]
                     entries.append((i, year_val, context.strip()))
-                except:
+                except Exception:
                     continue
 
         for a in range(len(entries)):

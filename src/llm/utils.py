@@ -8,6 +8,10 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.callbacks.base import BaseCallbackHandler
 from config import OLLAMA_BASE_URL, OPENROUTER_BASE_URL, OPENROUTER_API_KEY, GOOGLE_API_KEY
 
+from src.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 class BufferedStreamingHandler(BaseCallbackHandler):
     def __init__(self, buffer_limit: int = 60, ui_callback: Optional[Callable[[str], None]] = None):
@@ -18,14 +22,14 @@ class BufferedStreamingHandler(BaseCallbackHandler):
     def on_llm_new_token(self, token: str, **kwargs) -> None:
         self.buffer += token
         if "\n" in token or len(self.buffer) >= self.buffer_limit:
-            print(self.buffer, end="", flush=True)
+            logger.info(self.buffer)
             if self.ui_callback:
                 self.ui_callback(self.buffer)
             self.buffer = ""
 
     def on_llm_end(self, response, **kwargs) -> None:
         if self.buffer:
-            print(self.buffer, end="", flush=True)
+            logger.info(self.buffer)
             if self.ui_callback:
                 self.ui_callback(self.buffer)
             self.buffer = ""

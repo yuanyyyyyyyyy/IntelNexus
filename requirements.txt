@@ -38,3 +38,7 @@ click>=8.0.0
 
 # AI简报模块
 apscheduler>=3.10.0
+
+# 额外依赖
+reportlab>=4.0
+portalocker>=2.8.0
