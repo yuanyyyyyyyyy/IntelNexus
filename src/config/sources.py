@@ -11,7 +11,7 @@ from pathlib import Path
 from datetime import datetime
 
 
-SOURCES_FILE = os.path.join(os.path.dirname(__file__), "data", "sources.json")
+SOURCES_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "data", "sources.json")
 
 
 def _ensure_sources_file():

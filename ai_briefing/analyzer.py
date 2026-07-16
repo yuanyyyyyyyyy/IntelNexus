@@ -33,7 +33,7 @@ class AIBriefingAnalyzer:
             return self._llm
         
         try:
-            from llm import get_llm
+            from src.llm.core import get_llm
             # 尝试使用默认模型
             self._llm = get_llm("qwen2.5:7b")
             return self._llm
