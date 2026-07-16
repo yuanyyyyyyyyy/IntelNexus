@@ -237,7 +237,7 @@ def fetch_ahmia_results(query):
     try:
         url = f"https://ahmia.fi/search/?q={query}"
         headers = {"User-Agent": random.choice(USER_AGENTS)}
-        response = requests.get(url, headers=headers, timeout=15)
+        response = requests.get(url, headers=headers, timeout=12)
         
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, "html.parser")
@@ -266,7 +266,7 @@ def fetch_onionlink_search(query):
     try:
         url = f"https://onionlink.net/?s={query}"
         headers = {"User-Agent": random.choice(USER_AGENTS)}
-        response = requests.get(url, headers=headers, timeout=15)
+        response = requests.get(url, headers=headers, timeout=12)
         
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, "html.parser")
@@ -295,7 +295,7 @@ def fetch_tordex_search(query):
     try:
         url = f"https://tordexu72joez4ofvtvk6hxdlh3cvt7qexvzuwcyhyhj5f5xt22b5gfqd.onion/search?q={query}"
         headers = {"User-Agent": random.choice(USER_AGENTS)}
-        response = requests.get(url, headers=headers, timeout=15, proxies={
+        response = requests.get(url, headers=headers, timeout=12, proxies={
             "http": "socks5h://127.0.0.1:9150",
             "https": "socks5h://127.0.0.1:9150"
         })

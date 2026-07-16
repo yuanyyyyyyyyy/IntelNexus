@@ -67,7 +67,7 @@ def fetch_bing_results(query: str, page: int = 0):
         url = f"https://www.bing.com/search?q={encoded_query}&first={page * 10 + 1}"
         headers = {"User-Agent": random.choice(USER_AGENTS)}
         session = get_session()
-        response = session.get(url, headers=headers, timeout=20)
+        response = session.get(url, headers=headers, timeout=10)
         
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, "html.parser")
@@ -106,7 +106,7 @@ def fetch_ddg_results(query: str, page: int = 0):
         url = f"https://html.duckduckgo.com/html/?q={encoded_query}&b={page * 11}"
         headers = {"User-Agent": random.choice(USER_AGENTS)}
         session = get_session()
-        response = session.get(url, headers=headers, timeout=20)
+        response = session.get(url, headers=headers, timeout=10)
         
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, "html.parser")
@@ -142,7 +142,7 @@ def fetch_yahoo_results(query: str, page: int = 0):
         url = f"https://search.yahoo.com/search?p={encoded_query}&b={page * 10 + 1}"
         headers = {"User-Agent": random.choice(USER_AGENTS)}
         session = get_session()
-        response = session.get(url, headers=headers, timeout=20)
+        response = session.get(url, headers=headers, timeout=10)
         
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, "html.parser")
@@ -178,7 +178,7 @@ def fetch_yandex_results(query: str, page: int = 0):
         url = f"https://yandex.com/search/?text={encoded_query}&page={page + 1}"
         headers = {"User-Agent": random.choice(USER_AGENTS)}
         session = get_session()
-        response = session.get(url, headers=headers, timeout=20)
+        response = session.get(url, headers=headers, timeout=10)
         
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, "html.parser")
@@ -214,7 +214,7 @@ def fetch_baidu_results(query: str, page: int = 0):
         url = f"https://www.baidu.com/s?wd={encoded_query}&pn={page * 10}"
         headers = {"User-Agent": random.choice(USER_AGENTS)}
         session = get_session()
-        response = session.get(url, headers=headers, timeout=20)
+        response = session.get(url, headers=headers, timeout=10)
         
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, "html.parser")
@@ -240,43 +240,70 @@ def fetch_baidu_results(query: str, page: int = 0):
     return results
 
 
+FAST_ENGINES = ["Baidu", "Bing"]
+SLOW_ENGINES = ["DuckDuckGo", "Yahoo", "Yandex"]
+
+ENGINE_FUNCS = {
+    "Bing": fetch_bing_results,
+    "DuckDuckGo": fetch_ddg_results,
+    "Yahoo": fetch_yahoo_results,
+    "Yandex": fetch_yandex_results,
+    "Baidu": fetch_baidu_results,
+}
+
+
+def _dedup_results(results):
+    seen = set()
+    unique = []
+    for res in results:
+        link = res.get("link", "").rstrip('/')
+        if link and link not in seen and len(link) > 10:
+            seen.add(link)
+            unique.append(res)
+    return unique
+
+
 def get_web_results(query, max_workers: int = 5, max_results: int = 50) -> list:
     results = []
-    pages_per_engine = 2  # 减少翻页数以提升速度
-    
-    # 支持多查询（列表或用|分隔的字符串）
+    pages_per_engine = 2
+
     if isinstance(query, list):
         queries = query
     elif '|' in query:
         queries = [q.strip() for q in query.split('|')]
     else:
         queries = [query]
-    
+
+    # Phase 1: 快速引擎（Baidu, Bing）
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = []
-        
-        # 对每个查询进行搜索
         for q in queries:
             for page in range(pages_per_engine):
-                futures.append(executor.submit(fetch_bing_results, q, page))
-                futures.append(executor.submit(fetch_ddg_results, q, page))
-                futures.append(executor.submit(fetch_yahoo_results, q, page))
-                futures.append(executor.submit(fetch_yandex_results, q, page))
-                futures.append(executor.submit(fetch_baidu_results, q, page))
-        
+                for name in FAST_ENGINES:
+                    futures.append(executor.submit(ENGINE_FUNCS[name], q, page))
         for future in as_completed(futures):
             try:
-                result_urls = future.result()
-                results.extend(result_urls)
+                results.extend(future.result())
             except Exception as e:
                 print(f"Search error: {e}")
-    
-    seen_links = set()
-    unique_results = []
-    for res in results:
-        link = res.get("link", "").rstrip('/')
-        if link and link not in seen_links and len(link) > 10:
-            seen_links.add(link)
-            unique_results.append(res)
-    
+
+    # 如果快速引擎结果足够，跳过慢速引擎
+    unique_so_far = _dedup_results(results)
+    if len(unique_so_far) < 20:
+        # Phase 2: 慢速引擎（DuckDuckGo, Yahoo, Yandex）
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = []
+            for q in queries:
+                for page in range(pages_per_engine):
+                    for name in SLOW_ENGINES:
+                        futures.append(executor.submit(ENGINE_FUNCS[name], q, page))
+            for future in as_completed(futures):
+                try:
+                    results.extend(future.result())
+                except Exception as e:
+                    print(f"Search error: {e}")
+    else:
+        print(f"快速引擎已返回 {len(unique_so_far)} 条结果，跳过慢速引擎")
+
+    unique_results = _dedup_results(results)
     return unique_results[:max_results]

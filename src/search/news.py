@@ -89,7 +89,7 @@ class NewsSearch:
                     url = source["url"]
                 
                 headers = {"User-Agent": random.choice(USER_AGENTS)}
-                response = requests.get(url, headers=headers, timeout=12)
+                response = requests.get(url, headers=headers, timeout=8)
                 
                 if response.status_code == 200:
                     try:
@@ -145,7 +145,7 @@ class NewsSearch:
             params = {"q": query, "form": "QBRE", "sp": "-1"}
             headers = {"User-Agent": random.choice(USER_AGENTS)}
             
-            response = requests.get(url, params=params, headers=headers, timeout=15)
+            response = requests.get(url, params=params, headers=headers, timeout=10)
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, "html.parser")
                 
@@ -179,7 +179,7 @@ class NewsSearch:
             params = {"q": query, "hl": "en-US", "gl": "US"}
             headers = {"User-Agent": random.choice(USER_AGENTS)}
             
-            response = requests.get(url, params=params, headers=headers, timeout=15)
+            response = requests.get(url, params=params, headers=headers, timeout=10)
             if response.status_code == 200:
                 soup = BeautifulSoup(response.content, "xml")
                 

@@ -19,3 +19,4 @@ TWITTER_BEARER_TOKEN = os.getenv("TWITTER_BEARER_TOKEN")
 # ========== 功能开关 ==========
 ENABLE_DARKWEB = os.getenv("ENABLE_DARKWEB", "false").lower() == "true"
 TOR_PROXY_PORT = int(os.getenv("TOR_PROXY_PORT", "9150"))
+ENABLE_CREDIBILITY = os.getenv("ENABLE_CREDIBILITY", "true").lower() == "true"
