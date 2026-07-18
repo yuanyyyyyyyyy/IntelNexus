@@ -2,7 +2,6 @@ import streamlit as st
 import base64
 import json
 import os
-from datetime import datetime
 from src.logger import get_logger
 from src.ui.i18n import get_text
 from src.ui.helpers import SEARCH_MODES, DEFAULT_TOR_PORT, check_tor_status
@@ -155,7 +154,7 @@ def _render_model_settings():
 def _render_custom_models():
     """自定义模型管理"""
     st.markdown("---")
-    with st.expander(get_text("add_custom_model")):
+    with st.expander(get_text("add_custom_model"), expanded=False):
         col_name, col_type = st.columns(2)
         with col_name:
             custom_model_name = st.text_input(get_text("model_name"), key="custom_model_name")
@@ -211,9 +210,9 @@ def _render_custom_models():
             else:
                 st.error(get_text("fill_fields"))
 
-    custom_models = get_custom_model_names()
-    if custom_models:
-        with st.expander(get_text("custom_models_list")):
+        custom_models = get_custom_model_names()
+        if custom_models:
+            st.markdown(f"**{get_text('custom_models_list')}**")
             for custom_model in custom_models:
                 col_model, col_delete = st.columns([3, 1])
                 with col_model:
@@ -308,6 +307,53 @@ def _render_subscriptions():
 
     if not SUBSCRIPTION_AVAILABLE:
         return
+
+    # SMTP 全局配置
+    with st.expander(f"📧 {get_text('email_settings')}", expanded=False):
+        if "email_config" not in st.session_state:
+            st.session_state.email_config = {
+                "smtp_server": "", "smtp_port": 587,
+                "username": "", "password": "", "use_tls": True
+            }
+
+        email_config = st.session_state.email_config
+        col_smtp1, col_smtp2 = st.columns(2)
+        with col_smtp1:
+            smtp_server = st.text_input(
+                get_text("smtp_server"),
+                value=email_config.get("smtp_server", ""),
+                key="smtp_server_input"
+            )
+            smtp_port = st.number_input(
+                get_text("smtp_port"),
+                value=email_config.get("smtp_port", 587),
+                key="smtp_port_input"
+            )
+        with col_smtp2:
+            smtp_username = st.text_input(
+                get_text("smtp_username"),
+                value=email_config.get("username", ""),
+                key="smtp_username_input"
+            )
+            smtp_password = st.text_input(
+                get_text("smtp_password"),
+                value=email_config.get("password", ""),
+                type="password",
+                key="smtp_password_input"
+            )
+        smtp_use_tls = st.checkbox(
+            get_text("smtp_use_tls"),
+            value=email_config.get("use_tls", True),
+            key="smtp_use_tls_input"
+        )
+
+        if st.button(get_text("save_email_settings"), key="save_email_btn"):
+            st.session_state.email_config = {
+                "smtp_server": smtp_server, "smtp_port": smtp_port,
+                "username": smtp_username, "password": smtp_password,
+                "use_tls": smtp_use_tls
+            }
+            st.success(get_text("email_settings_saved"))
 
     with st.expander(get_text("add_subscriber")):
         sub_name = st.text_input(get_text("subscriber_name"), key="sub_name_input")
@@ -438,7 +484,10 @@ def _render_briefing_actions():
                     categories=["ai_gov_usage", "ai_china_narrative", "ai_legislation", "ai_data_leak"]
                 )
 
-                email_config = st.session_state.get("email_config", {})
+                email_config = st.session_state.get("email_config", {
+                    "smtp_server": "", "smtp_port": 587,
+                    "username": "", "password": "", "use_tls": True
+                })
                 notifier = AIBriefingNotifier(email_config=email_config)
                 subscribers = get_active_subscribers()
 
@@ -464,66 +513,6 @@ def _render_briefing_actions():
         st.rerun()
 
 
-def _render_email_settings():
-    """SMTP 邮件设置"""
-    st.markdown("---")
-    st.markdown(f'<div class="section-header">📧 {get_text("email_settings")}</div>', unsafe_allow_html=True)
-
-    with st.expander(get_text("email_settings")):
-        if "email_config" not in st.session_state:
-            st.session_state.email_config = {
-                "smtp_server": "", "smtp_port": 587,
-                "username": "", "password": "", "use_tls": True
-            }
-
-        email_config = st.session_state.email_config
-        smtp_server = st.text_input(get_text("smtp_server"), value=email_config.get("smtp_server", ""), key="smtp_server_input")
-        smtp_port = st.number_input(get_text("smtp_port"), value=email_config.get("smtp_port", 587), key="smtp_port_input")
-        smtp_username = st.text_input(get_text("smtp_username"), value=email_config.get("username", ""), key="smtp_username_input")
-        smtp_password = st.text_input(get_text("smtp_password"), value=email_config.get("password", ""), type="password", key="smtp_password_input")
-        smtp_use_tls = st.checkbox(get_text("smtp_use_tls"), value=email_config.get("use_tls", True), key="smtp_use_tls_input")
-
-        if st.button(get_text("save_email_settings"), key="save_email_btn"):
-            st.session_state.email_config = {
-                "smtp_server": smtp_server, "smtp_port": smtp_port,
-                "username": smtp_username, "password": smtp_password, "use_tls": smtp_use_tls
-            }
-            st.success(get_text("email_settings_saved"))
-
-
-def _render_download_format():
-    """下载格式选择"""
-    st.markdown("---")
-    st.markdown(f'<div class="section-header">{get_text("download_format")}</div>', unsafe_allow_html=True)
-
-    if "sidebar_download_format" not in st.session_state:
-        st.session_state.sidebar_download_format = "md"
-    if "download_ready" not in st.session_state:
-        st.session_state.download_ready = False
-    if "download_data" not in st.session_state:
-        st.session_state.download_data = None
-    if "download_filename" not in st.session_state:
-        st.session_state.download_filename = None
-    if "download_mime" not in st.session_state:
-        st.session_state.download_mime = None
-
-    format_options = ["md", "pdf", "docx", "xlsx"]
-    format_labels = {"md": "Markdown", "pdf": "PDF", "docx": "Word", "xlsx": "Excel"}
-
-    sidebar_format = st.selectbox(
-        get_text("select_download_format"),
-        format_options,
-        format_func=lambda x: format_labels[x],
-        label_visibility="collapsed",
-        key="sidebar_format_select"
-    )
-    st.session_state.sidebar_download_format = sidebar_format
-
-    st.markdown("---")
-    st.markdown(f'<div class="section-header">{get_text("sources")}</div>', unsafe_allow_html=True)
-    st.caption("Semantic Scholar, RSS, Reddit, Bing")
-
-
 def render_sidebar():
     with st.sidebar:
         st.markdown(f'<div class="sidebar-title">{get_text("title")}</div>', unsafe_allow_html=True)
@@ -536,7 +525,5 @@ def render_sidebar():
         _render_data_sources()
         _render_subscriptions()
         _render_briefing_actions()
-        _render_email_settings()
-        _render_download_format()
 
     return search_mode, model, threads
