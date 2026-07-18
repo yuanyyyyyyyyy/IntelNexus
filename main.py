@@ -235,7 +235,8 @@ def _start_ai_scheduler():
 @intelnexus.command()
 @click.option("--model", "-m", default="qwen2.5:7b", help="LLM model to use")
 @click.option("--notify-only", is_flag=True, help="Only send notifications, don't generate report")
-def briefing(model, notify_only):
+@click.option("--format", "-f", "export_format", type=click.Choice(["md", "html", "pdf", "all"]), default="all", help="Export format")
+def briefing(model, notify_only, export_format):
     """Generate and send AI briefing to all subscribers."""
     try:
         from ai_briefing.collector import AIBriefingCollector
@@ -272,15 +273,7 @@ def briefing(model, notify_only):
         organization_name = BRIEFING_CONFIG["organization"]["name"]
         briefing_md = analyzer.generate_briefing(collected_data, organization_name)
         
-        # 5. 保存简报文件
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        briefing_file = f"data/reports/briefing_{timestamp}.md"
-        os.makedirs("data/reports", exist_ok=True)
-        with open(briefing_file, "w", encoding="utf-8") as f:
-            f.write(briefing_md)
-        click.echo(f"  Briefing saved to: {briefing_file}")
-        
-        # 6. 生成HTML版本
+        # 5. 生成HTML版本
         briefing_html = None
         try:
             sections = markdown_to_html_sections(briefing_md)
@@ -292,7 +285,41 @@ def briefing(model, notify_only):
         except Exception as e:
             click.echo(f"  Warning: Could not generate HTML: {e}")
         
-        # 7. 推送简报
+        # 6. 保存简报到历史
+        from src.config.briefing_history import get_briefing_history
+        briefing_filename = get_briefing_history().save_briefing(
+            markdown_content=briefing_md,
+            html_content=briefing_html,
+            organization_name=organization_name,
+            categories=list(collected_data.keys()),
+            subscribers_count=len(subscribers)
+        )
+        click.echo(f"  Briefing saved to: data/briefings/{briefing_filename}")
+        
+        # 7. 导出简报文件
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        if export_format in ("md", "all"):
+            md_path = f"data/briefings/briefing_{timestamp}.md"
+            with open(md_path, "w", encoding="utf-8") as f:
+                f.write(briefing_md)
+            click.echo(f"  MD exported: {md_path}")
+        
+        if export_format in ("html", "all") and briefing_html:
+            html_path = f"data/briefings/briefing_{timestamp}.html"
+            with open(html_path, "w", encoding="utf-8") as f:
+                f.write(briefing_html)
+            click.echo(f"  HTML exported: {html_path}")
+        
+        if export_format in ("pdf", "all"):
+            try:
+                from src.export.briefing_export import export_briefing_pdf
+                pdf_path = f"data/briefings/briefing_{timestamp}.pdf"
+                export_briefing_pdf(briefing_md, pdf_path)
+                click.echo(f"  PDF exported: {pdf_path}")
+            except Exception as e:
+                click.echo(f"  Warning: Could not export PDF: {e}")
+        
+        # 8. 推送简报
         click.echo("\n[3/4] Sending notifications...")
         
         # 获取邮件配置（从环境变量或配置文件）
@@ -317,10 +344,10 @@ def briefing(model, notify_only):
             else:
                 click.echo(f"    ✗ Failed to send")
         
-        # 8. 完成
+        # 9. 完成
         click.echo("\n[4/4] Complete!")
         click.echo(f"  Sent {success_count}/{len(subscribers)} briefings")
-        click.echo(f"  Report saved to: {briefing_file}")
+        click.echo(f"  Briefing saved to: data/briefings/{briefing_filename}")
         
     except ImportError as e:
         click.echo(f"Error: Required module not found: {e}")

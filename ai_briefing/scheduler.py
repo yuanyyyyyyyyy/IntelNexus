@@ -155,7 +155,19 @@ class AIBriefingScheduler:
                 organization_name = BRIEFING_CONFIG["organization"]["name"]
                 briefing_md = self.analyzer.generate_briefing(collected_data, organization_name)
                 
-                # 4. 生成HTML版本（用于邮件）
+                # 4. 保存简报到历史
+                try:
+                    from src.config.briefing_history import get_briefing_history
+                    get_briefing_history().save_briefing(
+                        markdown_content=briefing_md,
+                        organization_name=organization_name,
+                        categories=list(collected_data.keys()),
+                        subscribers_count=1
+                    )
+                except Exception as e:
+                    logger.error(f"Error saving briefing to history: {e}")
+                
+                # 5. 生成HTML版本（用于邮件）
                 briefing_html = None
                 try:
                     sections = markdown_to_html_sections(briefing_md)
@@ -167,10 +179,10 @@ class AIBriefingScheduler:
                 except Exception as e:
                     logger.error(f"Error generating HTML: {e}")
                 
-                # 5. 推送简报
+                # 6. 推送简报
                 results = self.notifier.notify(subscriber, briefing_md, briefing_html)
                 
-                # 6. 更新最后发送时间（仅在至少一个渠道成功时）
+                # 7. 更新最后发送时间（仅在至少一个渠道成功时）
                 if any(results.values()):
                     update_last_sent(subscriber_id)
                 

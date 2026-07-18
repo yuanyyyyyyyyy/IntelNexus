@@ -13,6 +13,7 @@ from src.ui.search_pipeline import run_search_pipeline
 from src.ui.results import render_results_panels
 from src.ui.download import render_download_section
 from src.ui.results_detail import render_results_detail
+from src.ui.briefing_viewer import render_briefing_preview, render_briefing_history
 
 if "lang" not in st.session_state:
     st.session_state.lang = "zh"
@@ -45,6 +46,8 @@ search_mode, model, threads = render_sidebar()
 if run_button and query:
     run_search_pipeline(query, search_mode, model, threads, status_slot)
 
+render_briefing_preview()
+render_briefing_history()
 render_results_panels()
 render_download_section()
 render_results_detail()
