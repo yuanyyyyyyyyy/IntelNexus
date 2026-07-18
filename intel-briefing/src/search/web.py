@@ -12,32 +12,50 @@ from src.search import USER_AGENTS
 
 logger = get_logger(__name__)
 
+ENGINE_CONFIGS = {
+    "Bing": {
+        "url": "https://www.bing.com/search?q={query}&first={offset}",
+        "offset_fn": lambda page: page * 10 + 1,
+        "item_selector": "li.b_algo",
+        "title_selector": "h2 a",
+        "fallback_title_selector": "a[href]:not(.tilk)",
+        "desc_selector": "p",
+        "requires_http": True,
+        "filter_bing": True,
+    },
+    "DuckDuckGo": {
+        "url": "https://html.duckduckgo.com/html/?q={query}&b={offset}",
+        "offset_fn": lambda page: page * 11,
+        "item_selector": "div.result",
+        "title_selector": "a.result__a",
+        "desc_selector": "a.result__snippet",
+    },
+    "Yahoo": {
+        "url": "https://search.yahoo.com/search?p={query}&b={offset}",
+        "offset_fn": lambda page: page * 10 + 1,
+        "item_selector": "div.algo",
+        "title_selector": None,
+        "desc_selector": "p",
+    },
+    "Yandex": {
+        "url": "https://yandex.com/search/?text={query}&page={offset}",
+        "offset_fn": lambda page: page + 1,
+        "item_selector": "li.serp-item",
+        "title_selector": "a.serp-item__title",
+        "desc_selector": "div.serp-item__text",
+    },
+    "Baidu": {
+        "url": "https://www.baidu.com/s?wd={query}&pn={offset}",
+        "offset_fn": lambda page: page * 10,
+        "item_selector": "div.result",
+        "title_selector": None,
+        "desc_selector": None,
+    },
+}
+
 SEARCH_ENGINES = [
-    {
-        "name": "Bing",
-        "url": "https://www.bing.com/search?q={query}&first={page}",
-        "parser": "bing"
-    },
-    {
-        "name": "DuckDuckGo",
-        "url": "https://html.duckduckgo.com/html/?q={query}&b={page}",
-        "parser": "ddg"
-    },
-    {
-        "name": "Yahoo",
-        "url": "https://search.yahoo.com/search?p={query}&b={page}",
-        "parser": "yahoo"
-    },
-    {
-        "name": "Yandex",
-        "url": "https://yandex.com/search/?text={query}&page={page}",
-        "parser": "yandex"
-    },
-    {
-        "name": "Baidu",
-        "url": "https://www.baidu.com/s?wd={query}&pn={page}",
-        "parser": "baidu"
-    },
+    {"name": name, "url": cfg["url"], "parser": name.lower().replace("duckduckgo", "ddg")}
+    for name, cfg in ENGINE_CONFIGS.items()
 ]
 
 
@@ -67,184 +85,84 @@ def get_session():
     return _shared_session
 
 
-def fetch_bing_results(query: str, page: int = 0):
+def _fetch_engine(engine_name: str, query: str, page: int = 0):
+    """Generic fetch function for any search engine."""
+    cfg = ENGINE_CONFIGS.get(engine_name)
+    if cfg is None:
+        return []
+
     results = []
     try:
         encoded_query = quote(query, safe='')
-        url = f"https://www.bing.com/search?q={encoded_query}&first={page * 10 + 1}"
+        offset = cfg["offset_fn"](page)
+        url = cfg["url"].format(query=encoded_query, offset=offset)
         headers = {"User-Agent": random.choice(USER_AGENTS)}
         session = get_session()
         response = session.get(url, headers=headers, timeout=10)
-        
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, "html.parser")
-            
-            for item in soup.select('li.b_algo'):
-                try:
-                    # 修复：使用h2 a获取正确标题，而不是第一个链接
-                    a_tag = item.select_one('h2 a')
-                    if not a_tag:
-                        a_tag = item.select_one('a[href]:not(.tilk)')
-                    if a_tag:
-                        title = a_tag.get_text(strip=True)
-                        href = a_tag.get('href', '')
-                        
-                        snippet = item.find('p')
-                        description = snippet.get_text(strip=True) if snippet else ""
-                        
-                        if href and href.startswith('http') and 'bing.com' not in href:
-                            results.append({
-                                "title": title,
-                                "link": href,
-                                "description": description[:200],
-                                "source": "Bing"
-                            })
-                except Exception:
+
+        if response.status_code != 200:
+            return results
+
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        for item in soup.select(cfg["item_selector"]):
+            try:
+                a_tag = None
+                if cfg.get("title_selector"):
+                    a_tag = item.select_one(cfg["title_selector"])
+                if not a_tag and cfg.get("fallback_title_selector"):
+                    a_tag = item.select_one(cfg["fallback_title_selector"])
+                if not a_tag:
+                    a_tag = item.find("a")
+                if not a_tag:
                     continue
+
+                title = a_tag.get_text(strip=True)
+                href = a_tag.get("href", "")
+
+                description = ""
+                if cfg.get("desc_selector"):
+                    snippet = item.select_one(cfg["desc_selector"])
+                    if snippet:
+                        description = snippet.get_text(strip=True)
+
+                if not href or not href.startswith("http"):
+                    continue
+                if cfg.get("filter_bing") and "bing.com" in href:
+                    continue
+
+                results.append({
+                    "title": title,
+                    "link": href,
+                    "description": description[:200],
+                    "source": engine_name,
+                })
+            except Exception:
+                continue
     except Exception as e:
-        logger.warning(f"Bing search error: {e}")
+        logger.warning(f"{engine_name} search error: {e}")
     return results
+
+
+# Keep backward-compatible aliases
+def fetch_bing_results(query: str, page: int = 0):
+    return _fetch_engine("Bing", query, page)
 
 
 def fetch_ddg_results(query: str, page: int = 0):
-    results = []
-    try:
-        encoded_query = quote(query, safe='')
-        url = f"https://html.duckduckgo.com/html/?q={encoded_query}&b={page * 11}"
-        headers = {"User-Agent": random.choice(USER_AGENTS)}
-        session = get_session()
-        response = session.get(url, headers=headers, timeout=10)
-        
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, "html.parser")
-            
-            for item in soup.select('div.result'):
-                try:
-                    a_tag = item.select_one('a.result__a')
-                    if a_tag:
-                        title = a_tag.get_text(strip=True)
-                        href = a_tag.get('href', '')
-                        
-                        snippet = item.select_one('a.result__snippet')
-                        description = snippet.get_text(strip=True) if snippet else ""
-                        
-                        if href:
-                            results.append({
-                                "title": title,
-                                "link": href,
-                                "description": description[:200],
-                                "source": "DuckDuckGo"
-                            })
-                except Exception:
-                    continue
-    except Exception as e:
-        logger.warning(f"DuckDuckGo search error: {e}")
-    return results
+    return _fetch_engine("DuckDuckGo", query, page)
 
 
 def fetch_yahoo_results(query: str, page: int = 0):
-    results = []
-    try:
-        encoded_query = quote(query, safe='')
-        url = f"https://search.yahoo.com/search?p={encoded_query}&b={page * 10 + 1}"
-        headers = {"User-Agent": random.choice(USER_AGENTS)}
-        session = get_session()
-        response = session.get(url, headers=headers, timeout=10)
-        
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, "html.parser")
-            
-            for item in soup.select('div.algo'):
-                try:
-                    a_tag = item.find('a')
-                    if a_tag:
-                        title = a_tag.get_text(strip=True)
-                        href = a_tag.get('href', '')
-                        
-                        snippet = item.find('p')
-                        description = snippet.get_text(strip=True) if snippet else ""
-                        
-                        if href and href.startswith('http'):
-                            results.append({
-                                "title": title,
-                                "link": href,
-                                "description": description[:200],
-                                "source": "Yahoo"
-                            })
-                except Exception:
-                    continue
-    except Exception as e:
-        logger.warning(f"Yahoo search error: {e}")
-    return results
+    return _fetch_engine("Yahoo", query, page)
 
 
 def fetch_yandex_results(query: str, page: int = 0):
-    results = []
-    try:
-        encoded_query = quote(query, safe='')
-        url = f"https://yandex.com/search/?text={encoded_query}&page={page + 1}"
-        headers = {"User-Agent": random.choice(USER_AGENTS)}
-        session = get_session()
-        response = session.get(url, headers=headers, timeout=10)
-        
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, "html.parser")
-            
-            for item in soup.select('li.serp-item'):
-                try:
-                    a_tag = item.select_one('a.serp-item__title')
-                    if a_tag:
-                        title = a_tag.get_text(strip=True)
-                        href = a_tag.get('href', '')
-                        
-                        snippet = item.select_one('div.serp-item__text')
-                        description = snippet.get_text(strip=True) if snippet else ""
-                        
-                        if href and href.startswith('http'):
-                            results.append({
-                                "title": title,
-                                "link": href,
-                                "description": description[:200],
-                                "source": "Yandex"
-                            })
-                except Exception:
-                    continue
-    except Exception as e:
-        logger.warning(f"Yandex search error: {e}")
-    return results
+    return _fetch_engine("Yandex", query, page)
 
 
 def fetch_baidu_results(query: str, page: int = 0):
-    results = []
-    try:
-        encoded_query = quote(query, safe='')
-        url = f"https://www.baidu.com/s?wd={encoded_query}&pn={page * 10}"
-        headers = {"User-Agent": random.choice(USER_AGENTS)}
-        session = get_session()
-        response = session.get(url, headers=headers, timeout=10)
-        
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, "html.parser")
-            
-            for item in soup.select('div.result'):
-                try:
-                    a_tag = item.find('a')
-                    if a_tag:
-                        title = a_tag.get_text(strip=True)
-                        href = a_tag.get('href', '')
-                        
-                        if href and href.startswith('http'):
-                            results.append({
-                                "title": title,
-                                "link": href,
-                                "description": "",
-                                "source": "Baidu"
-                            })
-                except Exception:
-                    continue
-    except Exception as e:
-        logger.warning(f"Baidu search error: {e}")
-    return results
+    return _fetch_engine("Baidu", query, page)
 
 
 FAST_ENGINES = ["Baidu", "Bing"]

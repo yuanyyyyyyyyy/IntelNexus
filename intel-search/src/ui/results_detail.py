@@ -1,4 +1,5 @@
 import streamlit as st
+from src.ui.i18n import get_text
 
 
 def render_results_detail():
@@ -23,19 +24,19 @@ def render_results_detail():
 
     col1, col2 = st.columns([3, 1])
     with col1:
-        st.markdown(f'<div class="report-title">📋 搜索结果详情 ({total_results}条)</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="report-title">{get_text("results_detail_title").format(count=total_results)}</div>', unsafe_allow_html=True)
     with col2:
         page_cols = st.columns([1, 1, 1])
         with page_cols[0]:
             if st.session_state.result_page > 1:
-                if st.button("◀ 上一页", key="prev_page"):
+                if st.button(get_text("prev_page"), key="prev_page"):
                     st.session_state.result_page -= 1
                     st.rerun()
         with page_cols[1]:
             st.markdown(f"**{st.session_state.result_page}/{total_pages}**")
         with page_cols[2]:
             if st.session_state.result_page < total_pages:
-                if st.button("下一页 ▶", key="next_page"):
+                if st.button(get_text("next_page"), key="next_page"):
                     st.session_state.result_page += 1
                     st.rerun()
 
@@ -51,15 +52,15 @@ def render_results_detail():
         source_groups[source].append(item)
 
     for source, items in source_groups.items():
-        with st.expander(f"📌 {source} ({len(items)}条)", expanded=False):
+        with st.expander(get_text("results_from_source").format(source=source, count=len(items)), expanded=False):
             for i, item in enumerate(items):
                 actual_idx = start_idx + i + 1
-                st.markdown(f"**{actual_idx}. {item.get('title', '无标题')[:150]}**")
+                st.markdown(f"**{actual_idx}. {item.get('title', get_text('no_title'))[:150]}**")
                 if item.get('description'):
                     st.markdown(f"📝 {item.get('description', '')[:500]}...")
                 elif item.get('summary'):
                     st.markdown(f"📝 {item.get('summary', '')[:500]}...")
                 if item.get('link') or item.get('url'):
                     link = item.get('link') or item.get('url')
-                    st.markdown(f"🔗 [查看原文]({link})")
+                    st.markdown(get_text("view_original").format(link=link))
                 st.markdown("---")

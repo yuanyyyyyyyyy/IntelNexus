@@ -282,7 +282,7 @@ def _render_data_sources():
                     st.write(f"**{source['name']}**")
                     st.caption(f"{source['url'][:50]}...")
                 with col_toggle:
-                    enabled = st.toggle("启用", value=source.get("enabled", True), key=f"toggle_{source['id']}", label_visibility="collapsed")
+                    enabled = st.toggle(get_text("enabled_label"), value=source.get("enabled", True), key=f"toggle_{source['id']}", label_visibility="collapsed")
                     if enabled != source.get("enabled", True):
                         toggle_source(source['id'], enabled)
                         st.rerun()
@@ -480,7 +480,7 @@ def _render_briefing_actions():
                 from src.config.briefing_history import get_briefing_history
                 get_briefing_history().save_briefing(
                     markdown_content=briefing_md,
-                    organization_name="AI情报团队",
+                    organization_name=get_text("default_org_name"),
                     categories=["ai_gov_usage", "ai_china_narrative", "ai_legislation", "ai_data_leak"]
                 )
 
