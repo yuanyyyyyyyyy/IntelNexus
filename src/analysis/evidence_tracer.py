@@ -51,6 +51,19 @@ class EvidenceTracer:
         if self._model is None:
             return {"claims": [], "coverage": 0.0}
 
+        # 预批量 encode 所有 scraped 文本（O(M) 而非 O(N*M)）
+        url_list = list(scraped_content.keys())
+        text_list = [scraped_content[u][:2000] for u in url_list]
+        valid_indices = [i for i, t in enumerate(text_list) if t]
+        valid_texts = [text_list[i] for i in valid_indices]
+        valid_urls = [url_list[i] for i in valid_indices]
+
+        scraped_embeddings = None
+        if valid_texts:
+            scraped_embeddings = self._model.encode(valid_texts, show_progress_bar=False)
+            norms = np.linalg.norm(scraped_embeddings, axis=1, keepdims=True)
+            scraped_embeddings = scraped_embeddings / (norms + 1e-10)
+
         claims = []
         for sent in sentences:
             sent = sent.strip()
@@ -63,20 +76,27 @@ class EvidenceTracer:
                 if s.startswith("##"):
                     current_section = s.strip("# ").strip()
 
+            # encode claim 一次，与所有预计算 embedding 做余弦相似度
             evidence_list = []
-            for url, text in scraped_content.items():
-                if not text:
-                    continue
-                sim = self._similarity(sent, text[:2000])
-                if sim > 0.3:
-                    evidence_list.append({
-                        "url": url,
-                        "confidence": round(sim, 3),
-                        "source_text": text[:150]
-                    })
+            if scraped_embeddings is not None and len(scraped_embeddings) > 0:
+                try:
+                    claim_emb = self._model.encode([sent], show_progress_bar=False)[0]
+                    claim_norm = claim_emb / (np.linalg.norm(claim_emb) + 1e-10)
+                    sims = np.dot(scraped_embeddings, claim_norm)
 
-            evidence_list.sort(key=lambda x: x["confidence"], reverse=True)
-            evidence_list = evidence_list[:3]
+                    top_indices = np.argsort(sims)[::-1]
+                    for idx in top_indices:
+                        if sims[idx] > 0.3:
+                            evidence_list.append({
+                                "url": valid_urls[idx],
+                                "confidence": round(float(sims[idx]), 3),
+                                "source_text": valid_texts[idx][:150]
+                            })
+                        if len(evidence_list) >= 3:
+                            break
+                except Exception:
+                    pass
+
             best_conf = evidence_list[0]["confidence"] if evidence_list else 0.0
 
             claims.append({

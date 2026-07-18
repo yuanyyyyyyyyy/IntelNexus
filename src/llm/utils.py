@@ -36,14 +36,11 @@ class BufferedStreamingHandler(BaseCallbackHandler):
 
 
 # --- Configuration Data ---
-# Instantiate common dependencies once
-_common_callbacks = [BufferedStreamingHandler(buffer_limit=60)]
-
 # Define common parameters for most LLMs
 _common_llm_params = {
     "temperature": 0,
     "streaming": True,
-    "callbacks": _common_callbacks,
+    # callbacks 由调用方按需设置，避免共享单例导致状态串扰
     "request_timeout": 120,  # API 请求超时 120 秒
     "max_retries": 3,       # 失败后最多重试 3 次
 }

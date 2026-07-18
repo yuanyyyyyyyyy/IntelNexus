@@ -90,7 +90,9 @@ class SearchHistory:
     
     def load_report(self, filename: str) -> Optional[str]:
         """Load a saved report."""
-        filepath = self.reports_dir / filename
+        filepath = (self.reports_dir / filename).resolve()
+        if not filepath.is_relative_to(self.reports_dir.resolve()):
+            return None
         if not filepath.exists():
             return None
         
@@ -102,7 +104,9 @@ class SearchHistory:
     
     def delete_report(self, filename: str) -> bool:
         """Delete a saved report."""
-        filepath = self.reports_dir / filename
+        filepath = (self.reports_dir / filename).resolve()
+        if not filepath.is_relative_to(self.reports_dir.resolve()):
+            return False
         if filepath.exists():
             filepath.unlink()
             return True

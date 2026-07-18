@@ -11,6 +11,7 @@ from datetime import datetime
 from ai_briefing.config import WATCH_CATEGORIES
 from src.config.sources import get_enabled_sources, get_sources_by_category
 from src.logger import get_logger
+from config import NEWS_API_KEY
 
 logger = get_logger(__name__)
 
@@ -163,7 +164,7 @@ class AIBriefingCollector:
                     })
                 
                 # 新闻搜索
-                news_results = news_search(query, max_results=max_results)
+                news_results = news_search(query, max_results=max_results, api_key=NEWS_API_KEY)
                 for r in news_results:
                     results.append({
                         "title": r.get("title", ""),
