@@ -99,7 +99,7 @@ def search(model, query, mode, threads, output, no_credibility):
     
     click.echo("[1/4] Refining query...")
     refined_query = refine_query(query)
-    click.echo(f"    Refined: {refined_query}")
+    click.echo(f"    Refined: {' | '.join(refined_query)}")
     
     click.echo(f"[2/4] Searching {mode}...")
     search_results = execute_search(mode, refined_query, threads)
@@ -208,17 +208,19 @@ def _start_ai_scheduler():
     global _ai_scheduler
     try:
         from ai_briefing.scheduler import AIBriefingScheduler
-        from config import OPENAI_API_KEY
         
-        # 获取邮件配置
-        email_config = None
-        try:
-            from ui import st
-            if hasattr(st, 'session_state') and 'email_config' in st.session_state:
-                email_config = st.session_state.email_config
-        except Exception:
-            pass
-        
+        # 从环境变量读取邮件配置（与 briefing 命令一致）
+        email_config = {
+            "smtp_server": os.getenv("SMTP_SERVER", ""),
+            "smtp_port": int(os.getenv("SMTP_PORT", "587")),
+            "username": os.getenv("SMTP_USERNAME", ""),
+            "password": os.getenv("SMTP_PASSWORD", ""),
+            "use_tls": os.getenv("SMTP_USE_TLS", "true").lower() == "true"
+        }
+        # 如果 SMTP 未配置，传 None
+        if not email_config.get("smtp_server") or not email_config.get("username"):
+            email_config = None
+
         _ai_scheduler = AIBriefingScheduler(
             email_config=email_config
         )
