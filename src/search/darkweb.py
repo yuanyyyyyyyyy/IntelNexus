@@ -22,9 +22,6 @@ from bs4 import BeautifulSoup
 from src.logger import get_logger
 from src.search import USER_AGENTS
 
-from src.logger import get_logger
-from src.search import USER_AGENTS
-
 logger = get_logger(__name__)
 
 ENABLE_DARKWEB = os.getenv("ENABLE_DARKWEB", "false").lower() == "true"

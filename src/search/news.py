@@ -1,11 +1,9 @@
 import requests
 from typing import List, Dict, Optional
-from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
-from urllib.parse import quote, urljoin
+from urllib.parse import quote
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import random
-import re
 
 try:
     from newsapi import NewsApiClient

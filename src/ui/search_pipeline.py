@@ -117,7 +117,7 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
             logger.debug(f"Filtered results count: {len(st.session_state.filtered)}")
             logger.debug(f"Scraped keys: {list(st.session_state.scraped.keys())[:5]}")
             if st.session_state.scraped:
-                first_content = list(st.session_state.scraped.values())[0]
+                first_content = next(iter(st.session_state.scraped.values()))
                 logger.debug(f"First content length: {len(first_content)}")
                 logger.debug(f"First content preview: {first_content[:300]}")
 
