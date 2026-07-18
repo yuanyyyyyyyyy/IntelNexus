@@ -5,10 +5,23 @@ AI简报模块
 """
 
 from ai_briefing.config import WATCH_CATEGORIES, BRIEFING_CONFIG
-from ai_briefing.collector import AIBriefingCollector
-from ai_briefing.analyzer import AIBriefingAnalyzer
-from ai_briefing.notifier import AIBriefingNotifier
-from ai_briefing.scheduler import AIBriefingScheduler
+
+_LAZY_IMPORTS = {
+    "AIBriefingCollector": ("ai_briefing.collector", "AIBriefingCollector"),
+    "AIBriefingAnalyzer":  ("ai_briefing.analyzer",   "AIBriefingAnalyzer"),
+    "AIBriefingNotifier":  ("ai_briefing.notifier",   "AIBriefingNotifier"),
+    "AIBriefingScheduler": ("ai_briefing.scheduler",  "AIBriefingScheduler"),
+}
+
+
+def __getattr__(name):
+    if name in _LAZY_IMPORTS:
+        module_path, attr = _LAZY_IMPORTS[name]
+        import importlib
+        module = importlib.import_module(module_path)
+        return getattr(module, attr)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
     "WATCH_CATEGORIES",
