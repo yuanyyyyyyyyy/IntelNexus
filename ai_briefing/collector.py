@@ -114,8 +114,6 @@ class AIBriefingCollector:
         Returns:
             Dict[str, List[Dict]]: {category_id: [results]}
         """
-        from concurrent.futures import ThreadPoolExecutor, as_completed
-
         results = {}
         category_ids = list(WATCH_CATEGORIES.keys())
 
