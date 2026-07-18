@@ -2,6 +2,7 @@ import streamlit as st
 import base64
 import json
 import os
+from datetime import datetime
 from src.logger import get_logger
 from src.ui.i18n import get_text
 from src.ui.helpers import SEARCH_MODES, DEFAULT_TOR_PORT, check_tor_status
@@ -429,6 +430,14 @@ def _render_briefing_actions():
                 analyzer = AIBriefingAnalyzer()
                 briefing_md = analyzer.generate_briefing(collected)
 
+                # 保存简报到历史
+                from src.config.briefing_history import get_briefing_history
+                get_briefing_history().save_briefing(
+                    markdown_content=briefing_md,
+                    organization_name="AI情报团队",
+                    categories=["ai_gov_usage", "ai_china_narrative", "ai_legislation", "ai_data_leak"]
+                )
+
                 email_config = st.session_state.get("email_config", {})
                 notifier = AIBriefingNotifier(email_config=email_config)
                 subscribers = get_active_subscribers()
@@ -442,8 +451,17 @@ def _render_briefing_actions():
                         if any(results.values()):
                             success_count += 1
                     st.success(get_text("briefing_success").format(count=f"{success_count}/{len(subscribers)}"))
+
+                # 存入 session_state 用于预览
+                st.session_state.current_briefing = briefing_md
             except Exception as e:
                 st.error(f"{get_text('briefing_failed')}: {str(e)}")
+
+    # 查看简报历史按钮
+    st.markdown("---")
+    if st.button(get_text("briefing_view_history"), key="view_history_btn", use_container_width=True):
+        st.session_state.show_briefing_history = True
+        st.rerun()
 
 
 def _render_email_settings():

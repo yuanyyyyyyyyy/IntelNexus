@@ -350,3 +350,163 @@ def format_news_item(title: str, content: str, source: str, date: str, tag: str 
 {content}
 （来源：{source} / {date}）
 """
+
+
+# ========== 简报独立HTML模板（浏览器/PDF用） ==========
+BRIEFING_STANDALONE_HTML = """<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI情报简报 - {generated_date}</title>
+    <style>
+        :root {{
+            --bg-primary: #f8f9fa;
+            --bg-card: #ffffff;
+            --accent: #1F4E88;
+            --text-primary: #212529;
+            --text-secondary: #6c757d;
+            --border: #dee2e6;
+        }}
+        
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        
+        body {{
+            font-family: 'Source Han Sans SC', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.8;
+            padding: 40px 20px;
+        }}
+        
+        .container {{ max-width: 900px; margin: 0 auto; }}
+        
+        .header {{
+            text-align: center;
+            padding: 40px 0;
+            border-bottom: 3px solid var(--accent);
+            margin-bottom: 30px;
+        }}
+        
+        h1 {{
+            font-size: 2rem;
+            color: var(--accent);
+            margin-bottom: 10px;
+        }}
+        
+        .subtitle {{ color: var(--text-secondary); }}
+        
+        .section {{
+            background: var(--bg-card);
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }}
+        
+        .section h2 {{
+            font-size: 1.3rem;
+            color: var(--accent);
+            border-left: 4px solid var(--accent);
+            padding-left: 12px;
+            margin-bottom: 16px;
+        }}
+        
+        .section h3 {{
+            font-size: 1.1rem;
+            color: #495057;
+            margin: 16px 0 8px;
+        }}
+        
+        .section ul {{ padding-left: 20px; }}
+        .section li {{ margin-bottom: 12px; }}
+        
+        .footer {{
+            text-align: center;
+            padding: 30px 0;
+            margin-top: 40px;
+            border-top: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }}
+        
+        @media print {{
+            body {{ padding: 0; background: white; }}
+            .section {{ box-shadow: none; border: 1px solid var(--border); break-inside: avoid; }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 AI领域每日情报简报</h1>
+            <p class="subtitle">{generated_date} | {organization_name}</p>
+        </div>
+        
+        <div class="section">
+            <h2>📌 近日要闻TOP3</h2>
+            {top3_content}
+        </div>
+        
+        <div class="section">
+            <h2>🏛️ 美欧机构AI应用动态</h2>
+            {ai_gov_usage_content}
+        </div>
+        
+        <div class="section">
+            <h2>🇨🇳 涉我AI舆论动态</h2>
+            {ai_china_narrative_content}
+        </div>
+        
+        <div class="section">
+            <h2>📜 AI新法案与政策</h2>
+            {ai_legislation_content}
+        </div>
+        
+        <div class="section">
+            <h2>🔒 AI数据泄露与安全事件</h2>
+            {ai_data_leak_content}
+        </div>
+        
+        <div class="section">
+            <h2>💡 趋势研判与防护建议</h2>
+            {insights_content}
+        </div>
+        
+        <div class="section">
+            <h2>📚 重要链接</h2>
+            {links_content}
+        </div>
+        
+        <div class="footer">
+            <p>本简报基于公开信息整理，不构成投资或其他专业建议。</p>
+            <p>{organization_name}</p>
+        </div>
+    </div>
+</body>
+</html>"""
+
+
+def render_standalone_html(
+    generated_date: str,
+    organization_name: str,
+    top3_content: str,
+    ai_gov_usage_content: str,
+    ai_china_narrative_content: str,
+    ai_legislation_content: str,
+    ai_data_leak_content: str,
+    insights_content: str,
+    links_content: str
+) -> str:
+    """渲染简报独立HTML（浏览器/PDF用）"""
+    return BRIEFING_STANDALONE_HTML.format(
+        generated_date=generated_date,
+        organization_name=organization_name,
+        top3_content=top3_content,
+        ai_gov_usage_content=ai_gov_usage_content,
+        ai_china_narrative_content=ai_china_narrative_content,
+        ai_legislation_content=ai_legislation_content,
+        ai_data_leak_content=ai_data_leak_content,
+        insights_content=insights_content,
+        links_content=links_content
+    )
