@@ -53,8 +53,9 @@ report_*.md
 *.docx
 *.xlsx
 
-# Test files
+# Test files (root level only)
 test_*.py
+!tests/test_*.py
 
 # Streamlit
 .streamlit/
