@@ -159,6 +159,14 @@ LANG = {
         "severity": "严重度",
         "building_kg": "构建知识图谱...",
         "tracing_evidence": "追踪证据链...",
+        "results_detail_title": "📋 搜索结果详情 ({count}条)",
+        "prev_page": "◀ 上一页",
+        "next_page": "下一页 ▶",
+        "results_from_source": "📌 {source} ({count}条)",
+        "no_title": "无标题",
+        "view_original": "🔗 [查看原文]({link})",
+        "enabled_label": "启用",
+        "default_org_name": "AI情报团队",
     },
     "en": {
         "title": "IntelNexus",
@@ -318,6 +326,14 @@ LANG = {
         "severity": "Severity",
         "building_kg": "Building knowledge graph...",
         "tracing_evidence": "Tracing evidence chain...",
+        "results_detail_title": "📋 Search Results ({count} items)",
+        "prev_page": "◀ Previous",
+        "next_page": "Next ▶",
+        "results_from_source": "📌 {source} ({count} items)",
+        "no_title": "No title",
+        "view_original": "🔗 [View original]({link})",
+        "enabled_label": "Enabled",
+        "default_org_name": "AI Intelligence Team",
     }
 }
 

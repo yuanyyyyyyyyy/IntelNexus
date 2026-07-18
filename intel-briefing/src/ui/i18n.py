@@ -83,6 +83,8 @@ LANG = {
         "download_html": "下载 HTML",
         "download_format": "下载格式",
         "select_download_format": "选择下载格式",
+        "enabled_label": "启用",
+        "default_org_name": "AI情报团队",
     },
     "en": {
         "title": "IntelNexus",
@@ -166,6 +168,8 @@ LANG = {
         "download_html": "Download HTML",
         "download_format": "Format",
         "select_download_format": "Select download format",
+        "enabled_label": "Enabled",
+        "default_org_name": "AI Intelligence Team",
     }
 }
 
