@@ -18,6 +18,7 @@ from src.search.darkweb import get_darkweb_results, is_available as darkweb_avai
 
 from src.llm.core import get_llm, refine_query, generate_summary
 from src.llm.utils import get_model_choices
+from config import NEWS_API_KEY
 
 logger = get_logger(__name__)
 
@@ -43,7 +44,7 @@ def execute_search(mode, query, max_workers):
             futures.append(executor.submit(get_web_results, query, max_workers, 20))
         
         if mode in ["news", "all"]:
-            futures.append(executor.submit(get_news_results, query, 15))
+            futures.append(executor.submit(get_news_results, query, 15, api_key=NEWS_API_KEY))
         
         if mode in ["darkweb", "all"] and darkweb_available():
             futures.append(executor.submit(get_darkweb_results, query, max_workers))

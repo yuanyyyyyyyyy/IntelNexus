@@ -1,4 +1,5 @@
 import os
+import html
 import streamlit as st
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
@@ -15,6 +16,7 @@ from src.analysis.intelligence_graph import EntityExtractor, IntelligenceGraph
 from src.analysis.evidence_tracer import EvidenceTracer
 from src.ui.helpers import DEFAULT_TOR_PORT
 from src.ui.i18n import get_text
+from config import NEWS_API_KEY
 
 logger = get_logger(__name__)
 
@@ -30,7 +32,7 @@ def cached_search(mode, refined_query, threads, advanced_mode=False, tor_port=DE
             futures.append(executor.submit(get_web_results, refined_query, threads, 25))
         
         if mode in ["news", "all"]:
-            futures.append(executor.submit(get_news_results, refined_query, 15))
+            futures.append(executor.submit(get_news_results, refined_query, 15, api_key=NEWS_API_KEY))
         
         if mode in ["darkweb", "all"]:
             if darkweb_available():
@@ -75,8 +77,8 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
     st.markdown(f"""
     <div class="result-card">
         <div class="section-header">{get_text("refined_query")}</div>
-        <div class="result-title">原始查询: {query}</div>
-        <div class="result-title" style="color: var(--morandi-blue);">多语言查询: {search_query}</div>
+        <div class="result-title">原始查询: {html.escape(query)}</div>
+        <div class="result-title" style="color: var(--morandi-blue);">多语言查询: {html.escape(search_query)}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -103,7 +105,7 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
                 <div class="stat-label">{get_text("results_count")}</div>
             </div>
         </div>
-        <div class="stat-label" style="margin-top: 10px;">数据来源: {source_info}</div>
+        <div class="stat-label" style="margin-top: 10px;">数据来源: {html.escape(source_info)}</div>
     </div>
     """, unsafe_allow_html=True)
 

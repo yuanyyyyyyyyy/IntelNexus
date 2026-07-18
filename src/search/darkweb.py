@@ -15,13 +15,12 @@ import os
 import base64
 import requests
 import random
-import re
 import json
+from urllib.parse import quote
 from bs4 import BeautifulSoup
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
-import platform
+
+from src.logger import get_logger
+from src.search import USER_AGENTS
 
 from src.logger import get_logger
 from src.search import USER_AGENTS
@@ -121,7 +120,7 @@ def search_custom_onion_site(site_config, query):
                 pass
 
         # 尝试访问站点并搜索
-        search_url = f"{base_url}?search={query}"
+        search_url = f"{base_url}?search={quote(query)}"
         
         response = fetch_with_auth(search_url, auth)
         
@@ -172,48 +171,15 @@ DARKWEB_SEARCH_ENGINES = [
 # Backward-compatible flat list
 DEFAULT_SEARCH_ENGINES = [e["url"] for e in DARKWEB_SEARCH_ENGINES]
 
-
-def get_tor_proxy_port():
-    """获取Tor代理端口"""
-    # 优先使用环境变量
-    custom_port = os.getenv("TOR_PROXY_PORT")
-    if custom_port:
-        try:
-            return int(custom_port)
-        except Exception:
-            pass
-    
-    # 默认端口
-    return 9150
-
-
-def get_tor_session():
-    """创建通过Tor代理的会话"""
-    session = requests.Session()
-    retry = Retry(
-        total=3,
-        read=3,
-        connect=3,
-        backoff_factor=0.5,
-        status_forcelist=[500, 502, 503, 504]
-    )
-    adapter = HTTPAdapter(max_retries=retry)
-    session.mount("http://", adapter)
-    session.mount("https://", adapter)
-    
-    port = get_tor_proxy_port()
-    session.proxies = {
-        "http": f"socks5h://127.0.0.1:{port}",
-        "https": f"socks5h://127.0.0.1:{port}"
-    }
-    return session
+# Import from src.search to avoid duplication
+from src.search import get_tor_proxy_port  # noqa: E402
 
 
 def fetch_ahmia_results(query):
     """从Ahmia获取暗网搜索结果（无需Tor）"""
     results = []
     try:
-        url = f"https://ahmia.fi/search/?q={query}"
+        url = f"https://ahmia.fi/search/?q={quote(query)}"
         headers = {"User-Agent": random.choice(USER_AGENTS)}
         response = requests.get(url, headers=headers, timeout=12)
         
@@ -242,7 +208,7 @@ def fetch_onionlink_search(query):
     """从onionlink搜索获取结果（无需Tor）"""
     results = []
     try:
-        url = f"https://onionlink.net/?s={query}"
+        url = f"https://onionlink.net/?s={quote(query)}"
         headers = {"User-Agent": random.choice(USER_AGENTS)}
         response = requests.get(url, headers=headers, timeout=12)
         
@@ -271,7 +237,7 @@ def fetch_tordex_search(query):
     """从TorDex搜索获取结果（无需Tor）"""
     results = []
     try:
-        url = f"https://tordexu72joez4ofvtvk6hxdlh3cvt7qexvzuwcyhyhj5f5xt22b5gfqd.onion/search?q={query}"
+        url = f"https://tordexu72joez4ofvtvk6hxdlh3cvt7qexvzuwcyhyhj5f5xt22b5gfqd.onion/search?q={quote(query)}"
         headers = {"User-Agent": random.choice(USER_AGENTS)}
         port = get_tor_proxy_port()
         response = requests.get(url, headers=headers, timeout=12, proxies={

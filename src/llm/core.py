@@ -93,35 +93,6 @@ def expand_query_for_search(query_variants):
     return query_variants
 
 
-def _generate_final_string(results, truncate=False):
-    """
-    Generate a formatted string from the search results for LLM processing.
-    """
-
-    if truncate:
-        max_title_length = 30
-        max_link_length = 0
-
-    final_str = []
-    for i, res in enumerate(results):
-        title = res.get("title", "")
-        link = res.get("link", "") or res.get("url", "") or res.get("pdf_url", "")
-        
-        title = re.sub(r"[^0-9a-zA-Z\-\.\s]", " ", str(title))
-        link = re.sub(r"(?<=\.onion).*", "", str(link))
-        
-        if not link and not title:
-            continue
-
-        if truncate:
-            title = title[:max_title_length] + "..." if len(title) > max_title_length else title
-            link = link[:max_link_length] + "..." if len(link) > max_link_length else link
-
-        final_str.append(f"{i+1}. {link} - {title}")
-
-    return "\n".join(s for s in final_str)
-
-
 def generate_summary(llm, query, content, search_mode="all",
                      credibility_context="", kg_context="", conflicts_context=""):
     """生成情报报告，根据搜索模式调整分析重点"""
