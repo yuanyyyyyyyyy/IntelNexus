@@ -131,62 +131,32 @@ def _clean_content(content: str) -> str:
     return content
 
 
-def export_pdf(content: str, query: str, output_path: str) -> str:
-    """Export to PDF format with Chinese support using reportlab."""
+def _register_chinese_font():
+    """Register Chinese font for PDF rendering."""
     if not REPORTLAB_AVAILABLE:
-        raise ImportError("reportlab is not installed. Install with: pip install reportlab")
-    
-    try:
-        clean_query = query[:100] if query else "[No query content]"
-    except Exception:
-        clean_query = "[Query processing error]"
-    
-    output_dir = os.path.dirname(output_path)
-    if output_dir and not os.path.exists(output_path):
-        os.makedirs(output_dir)
-    
-    # ===== 注册中文字体的函数 =====
-    def register_chinese_font():
-        """注册中文字体，支持中文显示"""
-        font_paths = [
-            "C:/Windows/Fonts/simhei.ttf",   # 黑体
-            "C:/Windows/Fonts/simsun.ttc",  # 宋体
-            "C:/Windows/Fonts/msyh.ttc",   # 微软雅黑
-            "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",  # Linux
-            "/System/Library/Fonts/PingFang.ttc",  # macOS
-        ]
-        font_name = None
-        for font_path in font_paths:
-            if os.path.exists(font_path):
-                try:
-                    pdfmetrics.registerFont(TTFont("Chinese", font_path))
-                    font_name = "Chinese"
-                    break
-                except Exception:
-                    continue
-        return font_name
-    
-    # 注册字体
-    chinese_font = register_chinese_font()
-    
-    output_dir = os.path.dirname(output_path)
-    if output_dir and not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    
-    # Create PDF using reportlab
-    doc = SimpleDocTemplate(
-        output_path,
-        pagesize=A4,
-        rightMargin=50,
-        leftMargin=50,
-        topMargin=50,
-        bottomMargin=50
-    )
-    
-    # Styles
+        return None
+    font_paths = [
+        "C:/Windows/Fonts/simhei.ttf",
+        "C:/Windows/Fonts/simsun.ttc",
+        "C:/Windows/Fonts/msyh.ttc",
+        "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+        "/System/Library/Fonts/PingFang.ttc",
+    ]
+    for font_path in font_paths:
+        if os.path.exists(font_path):
+            try:
+                pdfmetrics.registerFont(TTFont("Chinese", font_path))
+                return "Chinese"
+            except Exception:
+                continue
+    return None
+
+
+def _build_pdf_styles(font_name):
+    """Build paragraph styles for PDF generation."""
     styles = getSampleStyleSheet()
-    font_for_cjk = chinese_font if chinese_font else "Helvetica"
-    
+    font_for_cjk = font_name if font_name else "Helvetica"
+
     title_style = ParagraphStyle(
         'CustomTitle',
         parent=styles['Heading1'],
@@ -213,92 +183,123 @@ def export_pdf(content: str, query: str, output_path: str) -> str:
         spaceAfter=8,
         alignment=0
     )
+    sub_heading_style = ParagraphStyle(
+        'SubHeading',
+        parent=styles['Heading3'],
+        fontName=font_for_cjk,
+        fontSize=12,
+        textColor=colors.HexColor('#2E5A88'),
+        spaceAfter=8,
+        spaceBefore=10
+    )
+    footer_style = ParagraphStyle(
+        'Footer',
+        parent=styles['Normal'],
+        fontName=font_for_cjk,
+        fontSize=8,
+        textColor=colors.grey,
+        alignment=1
+    )
+    return {
+        "title": title_style,
+        "heading": heading_style,
+        "normal": normal_style,
+        "sub_heading": sub_heading_style,
+        "footer": footer_style,
+    }
+
+
+def _content_to_pdf_story(content, styles):
+    """Convert cleaned content to a list of PDF flowable elements."""
+    story = []
+    lines = content.split('\n')
+    for line in lines:
+        line = line.strip()
+        if not line:
+            story.append(Spacer(1, 5))
+            continue
+        if line.startswith('# '):
+            clean_title = re.sub(r'^#+\s+', '', line)
+            story.append(Paragraph(clean_title, styles["title"]))
+        elif line.startswith('## '):
+            clean_title = re.sub(r'^#+\s+', '', line)
+            story.append(Paragraph(clean_title, styles["heading"]))
+        elif line.startswith('### '):
+            clean_title = re.sub(r'^#+\s+', '', line)
+            story.append(Paragraph(clean_title, styles["sub_heading"]))
+        elif line:
+            story.append(Paragraph(line, styles["normal"]))
+    return story
+
+
+def export_pdf(content: str, query: str, output_path: str) -> str:
+    """Export to PDF format with Chinese support using reportlab."""
+    if not REPORTLAB_AVAILABLE:
+        raise ImportError("reportlab is not installed. Install with: pip install reportlab")
+    
+    try:
+        clean_query = query[:100] if query else "[No query content]"
+    except Exception:
+        clean_query = "[Query processing error]"
+    
+    output_dir = os.path.dirname(output_path)
+    if output_dir and not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    
+    chinese_font = _register_chinese_font()
+    styles = _build_pdf_styles(chinese_font)
+    
+    doc = SimpleDocTemplate(
+        output_path,
+        pagesize=A4,
+        rightMargin=50,
+        leftMargin=50,
+        topMargin=50,
+        bottomMargin=50
+    )
     
     story = []
     
     # Title
-    story.append(Paragraph("IntelNexus Intelligence Report", title_style))
+    story.append(Paragraph("IntelNexus Intelligence Report", styles["title"]))
     story.append(Spacer(1, 10))
-    
-    # Divider line
-    line = Paragraph("<hr />", normal_style)
-    story.append(line)
+    story.append(Paragraph("<hr />", styles["normal"]))
     story.append(Spacer(1, 10))
     
     # Report Info
-    story.append(Paragraph("Report Information", heading_style))
-    
+    story.append(Paragraph("Report Information", styles["heading"]))
     info_data = [
         ("Query:", clean_query),
         ("Generated:", datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
         ("Platform:", "IntelNexus v1.0"),
         ("Type:", "Multi-Source Network Intelligence Analysis")
     ]
-    
     for label, value in info_data:
-        story.append(Paragraph(f"<b>{label}</b> {value}", normal_style))
+        story.append(Paragraph(f"<b>{label}</b> {value}", styles["normal"]))
     
     story.append(Spacer(1, 15))
-    story.append(Paragraph("<hr />", normal_style))
+    story.append(Paragraph("<hr />", styles["normal"]))
     story.append(Spacer(1, 10))
     
     # Analysis Results
-    story.append(Paragraph("Analysis Results", heading_style))
+    story.append(Paragraph("Analysis Results", styles["heading"]))
     
-    # Process content - clean ALL content including special characters
     max_length = 15000
     if len(content) > max_length:
         display_content = content[:max_length] + "\n\n[Content too long. Please check the full Markdown or Word report.]"
     else:
         display_content = content
     
-    # Clean content to remove ALL special Unicode characters
     display_content = _clean_content(display_content)
     display_content = _clean_markdown_for_word(display_content)
     
-    # Split content and add paragraphs
-    lines = display_content.split('\n')
-    for line in lines:
-        line = line.strip()
-        if not line:
-            story.append(Spacer(1, 5))
-            continue
-        
-        # Handle headings - remove markdown markers
-        if line.startswith('# '):
-            clean_title = re.sub(r'^#+\s+', '', line)
-            story.append(Paragraph(clean_title, title_style))
-        elif line.startswith('## '):
-            clean_title = re.sub(r'^#+\s+', '', line)
-            story.append(Paragraph(clean_title, heading_style))
-        elif line.startswith('### '):
-            clean_title = re.sub(r'^#+\s+', '', line)
-            sub_heading = ParagraphStyle(
-                'SubHeading',
-                parent=styles['Heading3'],
-                fontSize=12,
-                textColor=colors.HexColor('#2E5A88'),
-                spaceAfter=8,
-                spaceBefore=10
-            )
-            story.append(Paragraph(clean_title, sub_heading))
-        else:
-            if line:
-                story.append(Paragraph(line, normal_style))
+    story.extend(_content_to_pdf_story(display_content, styles))
     
     # Footer
     story.append(Spacer(1, 20))
-    story.append(Paragraph("<hr />", normal_style))
-    footer_style = ParagraphStyle(
-        'Footer',
-        parent=styles['Normal'],
-        fontSize=8,
-        textColor=colors.grey,
-        alignment=1
-    )
-    story.append(Paragraph(f"© 2026 IntelNexus Platform | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", footer_style))
+    story.append(Paragraph("<hr />", styles["normal"]))
+    story.append(Paragraph(f"© 2026 IntelNexus Platform | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles["footer"]))
     
-    # Build PDF
     doc.build(story)
     return output_path
 
@@ -480,7 +481,7 @@ def export_report(content: str, query: str, output_path: str, format: str = 'md'
 def get_export_formats() -> List[str]:
     """Get list of available export formats."""
     formats = ['md']
-    if FPDF:
+    if REPORTLAB_AVAILABLE:
         formats.append('pdf')
     if Document:
         formats.append('docx')

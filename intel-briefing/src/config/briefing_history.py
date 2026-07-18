@@ -74,6 +74,8 @@ class BriefingHistory:
         }
         
         history = self.get_briefings(limit=100)
+        if len(history) >= 100:
+            logger.warning(f"Briefing history has {len(history)} entries, oldest will be dropped")
         history.insert(0, entry)
         safe_write_json(self.history_file, history)
         

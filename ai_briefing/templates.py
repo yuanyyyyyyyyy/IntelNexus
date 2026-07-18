@@ -257,6 +257,17 @@ def render_email_html(
     )
 
 
+SECTION_MAP = {
+    "近日要闻TOP3": "top3_html",
+    "美欧机构AI应用动态": "ai_gov_usage_html",
+    "涉我AI舆论动态": "ai_china_narrative_html",
+    "AI新法案与政策": "ai_legislation_html",
+    "AI数据泄露与安全事件": "ai_data_leak_html",
+    "趋势研判与防护建议": "insights_html",
+    "重要链接": "links_html",
+}
+
+
 def markdown_to_html_sections(markdown_content: str) -> dict:
     """
     将Markdown内容转换为HTML各部分内容
@@ -267,57 +278,23 @@ def markdown_to_html_sections(markdown_content: str) -> dict:
     Returns:
         dict: 各部分的HTML内容
     """
-    sections = {
-        "top3_html": "",
-        "ai_gov_usage_html": "",
-        "ai_china_narrative_html": "",
-        "ai_legislation_html": "",
-        "ai_data_leak_html": "",
-        "insights_html": "",
-        "links_html": ""
-    }
+    sections = {key: "" for key in SECTION_MAP.values()}
     
     lines = markdown_content.split("\n")
     current_section = None
     section_content = []
     
     for line in lines:
-        if "近日要闻TOP3" in line:
-            if current_section and section_content:
-                sections[current_section] = "\n".join(section_content)
-            current_section = "top3_html"
-            section_content = []
-        elif "美欧机构AI应用动态" in line:
-            if current_section and section_content:
-                sections[current_section] = "\n".join(section_content)
-            current_section = "ai_gov_usage_html"
-            section_content = []
-        elif "涉我AI舆论动态" in line:
-            if current_section and section_content:
-                sections[current_section] = "\n".join(section_content)
-            current_section = "ai_china_narrative_html"
-            section_content = []
-        elif "AI新法案与政策" in line:
-            if current_section and section_content:
-                sections[current_section] = "\n".join(section_content)
-            current_section = "ai_legislation_html"
-            section_content = []
-        elif "AI数据泄露与安全事件" in line:
-            if current_section and section_content:
-                sections[current_section] = "\n".join(section_content)
-            current_section = "ai_data_leak_html"
-            section_content = []
-        elif "趋势研判与防护建议" in line:
-            if current_section and section_content:
-                sections[current_section] = "\n".join(section_content)
-            current_section = "insights_html"
-            section_content = []
-        elif "重要链接" in line:
-            if current_section and section_content:
-                sections[current_section] = "\n".join(section_content)
-            current_section = "links_html"
-            section_content = []
-        elif current_section:
+        matched = False
+        for header_text, section_key in SECTION_MAP.items():
+            if header_text in line:
+                if current_section and section_content:
+                    sections[current_section] = "\n".join(section_content)
+                current_section = section_key
+                section_content = []
+                matched = True
+                break
+        if not matched and current_section:
             section_content.append(line)
     
     if current_section and section_content:

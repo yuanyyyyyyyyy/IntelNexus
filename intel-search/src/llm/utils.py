@@ -159,10 +159,16 @@ def fetch_ollama_models() -> List[str]:
     """
     Retrieve the list of locally available Ollama models by querying the Ollama HTTP API.
     Returns an empty list if the API isn't reachable or the base URL is not defined.
+    Results are cached for 5 minutes to avoid repeated HTTP calls.
     """
+    import time
     base_url = _get_ollama_base_url()
     if not base_url:
         return []
+
+    now = time.time()
+    if _ollama_models_cache["models"] is not None and now - _ollama_models_cache["time"] < 300:
+        return _ollama_models_cache["models"]
 
     try:
         resp = requests.get(urljoin(base_url, "api/tags"), timeout=3)
@@ -173,9 +179,16 @@ def fetch_ollama_models() -> List[str]:
             name = m.get("name") or m.get("model")
             if name:
                 available.append(name)
+        _ollama_models_cache["models"] = available
+        _ollama_models_cache["time"] = now
         return available
     except (requests.RequestException, ValueError):
+        _ollama_models_cache["models"] = []
+        _ollama_models_cache["time"] = now
         return []
+
+
+_ollama_models_cache = {"models": None, "time": 0}
 
 
 def get_model_choices() -> List[str]:

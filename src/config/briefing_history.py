@@ -74,6 +74,8 @@ class BriefingHistory:
         }
         
         history = self.get_briefings(limit=100)
+        if len(history) >= 100:
+            logger.warning(f"Briefing history has {len(history)} entries, oldest will be dropped")
         history.insert(0, entry)
         safe_write_json(self.history_file, history)
         
@@ -89,7 +91,10 @@ class BriefingHistory:
     
     def load_briefing(self, filename: str) -> Optional[str]:
         """加载简报内容"""
-        filepath = os.path.join(self.briefings_dir, filename)
+        filepath = os.path.realpath(os.path.join(self.briefings_dir, filename))
+        if not filepath.startswith(os.path.realpath(self.briefings_dir)):
+            logger.warning(f"Path traversal attempt blocked: {filename}")
+            return None
         if not os.path.exists(filepath):
             logger.warning(f"Briefing not found: {filename}")
             return None
@@ -98,7 +103,10 @@ class BriefingHistory:
     
     def delete_briefing(self, filename: str) -> bool:
         """删除简报"""
-        filepath = os.path.join(self.briefings_dir, filename)
+        filepath = os.path.realpath(os.path.join(self.briefings_dir, filename))
+        if not filepath.startswith(os.path.realpath(self.briefings_dir)):
+            logger.warning(f"Path traversal attempt blocked: {filename}")
+            return False
         if os.path.exists(filepath):
             os.remove(filepath)
             history = self.get_briefings(limit=100)
