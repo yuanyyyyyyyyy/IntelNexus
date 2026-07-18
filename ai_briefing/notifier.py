@@ -219,17 +219,20 @@ class AIBriefingNotifier:
             return False
     
     def _retry(self, func, max_retries=3, *args, **kwargs):
-        """带重试的执行包装器"""
+        """带重试的执行包装器（仅重试瞬态错误）"""
         last_error = None
         for attempt in range(max_retries):
             try:
                 return func(*args, **kwargs)
-            except Exception as e:
+            except (requests.ConnectionError, requests.Timeout, IOError, OSError) as e:
                 last_error = e
                 if attempt < max_retries - 1:
                     wait_time = 2 ** attempt
                     logger.warning(f"Retry {attempt + 1}/{max_retries} after {wait_time}s: {e}")
                     time.sleep(wait_time)
+            except Exception as e:
+                logger.error(f"Non-retryable error: {type(e).__name__}: {e}")
+                return False
         logger.error(f"All {max_retries} retries failed: {last_error}")
         return False
     

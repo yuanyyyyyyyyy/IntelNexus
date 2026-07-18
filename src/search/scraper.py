@@ -41,9 +41,10 @@ def scrape_single(url_data, rotate=False, rotate_interval=5, control_port=9051, 
             response = requests.get(url, headers=headers, timeout=15)
 
         if response.status_code == 200:
-            # 强制使用UTF-8解码，解决中文乱码问题
-            response.encoding = 'utf-8'
-            
+            # 使用内容嗅探的编码，避免强制 UTF-8 导致非 UTF-8 页面乱码
+            if response.encoding is None or response.encoding.lower() == 'iso-8859-1':
+                response.encoding = response.apparent_encoding or 'utf-8'
+
             soup = BeautifulSoup(response.text, "html.parser")
             # Clean up text: remove scripts/styles
             for script in soup(["script", "style"]):
