@@ -149,6 +149,8 @@ LANG = {
         "briefing_deleted": "简报已删除",
         "download_md": "下载 Markdown",
         "download_html": "下载 HTML",
+        "download_format": "下载格式",
+        "select_download_format": "选择下载格式",
     },
     "en": {
         "title": "IntelNexus",
@@ -298,6 +300,8 @@ LANG = {
         "briefing_deleted": "Briefing deleted",
         "download_md": "Download Markdown",
         "download_html": "Download HTML",
+        "download_format": "Format",
+        "select_download_format": "Select download format",
     }
 }
 

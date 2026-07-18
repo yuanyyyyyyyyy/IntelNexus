@@ -8,10 +8,16 @@ def render_download_section():
         return
 
     st.markdown("---")
-    download_format = st.session_state.get('sidebar_download_format', 'md')
-    format_labels_display = {"md": "Markdown", "pdf": "PDF", "docx": "Word", "xlsx": "Excel"}
+    format_options = ["md", "pdf", "docx", "xlsx"]
+    format_labels = {"md": "Markdown", "pdf": "PDF", "docx": "Word", "xlsx": "Excel"}
 
-    st.info(f"下载格式: **{format_labels_display.get(download_format)}**")
+    download_format = st.selectbox(
+        get_text("select_download_format"),
+        format_options,
+        format_func=lambda x: format_labels[x],
+        key="download_format_select"
+    )
+    st.session_state.sidebar_download_format = download_format
 
     if st.button(get_text("download"), use_container_width=True, key="download_btn"):
         from pathlib import Path
