@@ -59,7 +59,7 @@ def get_llm(model_choice):
 
 
 def expand_query(user_input):
-    """查询扩展 - 拼写修复 + 多语言变体生成"""
+    """查询扩展 - 拼写修复 + 最多1个跨语言变体（避免请求爆炸）"""
     user_input = user_input.strip()
 
     common_typos = {
@@ -88,13 +88,11 @@ def expand_query(user_input):
     has_chinese = any('\u4e00' <= c <= '\u9fff' for c in original)
     has_english = any('a' <= c.lower() <= 'z' for c in original)
 
+    # Only add ONE cross-language variant to avoid search engine overload
     if has_chinese:
         queries.append(f"{original} English")
-        queries.append(f"{original} news")
-
-    if has_english and len(original) >= 3:
+    elif has_english and len(original) >= 3:
         queries.append(f"{original} 中文")
-        queries.append(f"{original} 新闻")
 
     return queries
 
@@ -215,7 +213,7 @@ def _build_augmented_content(content, credibility_context="", kg_context="", con
     augmented_content = ""
     if isinstance(content, dict):
         for url, text in content.items():
-            n = min(len(text), 2000)
+            n = min(len(text), 4000)
             text_clean = re.sub(r'!\[.*?\]\(.*?\)', '', text[:n])
             text_clean = re.sub(r'<img[^>]*>', '', text_clean)
             text_clean = re.sub(r'\b\S+\.(png|jpg|jpeg|gif|webp|svg)\b', '', text_clean)

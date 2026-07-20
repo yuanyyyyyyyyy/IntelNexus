@@ -14,7 +14,7 @@
 | **AI智能分析** | LLM自动优化查询、筛选结果、生成专业报告 |
 | **本地+云端LLM** | 支持Ollama本地部署(GPT-4o/Claude/Gemini等云端模型) |
 | **多格式导出** | 一键导出Markdown/PDF/Word/Excel |
-| **暗网搜索** | 支持Ahmia暗网搜索引擎 |
+| **暗网搜索** | 支持Ahmia(无需Tor) + OnionLink/TorDex(需Tor) + 自定义.onion站点 |
 | **AI简报系统** | 自动采集、分析、推送每日AI情报简报 |
 
 ---
@@ -23,52 +23,38 @@
 
 ```
 IntelNexus/
-├── main.py                 # CLI入口
-├── ui.py                   # Streamlit Web界面入口
-├── config.py               # 全局配置(环境变量)
-├── requirements.txt        # 依赖清单
+├── main.py                     # CLI入口
+├── ui.py                       # 统一 Streamlit Web 界面
+├── config.py                   # 全局配置(环境变量)
+├── requirements.txt            # 依赖清单
 │
-├── src/                    # 核心模块
-│   ├── search/             # 搜索模块
-│   │   ├── web.py          # 网页搜索(5个引擎)
-│   │   ├── news.py         # 新闻搜索(RSS/Google/Bing)
-│   │   ├── darkweb.py      # 暗网搜索(Ahmia)
-│   │   └── scraper.py      # 内容抓取
-│   ├── llm/                # LLM模块
-│   │   ├── core.py         # LLM集成
-│   │   ├── utils.py        # LLM工具函数
-│   │   └── models.py       # 自定义模型管理
-│   ├── analysis/           # 分析模块
-│   │   ├── credibility.py  # 来源可信度评估
-│   │   ├── intelligence_graph.py  # 知识图谱
-│   │   └── evidence_tracer.py     # 证据链追踪
-│   ├── export/             # 导出模块
-│   │   └── report.py       # Markdown/PDF/Word/Excel导出
-│   ├── config/             # 配置管理
-│   │   ├── sources.py      # 数据源CRUD
-│   │   ├── subscriptions.py # 订阅者CRUD
-│   │   └── cache.py        # URL缓存
-│   └── ui/                 # UI模块
-│       ├── i18n.py         # 国际化(中/英)
-│       ├── styles.py       # 样式
-│       ├── sidebar.py      # 侧边栏
-│       ├── search_pipeline.py  # 搜索流程
-│       ├── results.py      # 结果展示
-│       ├── download.py     # 下载功能
-│       └── results_detail.py   # 结果详情
+├── shared/                     # 共享库
+│   ├── search/                 # 搜索(web.py, news.py, scraper.py)
+│   ├── llm/                    # LLM核心(core.py, utils.py, models.py)
+│   └── ui/                     # UI共享(styles.py, helpers.py)
 │
-├── ai_briefing/            # AI简报模块
-│   ├── config.py           # 简报配置(关注点/关键词)
-│   ├── collector.py        # 数据采集器
-│   ├── analyzer.py         # LLM分析生成器
-│   ├── scheduler.py        # 定时调度器
-│   ├── notifier.py         # 推送通知器(邮件/企微/钉钉)
-│   ├── templates.py        # 简报模板(Markdown/HTML)
-│   └── prompts.py          # LLM提示词
+├── intel-search/               # 搜索子项目
+│   └── src/
+│       ├── analysis/           # 分析(可信度/知识图谱/证据链)
+│       ├── search/             # 暗网搜索(darkweb.py)
+│       ├── export/             # 报告导出(MD/PDF/Word/Excel)
+│       └── ui/                 # 搜索UI(i18n/sidebar/搜索流程/结果)
 │
-└── data/                   # 数据目录
-    ├── sources.json        # 数据源配置
-    └── subscriptions.json  # 订阅者配置
+├── intel-briefing/             # 简报子项目
+│   ├── ai_briefing/            # 简报核心(采集/分析/通知/调度/模板)
+│   └── src/
+│       ├── config/             # 简报配置(数据源/订阅者/历史)
+│       ├── export/             # 简报PDF导出
+│       └── ui/                 # 简报UI(i18n/简报预览/历史)
+│
+├── src/                        # 整合层
+│   ├── config/                 # 配置壳(→子项目实源)
+│   └── ui/                     # 合并版UI组件(整合搜索+简报)
+│
+└── data/                       # 数据目录
+    ├── sources.json            # 数据源配置
+    ├── subscriptions.json      # 订阅者配置
+    └── briefings/              # 简报历史存档
 ```
 
 ---
@@ -211,7 +197,7 @@ SMTP_PASSWORD=your-password
 |------|------|
 | 网页 | Bing, DuckDuckGo, Yahoo, Yandex, Baidu |
 | 新闻 | Google News, Bing News, RSS订阅 |
-| 暗网 | Ahmia (无需Tor) |
+| 暗网 | Ahmia (公开访问，无需Tor) + OnionLink/TorDex (高级模式，需Tor)
 
 ---
 

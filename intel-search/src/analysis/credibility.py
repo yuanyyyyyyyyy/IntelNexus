@@ -81,7 +81,7 @@ class SourceScorer:
         for r in results:
             url = r.get("link") or r.get("url", "")
             source_name = r.get("source", "Unknown")
-            detail = self._build_detail(url, source_name, scraped_content, emb_cache, pairwise_sim)
+            detail = self._build_detail(url, source_name, scraped_content, emb_cache, pairwise_sim, r)
             r["credibility_score"] = detail["final_score"]
             r["credibility_details"] = detail
 
@@ -104,9 +104,9 @@ class SourceScorer:
         avg_sims = sim_matrix.sum(axis=1) / max(n - 1, 1)
         return {u: float(avg_sims[i]) for i, u in enumerate(urls)}
 
-    def _build_detail(self, url, source_name, scraped, emb_cache, pairwise_sim):
+    def _build_detail(self, url, source_name, scraped, emb_cache, pairwise_sim, result=None):
         domain_score = self._domain_authority(url, source_name)
-        freshness_score = self._freshness(source_name)
+        freshness_score = self._freshness(source_name, result)
         depth_score = self._content_depth(url, scraped)
         consis_score = pairwise_sim.get(url, 0.5)
 
@@ -139,24 +139,54 @@ class SourceScorer:
         }
 
     def _domain_authority(self, url, source_name):
-        if source_name in self.AGGREGATOR_SOURCES:
-            return 0.5
+        # Try to extract real domain from URL first (not just source/engine name)
         try:
             parsed = urlparse(url)
             domain = parsed.netloc.lower()
-            if domain.startswith('www.'):
-                domain = domain[4:]
-            for trusted, score in self.TRUSTED_DOMAINS.items():
-                if domain == trusted or domain.endswith('.' + trusted):
-                    return score
-            for tld, score in self.TLD_SCORES.items():
-                if domain.endswith(tld):
-                    return score
+            if domain and domain not in ('', 'localhost', '127.0.0.1'):
+                if domain.startswith('www.'):
+                    domain = domain[4:]
+                for trusted, score in self.TRUSTED_DOMAINS.items():
+                    if domain == trusted or domain.endswith('.' + trusted):
+                        return score
+                for tld, score in self.TLD_SCORES.items():
+                    if domain.endswith(tld):
+                        return score
         except Exception:
             pass
+
+        # Fallback: score by source type
+        if source_name in self.NEWS_SOURCES:
+            return 0.7
+        if source_name in self.AGGREGATOR_SOURCES:
+            return 0.5
         return 0.4
 
-    def _freshness(self, source_name):
+    def _freshness(self, source_name, result=None):
+        """Compute freshness from published_at date, falling back to source type."""
+        if result:
+            published = result.get("published_at") or result.get("published") or result.get("date")
+            if published:
+                try:
+                    from datetime import datetime
+                    if isinstance(published, str):
+                        for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+                            try:
+                                pub_dt = datetime.strptime(published[:19] if len(published) >= 19 else published, fmt)
+                                delta = (datetime.now() - pub_dt).total_seconds()
+                                if delta < 86400:
+                                    return 1.0          # within 24h
+                                if delta < 604800:
+                                    return 0.85          # within 7 days
+                                if delta < 2592000:
+                                    return 0.7           # within 30 days
+                                if delta < 7776000:
+                                    return 0.5           # within 90 days
+                                return 0.3               # older
+                            except (ValueError, IndexError):
+                                continue
+                except Exception:
+                    pass
         return 0.8 if source_name in self.NEWS_SOURCES else 0.5
 
     def _content_depth(self, url, scraped):

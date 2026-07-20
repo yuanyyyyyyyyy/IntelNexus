@@ -65,7 +65,7 @@ def scrape_multiple(urls_data, max_workers=5):
     Scrapes multiple URLs concurrently using a thread pool.
     """
     results = {}
-    max_chars = 1000
+    max_chars = 3000
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_url = {
