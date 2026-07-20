@@ -4,7 +4,17 @@ AI简报关注点配置
 定义4个关注点的关键词、查询模板和简报配置
 """
 
+import os
+from dotenv import load_dotenv
 from datetime import datetime
+
+load_dotenv()
+
+
+def _env_org(key: str, default: str) -> str:
+    """读取机构品牌配置项（环境变量优先，空则回退默认值）。"""
+    val = os.getenv(key)
+    return val if val not in (None, "") else default
 
 
 # 动态年份
@@ -115,6 +125,50 @@ WATCH_CATEGORIES = {
             "training data privacy breach AI",
             "AI security incident news"
         ]
+    },
+    "cyber_vuln": {
+        "name": "漏洞与威胁",
+        "name_en": "Vulnerabilities & Threats",
+        "description": "近期披露的通用高危漏洞、CVE、0day 与在野利用情报",
+        "icon": "🛡️",
+        "keywords_en": [
+            "CVE vulnerability", "zero-day exploit", "RCE vulnerability",
+            "critical vulnerability disclosed", "CISA KEV", "exploit published",
+            "CVSS critical", "patch Tuesday", "vulnerability research"
+        ],
+        "keywords_zh": [
+            "漏洞 CVE", "高危漏洞", "0day 利用", "在野利用",
+            "远程代码执行", "漏洞披露", "补丁 安全公告"
+        ],
+        "search_queries": [
+            f"critical CVE vulnerability disclosed {YEAR}",
+            "zero-day exploit in the wild",
+            "CISA known exploited vulnerabilities update",
+            "RCE vulnerability patch released",
+            "new vulnerability research disclosure"
+        ]
+    },
+    "cyber_attack": {
+        "name": "攻击事件与合规",
+        "name_en": "Attack Incidents & Compliance",
+        "description": "数据泄露、勒索攻击、重大安全事件及网络安全政策合规动态",
+        "icon": "🛡️",
+        "keywords_en": [
+            "data breach", "ransomware attack", "dark web leak",
+            "cyber attack incident", "breach disclosed", "security regulation",
+            "cybersecurity compliance", "government cyber policy"
+        ],
+        "keywords_zh": [
+            "数据泄露", "勒索软件", "暗网 售卖", "网络攻击事件",
+            "网络安全 政策", "合规 监管", "网络安全法"
+        ],
+        "search_queries": [
+            f"major data breach disclosed {YEAR}",
+            "ransomware attack incident news",
+            "dark web database for sale",
+            "cybersecurity regulation policy update",
+            "government cybersecurity compliance news"
+        ]
     }
 }
 
@@ -122,9 +176,16 @@ WATCH_CATEGORIES = {
 # ========== 简报配置 ==========
 BRIEFING_CONFIG = {
     "organization": {
-        "name": "AI情报团队",
+        # 以下品牌字段均可通过 .env 中的 ORGANIZATION_* 覆盖（保持可配置，不写死任何品牌）
+        "name": _env_org("ORGANIZATION_NAME", "AI情报团队"),            # 机构主名（页眉/封面/落款）
         "team": "AI简报系统",
-        "contact": ""
+        "producer_unit": _env_org("ORGANIZATION_PRODUCER_UNIT", ""),    # 出品单位（留空则省略）
+        "contact": _env_org("ORGANIZATION_CONTACT", ""),                # 联系人/微信（留空则省略）
+        "footer_qr_text": _env_org("ORGANIZATION_FOOTER_QR_TEXT", ""),  # 页脚"扫码关注"文案（留空则不渲染）
+        "disclaimer": _env_org(
+            "ORGANIZATION_DISCLAIMER",
+            "本简报基于公开信息整理，不构成投资或其他专业建议。"
+        )
     },
     "format": {
         "max_top3_items": 3,

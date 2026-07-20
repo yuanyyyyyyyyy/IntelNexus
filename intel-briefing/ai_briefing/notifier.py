@@ -5,6 +5,7 @@ AI简报推送通知器
 """
 
 import smtplib
+import ssl
 import hashlib
 import hmac
 import base64
@@ -56,7 +57,7 @@ class AIBriefingNotifier:
             if email:
                 results["email"] = self.send_email(
                     email=email,
-                    subject=f"AI领域每日情报简报 - {subscriber.get('name', '')}",
+                    subject=f"AI 与网络安全每日情报简报 - {subscriber.get('name', '')}",
                     content=briefing_content,
                     html_content=briefing_html
                 )
@@ -107,6 +108,12 @@ class AIBriefingNotifier:
             logger.warning("Email SMTP config incomplete")
             return False
         
+        if not use_tls:
+            logger.warning(
+                "SMTP use_tls=False：凭证与邮件内容将以明文传输，存在被窃听/中间人攻击风险，"
+                "建议设置 SMTP_USE_TLS=true（或 UI 中勾选'使用TLS'）"
+            )
+        
         msg = MIMEMultipart("alternative")
         msg["From"] = f"{from_name} <{username}>"
         msg["To"] = email
@@ -121,7 +128,8 @@ class AIBriefingNotifier:
         
         with smtplib.SMTP(smtp_server, smtp_port) as server:
             if use_tls:
-                server.starttls()
+                # 校验服务端证书，抵御中间人攻击
+                server.starttls(context=ssl.create_default_context())
             server.login(username, password)
             server.send_message(msg)
         
@@ -299,9 +307,15 @@ class AIBriefingNotifier:
             if not smtp_server or not username or not password:
                 return False
             
+            if not use_tls:
+                logger.warning(
+                    "SMTP use_tls=False：凭证将以明文传输，存在安全风险，"
+                    "建议设置 SMTP_USE_TLS=true（或 UI 中勾选'使用TLS'）"
+                )
+            
             with smtplib.SMTP(smtp_server, smtp_port) as server:
                 if use_tls:
-                    server.starttls()
+                    server.starttls(context=ssl.create_default_context())
                 server.login(username, password)
             
             return True

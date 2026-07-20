@@ -136,14 +136,17 @@ def briefing(model, notify_only, export_format):
         click.echo("\n[2/4] Generating briefing...")
         organization_name = BRIEFING_CONFIG["organization"]["name"]
         briefing_md = analyzer.generate_briefing(collected_data, organization_name)
-        
+
         # 5. 生成HTML版本
         briefing_html = None
         try:
+            from ai_briefing.analyzer import format_briefing_date
+            org_cfg = dict(BRIEFING_CONFIG["organization"])
+            generated_date = format_briefing_date()
             sections = markdown_to_html_sections(briefing_md)
             briefing_html = render_email_html(
-                generated_date=datetime.now().strftime("%Y年%m月%d日"),
-                organization_name=organization_name,
+                generated_date=generated_date,
+                organization=org_cfg,
                 **sections
             )
         except Exception as e:
@@ -178,7 +181,7 @@ def briefing(model, notify_only, export_format):
             try:
                 from src.export.briefing_export import export_briefing_pdf
                 pdf_path = f"data/briefings/briefing_{timestamp}.pdf"
-                export_briefing_pdf(briefing_md, pdf_path)
+                export_briefing_pdf(briefing_md, pdf_path, organization=org_cfg)
                 click.echo(f"  PDF exported: {pdf_path}")
             except Exception as e:
                 click.echo(f"  Warning: Could not export PDF: {e}")

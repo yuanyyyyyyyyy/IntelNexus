@@ -2012,10 +2012,11 @@ SCRAPE_TIMEOUT=15
 # 启用暗网搜索功能（true/false）
 ENABLE_DARKWEB=false
 
-# Tor 代理地址
-TOR_PROXY=http://127.0.0.1:9050
+# Tor 代理 SOCKS 端口（与代码中 get_tor_proxy_port() 读取的变量名一致）
+# 9150 = Tor 浏览器默认 SOCKS 端口；若使用独立 Tor 守护进程则为 9050，按需修改
+TOR_PROXY_PORT=9150
 
-# Tor 控制端口
+# Tor 控制端口（仅在使用独立 Tor 守护进程且需要控制协议时相关）
 TOR_CONTROL_PORT=9051
 
 # 自定义暗网站点列表文件
@@ -2358,7 +2359,7 @@ A5: 请按以下步骤排查：
 A6: 暗网搜索默认是禁用的，需要：
 1. 在.env中设置`ENABLE_DARKWEB=true`
 2. 如需Tor代理，确保Tor服务正常运行
-3. 配置`TOR_PROXY`指向您的Tor代理地址
+3. 如需自定义Tor端口，在.env中设置`TOR_PROXY_PORT`（默认9150，Tor浏览器；独立Tor守护进程用9050）
 
 **Q7: 如何切换AI模型？**
 

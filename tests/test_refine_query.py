@@ -21,18 +21,20 @@ class TestRefineQuery:
         assert result == [""]
 
     def test_chinese_query_expands(self):
-        """Chinese queries should get English + news variants."""
+        """Chinese queries should get exactly one English cross-language variant."""
         result = expand_query("人工智能")
         assert "人工智能" in result
         assert any("English" in q for q in result)
-        assert any("news" in q for q in result)
+        # Only ONE cross-language variant is added to avoid search-engine overload
+        assert len(result) == 2
 
     def test_english_query_expands(self):
-        """English queries should get Chinese + news variants."""
+        """English queries should get exactly one Chinese cross-language variant."""
         result = expand_query("machine learning")
         assert "machine learning" in result
         assert any("中文" in q for q in result)
-        assert any("新闻" in q for q in result)
+        # Only ONE cross-language variant is added to avoid search-engine overload
+        assert len(result) == 2
 
     def test_mixed_language_query(self):
         """Mixed Chinese+English should expand."""
