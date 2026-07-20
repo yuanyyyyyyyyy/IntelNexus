@@ -259,56 +259,13 @@ def _render_subscriptions():
         st.info(get_text("no_subscribers"))
 
 
-def _render_briefing_actions():
+def _render_briefing_actions(model: str):
     """生成简报 + 下载格式"""
     st.markdown("---")
     st.markdown(f'<div class="section-header">🚀 {get_text("generate_briefing")}</div>', unsafe_allow_html=True)
 
-    if st.button(get_text("generate_briefing"), key="generate_briefing_btn", use_container_width=True):
-        from ai_briefing.collector import AIBriefingCollector
-        from ai_briefing.analyzer import AIBriefingAnalyzer
-        from ai_briefing.notifier import AIBriefingNotifier
-        from src.config.subscriptions import get_active_subscribers
-
-        with st.spinner(get_text("briefing_generating")):
-            try:
-                collector = AIBriefingCollector()
-                collected = {}
-                for cat in ["ai_gov_usage", "ai_china_narrative", "ai_legislation", "ai_data_leak"]:
-                    collected[cat] = collector.collect_for_category(cat)
-
-                analyzer = AIBriefingAnalyzer()
-                briefing_md = analyzer.generate_briefing(collected)
-
-                # 保存简报到历史
-                from src.config.briefing_history import get_briefing_history
-                get_briefing_history().save_briefing(
-                    markdown_content=briefing_md,
-                    organization_name=get_text("default_org_name"),
-                    categories=["ai_gov_usage", "ai_china_narrative", "ai_legislation", "ai_data_leak"]
-                )
-
-                email_config = st.session_state.get("email_config", {
-                    "smtp_server": "", "smtp_port": 587,
-                    "username": "", "password": "", "use_tls": True
-                })
-                notifier = AIBriefingNotifier(email_config=email_config)
-                subscribers = get_active_subscribers()
-
-                if not subscribers:
-                    st.warning(get_text("briefing_no_subscribers"))
-                else:
-                    success_count = 0
-                    for sub in subscribers:
-                        results = notifier.notify(sub, briefing_md)
-                        if any(results.values()):
-                            success_count += 1
-                    st.success(get_text("briefing_success").format(count=f"{success_count}/{len(subscribers)}"))
-
-                # 存入 session_state 用于预览
-                st.session_state.current_briefing = briefing_md
-            except Exception as e:
-                st.error(f"{get_text('briefing_failed')}: {str(e)}")
+    from src.ui.briefing_runner import render_briefing_generate_controls
+    render_briefing_generate_controls(key_prefix="sb", model=model, compact=True)
 
     # 查看简报历史按钮
     st.markdown("---")
@@ -326,6 +283,6 @@ def render_sidebar():
         model = _render_model_settings()
         _render_data_sources()
         _render_subscriptions()
-        _render_briefing_actions()
+        _render_briefing_actions(model)
 
     return model

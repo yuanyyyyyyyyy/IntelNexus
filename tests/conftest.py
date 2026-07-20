@@ -7,6 +7,8 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 # Then add shared library
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "shared"))
+# Add intel-briefing package (so `import ai_briefing.*` resolves)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "intel-briefing"))
 
 # Inject config for shared library
 from shared.settings import set as set_config

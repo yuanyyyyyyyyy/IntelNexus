@@ -31,7 +31,7 @@ MARKDOWN_TEMPLATE = """
 
 ---
 
-## 🛡 网络安全动态
+## 网络安全动态
 
 {cyber_dynamic_content}
 
@@ -43,7 +43,7 @@ MARKDOWN_TEMPLATE = """
 
 ---
 
-## 💡 趋势研判与防护建议
+## 趋势研判与防护建议
 
 {insights_content}
 
@@ -543,7 +543,7 @@ BRIEFING_STANDALONE_HTML = """<!DOCTYPE html>
         </div>
 
         <div class="section">
-            <h2>💡 趋势研判与防护建议</h2>
+            <h2>趋势研判与防护建议</h2>
             {insights_content}
         </div>
 
