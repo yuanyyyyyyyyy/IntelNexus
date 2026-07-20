@@ -75,10 +75,10 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
             search_query = expand_query_for_search(query_variants)
 
     st.markdown(f"""
-    <div class="result-card">
-        <div class="section-header">{get_text("refined_query")}</div>
-        <div class="result-title">{get_text("original_query")} {html.escape(query)}</div>
-        <div class="result-title" style="color: var(--morandi-blue);">{get_text("multilingual_query")} {html.escape(search_query)}</div>
+    <div class="ir-meta">
+        <div class="ir-meta__hdr">{get_text("refined_query")}</div>
+        <div class="ir-meta__line">{get_text("original_query")} {html.escape(query)}</div>
+        <div class="ir-meta__line ir-meta__line--accent">{get_text("multilingual_query")} {html.escape(search_query)}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -98,14 +98,10 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
 
     source_info = " | ".join([f"{k}: {v}" for k, v in source_counts.items()])
     st.markdown(f"""
-    <div class="result-card">
-        <div class="result-stats">
-            <div class="stat-item">
-                <div class="stat-value">{results_count}</div>
-                <div class="stat-label">{get_text("results_count")}</div>
-            </div>
-        </div>
-        <div class="stat-label" style="margin-top: 10px;">{get_text("data_source_label")} {html.escape(source_info)}</div>
+    <div class="ir-meta">
+        <div class="ir-meta__hdr">Search Statistics</div>
+        <div class="ir-meta__line"><strong>{results_count}</strong> {get_text("results_count")}</div>
+        <div class="ir-meta__line">{get_text("data_source_label")} {html.escape(source_info)}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -215,10 +211,17 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
         st.session_state.streamed_summary += chunk
         summary_slot.markdown(st.session_state.streamed_summary)
 
+    now_header = datetime.now().strftime("%Y-%m-%d %H:%M")
     st.markdown(f"""
-    <div class="report-section">
-        <div class="report-title">{get_text("report_title")}</div>
-    </div>
+    <div class="intel-report">
+        <div class="ir-header">
+            <span class="ir-header__title">Intel Report</span>
+            <span class="ir-header__timestamp">{now_header}</span>
+            <span class="ir-header__class">Confidential</span>
+        </div>
+        <div class="ir-body">
+            <div class="ir-summary-label">Executive Summary</div>
+            <div class="ir-summary-box">
     """, unsafe_allow_html=True)
     summary_slot = st.empty()
 

@@ -12,7 +12,7 @@ st.set_page_config(
 )
 
 from src.ui.i18n import get_text
-from shared.ui.styles import render_light_theme_css, render_morandi_theme_css
+from shared.ui.styles import render_light_theme_css, render_morandi_theme_css, render_intel_report_css
 from src.ui.sidebar import render_sidebar
 from src.ui.search_pipeline import run_search_pipeline
 from src.ui.results import render_results_panels
@@ -26,6 +26,7 @@ if "query_cache" not in st.session_state:
 
 render_light_theme_css()
 render_morandi_theme_css()
+render_intel_report_css()
 
 col1, col2 = st.columns([8, 2])
 with col1:

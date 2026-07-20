@@ -12,20 +12,20 @@ import re
 
 # ========== Markdown简报模板 ==========
 MARKDOWN_TEMPLATE = """
-# 🔐 AI 与网络安全每日情报简报
+# AI 与网络安全每日情报简报
 
 **{generated_date}**
 **{org_name}**
 {producer_unit_cover}
 ---
 
-## 📌 近日要闻 TOP3
+## 近日要闻 TOP3
 
 {top3_content}
 
 ---
 
-## 🤖 AI 领域动态
+## AI 领域动态
 
 {ai_dynamic_content}
 
@@ -37,7 +37,7 @@ MARKDOWN_TEMPLATE = """
 
 ---
 
-## ⚠ 近日新增安全漏洞预警
+## 近日新增安全漏洞预警
 
 {cve_table_content}
 
@@ -49,7 +49,7 @@ MARKDOWN_TEMPLATE = """
 
 ---
 
-## 📎 重要链接
+## 重要链接
 
 {links_content}
 
@@ -77,38 +77,38 @@ EMAIL_HTML_TEMPLATE = """
 <table width="800" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:8px;">
 <!-- Header -->
 <tr><td style="text-align:center;padding:30px 30px 20px;border-bottom:2px solid #1F4E88;">
-<h1 style="color:#1F4E88;margin:0;font-size:24px;">🔐 AI 与网络安全每日情报简报</h1>
+<h1 style="color:#1F4E88;margin:0;font-size:24px;">AI 与网络安全每日情报简报</h1>
 <p style="color:#666;font-size:14px;margin:10px 0 0;">{generated_date}</p>
 <p style="color:#888;font-size:12px;margin:5px 0 0;">{org_name}{producer_unit_header}</p>
 </td></tr>
 <!-- TOP3 -->
 <tr><td style="padding:25px 30px;">
-<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">📌 近日要闻 TOP3</h2>
+<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">近日要闻 TOP3</h2>
 {top3_html}
 </td></tr>
 <!-- AI 领域动态 -->
 <tr><td style="padding:0 30px 25px;">
-<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">🤖 AI 领域动态</h2>
+<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">AI 领域动态</h2>
 {ai_dynamic_html}
 </td></tr>
 <!-- 网络安全动态 -->
 <tr><td style="padding:0 30px 25px;">
-<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">🛡 网络安全动态</h2>
+<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">网络安全动态</h2>
 {cyber_dynamic_html}
 </td></tr>
 <!-- 近日新增安全漏洞预警 -->
 <tr><td style="padding:0 30px 25px;">
-<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">⚠ 近日新增安全漏洞预警</h2>
+<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">近日新增安全漏洞预警</h2>
 {cve_table_html}
 </td></tr>
 <!-- 趋势研判与防护建议 -->
 <tr><td style="padding:0 30px 25px;">
-<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">💡 趋势研判与防护建议</h2>
+<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">趋势研判与防护建议</h2>
 {insights_html}
 </td></tr>
 <!-- 重要链接 -->
 <tr><td style="padding:0 30px 25px;">
-<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">📎 重要链接</h2>
+<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">重要链接</h2>
 {links_html}
 </td></tr>
 <!-- Footer -->
@@ -351,12 +351,12 @@ def render_email_html(
 
 
 SECTION_MAP = {
-    "📌 近日要闻 TOP3": "top3_html",
-    "🤖 AI 领域动态": "ai_dynamic_html",
-    "🛡 网络安全动态": "cyber_dynamic_html",
-    "⚠ 近日新增安全漏洞预警": "cve_table_html",
-    "💡 趋势研判与防护建议": "insights_html",
-    "📎 重要链接": "links_html",
+    "近日要闻 TOP3": "top3_html",
+    "AI 领域动态": "ai_dynamic_html",
+    "网络安全动态": "cyber_dynamic_html",
+    "近日新增安全漏洞预警": "cve_table_html",
+    "趋势研判与防护建议": "insights_html",
+    "重要链接": "links_html",
 }
 
 
@@ -518,27 +518,27 @@ BRIEFING_STANDALONE_HTML = """<!DOCTYPE html>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔐 AI 与网络安全每日情报简报</h1>
+            <h1>AI 与网络安全每日情报简报</h1>
             <p class="subtitle">{generated_date} | {org_name}{producer_unit_header}</p>
         </div>
 
         <div class="section">
-            <h2>📌 近日要闻 TOP3</h2>
+            <h2>近日要闻 TOP3</h2>
             {top3_content}
         </div>
 
         <div class="section">
-            <h2>🤖 AI 领域动态</h2>
+            <h2>AI 领域动态</h2>
             {ai_dynamic_content}
         </div>
 
         <div class="section">
-            <h2>🛡 网络安全动态</h2>
+            <h2>网络安全动态</h2>
             {cyber_dynamic_content}
         </div>
 
         <div class="section">
-            <h2>⚠ 近日新增安全漏洞预警</h2>
+            <h2>近日新增安全漏洞预警</h2>
             {cve_table_content}
         </div>
 
@@ -548,7 +548,7 @@ BRIEFING_STANDALONE_HTML = """<!DOCTYPE html>
         </div>
 
         <div class="section">
-            <h2>📎 重要链接</h2>
+            <h2>重要链接</h2>
             {links_content}
         </div>
 

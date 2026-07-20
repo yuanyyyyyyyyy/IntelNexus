@@ -3,85 +3,82 @@ from src.ui.i18n import get_text
 
 
 def render_download_section():
-    """渲染报告下载区域"""
+    """渲染报告导出工具栏 — Intel Report Document 风格"""
     if not (st.session_state.get("search_completed", False) and st.session_state.get("streamed_summary")):
         return
 
-    st.markdown("---")
-    format_options = ["md", "pdf", "docx", "xlsx"]
-    format_labels = {"md": "Markdown", "pdf": "PDF", "docx": "Word", "xlsx": "Excel"}
+    # Toolbar label row
+    st.markdown('<div class="ir-toolbar"><span class="ir-toolbar__lbl">Export Format</span></div>',
+                unsafe_allow_html=True)
 
-    download_format = st.selectbox(
-        get_text("select_download_format"),
-        format_options,
-        format_func=lambda x: format_labels[x],
-        key="download_format_select"
-    )
-    st.session_state.sidebar_download_format = download_format
+    col1, col2, col3, col4 = st.columns(4)
 
-    if st.button(get_text("download"), use_container_width=True, key="download_btn"):
-        from pathlib import Path
+    with col1:
+        _do_export("md", "MD")
 
+    with col2:
+        _do_export("pdf", "PDF")
+
+    with col3:
+        _do_export("docx", "DOCX")
+
+    with col4:
+        _do_export("xlsx", "XLSX")
+
+    # Close intel-report container after all panels
+    st.markdown("</div><!-- /ir-body --></div><!-- /intel-report -->", unsafe_allow_html=True)
+
+
+def _do_export(fmt: str, label: str):
+    """生成单个格式按钮并处理导出逻辑"""
+    from pathlib import Path
+
+    filename = f"report_{st.session_state.report_timestamp}"
+
+    if fmt == "md":
+        st.download_button(
+            label=label,
+            data=st.session_state.streamed_summary,
+            file_name=f"{filename}.md",
+            mime="text/markdown",
+            key=f"toolbar_{fmt}",
+            use_container_width=True,
+        )
+        return
+
+    btn_key = f"toolbar_{fmt}"
+    if st.button(label, key=btn_key, use_container_width=True):
         try:
-            filename = f"report_{st.session_state.report_timestamp}"
-            if download_format == 'pdf':
+            if fmt == "pdf":
                 from src.export.report import export_pdf
-                pdf_path = export_pdf(st.session_state.streamed_summary, st.session_state.refined, filename)
-                with open(pdf_path, 'rb') as f:
-                    pdf_data = f.read()
-                st.download_button(
-                    label=get_text("pdf_ready"),
-                    data=pdf_data,
-                    file_name=f"{filename}.pdf",
-                    mime="application/pdf",
-                    key="pdf_download_now"
-                )
-                try:
-                    Path(pdf_path).unlink()
-                except Exception:
-                    pass
+                path = export_pdf(st.session_state.streamed_summary, st.session_state.refined, filename)
+                mime = "application/pdf"
 
-            elif download_format == 'docx':
+            elif fmt == "docx":
                 from src.export.report import export_word
-                docx_path = export_word(st.session_state.streamed_summary, st.session_state.refined, filename)
-                with open(docx_path, 'rb') as f:
-                    docx_data = f.read()
-                st.download_button(
-                    label=get_text("word_ready"),
-                    data=docx_data,
-                    file_name=f"{filename}.docx",
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    key="docx_download_now"
-                )
-                try:
-                    Path(docx_path).unlink()
-                except Exception:
-                    pass
+                path = export_word(st.session_state.streamed_summary, st.session_state.refined, filename)
+                mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
-            elif download_format == 'xlsx':
+            elif fmt == "xlsx":
                 from src.export.report import export_excel
-                xlsx_path = export_excel(st.session_state.streamed_summary, st.session_state.refined, filename)
-                with open(xlsx_path, 'rb') as f:
-                    xlsx_data = f.read()
-                st.download_button(
-                    label="Excel已准备",
-                    data=xlsx_data,
-                    file_name=f"{filename}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    key="xlsx_download_now"
-                )
-                try:
-                    Path(xlsx_path).unlink()
-                except Exception:
-                    pass
+                path = export_excel(st.session_state.streamed_summary, st.session_state.refined, filename)
+                mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
-            else:  # markdown
-                st.download_button(
-                    label=get_text("md_ready"),
-                    data=st.session_state.streamed_summary,
-                    file_name=f"{filename}.md",
-                    mime="text/markdown",
-                    key="md_download_now"
-                )
+            with open(path, 'rb') as f:
+                data = f.read()
+
+            st.download_button(
+                label=f"{label} Ready",
+                data=data,
+                file_name=f"{filename}.{fmt}",
+                mime=mime,
+                key=f"{btn_key}_dl",
+                use_container_width=True,
+            )
+            try:
+                Path(path).unlink()
+            except Exception:
+                pass
+
         except Exception as e:
             st.error(f"{get_text('error')}: {str(e)}")
