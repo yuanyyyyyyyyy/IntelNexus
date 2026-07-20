@@ -7,8 +7,18 @@ Unified CLI composing intel-search and intel-briefing sub-projects.
 import os
 import sys
 
+# Ensure root project dir resolves first (so root-level src/ and config.py win
+# over same-named modules inside sub-projects like intel-briefing/src).
+_ROOT = os.path.dirname(os.path.abspath(__file__))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
 # Add shared library to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "shared"))
+sys.path.insert(0, os.path.join(_ROOT, "shared"))
+
+# Appended (not inserted at 0) so ai_briefing resolves to intel-briefing/ai_briefing/
+# without overriding the root-level src/ package.
+sys.path.append(os.path.join(_ROOT, "intel-briefing"))
 
 from config import NEWS_API_KEY
 

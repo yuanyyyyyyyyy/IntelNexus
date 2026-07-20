@@ -11,7 +11,9 @@ import sys
 _root = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(_root, "shared"))
 sys.path.insert(0, os.path.join(_root, "intel-search"))
-sys.path.insert(0, os.path.join(_root, "intel-briefing"))
+# Appended (not inserted at 0) so ai_briefing resolves to intel-briefing/ai_briefing/
+# without letting intel-briefing/src/ shadow the root-level src/ package.
+sys.path.append(os.path.join(_root, "intel-briefing"))
 
 import streamlit as st
 
