@@ -8,8 +8,8 @@ import os
 from datetime import datetime
 from typing import List, Optional
 
-from src.config.file_lock import safe_read_json, safe_write_json
-from src.logger import get_logger
+from shared.settings.file_lock import safe_read_json, safe_write_json
+from shared.logger import get_logger
 
 logger = get_logger(__name__)
 

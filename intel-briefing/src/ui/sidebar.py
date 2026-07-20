@@ -1,7 +1,7 @@
 import streamlit as st
-from src.logger import get_logger
+from shared.logger import get_logger
 from src.ui.i18n import get_text
-from src.llm.utils import get_model_choices
+from shared.llm.utils import get_model_choices
 
 logger = get_logger(__name__)
 

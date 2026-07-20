@@ -41,6 +41,7 @@ Thumbs.db
 data/*.json
 data/*.csv
 data/cache/
+data/briefings/
 src/config/data/
 !data/sources.json
 !data/subscriptions.json

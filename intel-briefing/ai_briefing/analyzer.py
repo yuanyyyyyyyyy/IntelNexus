@@ -13,7 +13,7 @@ from ai_briefing.templates import (
     render_markdown_briefing,
     format_news_item
 )
-from src.logger import get_logger
+from shared.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -36,7 +36,7 @@ class AIBriefingAnalyzer:
             return self._llm
         
         try:
-            from src.llm.core import get_llm
+            from shared.llm.core import get_llm
             # 尝试使用默认模型
             self._llm = get_llm("qwen2.5:7b")
             return self._llm

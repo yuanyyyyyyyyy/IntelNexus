@@ -14,7 +14,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Dict, Optional
 import requests
-from src.logger import get_logger
+from shared.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -218,7 +218,7 @@ class AIBriefingNotifier:
             logger.error(f"Dingtalk HTTP error: {response.status_code}")
             return False
     
-    def _retry(self, func, max_retries=3, *args, **kwargs):
+    def _retry(self, func, *args, max_retries=3, **kwargs):
         """带重试的执行包装器（仅重试瞬态错误）"""
         last_error = None
         for attempt in range(max_retries):

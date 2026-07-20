@@ -1,3 +1,17 @@
+"""
+IntelNexus Unified Streamlit UI
+===============================
+Combines search and briefing UI from sub-projects.
+"""
+import os
+import sys
+
+# Add sub-projects to path
+_root = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(_root, "shared"))
+sys.path.insert(0, os.path.join(_root, "intel-search"))
+sys.path.insert(0, os.path.join(_root, "intel-briefing"))
+
 import streamlit as st
 
 st.set_page_config(
@@ -6,48 +20,35 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-from src.ui.i18n import get_text
-from shared.ui.styles import render_light_theme_css, render_morandi_theme_css
-from src.ui.sidebar import render_sidebar
-from src.ui.search_pipeline import run_search_pipeline
-from src.ui.results import render_results_panels
-from src.ui.download import render_download_section
-from src.ui.results_detail import render_results_detail
-from src.ui.briefing_viewer import render_briefing_preview, render_briefing_history
+# --- Combined i18n ---
+from intel_search_src_ui_i18n import get_text as _search_get_text
+from intel_briefing_src_ui_i18n import get_text as _briefing_get_text
+from shared_ui_styles import render_light_theme_css, render_morandi_theme_css
 
-if "lang" not in st.session_state:
-    st.session_state.lang = "zh"
-if "query_cache" not in st.session_state:
-    st.session_state.query_cache = ""
+_search_i18n = None
+_briefing_i18n = None
 
-render_light_theme_css()
-render_morandi_theme_css()
+def _load_search_i18n():
+    global _search_i18n
+    if _search_i18n is None:
+        from intel_search_src_ui_i18n import I18N as s
+        _search_i18n = s
+    return _search_i18n
 
-col1, col2 = st.columns([8, 2])
-with col1:
-    st.markdown(f'<div class="main-title">{get_text("title")}</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="main-subtitle">{get_text("subtitle")}</div>', unsafe_allow_html=True)
+def _load_briefing_i18n():
+    global _briefing_i18n
+    if _briefing_i18n is None:
+        from intel_briefing_src_ui_i18n import I18N as b
+        _briefing_i18n = b
+    return _briefing_i18n
 
-col_search_input, col_search_btn = st.columns([10, 1])
-with col_search_input:
-    query = st.text_input(
-        "query",
-        placeholder=get_text("search_placeholder"),
-        label_visibility="collapsed",
-        key="query_input"
-    )
-with col_search_btn:
-    run_button = st.button(get_text("search_button"), key="search_btn")
-
-status_slot = st.empty()
-
-search_mode, model, threads = render_sidebar()
-
-if run_button and query:
-    run_search_pipeline(query, search_mode, model, threads, status_slot)
-
-render_briefing_preview()
-render_briefing_history()
-render_results_panels()
-render_download_section()
-render_results_detail()
+def get_text(key):
+    """Get translated text, trying search i18n first, then briefing."""
+    lang = st.session_state.get("lang", "zh")
+    i18n = _load_search_i18n()
+    if key in i18n.get(lang, {}):
+        return i18n[lang][key]
+    i18n = _load_briefing_i18n()
+    if key in i18n.get(lang, {}):
+        return i18n[lang][key]
+    return key

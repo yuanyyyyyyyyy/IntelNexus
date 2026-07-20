@@ -14,7 +14,7 @@ from ai_briefing.analyzer import AIBriefingAnalyzer
 from ai_briefing.notifier import AIBriefingNotifier
 from ai_briefing.templates import render_markdown_briefing, render_email_html, markdown_to_html_sections
 from src.config.subscriptions import get_active_subscribers, update_last_sent
-from src.logger import get_logger
+from shared.logger import get_logger
 logger = get_logger(__name__)
 
 
@@ -47,7 +47,8 @@ class AIBriefingScheduler:
         
         self.scheduler = None
         self._running = False
-        self._lock = threading.Lock()
+        self._executing = set()
+        self._executing_lock = threading.Lock()
     
     def start(self):
         """启动调度器"""
@@ -131,7 +132,12 @@ class AIBriefingScheduler:
     
     def _execute_briefing(self, subscriber_id: str):
         """执行简报生成和推送"""
-        with self._lock:
+        with self._executing_lock:
+            if subscriber_id in self._executing:
+                logger.warning(f"Briefing for {subscriber_id} already running, skipping")
+                return
+            self._executing.add(subscriber_id)
+        try:
             try:
                 from src.config.subscriptions import get_subscriber
                 
@@ -190,6 +196,9 @@ class AIBriefingScheduler:
                 
             except Exception as e:
                 logger.error(f"Error executing briefing: {e}")
+        finally:
+            with self._executing_lock:
+                self._executing.discard(subscriber_id)
     
     def trigger_now(self, subscriber_id: str):
         """手动触发某个订阅者的简报"""
