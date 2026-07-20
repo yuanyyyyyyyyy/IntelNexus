@@ -24,12 +24,25 @@ st.set_page_config(
 # --- Fixed imports: use real merged modules ---
 from src.ui.i18n import get_text
 from shared.ui.styles import render_light_theme_css, render_morandi_theme_css
+from shared.settings import set as set_config
+from config import (
+    OLLAMA_BASE_URL, OPENROUTER_BASE_URL, OPENROUTER_API_KEY,
+    GOOGLE_API_KEY,
+)
 from src.ui.sidebar import render_sidebar
 from src.ui.search_pipeline import run_search_pipeline
 from src.ui.results import render_results_panels
 from src.ui.download import render_download_section
 from src.ui.results_detail import render_results_detail
-from src.ui.briefing_viewer import render_briefing_preview, render_briefing_history
+from src.ui.briefing_viewer import render_briefing_preview, render_briefing_history, render_briefing_welcome
+
+# --- Inject config for shared modules ---
+set_config({
+    "OLLAMA_BASE_URL": OLLAMA_BASE_URL,
+    "OPENROUTER_BASE_URL": OPENROUTER_BASE_URL,
+    "OPENROUTER_API_KEY": OPENROUTER_API_KEY,
+    "GOOGLE_API_KEY": GOOGLE_API_KEY,
+})
 
 # --- Initialize session state ---
 if "lang" not in st.session_state:
@@ -85,7 +98,6 @@ with tab_search:
 #  Briefing Tab
 # =====================
 with tab_briefing:
-    if st.session_state.get("show_briefing_history"):
-        render_briefing_history()
-    else:
-        render_briefing_preview()
+    render_briefing_preview()
+    render_briefing_history()
+    render_briefing_welcome()

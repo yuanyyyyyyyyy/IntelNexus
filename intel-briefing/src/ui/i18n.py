@@ -85,6 +85,13 @@ LANG = {
         "select_download_format": "选择下载格式",
         "enabled_label": "启用",
         "default_org_name": "AI情报团队",
+        "briefing_center": "简报中心",
+        "briefing_welcome_desc": "欢迎使用 AI 每日简报系统。配置数据源和订阅者后，即可自动生成并推送情报简报。",
+        "welcome_step_sources": "在左侧面板添加 RSS 或网页数据源",
+        "welcome_step_subscribers": "配置订阅者和推送渠道",
+        "welcome_step_generate": "点击「生成简报」开始使用",
+        "quick_actions": "快速开始",
+        "briefing_quick_tip": "提示：首次使用请先在左侧边栏配置数据源和订阅者，然后点击「生成简报」按钮。",
     },
     "en": {
         "title": "IntelNexus",
@@ -170,6 +177,13 @@ LANG = {
         "select_download_format": "Select download format",
         "enabled_label": "Enabled",
         "default_org_name": "AI Intelligence Team",
+        "briefing_center": "Briefing Center",
+        "briefing_welcome_desc": "Welcome to the AI Daily Briefing System. Configure data sources and subscribers to auto-generate and push intelligence briefings.",
+        "welcome_step_sources": "Add RSS or web data sources in the left panel",
+        "welcome_step_subscribers": "Configure subscribers and push channels",
+        "welcome_step_generate": "Click 'Generate Briefing' to start",
+        "quick_actions": "Quick Start",
+        "briefing_quick_tip": "Tip: First configure data sources and subscribers in the left sidebar, then click the 'Generate Briefing' button.",
     }
 }
 

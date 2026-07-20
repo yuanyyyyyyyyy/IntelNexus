@@ -97,3 +97,31 @@ def delete_briefing(filename: str):
     get_briefing_history().delete_briefing(filename)
     st.success(get_text("briefing_deleted"))
     st.rerun()
+
+
+def render_briefing_welcome():
+    """渲染简报中心欢迎页面（当无预览且未查看历史时显示）"""
+    if st.session_state.get("current_briefing") or st.session_state.get("show_briefing_history"):
+        return
+
+    st.markdown("---")
+    col_left, col_right = st.columns([1, 2])
+
+    with col_left:
+        st.markdown(f"### 📰 {get_text('briefing_center')}")
+        st.markdown(f"""
+        <div style="padding: 20px; background: var(--morandi-card); border-radius: 12px; margin-top: 16px;">
+            <p style="margin: 0 0 12px 0; color: var(--morandi-text-light);">
+                {get_text('briefing_welcome_desc')}
+            </p>
+            <ul style="margin: 0; padding-left: 20px; color: var(--morandi-text-light); line-height: 2;">
+                <li>📡 {get_text('welcome_step_sources')}</li>
+                <li>👥 {get_text('welcome_step_subscribers')}</li>
+                <li>🚀 {get_text('welcome_step_generate')}</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col_right:
+        st.markdown(f"#### ⚡ {get_text('quick_actions')}")
+        st.info(get_text('briefing_quick_tip'), icon="💡")

@@ -14,7 +14,7 @@ st.set_page_config(
 from src.ui.i18n import get_text
 from shared.ui.styles import render_light_theme_css, render_morandi_theme_css
 from src.ui.sidebar import render_sidebar
-from src.ui.briefing_viewer import render_briefing_preview, render_briefing_history
+from src.ui.briefing_viewer import render_briefing_preview, render_briefing_history, render_briefing_welcome
 
 if "lang" not in st.session_state:
     st.session_state.lang = "zh"
@@ -31,3 +31,4 @@ model = render_sidebar()
 
 render_briefing_preview()
 render_briefing_history()
+render_briefing_welcome()

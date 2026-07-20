@@ -5,7 +5,7 @@ import os
 import importlib.util
 import streamlit as st
 
-_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def _load_lang(subproject):
     path = os.path.join(_root, subproject, "src", "ui", "i18n.py")
