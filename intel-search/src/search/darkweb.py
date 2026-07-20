@@ -19,8 +19,8 @@ import json
 from urllib.parse import quote
 from bs4 import BeautifulSoup
 
-from src.logger import get_logger
-from src.search import USER_AGENTS
+from shared.logger import get_logger
+from shared.search import USER_AGENTS
 
 logger = get_logger(__name__)
 
@@ -168,8 +168,8 @@ DARKWEB_SEARCH_ENGINES = [
 # Backward-compatible flat list
 DEFAULT_SEARCH_ENGINES = [e["url"] for e in DARKWEB_SEARCH_ENGINES]
 
-# Import from src.search to avoid duplication
-from src.search import get_tor_proxy_port  # noqa: E402
+# Import from shared to avoid duplication
+from shared.search import get_tor_proxy_port  # noqa: E402
 
 
 def fetch_ahmia_results(query):

@@ -9,8 +9,8 @@ from typing import Dict, List, Optional
 from pathlib import Path
 from datetime import datetime
 
-from src.logger import get_logger
-from src.config.file_lock import safe_read_json, safe_write_json
+from shared.logger import get_logger
+from shared.settings.file_lock import safe_read_json, safe_write_json
 
 logger = get_logger(__name__)
 

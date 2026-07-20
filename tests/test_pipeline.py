@@ -53,17 +53,17 @@ AI领域在2025年取得了重大进展。
 
 
 # ============================================================
-# Test: refine_query → expand_query_for_search 衔接
+# Test: expand_query → expand_query_for_search 衔接
 # ============================================================
 
 class TestQueryRefinementPipeline:
     """Test the query refinement → expansion data flow."""
 
     def test_refine_then_expand(self):
-        """refine_query output should feed correctly into expand_query_for_search."""
-        from src.llm.core import refine_query, expand_query_for_search
+        """expand_query output should feed correctly into expand_query_for_search."""
+        from shared.llm.core import expand_query, expand_query_for_search
 
-        variants = refine_query("人工智能")
+        variants = expand_query("人工智能")
         assert isinstance(variants, list)
         assert len(variants) >= 1
 
@@ -74,9 +74,9 @@ class TestQueryRefinementPipeline:
 
     def test_single_query_expand(self):
         """Short query should pass through refine and expand correctly."""
-        from src.llm.core import refine_query, expand_query_for_search
+        from shared.llm.core import expand_query, expand_query_for_search
 
-        variants = refine_query("AI")
+        variants = expand_query("AI")
         expanded = expand_query_for_search(variants)
         assert expanded == "AI"
 
@@ -154,7 +154,7 @@ class TestCLISearchFlow:
     @patch("main.get_news_results", return_value=MOCK_NEWS_RESULTS)
     @patch("main.get_web_results", return_value=MOCK_WEB_RESULTS)
     @patch("main.get_llm")
-    def test_cli_search_refine_query_output(
+    def test_cli_search_expand_query_output(
         self, mock_llm, mock_web, mock_news, mock_scrape, mock_summary, tmp_path
     ):
         """CLI search should display refined query in output."""
@@ -231,7 +231,7 @@ class TestGenerateSummary:
 
     def test_generate_summary_returns_string(self):
         """generate_summary should return a string."""
-        from src.llm.core import generate_summary
+        from shared.llm.core import generate_summary
 
         mock_llm = MagicMock()
 
@@ -248,14 +248,14 @@ class TestGenerateSummary:
         mock_prompt_instance = MagicMock()
         mock_prompt_instance.__or__ = MagicMock(return_value=mock_intermediate)
 
-        with patch("src.llm.core.ChatPromptTemplate", return_value=mock_prompt_instance):
-            with patch("src.llm.core.StrOutputParser"):
+        with patch("shared.llm.core.ChatPromptTemplate", return_value=mock_prompt_instance):
+            with patch("shared.llm.core.StrOutputParser"):
                 result = generate_summary(mock_llm, "AI regulation", MOCK_SCRAPED, "all")
                 assert isinstance(result, str)
 
     def test_error_handling_timeout(self):
         """generate_summary should handle timeout errors gracefully."""
-        from src.llm.core import generate_summary
+        from shared.llm.core import generate_summary
 
         mock_llm = MagicMock()
 
@@ -268,8 +268,8 @@ class TestGenerateSummary:
         mock_prompt_instance = MagicMock()
         mock_prompt_instance.__or__ = MagicMock(return_value=mock_intermediate)
 
-        with patch("src.llm.core.ChatPromptTemplate", return_value=mock_prompt_instance):
-            with patch("src.llm.core.StrOutputParser"):
+        with patch("shared.llm.core.ChatPromptTemplate", return_value=mock_prompt_instance):
+            with patch("shared.llm.core.StrOutputParser"):
                 result = generate_summary(mock_llm, "test", MOCK_SCRAPED, "all")
                 assert isinstance(result, str)
                 assert "超时" in result or "错误" in result or "error" in result.lower()
@@ -318,10 +318,10 @@ class TestFullPipelineIntegration:
         self, mock_llm, mock_web, mock_news, mock_scrape, mock_summary, tmp_path
     ):
         """Each stage should produce correct data types."""
-        from src.llm.core import refine_query, expand_query_for_search
+        from shared.llm.core import expand_query, expand_query_for_search
 
-        # Stage 1: Refine query
-        variants = refine_query("AI regulation")
+        # Stage 1: Expand query
+        variants = expand_query("AI regulation")
         assert isinstance(variants, list)
 
         # Stage 2: Expand query

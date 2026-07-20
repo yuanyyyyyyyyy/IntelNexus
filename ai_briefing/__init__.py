@@ -1,33 +1,14 @@
-"""
-AI简报模块
-=========
-提供AI领域每日情报简报的采集、分析、生成和推送功能
-"""
+"""Thin wrapper: re-export ai_briefing from intel-briefing sub-project."""
+import importlib.util as _ilu, os as _os, sys as _sys
 
-from ai_briefing.config import WATCH_CATEGORIES, BRIEFING_CONFIG
-
-_LAZY_IMPORTS = {
-    "AIBriefingCollector": ("ai_briefing.collector", "AIBriefingCollector"),
-    "AIBriefingAnalyzer":  ("ai_briefing.analyzer",   "AIBriefingAnalyzer"),
-    "AIBriefingNotifier":  ("ai_briefing.notifier",   "AIBriefingNotifier"),
-    "AIBriefingScheduler": ("ai_briefing.scheduler",  "AIBriefingScheduler"),
-}
-
-
-def __getattr__(name):
-    if name in _LAZY_IMPORTS:
-        module_path, attr = _LAZY_IMPORTS[name]
-        import importlib
-        module = importlib.import_module(module_path)
-        return getattr(module, attr)
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-
-
-__all__ = [
-    "WATCH_CATEGORIES",
-    "BRIEFING_CONFIG",
-    "AIBriefingCollector",
-    "AIBriefingAnalyzer",
-    "AIBriefingNotifier",
-    "AIBriefingScheduler"
-]
+_pkg = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)),
+                     "..", "intel-briefing", "ai_briefing")
+_sub = _os.path.join(_pkg, "__init__.py")
+if _os.path.exists(_sub):
+    _spec = _ilu.spec_from_file_location("ai_briefing._init", _sub)
+    _mod = _ilu.module_from_spec(_spec)
+    _spec.loader.exec_module(_mod)
+    # Re-export all public names
+    for _k in dir(_mod):
+        if not _k.startswith("_"):
+            globals()[_k] = getattr(_mod, _k)

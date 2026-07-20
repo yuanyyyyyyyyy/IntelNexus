@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import List, Optional
 import re
 
-from src.logger import get_logger
+from shared.logger import get_logger
 
 logger = get_logger(__name__)
 
