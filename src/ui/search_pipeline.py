@@ -4,17 +4,17 @@ import streamlit as st
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 
-from src.logger import get_logger
-from src.search.web import get_web_results
-from src.search.news import get_news_results
+from shared.logger import get_logger
+from shared.search.web import get_web_results
+from shared.search.news import get_news_results
 from src.search.darkweb import get_darkweb_results, is_available as darkweb_available
-from src.search.scraper import scrape_multiple
-from src.llm.core import get_llm, expand_query, expand_query_for_search, generate_summary
-from src.llm.utils import BufferedStreamingHandler
+from shared.search.scraper import scrape_multiple
+from shared.llm.core import get_llm, expand_query, expand_query_for_search, generate_summary
+from shared.llm.utils import BufferedStreamingHandler
 from src.analysis.credibility import SourceScorer, ConsistencyAnalyzer, ConflictDetector
 from src.analysis.intelligence_graph import EntityExtractor, IntelligenceGraph
 from src.analysis.evidence_tracer import EvidenceTracer
-from src.ui.helpers import DEFAULT_TOR_PORT
+from shared.ui.helpers import DEFAULT_TOR_PORT
 from src.ui.i18n import get_text
 from config import NEWS_API_KEY
 

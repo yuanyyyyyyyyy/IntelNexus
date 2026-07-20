@@ -6,12 +6,26 @@ Automated AI intelligence briefing generation and distribution.
 
 import os
 import sys
+
+# Add shared library to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "shared"))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Inject config into shared library
+from shared.settings import set as set_config
+set_config({
+    "OLLAMA_BASE_URL": os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
+    "OPENROUTER_BASE_URL": os.getenv("OPENROUTER_BASE_URL", ""),
+    "OPENROUTER_API_KEY": os.getenv("OPENROUTER_API_KEY", ""),
+    "GOOGLE_API_KEY": os.getenv("GOOGLE_API_KEY", ""),
+    "NEWS_API_KEY": os.getenv("NEWS_API_KEY", ""),
+})
+
 import click
 from datetime import datetime
 
-from src.logger import get_logger
-from src.llm.core import get_llm
+from shared.logger import get_logger
+from shared.llm.core import get_llm
 
 logger = get_logger(__name__)
 
