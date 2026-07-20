@@ -31,6 +31,24 @@ AI_DYNAMIC_CATS = ["ai_gov_usage", "ai_china_narrative", "ai_legislation", "ai_d
 CYBER_DYNAMIC_CATS = ["cyber_vuln", "cyber_attack"]
 CVE_CATS = ["cyber_vuln", "cyber_attack", "ai_data_leak"]
 
+# 生成顺序与展示名称（供进度文案与警告使用）
+GENERATION_SECTIONS = [
+    ("top3", "_generate_top3"),
+    ("ai_dynamic", "_generate_ai_dynamic"),
+    ("cyber_dynamic", "_generate_cyber_dynamic"),
+    ("cve_table", "_generate_cve_table"),
+    ("insights", "_generate_insights"),
+    ("links", "_generate_links"),
+]
+SECTION_LABELS = {
+    "top3": "近日要闻 TOP3",
+    "ai_dynamic": "AI 领域动态",
+    "cyber_dynamic": "网络安全动态",
+    "cve_table": "近日新增安全漏洞预警",
+    "insights": "趋势研判与防护建议",
+    "links": "重要链接",
+}
+
 
 class AIBriefingAnalyzer:
     """AI简报分析生成器"""
@@ -43,6 +61,7 @@ class AIBriefingAnalyzer:
             llm: LLM模型实例（可选，如果不提供则尝试自动加载）
         """
         self._llm = llm
+        self._warnings: List[str] = []
 
     def _get_llm(self):
         """获取LLM实例"""
@@ -70,21 +89,32 @@ class AIBriefingAnalyzer:
             results.extend(collected_data.get(cat, []))
         return results
 
+    def _add_warning(self, section: str, message: str) -> None:
+        """记录一个板块级警告（用于结果统计面板）"""
+        self._warnings.append(f"「{section}」{message}")
+
     def generate_briefing(
         self,
         collected_data: Dict[str, List[Dict]],
-        organization_name: str = None
-    ) -> str:
+        organization_name: str = None,
+        with_warnings: bool = False,
+        on_progress=None
+    ):
         """
         生成完整的简报
 
         Args:
             collected_data: 采集的数据，格式为 {category_id: [results]}
             organization_name: 组织名称（覆盖配置中的 name）
+            with_warnings: 为 True 时返回 (markdown, warnings)，否则仅返回 markdown
+            on_progress: 进度回调 (stage, message, percent)，由流水线驱动 UI
 
         Returns:
-            str: Markdown格式的完整简报
+            str 或 (str, List[str])
         """
+        on_progress = on_progress or (lambda *a, **k: None)
+        self._warnings = []
+
         org = dict(BRIEFING_CONFIG["organization"])
         if organization_name is not None:
             org["name"] = organization_name
@@ -92,26 +122,29 @@ class AIBriefingAnalyzer:
         generated_date = self._format_date()
         llm = self._get_llm()
 
-        # 生成各部分内容
-        top3_content = self._generate_top3(collected_data, llm)
-        ai_dynamic_content = self._generate_ai_dynamic(collected_data, llm)
-        cyber_dynamic_content = self._generate_cyber_dynamic(collected_data, llm)
-        cve_table_content = self._generate_cve_table(collected_data, llm)
-        insights_content = self._generate_insights(collected_data, llm)
-        links_content = self._generate_links(collected_data)
+        # 逐板块生成，并在每个板块前后上报进度
+        contents: Dict[str, str] = {}
+        total = len(GENERATION_SECTIONS)
+        for idx, (key, method_name) in enumerate(GENERATION_SECTIONS):
+            label = SECTION_LABELS[key]
+            pct = 0.4 + 0.55 * (idx / total)
+            on_progress("generate_progress", f"正在生成：{label}（{idx + 1}/{total}）", pct)
+            contents[key] = getattr(self, method_name)(collected_data, llm)
 
         # 渲染完整简报
         briefing = render_markdown_briefing(
             generated_date=generated_date,
             organization=org,
-            top3_content=top3_content,
-            ai_dynamic_content=ai_dynamic_content,
-            cyber_dynamic_content=cyber_dynamic_content,
-            cve_table_content=cve_table_content,
-            insights_content=insights_content,
-            links_content=links_content
+            top3_content=contents["top3"],
+            ai_dynamic_content=contents["ai_dynamic"],
+            cyber_dynamic_content=contents["cyber_dynamic"],
+            cve_table_content=contents["cve_table"],
+            insights_content=contents["insights"],
+            links_content=contents["links"]
         )
 
+        if with_warnings:
+            return briefing, self._warnings
         return briefing
 
     def _generate_top3(self, collected_data: Dict[str, List[Dict]], llm) -> str:
@@ -119,9 +152,11 @@ class AIBriefingAnalyzer:
         all_results = self._collect(list(collected_data.keys()), collected_data)
 
         if not all_results:
+            self._add_warning("近日要闻 TOP3", "未采集到任何情报数据，该板块为空")
             return "本日暂无重要新闻。"
 
         if llm is None:
+            self._add_warning("近日要闻 TOP3", "未加载 LLM，使用原始条目降级展示")
             top_items = all_results[:3]
             result = []
             for i, item in enumerate(top_items, 1):
@@ -150,42 +185,54 @@ class AIBriefingAnalyzer:
             return result if result.strip() else "本日暂无重要新闻。"
         except Exception as e:
             logger.error(f"Error generating TOP3: {e}")
+            self._add_warning("近日要闻 TOP3", f"生成异常：{e}")
             return "简报生成过程中出现错误，请检查LLM配置。"
 
     def _generate_ai_dynamic(self, collected_data: Dict[str, List[Dict]], llm) -> str:
         """生成 AI 领域动态（模型与技术 / 应用与落地 / 产业与市场）"""
         results = self._collect(AI_DYNAMIC_CATS, collected_data)
         if not results:
+            self._add_warning("AI 领域动态", "未采集到相关情报数据，使用降级内容")
             return self._fallback_subsections(
                 ["模型与技术", "应用与落地", "产业与市场"], results, llm)
 
         if llm is None:
+            self._add_warning("AI 领域动态", "未加载 LLM，使用降级内容")
             return self._fallback_subsections(
                 ["模型与技术", "应用与落地", "产业与市场"], results, llm)
 
         return self._run_prompt("ai_dynamic", results, llm,
-                                 "你是一位AI领域情报分析师，请生成'AI 领域动态'部分。")
+                                 "你是一位AI领域情报分析师，请生成'AI 领域动态'部分。",
+                                 label="AI 领域动态")
 
     def _generate_cyber_dynamic(self, collected_data: Dict[str, List[Dict]], llm) -> str:
         """生成 网络安全动态（漏洞与威胁 / 攻击事件 / 政策与合规）"""
         results = self._collect(CYBER_DYNAMIC_CATS, collected_data)
         if not results:
+            self._add_warning("网络安全动态", "未采集到相关情报数据，使用降级内容")
             return self._fallback_subsections(
                 ["漏洞与威胁", "攻击事件", "政策与合规"], results, llm)
 
         if llm is None:
+            self._add_warning("网络安全动态", "未加载 LLM，使用降级内容")
             return self._fallback_subsections(
                 ["漏洞与威胁", "攻击事件", "政策与合规"], results, llm)
 
         return self._run_prompt("cyber_dynamic", results, llm,
-                                 "你是一位网络安全情报分析师，请生成'网络安全动态'部分。")
+                                 "你是一位网络安全情报分析师，请生成'网络安全动态'部分。",
+                                 label="网络安全动态")
 
     def _generate_cve_table(self, collected_data: Dict[str, List[Dict]], llm) -> str:
         """生成近日新增安全漏洞预警（CVE 表格）"""
         results = self._collect(CVE_CATS, collected_data)
         header = "| CVE编号 | 影响产品 | 漏洞类型 | CVSS | 利用状态 | 建议措施 |\n| --- | --- | --- | --- | --- | --- |"
 
-        if not results or llm is None:
+        if not results:
+            self._add_warning("近日新增安全漏洞预警", "未采集到漏洞相关情报，表格为空")
+            return f"{header}\n| （暂无） | - | - | - | - | - |"
+
+        if llm is None:
+            self._add_warning("近日新增安全漏洞预警", "未加载 LLM，表格为空")
             return f"{header}\n| （暂无） | - | - | - | - | - |"
 
         try:
@@ -208,10 +255,12 @@ class AIBriefingAnalyzer:
             return result
         except Exception as e:
             logger.error(f"Error generating CVE table: {e}")
+            self._add_warning("近日新增安全漏洞预警", f"生成异常：{e}")
             return f"{header}\n| （暂无） | - | - | - | - | - |"
 
-    def _run_prompt(self, prompt_name: str, results: List[Dict], llm, system_desc: str) -> str:
+    def _run_prompt(self, prompt_name: str, results: List[Dict], llm, system_desc: str, label: str = None) -> str:
         """通用：调用提示词生成板块内容"""
+        label = label or prompt_name
         try:
             search_summary = self._format_results_for_prompt(results[:12])
             prompt = get_prompt(prompt_name, search_results=search_summary)
@@ -228,6 +277,7 @@ class AIBriefingAnalyzer:
             return result if result.strip() else "本日暂无相关动态。"
         except Exception as e:
             logger.error(f"Error generating {prompt_name}: {e}")
+            self._add_warning(label, f"生成异常：{e}")
             return "简报生成过程中出现错误。"
 
     def _fallback_subsections(self, subsections: List[str], results: List[Dict], llm) -> str:
@@ -259,11 +309,13 @@ class AIBriefingAnalyzer:
                 highlights.append(f"{cat_name}: {len(results)}条信息")
 
         if not highlights:
+            self._add_warning("趋势研判与防护建议", "数据不足，未能生成趋势研判")
             return "本日暂无足够数据生成趋势分析。"
 
         today_highlights = "\n".join(highlights)
 
         if llm is None:
+            self._add_warning("趋势研判与防护建议", "未加载 LLM，使用默认趋势研判")
             return """1. **关注AI与网络安全动态**
    本日采集到若干公开信息，建议持续跟踪AI技术进展与网络安全威胁。
 
@@ -295,9 +347,10 @@ class AIBriefingAnalyzer:
             return result if result.strip() else "趋势分析生成过程中出现错误。"
         except Exception as e:
             logger.error(f"Error generating insights: {e}")
+            self._add_warning("趋势研判与防护建议", f"生成异常：{e}")
             return "趋势分析生成过程中出现错误。"
 
-    def _generate_links(self, collected_data: Dict[str, List[Dict]]) -> str:
+    def _generate_links(self, collected_data: Dict[str, List[Dict]], llm=None) -> str:
         """生成重要链接部分"""
         links = []
         seen_urls = set()
