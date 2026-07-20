@@ -10,7 +10,7 @@ from datetime import datetime
 
 from ai_briefing.config import WATCH_CATEGORIES
 from src.config.sources import get_enabled_sources, get_sources_by_category
-from src.logger import get_logger
+from shared.logger import get_logger
 from config import NEWS_API_KEY
 
 logger = get_logger(__name__)
@@ -29,7 +29,7 @@ class AIBriefingCollector:
         """延迟加载web_search模块"""
         if self._web_search is None:
             try:
-                from src.search.web import get_web_results
+                from shared.search.web import get_web_results
                 self._web_search = get_web_results
             except ImportError:
                 logger.warning("web_search module not available")
@@ -40,7 +40,7 @@ class AIBriefingCollector:
         """延迟加载news_search模块"""
         if self._news_search is None:
             try:
-                from src.search.news import get_news_results
+                from shared.search.news import get_news_results
                 self._news_search = get_news_results
             except ImportError:
                 logger.warning("news_search module not available")
@@ -51,7 +51,7 @@ class AIBriefingCollector:
         """延迟加载scrape模块"""
         if self._scrape is None:
             try:
-                from src.search.scraper import scrape_multiple
+                from shared.search.scraper import scrape_multiple
                 self._scrape = scrape_multiple
             except ImportError:
                 logger.warning("scrape module not available")

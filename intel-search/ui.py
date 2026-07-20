@@ -1,5 +1,6 @@
 import os
 import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "shared"))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import streamlit as st
@@ -11,7 +12,7 @@ st.set_page_config(
 )
 
 from src.ui.i18n import get_text
-from src.ui.styles import render_light_theme_css, render_morandi_theme_css
+from shared.ui.styles import render_light_theme_css, render_morandi_theme_css
 from src.ui.sidebar import render_sidebar
 from src.ui.search_pipeline import run_search_pipeline
 from src.ui.results import render_results_panels

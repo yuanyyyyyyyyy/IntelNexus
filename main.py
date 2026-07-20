@@ -6,19 +6,34 @@ A unified search interface for news and web content.
 
 import os
 import sys
+
+# Add shared library to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "shared"))
+
+from config import NEWS_API_KEY
+
+# Inject config into shared library
+from shared.settings import set as set_config
+set_config({
+    "OLLAMA_BASE_URL": os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
+    "OPENROUTER_BASE_URL": os.getenv("OPENROUTER_BASE_URL", ""),
+    "OPENROUTER_API_KEY": os.getenv("OPENROUTER_API_KEY", ""),
+    "GOOGLE_API_KEY": os.getenv("GOOGLE_API_KEY", ""),
+    "NEWS_API_KEY": NEWS_API_KEY,
+})
+
 import click
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from src.logger import get_logger
-from src.search.scraper import scrape_multiple
-from src.search.web import get_web_results
-from src.search.news import get_news_results
+from shared.logger import get_logger
+from shared.search.scraper import scrape_multiple
+from shared.search.web import get_web_results
+from shared.search.news import get_news_results
 from src.search.darkweb import get_darkweb_results, is_available as darkweb_available
 
-from src.llm.core import get_llm, refine_query, generate_summary
-from src.llm.utils import get_model_choices
-from config import NEWS_API_KEY
+from shared.llm.core import get_llm, expand_query, generate_summary
+from shared.llm.utils import get_model_choices
 
 logger = get_logger(__name__)
 
@@ -98,7 +113,7 @@ def search(model, query, mode, threads, output, no_credibility):
         return
     
     click.echo("[1/4] Refining query...")
-    refined_query = refine_query(query)
+    refined_query = expand_query(query)
     click.echo(f"    Refined: {' | '.join(refined_query)}")
     
     click.echo(f"[2/4] Searching {mode}...")

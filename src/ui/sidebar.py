@@ -2,11 +2,11 @@ import streamlit as st
 import base64
 import json
 import os
-from src.logger import get_logger
+from shared.logger import get_logger
 from src.ui.i18n import get_text
-from src.ui.helpers import SEARCH_MODES, DEFAULT_TOR_PORT, check_tor_status
-from src.llm.utils import get_model_choices
-from src.llm.models import add_custom_model, get_custom_model_names, remove_custom_model
+from shared.ui.helpers import SEARCH_MODES, DEFAULT_TOR_PORT, check_tor_status
+from shared.llm.utils import get_model_choices
+from shared.llm.models import add_custom_model, get_custom_model_names, remove_custom_model
 from src.search.darkweb import is_available as darkweb_available
 
 logger = get_logger(__name__)

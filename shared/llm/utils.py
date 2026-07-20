@@ -8,7 +8,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.callbacks.base import BaseCallbackHandler
 from shared.settings import get as get_config
 
-from src.logger import get_logger
+from shared.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -184,7 +184,7 @@ def get_model_choices() -> List[str]:
     dynamic_models = fetch_ollama_models()
 
     try:
-        from src.llm.models import get_custom_model_names
+        from shared.llm.models import get_custom_model_names
         custom_models = get_custom_model_names()
     except ImportError:
         custom_models = []
@@ -228,7 +228,7 @@ def resolve_model_config(model_choice: str):
             }
 
     try:
-        from src.llm.models import get_model_config, get_custom_model_names
+        from shared.llm.models import get_model_config, get_custom_model_names
         for custom_model_name in get_custom_model_names():
             if _normalize_model_name(custom_model_name) == model_choice_lower:
                 model_config = get_model_config(custom_model_name)
