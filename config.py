@@ -18,3 +18,8 @@ NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 ENABLE_DARKWEB = os.getenv("ENABLE_DARKWEB", "false").lower() == "true"
 TOR_PROXY_PORT = int(os.getenv("TOR_PROXY_PORT", "9150"))
 ENABLE_CREDIBILITY = os.getenv("ENABLE_CREDIBILITY", "true").lower() == "true"
+
+# ========== 代理配置（仅在使用时生效；为空则不走代理） ==========
+HTTP_PROXY = os.getenv("HTTP_PROXY") or os.getenv("http_proxy")
+HTTPS_PROXY = os.getenv("HTTPS_PROXY") or os.getenv("https_proxy")
+USE_TOR = os.getenv("USE_TOR", "false").lower() == "true"

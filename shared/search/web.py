@@ -8,7 +8,7 @@ from urllib3.util.retry import Retry
 from urllib.parse import quote, urlencode
 
 from shared.logger import get_logger
-from shared.search import USER_AGENTS
+from shared.search import USER_AGENTS, get_http_proxies, is_blocked_domain, relevance_passes
 
 logger = get_logger(__name__)
 
@@ -71,10 +71,13 @@ def get_session():
         with _session_lock:
             if _shared_session is None:
                 session = requests.Session()
+                proxies = get_http_proxies()
+                if proxies:
+                    session.proxies = proxies
                 retry = Retry(
                     total=2,
-                    read=2,
-                    connect=2,
+                    read=1,
+                    connect=1,
                     backoff_factor=0.5,
                     status_forcelist=[500, 502, 503, 504]
                 )
@@ -98,7 +101,7 @@ def _fetch_engine(engine_name: str, query: str, page: int = 0):
         url = cfg["url"].format(query=encoded_query, offset=offset)
         headers = {"User-Agent": random.choice(USER_AGENTS)}
         session = get_session()
-        response = session.get(url, headers=headers, timeout=10)
+        response = session.get(url, headers=headers, timeout=(8, 15))
 
         if response.status_code != 200:
             return results
@@ -164,7 +167,7 @@ def fetch_baidu_results(query: str, page: int = 0):
     return _fetch_engine("Baidu", query, page)
 
 
-FAST_ENGINES = ["Baidu", "Bing"]
+FAST_ENGINES = ["Bing", "Baidu"]
 SLOW_ENGINES = ["DuckDuckGo", "Yahoo", "Yandex"]
 
 ENGINE_FUNCS = {
@@ -212,19 +215,33 @@ def get_web_results(query, max_workers: int = 5, max_results: int = 50) -> list:
 
     unique_so_far = _dedup_results(results)
     if len(unique_so_far) < 20:
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = []
-            for q in queries:
-                for page in range(pages_per_engine):
-                    for name in SLOW_ENGINES:
-                        futures.append(executor.submit(ENGINE_FUNCS[name], q, page))
-            for future in as_completed(futures):
-                try:
-                    results.extend(future.result())
-                except Exception as e:
-                    logger.warning(f"Search error: {e}")
+        if not get_http_proxies():
+            logger.info("快速引擎结果不足，但无代理配置，跳过慢速引擎（DuckDuckGo/Yahoo/Yandex）避免无效超时")
+        else:
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = []
+                for q in queries:
+                    for page in range(pages_per_engine):
+                        for name in SLOW_ENGINES:
+                            futures.append(executor.submit(ENGINE_FUNCS[name], q, page))
+                for future in as_completed(futures):
+                    try:
+                        results.extend(future.result())
+                    except Exception as e:
+                        logger.warning(f"Search error: {e}")
     else:
         logger.info(f"快速引擎已返回 {len(unique_so_far)} 条结果，跳过慢速引擎")
 
     unique_results = _dedup_results(results)
-    return unique_results[:max_results]
+
+    filtered = []
+    for r in unique_results[:max_results]:
+        if is_blocked_domain(r.get("link", "")):
+            continue
+        if not relevance_passes(r, query):
+            continue
+        filtered.append(r)
+
+    kept = filtered if filtered else unique_results[:max_results]
+    logger.info(f"网页检索原始 {len(unique_results[:max_results])} 条，过滤后保留 {len(kept)} 条")
+    return kept

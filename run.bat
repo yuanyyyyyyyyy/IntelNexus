@@ -1,11 +1,11 @@
 @echo off
 setlocal
-REM IntelNexus 一键启动脚本（基于 conda base 环境，无需手动激活）
-REM 用法:
-REM   run.bat ui            -> 启动 Web 界面
-REM   run.bat search -q ... -> CLI 搜索
+REM IntelNexus one-click launcher (uses conda base env, no manual activation needed)
+REM Usage:
+REM   run.bat ui              -> start Web UI
+REM   run.bat search -q ...   -> CLI search
 REM   run.bat briefing / scheduler
-REM 说明: 依赖与 spaCy 模型均位于 conda base；首次缺模型请双击 setup.bat。
+REM Note: deps and spaCy model live in conda base; first-time missing model -> run setup.bat
 
 set "CONDA_ROOT="
 for %%P in (
@@ -18,10 +18,17 @@ for %%P in (
   if exist "%%~P\Scripts\activate.bat" set "CONDA_ROOT=%%~P"
 )
 if not defined CONDA_ROOT (
-  echo [IntelNexus] 未找到 conda，请先安装 Anaconda/Miniconda。
+  echo [IntelNexus] conda not found, please install Anaconda/Miniconda.
   pause
   exit /b 1
 )
 
 call "%CONDA_ROOT%\Scripts\activate.bat" base
+
+REM Clear ghost proxy vars inherited from the Shell. load_dotenv() will not
+REM overwrite existing env vars, so clearing them lets .env proxy settings apply.
+set "HTTP_PROXY="
+set "HTTPS_PROXY="
+set "USE_TOR="
+
 python "%~dp0main.py" %*

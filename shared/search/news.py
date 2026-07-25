@@ -1,3 +1,4 @@
+import time
 import requests
 from typing import List, Dict, Optional
 from bs4 import BeautifulSoup
@@ -11,20 +12,28 @@ except ImportError:
     NewsApiClient = None
 
 from shared.logger import get_logger
-from shared.search import USER_AGENTS
+from shared.search import USER_AGENTS, get_http_proxies, get_http_proxies_for, is_blocked_domain, relevance_passes
 
 logger = get_logger(__name__)
 
+RSS_FETCH_TIMEOUT = 10
+
 RSS_SOURCES = [
-    {"name": "Google News", "url": "https://news.google.com/rss/search?q={query}"},
-    {"name": "Bing News", "url": "https://www.bing.com/news/search?q={query}&format=rss"},
-    {"name": "Yahoo News", "url": "https://news.yahoo.com/rss/search?p={query}"},
-    {"name": "Reuters", "url": "https://www.reutersagency.com/feed/?best-topics=tech&post_type=best"},
-    {"name": "TechCrunch", "url": "https://techcrunch.com/feed/"},
-    {"name": "The Verge", "url": "https://www.theverge.com/rss/index.xml"},
-    {"name": "Wired", "url": "https://www.wired.com/feed/rss"},
-    {"name": "BBC", "url": "http://feeds.bbci.co.uk/news/technology/rss.xml"},
-    {"name": "CNN", "url": "http://rss.cnn.com/rss/edition.rss"},
+    # ---- 国内可直连、无需代理（高质量订阅源，不过滤相关性，仅域名黑名单）----
+    {"name": "Bing News", "url": "https://www.bing.com/news/search?q={query}&format=rss", "requires_proxy": False},
+    {"name": "36氪", "url": "https://36kr.com/feed", "requires_proxy": False},
+    {"name": "量子位", "url": "https://www.qbitai.com/feed", "requires_proxy": False},
+    {"name": "IT之家", "url": "https://www.ithome.com/rss/", "requires_proxy": False},
+    {"name": "少数派", "url": "https://sspai.com/feed", "requires_proxy": False},
+    # ---- 境外源，需代理（无代理时自动跳过，避免无效超时）----
+    {"name": "Google News", "url": "https://news.google.com/rss/search?q={query}", "requires_proxy": True},
+    {"name": "Yahoo News", "url": "https://news.yahoo.com/rss/search?p={query}", "requires_proxy": True},
+    {"name": "Reuters", "url": "https://www.reutersagency.com/feed/?best-topics=tech&post_type=best", "requires_proxy": True},
+    {"name": "TechCrunch", "url": "https://techcrunch.com/feed/", "requires_proxy": True},
+    {"name": "The Verge", "url": "https://www.theverge.com/rss/index.xml", "requires_proxy": True},
+    {"name": "Wired", "url": "https://www.wired.com/feed/rss", "requires_proxy": True},
+    {"name": "BBC", "url": "http://feeds.bbci.co.uk/news/technology/rss.xml", "requires_proxy": True},
+    {"name": "CNN", "url": "http://rss.cnn.com/rss/edition.rss", "requires_proxy": True},
 ]
 
 
@@ -70,6 +79,20 @@ class NewsSearch:
 
         return results
 
+    def _fetch_rss_with_retry(self, url: str, headers: Dict, proxies, timeout: int = RSS_FETCH_TIMEOUT, max_retries: int = 2):
+        """带指数退避的 RSS 请求封装，仅在 requests 异常时重试。"""
+        last_err = None
+        for attempt in range(max_retries + 1):
+            try:
+                return requests.get(url, headers=headers, timeout=timeout, proxies=proxies)
+            except requests.exceptions.RequestException as e:
+                last_err = e
+                if attempt < max_retries:
+                    logger.debug(f"RSS 请求重试 {attempt + 1}/{max_retries}: {e}")
+                    time.sleep(0.5 * (2 ** attempt))
+                    continue
+        raise last_err
+
     def search_rss(self, query: str, max_results: int = 10) -> List[Dict]:
         results = []
 
@@ -78,6 +101,9 @@ class NewsSearch:
         for source in RSS_SOURCES:
             if len(results) >= max_results:
                 break
+            if source.get("requires_proxy") and not get_http_proxies():
+                logger.info(f"跳过需代理源 {source['name']}（未配置代理）")
+                continue
             try:
                 if "{query}" in source["url"]:
                     url = source["url"].format(query=quote(query))
@@ -85,7 +111,7 @@ class NewsSearch:
                     url = source["url"]
 
                 headers = {"User-Agent": random.choice(USER_AGENTS)}
-                response = requests.get(url, headers=headers, timeout=8)
+                response = self._fetch_rss_with_retry(url, headers, get_http_proxies_for(source.get("requires_proxy")))
 
                 if response.status_code == 200:
                     try:
@@ -119,7 +145,7 @@ class NewsSearch:
                             if query_lower not in title_text.lower() and "{query}" in source["url"]:
                                 continue
 
-                            results.append({
+                            item = {
                                 "title": title_text,
                                 "description": desc.get_text(strip=True)[:300] if desc and hasattr(desc, 'get_text') else "",
                                 "content": desc.get_text(strip=True) if desc and hasattr(desc, 'get_text') else "",
@@ -128,7 +154,15 @@ class NewsSearch:
                                 "url": link_text,
                                 "published_at": pub_date.get_text(strip=True) if pub_date and hasattr(pub_date, 'get_text') else "",
                                 "image_url": ""
-                            })
+                            }
+
+                            # 域名黑名单对所有源生效；相关性评分仅对「按查询检索」的源生效
+                            if is_blocked_domain(item["url"]):
+                                continue
+                            if "{query}" in source["url"] and not relevance_passes(item, query):
+                                continue
+
+                            results.append(item)
             except Exception as e:
                 logger.warning(f"RSS search error from {source['name']}: {e}")
 
@@ -141,7 +175,7 @@ class NewsSearch:
             params = {"q": query, "form": "QBRE", "sp": "-1"}
             headers = {"User-Agent": random.choice(USER_AGENTS)}
 
-            response = requests.get(url, params=params, headers=headers, timeout=10)
+            response = requests.get(url, params=params, headers=headers, timeout=10, proxies=None)
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, "html.parser")
 
@@ -152,7 +186,7 @@ class NewsSearch:
                         source_elem = item.select_one("div.source")
 
                         if title_elem:
-                            results.append({
+                            item = {
                                 "title": title_elem.get_text(strip=True),
                                 "description": snippet_elem.get_text(strip=True)[:300] if snippet_elem else "",
                                 "content": snippet_elem.get_text(strip=True) if snippet_elem else "",
@@ -161,7 +195,10 @@ class NewsSearch:
                                 "url": title_elem.get("href", ""),
                                 "published_at": "",
                                 "image_url": ""
-                            })
+                            }
+                            if is_blocked_domain(item["url"]) or not relevance_passes(item, query):
+                                continue
+                            results.append(item)
                     except Exception:
                         continue
         except Exception as e:
@@ -175,7 +212,7 @@ class NewsSearch:
             params = {"q": query, "hl": "en-US", "gl": "US"}
             headers = {"User-Agent": random.choice(USER_AGENTS)}
 
-            response = requests.get(url, params=params, headers=headers, timeout=10)
+            response = requests.get(url, params=params, headers=headers, timeout=10, proxies=get_http_proxies())
             if response.status_code == 200:
                 soup = BeautifulSoup(response.content, "xml")
 
@@ -187,7 +224,7 @@ class NewsSearch:
                         pub_date = item.find("pubDate")
 
                         if title and link:
-                            results.append({
+                            item = {
                                 "title": title.get_text(strip=True),
                                 "description": desc.get_text(strip=True)[:300] if desc else "",
                                 "content": desc.get_text(strip=True) if desc else "",
@@ -196,7 +233,10 @@ class NewsSearch:
                                 "url": link.get_text(strip=True),
                                 "published_at": pub_date.get_text(strip=True) if pub_date else "",
                                 "image_url": ""
-                            })
+                            }
+                            if is_blocked_domain(item["url"]) or not relevance_passes(item, query):
+                                continue
+                            results.append(item)
                     except Exception:
                         continue
         except Exception as e:
@@ -209,12 +249,17 @@ class NewsSearch:
         with ThreadPoolExecutor(max_workers=4) as executor:
             futures = []
 
-            if self.news_client:
+            if self.news_client and get_http_proxies():
                 futures.append(executor.submit(self.search_newsapi, query, max_results))
+            elif self.news_client:
+                logger.info("跳过 NewsAPI 检索（未配置代理）")
 
             futures.append(executor.submit(self.search_rss, query, max_results))
             futures.append(executor.submit(self.search_bing_news, query, max_results))
-            futures.append(executor.submit(self.search_google_news, query, max_results))
+            if get_http_proxies():
+                futures.append(executor.submit(self.search_google_news, query, max_results))
+            else:
+                logger.info("跳过 Google News 直连检索（未配置代理）")
 
             for future in futures:
                 try:
