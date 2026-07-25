@@ -362,7 +362,7 @@ def render_subscriptions_panel():
 
 
 def render_generate_panel():
-    """生成简报操作面板（橙色标签条 + 全宽主按钮）"""
+    """生成简报操作面板（青蓝标签条 + 全宽主按钮）"""
     st.markdown(f'''
     <div class="bf-panel bf-panel--gen">
         <div class="bf-label">

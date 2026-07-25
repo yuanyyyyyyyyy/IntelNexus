@@ -86,6 +86,21 @@ python main.py ui          # Web界面 -> http://localhost:8501
 python main.py search -q "关键词" -m qwen2.5:7b  # CLI模式
 ```
 
+### 推荐：使用 conda base 一键启动（无需手动激活）
+
+项目依赖（torch / sentence-transformers / spaCy / streamlit 等）已随 Anaconda `base` 环境就绪，只需补全 spaCy 中英文模型：
+
+```bash
+setup.bat        # 一键初始化：激活 conda base + 下载 spaCy 模型（只需一次，已装会跳过）
+run.bat ui       # 之后每次启动，双击 run.bat 即可，无需手动 activate
+run.bat search -q "关键词"
+```
+
+`run.bat` 自动定位本机 Anaconda/Miniconda 并激活 `base` 环境后运行 `main.py`，彻底免去手动激活的麻烦。
+若手动操作：`conda activate base` → `python -m spacy download en_core_web_sm zh_core_web_sm` → `python main.py ui`。
+
+> 注意：spaCy 模型需从 GitHub 下载，若网络受限可参考 `setup.bat` 离线安装已下载好的 `zh_core_web_sm` wheel。
+
 ---
 
 ## 使用
