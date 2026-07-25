@@ -555,7 +555,7 @@ def render_morandi_theme_css():
         --wb-border: #D1D5DB;
         --wb-tag-source: #0969DA;
         --wb-tag-sub: #1A7F37;
-        --wb-tag-gen: #BF8700;
+        --wb-tag-gen: #0E8A8A;
         --wb-hover: #F6F8FA;
         background: var(--wb-surface);
         border-radius: 0;
@@ -739,7 +739,7 @@ def render_workbench_css():
         --wb-border: #D1D5DB;
         --wb-tag-source: #0969DA;
         --wb-tag-sub: #1A7F37;
-        --wb-tag-gen: #BF8700;
+        --wb-tag-gen: #0E8A8A;
         --wb-hover: #F6F8FA;
         background: var(--wb-surface) !important;
         padding: 16px 20px;
