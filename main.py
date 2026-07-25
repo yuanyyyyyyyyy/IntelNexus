@@ -223,7 +223,7 @@ def _register_briefing_commands():
                 sections = markdown_to_html_sections(briefing_md)
                 briefing_html = render_email_html(
                     generated_date=datetime.now().strftime("%Y年%m月%d日"),
-                    organization_name=organization_name, **sections)
+                    organization=BRIEFING_CONFIG["organization"], **sections)
             except Exception as e:
                 click.echo(f"  Warning: Could not generate HTML: {e}")
 
@@ -248,7 +248,12 @@ def _register_briefing_commands():
                 click.echo(f"  HTML exported: {html_path}")
             if export_format in ("pdf", "all"):
                 try:
-                    from src.export.briefing_export import export_briefing_pdf
+                    import importlib.util as _ilu
+                    _exp_path = os.path.join(_ROOT, "intel-briefing", "src", "export", "briefing_export.py")
+                    _spec = _ilu.spec_from_file_location("briefing_export", _exp_path)
+                    _mod = _ilu.module_from_spec(_spec)
+                    _spec.loader.exec_module(_mod)
+                    export_briefing_pdf = _mod.export_briefing_pdf
                     pdf_path = f"data/briefings/briefing_{timestamp}.pdf"
                     export_briefing_pdf(briefing_md, pdf_path)
                     click.echo(f"  PDF exported: {pdf_path}")
