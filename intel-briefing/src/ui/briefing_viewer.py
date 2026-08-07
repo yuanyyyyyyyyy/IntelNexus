@@ -104,20 +104,38 @@ def render_briefing_welcome():
     if st.session_state.get("current_briefing") or st.session_state.get("show_briefing_history"):
         return
 
+    try:
+        from src.config.sources import get_all_sources
+        from src.config.subscriptions import get_all_subscribers
+        sources = get_all_sources()
+        subs = get_all_subscribers()
+    except ImportError:
+        sources, subs = {}, []
+
+    step1_done = bool(sources.get("subscription_sources") or sources.get("custom_sources"))
+    step2_done = bool(subs)
+
     st.markdown("---")
     col_left, col_right = st.columns([1, 2])
 
     with col_left:
         st.markdown(f"### 📰 {get_text('briefing_center')}")
+        steps = [
+            (get_text("welcome_step_sources"), get_text("welcome_step_sources_desc"), step1_done),
+            (get_text("welcome_step_subscribers"), get_text("welcome_step_subscribers_desc"), step2_done),
+            (get_text("welcome_step_generate"), get_text("welcome_step_generate_desc"), False),
+        ]
+        items = "".join(
+            f'<li>{"✅" if done else "⬜"} <b>{title}</b><br><span style="font-size: 12px; opacity:.8;">{desc}</span></li>'
+            for title, desc, done in steps
+        )
         st.markdown(f"""
         <div style="padding: 20px; background: var(--morandi-card); border-radius: 12px; margin-top: 16px;">
             <p style="margin: 0 0 12px 0; color: var(--morandi-text-light);">
                 {get_text('briefing_welcome_desc')}
             </p>
-            <ul style="margin: 0; padding-left: 20px; color: var(--morandi-text-light); line-height: 2;">
-                <li>📡 {get_text('welcome_step_sources')}</li>
-                <li>👥 {get_text('welcome_step_subscribers')}</li>
-                <li>🚀 {get_text('welcome_step_generate')}</li>
+            <ul style="margin: 0; padding-left: 20px; color: var(--morandi-text-light); line-height: 1.8;">
+                {items}
             </ul>
         </div>
         """, unsafe_allow_html=True)

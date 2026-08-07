@@ -224,25 +224,14 @@ def _render_custom_models():
                             st.rerun()
 
 
-def _render_briefing_quick_actions(model: str):
-    """侧边栏精简版：快速生成 + 历史跳转（无 emoji）"""
-    st.markdown('<hr class="sb-divider">', unsafe_allow_html=True)
-    st.markdown('<div class="sb-section"><span class="sb-section__label">Actions</span></div>', unsafe_allow_html=True)
-
-    from src.ui.briefing_runner import render_briefing_generate_controls
-    render_briefing_generate_controls(key_prefix="quick", model=model, compact=True)
-
-    if st.button(get_text("briefing_view_history"), key="quick_history_btn", use_container_width=True):
-        st.session_state.show_briefing_history = True
-        st.rerun()
-
-
 def render_sidebar():
     """
     Sidebar: cold-gray workbench style.
 
     Structure:
-      Brand → Search Mode → Model → [divider] → Custom Models → [divider] → Quick Actions
+      Brand → Search Mode → Model → [divider] → Custom Models
+
+    简报业务（数据源/订阅者/生成）已收拢至简报 Tab，侧边栏仅保留全局设置。
     """
     with st.sidebar:
         # Brand
@@ -256,8 +245,5 @@ def render_sidebar():
 
         # Optional: Custom Models (collapsible)
         _render_custom_models()
-
-        # Bottom: Quick Actions
-        _render_briefing_quick_actions(model)
 
     return search_mode, model, threads

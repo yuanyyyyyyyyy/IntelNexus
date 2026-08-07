@@ -602,6 +602,30 @@ def render_morandi_theme_css():
         border-left-color: var(--wb-tag-gen);
     }
 
+    /* Onboarding 3-step bar */
+    .bf-step {
+        background: var(--wb-card);
+        border: 1px solid var(--wb-border);
+        border-radius: 6px;
+        padding: 12px 14px;
+        height: 100%;
+        min-height: 78px;
+    }
+    .bf-step__head {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--wb-text);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .bf-step__desc {
+        font-size: 12px;
+        color: var(--wb-text-secondary);
+        margin-top: 8px;
+        line-height: 1.5;
+    }
+
     /* Section Label: uppercase + color-coded */
     .bf-label {
         display: flex;
