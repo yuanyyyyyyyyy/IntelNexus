@@ -20,12 +20,23 @@ def render_briefing_preview():
     渲染简报预览区域
 
     守卫条件：st.session_state.current_briefing 存在且非空
-    显示内容：简报 Markdown + 下载按钮
+    显示内容：简报 Markdown + 关闭按钮 + 下载按钮
     """
     if not st.session_state.get("current_briefing"):
         return
 
-    st.markdown(f'<div class="bf-output"><div class="bf-output__header">{get_text("briefing_preview")}</div>', unsafe_allow_html=True)
+    header_cols = st.columns([5, 1])
+    with header_cols[0]:
+        st.markdown(f'<div class="bf-output__header">{get_text("briefing_preview")}</div>', unsafe_allow_html=True)
+    with header_cols[1]:
+        # 关闭预览，回到初始状态（不再需要刷新整个页面）
+        if st.button(get_text("close"), key="briefing_preview_close", use_container_width=True):
+            st.session_state.current_briefing = None
+            st.session_state.current_briefing_filename = None
+            st.session_state.current_briefing_html = None
+            st.rerun()
+
+    st.markdown('<div class="bf-output">', unsafe_allow_html=True)
     st.markdown(st.session_state.current_briefing)
 
     col1, col2 = st.columns(2)
@@ -156,20 +167,48 @@ def render_briefing_history():
         return
 
     for entry in history:
-        col1, col2, col3 = st.columns([4, 1, 1])
-        with col1:
-            date_str = entry.get("created_at", "")[:10]
-            org = entry.get("organization", "")
-            st.markdown(f"**{date_str}** — {org}")
-        with col2:
-            if st.button(get_text("view"), key=f"view_{entry.get('filename')}"):
-                load_briefing_for_preview(
-                    entry.get("filename"),
-                    entry.get("html_filename")
-                )
-        with col3:
-            if st.button(get_text("delete"), key=f"del_{entry.get('filename')}"):
-                delete_briefing(entry.get("filename"))
+        created_at = entry.get("created_at", "")
+        date_str = created_at[:10] if created_at else "—"
+        time_str = created_at[11:16] if len(created_at) >= 16 else ""
+        org = entry.get("organization", "") or "—"
+        categories = entry.get("categories") or []
+        cats_text = "、".join(categories[:3]) if categories else "—"
+        if len(categories) > 3:
+            cats_text += f" 等{len(categories)}个"
+        subs = entry.get("subscribers_count", 0)
+
+        st.markdown('<div class="bf-history-item">', unsafe_allow_html=True)
+        info_col, act_col = st.columns([5, 2])
+        with info_col:
+            # 第一行：日期时间（主标题）
+            time_label = f"{date_str} {time_str}".strip()
+            st.markdown(
+                f'<div class="bf-history-item__time">{time_label}</div>',
+                unsafe_allow_html=True,
+            )
+            # 第二行：机构 + 关注点 + 推送（次要信息）
+            st.markdown(
+                f'<div class="bf-history-item__meta">'
+                f'<span class="bf-history-item__org">{org}</span>'
+                f'<span class="bf-history-item__sep">·</span>'
+                f'<span>关注点：{cats_text}</span>'
+                f'<span class="bf-history-item__sep">·</span>'
+                f'<span>推送 {subs} 人</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        with act_col:
+            v_col, d_col = st.columns(2)
+            with v_col:
+                if st.button(get_text("view"), key=f"view_{entry.get('filename')}", use_container_width=True):
+                    load_briefing_for_preview(
+                        entry.get("filename"),
+                        entry.get("html_filename")
+                    )
+            with d_col:
+                if st.button(get_text("delete"), key=f"del_{entry.get('filename')}", use_container_width=True):
+                    delete_briefing(entry.get("filename"))
+        st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -538,9 +577,10 @@ def render_watch_categories_panel():
 
 
 def render_generate_top():
-    """置顶生成主操作区（青蓝标签条 + 横向类目/推送/按钮 + 高级折叠模型）
+    """置顶生成主操作区（卡片头 + 下方「已选概览▾」折叠 + 右侧「生成简报」主按钮）
 
     默认已选好类目、推送开启，用户一眼可见直接点「生成简报」。
+    卡片头与三个配置面板（Sources/Subscribers/Watch）保持同一视觉语言。
     """
     st.markdown(f'''
     <div class="bf-panel bf-panel--gen">
@@ -548,21 +588,19 @@ def render_generate_top():
             <span class="bf-label__tag">Generate</span>
             <span class="bf-label__title">{get_text("generate_briefing")}</span>
         </div>
-        <div class="bf-generate-btn-wrapper">
     ''', unsafe_allow_html=True)
 
     from intelnexus.ui.briefing_runner import render_briefing_generate_controls
     render_briefing_generate_controls(key_prefix="bf", model=None, compact=False, top=True)
 
-    st.markdown('</div></div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
 def render_briefing_settings():
-    """可折叠配置区：用单个 expander 收起三个配置面板，内部以横向 tab 组织
+    """可折叠配置区：用单个 toggle 收起三个配置面板，内部以横向 radio 组织
 
     点击引导条 step 会设置 st.session_state.bf_expand_settings / bf_active_tab，
-    这里据此展开并默认选中对应 tab（st.tabs 默认选中第一个，故以 active_tab
-    映射 index 并在首次展开时 st.rerun 切换）。
+    这里用 st.radio 的 index 参数控制默认选中，实现从引导条跳转到对应 tab。
     """
     # 用 toggle 控制配置区显隐（替代 st.expander，避免与面板内二级 expander 嵌套报错）
     expand_state = st.session_state.get("bf_expand_settings", False)
@@ -580,30 +618,36 @@ def render_briefing_settings():
             get_text("subscription_management"),
             get_text("watch_categories_mgmt"),
         ]
-        tabs = st.tabs(tab_labels)
+        tab_keys = ["sources", "subs", "watch"]
 
-        # 默认选中的 tab index（由引导条点击驱动）
-        active = st.session_state.get("bf_active_tab", "sources")
-        active_idx = {"sources": 0, "subs": 1, "watch": 2}.get(active, 0)
-        # 仅当配置区刚被展开且目标 tab 非首时切换，避免每次 rerun 死循环
-        if st.session_state.get("bf_switch_tab") == active and active_idx != 0:
-            st.session_state.bf_switch_tab = None
-            st.rerun()
+        # Marker 供 CSS 把配置区 radio 渲染成 tab 样式
+        st.markdown('<div class="bf-settings-tabs-marker" style="display:none"></div>', unsafe_allow_html=True)
 
-        with tabs[0]:
+        # 用 radio 替代 st.tabs。不传 index：带 key 的 radio 由自身维护选中状态，
+        # 若传 index 会在每次 rerun 强制重置选中项，导致要点两下才生效。
+        selected_label = st.radio(
+            "",
+            tab_labels,
+            horizontal=True,
+            label_visibility="collapsed",
+            key="bf_settings_tab_radio",
+        )
+        active = tab_keys[tab_labels.index(selected_label)]
+        st.session_state.bf_active_tab = active
+
+        if active == "sources":
             render_data_sources_panel()
-        with tabs[1]:
+        elif active == "subs":
             render_subscriptions_panel()
-        with tabs[2]:
+        else:
             render_watch_categories_panel()
 
 
 def _render_onboarding():
-    """简报中心 3 步引导条（可点击，无 emoji、不嵌套 expander）
+    """简报中心 3 步引导条（纯展示 + 悬停提示，不跳转）
 
     用 session_state 中已有的数据源/订阅者配置进度标注当前到第几步；
-    点击某一步会展开配置区（st.session_state.bf_expand_settings=True）
-    并记忆应激活的 tab（bf_active_tab），便于直接跳转到对应配置面板。
+    每个步骤为只读卡片，仅通过 help 提供悬停说明，不做点击跳转。
     """
     try:
         from intelnexus.config.sources import get_all_sources
@@ -643,19 +687,15 @@ def _render_onboarding():
                 f'<div class="bf-step-marker {state_class}" style="display:none"></div>',
                 unsafe_allow_html=True,
             )
-            # 按钮即卡片：label 渲染序号+标题，help 作为唯一悬停提示
-            if st.button(
+            # 纯展示卡片：仅悬停提示，点击不跳转（disabled 阻止交互但仍保留 help）
+            st.button(
                 label,
                 key=f"bf_step_{tab_key or 'gen'}",
                 use_container_width=True,
                 help=desc,
                 type="secondary",
-            ):
-                if tab_key:
-                    st.session_state.bf_expand_settings = True
-                    st.session_state.bf_active_tab = tab_key
-                    st.session_state.bf_switch_tab = tab_key
-                    st.rerun()
+                disabled=True,
+            )
 
 
 def render_briefing_center():

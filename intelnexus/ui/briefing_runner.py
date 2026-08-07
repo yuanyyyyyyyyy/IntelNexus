@@ -34,35 +34,55 @@ def render_briefing_generate_controls(key_prefix: str, model: str = None, compac
     cat_options = _category_options()
 
     if top:
-        # 置顶主操作：类目（占宽）+ 推送 + 生成按钮 同一行
-        col_cat, col_push, col_btn = st.columns([5, 1, 1.2])
-        with col_cat:
-            selected_cats = st.multiselect(
-                get_text("select_categories"),
-                options=list(cat_options.keys()),
-                default=list(cat_options.keys()),
-                format_func=lambda c: cat_options[c],
-                key=f"{key_prefix}_cats",
-                label_visibility="collapsed",
-            )
-        with col_push:
-            push_enabled = st.checkbox(
-                get_text("generate_push_enabled"),
-                value=True,
-                key=f"{key_prefix}_push",
-                label_visibility="collapsed",
-            )
-        with col_btn:
-            if st.button(get_text("generate_briefing"), key=f"{key_prefix}_btn", use_container_width=True, type="primary"):
-                _run_pipeline(key_prefix, model, selected_cats, push_enabled)
+        # 置顶主操作：左侧「已选概览 + 选项折叠」，右侧「生成简报」主按钮，单行对齐
+        selected_cats = st.session_state.get(
+            f"{key_prefix}_cats",
+            list(cat_options.keys()),
+        )
+        push_enabled = st.session_state.get(f"{key_prefix}_push", True)
+        if model is None:
+            model_options = get_model_choices()
+            default_model = "qwen2.5:7b" if "qwen2.5:7b" in model_options else (model_options[0] if model_options else "gpt-4o")
+            model = st.session_state.get(f"{key_prefix}_model", default_model)
 
-        # 模型选择收进高级折叠区，默认不展示
-        with st.expander(get_text("briefing_advanced"), expanded=False):
-            if model is None:
-                model_options = get_model_choices()
-                default_model = "qwen2.5:7b" if "qwen2.5:7b" in model_options else (model_options[0] if model_options else "gpt-4o")
-                idx = model_options.index(default_model) if default_model in model_options else 0
-                model = st.selectbox(get_text("llm_model"), model_options, index=idx, key=f"{key_prefix}_model")
+        col_summary, col_btn = st.columns([1, 1])
+        with col_summary:
+            summary_label = get_text("generate_summary").format(
+                n=len(selected_cats), total=len(cat_options)
+            )
+            with st.expander(summary_label, expanded=False):
+                st.multiselect(
+                    get_text("select_categories"),
+                    options=list(cat_options.keys()),
+                    default=selected_cats,
+                    format_func=lambda c: cat_options[c],
+                    key=f"{key_prefix}_cats",
+                    label_visibility="collapsed",
+                )
+                st.checkbox(
+                    get_text("generate_push_enabled"),
+                    value=push_enabled,
+                    key=f"{key_prefix}_push",
+                )
+                if model is None:
+                    m_opts = get_model_choices()
+                    d_model = "qwen2.5:7b" if "qwen2.5:7b" in m_opts else (m_opts[0] if m_opts else "gpt-4o")
+                    d_idx = m_opts.index(d_model) if d_model in m_opts else 0
+                    st.selectbox(get_text("llm_model"), m_opts, index=d_idx, key=f"{key_prefix}_model")
+        with col_btn:
+            # 隐藏 marker：让 CSS 能稳定命中本列按钮（Streamlit 的 DOM 顺序不可靠）
+            st.markdown('<div class="bf-gen-btn-marker" style="display:none"></div>', unsafe_allow_html=True)
+            if st.button(
+                get_text("generate_briefing"),
+                key=f"{key_prefix}_btn",
+                type="primary",
+            ):
+                _run_pipeline(
+                    key_prefix,
+                    st.session_state.get(f"{key_prefix}_model", model),
+                    st.session_state.get(f"{key_prefix}_cats", selected_cats),
+                    st.session_state.get(f"{key_prefix}_push", push_enabled),
+                )
 
         _render_stats(key_prefix, compact)
         return
@@ -138,21 +158,24 @@ def _render_stats(key_prefix: str, compact: bool):
 
     total_items = sum(result["collected_counts"].values())
 
-    if compact:
-        st.caption(
-            f"{get_text('briefing_stat_collected')}: {total_items} · "
-            f"{get_text('briefing_stat_words')}: {len(result['md'])} · "
-            f"{get_text('briefing_stat_pushed')}: {result['pushed']} · "
-            f"{get_text('briefing_stat_elapsed')}: {result['elapsed']}s"
-        )  # noqa: E501
-    else:
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric(get_text("briefing_stat_collected"), total_items)
-        col2.metric(get_text("briefing_stat_words"), len(result["md"]))
-        col3.metric(get_text("briefing_stat_pushed"), result["pushed"])
-        col4.metric(get_text("briefing_stat_elapsed"), f"{result['elapsed']}s")
+    with st.container():
+        st.markdown('<div class="bf-generate-stats">', unsafe_allow_html=True)
+        if compact:
+            st.caption(
+                f"{get_text('briefing_stat_collected')}: {total_items} · "
+                f"{get_text('briefing_stat_words')}: {len(result['md'])} · "
+                f"{get_text('briefing_stat_pushed')}: {result['pushed']} · "
+                f"{get_text('briefing_stat_elapsed')}: {result['elapsed']}s"
+            )  # noqa: E501
+        else:
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric(get_text("briefing_stat_collected"), total_items)
+            col2.metric(get_text("briefing_stat_words"), len(result["md"]))
+            col3.metric(get_text("briefing_stat_pushed"), result["pushed"])
+            col4.metric(get_text("briefing_stat_elapsed"), f"{result['elapsed']}s")
 
-    if result["warnings"]:
-        with st.expander(get_text("briefing_stat_warnings"), expanded=False):
-            for w in result["warnings"]:
-                st.caption(f"• {w}")
+        if result["warnings"]:
+            with st.expander(get_text("briefing_stat_warnings"), expanded=False):
+                for w in result["warnings"]:
+                    st.caption(f"• {w}")
+        st.markdown('</div>', unsafe_allow_html=True)
