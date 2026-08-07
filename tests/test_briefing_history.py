@@ -3,7 +3,7 @@ import os
 
 import pytest
 
-from src.config import briefing_history as bh
+from intelnexus.config import briefing_history as bh
 
 
 @pytest.fixture

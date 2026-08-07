@@ -38,7 +38,7 @@ class TestXSSPrevention:
 
     def test_search_pipeline_has_escape(self):
         """search_pipeline.py should import html and use html.escape."""
-        from src.ui import search_pipeline
+        from intelnexus.ui import search_pipeline
         src = inspect.getsource(search_pipeline)
         assert "import html" in src
         assert "html.escape(" in src
@@ -71,7 +71,7 @@ class TestURLEncoding:
 
     def test_darkweb_has_quote(self):
         """darkweb.py should import and use quote."""
-        from src.search import darkweb
+        from intelnexus.search_app import darkweb
         src = inspect.getsource(darkweb)
         assert "from urllib.parse import quote" in src
         assert "quote(query)" in src
@@ -82,28 +82,28 @@ class TestPathTraversal:
 
     def test_load_report_dotdot(self):
         """Loading ../../etc/passwd should return None."""
-        from src.config.history import SearchHistory
+        from intelnexus.config.history import SearchHistory
         h = SearchHistory()
         result = h.load_report("../../etc/passwd")
         assert result is None
 
     def test_load_report_backslash(self):
         """Loading with backslash path traversal should return None."""
-        from src.config.history import SearchHistory
+        from intelnexus.config.history import SearchHistory
         h = SearchHistory()
         result = h.load_report("..\\..\\etc\\passwd")
         assert result is None
 
     def test_delete_report_dotdot(self):
         """Deleting ../../something should return False."""
-        from src.config.history import SearchHistory
+        from intelnexus.config.history import SearchHistory
         h = SearchHistory()
         result = h.delete_report("../../etc/passwd")
         assert result is False
 
     def test_load_report_normal_file(self):
         """Loading a normal filename should not be blocked by traversal check."""
-        from src.config.history import SearchHistory
+        from intelnexus.config.history import SearchHistory
         h = SearchHistory()
         # This should not raise, even if file doesn't exist
         result = h.load_report("normal_report.md")
@@ -112,7 +112,7 @@ class TestPathTraversal:
 
     def test_history_has_is_relative_to(self):
         """history.py should use is_relative_to for path validation."""
-        from src.config import history
+        from intelnexus.config import history
         src = inspect.getsource(history)
         assert "is_relative_to" in src
 
@@ -134,12 +134,12 @@ class TestNewsAPIKeyPassing:
 
     def test_collector_imports_news_api_key(self):
         """collector.py should import NEWS_API_KEY from config."""
-        from ai_briefing import collector
+        from intelnexus.briefing import collector
         src = inspect.getsource(collector)
         assert "NEWS_API_KEY" in src
 
     def test_collector_passes_api_key(self):
         """collector should pass api_key to news_search."""
-        from ai_briefing import collector
+        from intelnexus.briefing import collector
         src = inspect.getsource(collector)
         assert "api_key=NEWS_API_KEY" in src

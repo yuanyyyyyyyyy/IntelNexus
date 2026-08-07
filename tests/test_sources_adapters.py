@@ -1,9 +1,9 @@
 """Web/News/DarkWeb 适配器薄包测试（mock 底层 get_*_results）。"""
 from unittest.mock import patch
 
-from shared.search.sources.web_source import WebSearchSource
-from shared.search.sources.news_source import NewsSearchSource
-from shared.search.sources.darkweb_source import DarkWebSource
+from intelnexus.core.search.sources.web_source import WebSearchSource
+from intelnexus.core.search.sources.news_source import NewsSearchSource
+from intelnexus.core.search.sources.darkweb_source import DarkWebSource
 
 
 def test_web_adapter_normalizes():

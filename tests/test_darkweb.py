@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.search import darkweb as dw
+from intelnexus.search_app import darkweb as dw
 
 
 def _html_response(text, status=200):

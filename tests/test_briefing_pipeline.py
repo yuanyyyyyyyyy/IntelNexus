@@ -29,14 +29,14 @@ class TestBriefingAnalyzer:
 
     def test_backward_compat_returns_str(self):
         """未开启 with_warnings 时返回纯 markdown 字符串（CLI 兼容）。"""
-        from ai_briefing.analyzer import AIBriefingAnalyzer
+        from intelnexus.briefing.analyzer import AIBriefingAnalyzer
         md = AIBriefingAnalyzer(llm=None).generate_briefing(MOCK_COLLECTED)
         assert isinstance(md, str)
         assert "##" in md
 
     def test_with_warnings_returns_tuple(self):
         """开启后返回 (markdown, warnings) 且包含降级警告。"""
-        from ai_briefing.analyzer import AIBriefingAnalyzer
+        from intelnexus.briefing.analyzer import AIBriefingAnalyzer
         md, warnings = AIBriefingAnalyzer(llm=None).generate_briefing(
             MOCK_COLLECTED, with_warnings=True
         )
@@ -46,7 +46,7 @@ class TestBriefingAnalyzer:
 
     def test_empty_data_emits_warnings(self):
         """无数据时 TOP3 与趋势研判应各自告警。"""
-        from ai_briefing.analyzer import AIBriefingAnalyzer
+        from intelnexus.briefing.analyzer import AIBriefingAnalyzer
         _, warnings = AIBriefingAnalyzer(llm=None).generate_briefing(
             {}, with_warnings=True
         )
@@ -55,7 +55,7 @@ class TestBriefingAnalyzer:
 
     def test_progress_callback_receives_percent(self):
         """进度回调应收到数值化 percent。"""
-        from ai_briefing.analyzer import AIBriefingAnalyzer
+        from intelnexus.briefing.analyzer import AIBriefingAnalyzer
         events = []
         AIBriefingAnalyzer(llm=None).generate_briefing(
             MOCK_COLLECTED,
@@ -142,5 +142,5 @@ class TestBriefingPipeline:
 
 
 def run_briefing_pipeline(*args, **kwargs):  # 延迟导入，避免模块级副作用
-    from ai_briefing.pipeline import run_briefing_pipeline as _impl
+    from intelnexus.briefing.pipeline import run_briefing_pipeline as _impl
     return _impl(*args, **kwargs)

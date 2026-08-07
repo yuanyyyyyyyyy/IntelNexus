@@ -3,17 +3,12 @@
 import os
 import sys
 
-# Add project root first (so `import config` resolves to root config.py)
+# Add project root first (so `import config` resolves to root config.py,
+# and the single intelnexus package is importable without sys.path hacks).
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-# Then add shared library
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "shared"))
-# Add intel-briefing package LAST (so `import ai_briefing.*` resolves) but it must
-# NOT shadow the root `src` package: intel-briefing/src/ has no `analysis` submodule,
-# so putting it first would break `import src.analysis.*` (e.g. patch targets).
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "intel-briefing"))
 
 # Inject config for shared library
-from shared.settings import set as set_config
+from intelnexus.core.settings import set as set_config
 set_config({
     "OLLAMA_BASE_URL": os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
     "OPENROUTER_BASE_URL": os.getenv("OPENROUTER_BASE_URL", ""),

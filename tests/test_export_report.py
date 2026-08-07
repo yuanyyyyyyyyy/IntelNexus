@@ -3,7 +3,7 @@ import os
 
 import pytest
 
-from src.export import report as report_module
+from intelnexus.export import report as report_module
 
 
 SAMPLE_CONTENT = """# 摘要

@@ -15,47 +15,54 @@
 | **本地+云端LLM** | 支持Ollama本地部署(GPT-4o/Claude/Gemini等云端模型) |
 | **多格式导出** | 一键导出Markdown/PDF/Word/Excel |
 | **暗网搜索** | 支持Ahmia(无需Tor) + OnionLink/TorDex(需Tor) + 自定义.onion站点 |
-| **AI简报系统** | 自动采集、分析、推送每日AI情报简报 |
+| **Topic 中枢** | 搜索与简报共享的关注点注册表，驱动采集与推送的统一数据源 |
+| **AI简报系统** | 自动采集、分析、推送每日AI与网络安全情报简报 |
+| **增量感知** | 对比历史存档输出本期新增/消失条目，缓解信息过载 |
+| **个性化订阅** | 订阅者按兴趣过滤推送类目，只收关心方向 |
+| **知识图谱复用** | 简报复用实体关系图谱生成本期关系缩略图 |
 
 ---
 
 ## 项目结构
 
+单包架构：搜索（取证工作台）与简报（巡防引擎）共享唯一 `intelnexus` 包，
+由 `topics` 中枢串联，消除旧版多处 `sys.path` hack 与重复模块。
+
 ```
 IntelNexus/
-├── main.py                     # CLI入口
-├── ui.py                       # 统一 Streamlit Web 界面
-├── config.py                   # 全局配置(环境变量)
+├── main.py                     # CLI入口（搜索 / 简报 / 调度）
+├── ui.py                       # 统一 Streamlit Web 界面（搜索 + 简报合一）
+├── config.py                   # 全局配置（环境变量）
 ├── requirements.txt            # 依赖清单
 │
-├── shared/                     # 共享库
-│   ├── search/                 # 搜索(web.py, news.py, scraper.py)
-│   ├── llm/                    # LLM核心(core.py, utils.py, models.py)
-│   └── ui/                     # UI共享(styles.py, helpers.py)
+├── intelnexus/                 # 唯一业务包（原 shared/src/intel-search/intel-briefing 归一）
+│   ├── core/                   # 底层：搜索 / LLM / 配置 / 日志 / 样式
+│   ├── analysis/               # 可信度评分 / 证据链 / 实体关系图谱
+│   ├── search_app/             # 搜索取证工作台（含暗网真身 darkweb.py）
+│   ├── briefing/               # 简报巡防引擎（采集/分析/通知/调度/模板/导出）
+│   ├── topics/                 # ★ Topic Registry 中枢（registry/store/diff）
+│   ├── config/                 # data/ 下 JSON 读写（搜索历史/订阅者/简报历史）
+│   └── ui/                     # 统一壳：合并搜索 UI 与简报视图
 │
-├── intel-search/               # 搜索子项目
-│   └── src/
-│       ├── analysis/           # 分析(可信度/知识图谱/证据链)
-│       ├── search/             # 暗网搜索(darkweb.py)
-│       ├── export/             # 报告导出(MD/PDF/Word/Excel)
-│       └── ui/                 # 搜索UI(i18n/sidebar/搜索流程/结果)
-│
-├── intel-briefing/             # 简报子项目
-│   ├── ai_briefing/            # 简报核心(采集/分析/通知/调度/模板)
-│   └── src/
-│       ├── config/             # 简报配置(数据源/订阅者/历史)
-│       ├── export/             # 简报PDF导出
-│       └── ui/                 # 简报UI(i18n/简报预览/历史)
-│
-├── src/                        # 整合层
-│   ├── config/                 # 配置壳(→子项目实源)
-│   └── ui/                     # 合并版UI组件(整合搜索+简报)
-│
-└── data/                       # 数据目录
+└── data/                       # 数据目录（JSON 持久化）
     ├── sources.json            # 数据源配置
-    ├── subscriptions.json      # 订阅者配置
-    └── briefings/              # 简报历史存档
+    ├── subscriptions.json      # 订阅者配置（含 interests 个性化字段）
+    ├── topics.json             # ★ Topic 中枢持久化（preset + 用户搜索沉淀）
+    └── briefings/              # 简报历史存档（Delta 增量对比源）
 ```
+
+### 情报操作系统：双向飞轮
+
+```
+搜索结果 ──(一键固化)──> Topic 常驻关注点 ──> 驱动简报巡防
+   ^                                         │
+   └────────(高严重度反查取证任务)──────────┘
+```
+
+- **Topic 中枢**：系统预设 6 类关注点 + 用户搜索行为沉淀的常驻 Topic，是采集与推送的统一数据源。
+- **增量感知（Delta）**：简报对比历史存档，输出较上期的新增 / 消失条目，缓解信息过载。
+- **个性化订阅**：订阅者按 `interests` 过滤类目，只收自己关心的方向。
+- **知识图谱复用**：简报复用 IntelligenceGraph 生成本期实体关系缩略图，与分析共享深度。
 
 ---
 
@@ -159,7 +166,9 @@ python main.py scheduler
 4. 侧边栏 → 邮件设置 → 配置 SMTP 服务器
 5. 点击"立即生成简报"测试
 
-### 关注点类别
+### 关注点类别（Topic 中枢）
+
+系统预设 6 类关注点（亦可在 Web UI 中将搜索结果一键固化为常驻 Topic）：
 
 | 类别 | 说明 |
 |------|------|
@@ -167,6 +176,8 @@ python main.py scheduler
 | ai_china_narrative | 涉我AI相关舆论 |
 | ai_legislation | AI相关法规政策 |
 | ai_data_leak | AI数据泄露事件 |
+| cyber_vuln | 网络安全漏洞与威胁 |
+| cyber_attack | 网络攻击与事件 |
 
 ---
 

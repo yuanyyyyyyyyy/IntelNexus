@@ -7,13 +7,12 @@ Combines search and briefing UI from sub-projects.
 import os
 import sys
 
-# Add sub-projects and shared to path (required by internal imports)
+# Ensure root project dir resolves first so root-level config.py and the
+# intelnexus/ package are importable. Single-package layout removes the old
+# sys.path hacks that worked around duplicated sub-project modules.
 _root = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(_root, "shared"))
-sys.path.insert(0, os.path.join(_root, "intel-search"))
-# Appended (not inserted at 0) so ai_briefing resolves to intel-briefing/ai_briefing/
-# without letting intel-briefing/src/ shadow the root-level src/ package.
-sys.path.append(os.path.join(_root, "intel-briefing"))
+if _root not in sys.path:
+    sys.path.insert(0, _root)
 
 import streamlit as st
 
@@ -24,19 +23,19 @@ st.set_page_config(
 )
 
 # --- Fixed imports: use real merged modules ---
-from src.ui.i18n import get_text
-from shared.ui.styles import render_light_theme_css, render_morandi_theme_css, render_workbench_css
-from shared.settings import set as set_config
+from intelnexus.ui.i18n import get_text
+from intelnexus.core.ui.styles import render_light_theme_css, render_morandi_theme_css, render_workbench_css
+from intelnexus.core.settings import set as set_config
 from config import (
     OLLAMA_BASE_URL, OPENROUTER_BASE_URL, OPENROUTER_API_KEY,
     GOOGLE_API_KEY,
 )
-from src.ui.sidebar import render_sidebar
-from src.ui.search_pipeline import run_search_pipeline
-from src.ui.results import render_results_panels
-from src.ui.download import render_download_section
-from src.ui.results_detail import render_results_detail
-from src.ui.briefing_viewer import render_briefing_center
+from intelnexus.ui.sidebar import render_sidebar
+from intelnexus.ui.search_pipeline import run_search_pipeline
+from intelnexus.ui.results import render_results_panels
+from intelnexus.ui.download import render_download_section
+from intelnexus.ui.results_detail import render_results_detail
+from intelnexus.ui.briefing_viewer import render_briefing_center
 
 # --- Inject config for shared modules ---
 set_config({
@@ -54,14 +53,19 @@ if "query_cache" not in st.session_state:
 
 
 def _render_bulk_collect_button():
-    """搜索 Tab 底部：一键将当前全部结果存入简报草稿。"""
+    """搜索 Tab 底部：一键将当前全部结果存入简报草稿；
+    可选「固化为常驻关注点（Topic）」，让本次查询进入简报自动巡防——实现搜→报双向飞轮。"""
     results = st.session_state.get("filtered") or []
     if not results:
         return
-    from src.ui.i18n import get_text
-    from src.config.briefing_drafts import add_draft
+    from intelnexus.ui.i18n import get_text
+    from intelnexus.config.briefing_drafts import add_draft
+    from intelnexus.topics.store import add_topic
+    from intelnexus.topics.registry import Topic
 
     st.markdown("<br>", unsafe_allow_html=True)
+    pin = st.checkbox(get_text("pin_as_topic"), key="pin_as_topic",
+                      help=get_text("pin_as_topic_help"))
     if st.button(get_text("collect_all_to_briefing"),
                  key="bulk_collect_btn", use_container_width=True):
         added = 0
@@ -82,6 +86,26 @@ def _render_bulk_collect_button():
             st.toast(get_text("collect_all_ok").format(n=added))
         else:
             st.toast(get_text("collect_all_dup"))
+
+        # 双向飞轮：把当前查询固化为常驻 Topic，纳入简报巡防
+        if pin:
+            query = (st.session_state.get("query_input")
+                     or st.session_state.get("query_cache") or "").strip()
+            if query:
+                from datetime import datetime
+                tid = "u_" + datetime.now().strftime("%Y%m%d%H%M%S%f")
+                topic = Topic(
+                    id=tid,
+                    name=query[:40],
+                    description=get_text("topic_from_search").format(q=query),
+                    search_queries=[query],
+                    keywords_en=[query],
+                    keywords_zh=[query],
+                    origin="user_search",
+                    created_at=datetime.now().isoformat(),
+                )
+                if add_topic(topic):
+                    st.toast(get_text("topic_pinned").format(q=query))
         st.rerun()
 
 # --- Render theme ---
@@ -109,6 +133,10 @@ tab_search, tab_briefing = st.tabs(tab_labels)
 #  Search Tab
 # =====================
 with tab_search:
+    # 反向飞轮：从简报条目跳转过来的取证任务
+    pending_query = st.session_state.pop("pending_forensic_query", None)
+    pending_mode = st.session_state.pop("pending_forensic_mode", "all")
+
     col_search_input, col_search_btn = st.columns([10, 1])
     with col_search_input:
         query = st.text_input(
@@ -116,13 +144,17 @@ with tab_search:
             placeholder=get_text("search_placeholder"),
             label_visibility="collapsed",
             key="query_input",
+            value=pending_query if pending_query else "",
         )
     with col_search_btn:
         run_button = st.button(get_text("search_button"), key="search_btn")
 
     status_slot = st.empty()
 
-    if run_button and query:
+    # 来自简报的取证任务：自动触发搜索
+    if pending_query and not (run_button and query):
+        run_search_pipeline(pending_query, pending_mode, model, threads, status_slot)
+    elif run_button and query:
         run_search_pipeline(query, search_mode, model, threads, status_slot)
 
     render_results_panels()
