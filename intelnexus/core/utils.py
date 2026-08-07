@@ -43,91 +43,6 @@ _common_llm_params = {
 }
 
 
-def _get_config_values():
-    """Get config values from injected config."""
-    return {
-        "OLLAMA_BASE_URL": get_config("OLLAMA_BASE_URL", ""),
-        "OPENROUTER_BASE_URL": get_config("OPENROUTER_BASE_URL", ""),
-        "OPENROUTER_API_KEY": get_config("OPENROUTER_API_KEY", ""),
-        "GOOGLE_API_KEY": get_config("GOOGLE_API_KEY", ""),
-    }
-
-
-def _build_llm_config_map():
-    """Build the LLM config map with current config values."""
-    cfg = _get_config_values()
-    return {
-        'gpt-4.1': {
-            'class': ChatOpenAI,
-            'constructor_params': {'model_name': 'gpt-4.1'}
-        },
-        'gpt-5.1': {
-            'class': ChatOpenAI,
-            'constructor_params': {'model_name': 'gpt-5.1'}
-        },
-        'gpt-5-mini': {
-            'class': ChatOpenAI,
-            'constructor_params': {'model_name': 'gpt-5-mini'}
-        },
-        'gpt-5-nano': {
-            'class': ChatOpenAI,
-            'constructor_params': {'model_name': 'gpt-5-nano'}
-        },
-        'claude-sonnet-4-5': {
-            'class': ChatAnthropic,
-            'constructor_params': {'model': 'claude-sonnet-4-5'}
-        },
-        'claude-sonnet-4-0': {
-            'class': ChatAnthropic,
-            'constructor_params': {'model': 'claude-sonnet-4-0'}
-        },
-        'gemini-2.5-flash': {
-            'class': ChatGoogleGenerativeAI,
-            'constructor_params': {'model': 'gemini-2.5-flash', 'google_api_key': cfg["GOOGLE_API_KEY"]}
-        },
-        'gemini-2.5-flash-lite': {
-            'class': ChatGoogleGenerativeAI,
-            'constructor_params': {'model': 'gemini-2.5-flash-lite', 'google_api_key': cfg["GOOGLE_API_KEY"]}
-        },
-        'gemini-2.5-pro': {
-            'class': ChatGoogleGenerativeAI,
-            'constructor_params': {'model': 'gemini-2.5-pro', 'google_api_key': cfg["GOOGLE_API_KEY"]}
-        },
-        'gpt-5.1-openrouter': {
-            'class': ChatOpenAI,
-            'constructor_params': {
-                'model_name': 'openai/gpt-5.1',
-                'base_url': cfg["OPENROUTER_BASE_URL"],
-                'api_key': cfg["OPENROUTER_API_KEY"]
-            }
-        },
-        'gpt-5-mini-openrouter': {
-            'class': ChatOpenAI,
-            'constructor_params': {
-                'model_name': 'openai/gpt-5-mini',
-                'base_url': cfg["OPENROUTER_BASE_URL"],
-                'api_key': cfg["OPENROUTER_API_KEY"]
-            }
-        },
-        'claude-sonnet-4.5-openrouter': {
-            'class': ChatOpenAI,
-            'constructor_params': {
-                'model_name': 'anthropic/claude-sonnet-4.5',
-                'base_url': cfg["OPENROUTER_BASE_URL"],
-                'api_key': cfg["OPENROUTER_API_KEY"]
-            }
-        },
-        'grok-4.1-fast-openrouter': {
-            'class': ChatOpenAI,
-            'constructor_params': {
-                'model_name': 'x-ai/grok-4.1-fast',
-                'base_url': cfg["OPENROUTER_BASE_URL"],
-                'api_key': cfg["OPENROUTER_API_KEY"]
-            }
-        },
-    }
-
-
 def _normalize_model_name(name: str) -> str:
     return name.strip().lower()
 
@@ -177,10 +92,9 @@ _ollama_models_cache = {"models": None, "time": 0}
 
 def get_model_choices() -> List[str]:
     """
-    Combine the statically configured cloud models with the locally available Ollama models and custom models.
+    只返回本地 Ollama 模型与用户添加的自定义模型，不暴露任何云端预设。
+    自定义模型持久化在 data/custom_models.json，重新运行项目不会丢失。
     """
-    _llm_config_map = _build_llm_config_map()
-    base_models = list(_llm_config_map.keys())
     dynamic_models = fetch_ollama_models()
 
     try:
@@ -189,36 +103,32 @@ def get_model_choices() -> List[str]:
     except ImportError:
         custom_models = []
 
-    normalized = {_normalize_model_name(m): m for m in base_models}
+    normalized = {}
 
+    # 用户添加的自定义模型优先
+    for cm in custom_models:
+        normalized[_normalize_model_name(cm)] = cm
+
+    # 本地 Ollama 自动探测到的模型
     for dm in dynamic_models:
         key = _normalize_model_name(dm)
         if key not in normalized:
             normalized[key] = dm
 
-    for cm in custom_models:
-        key = _normalize_model_name(cm)
-        if key not in normalized:
-            normalized[key] = cm
-
-    ordered_dynamic = sorted(
-        [name for key, name in normalized.items() if name not in base_models and name not in custom_models],
+    ordered_custom = sorted(custom_models, key=_normalize_model_name)
+    ordered_ollama = sorted(
+        [name for key, name in normalized.items() if name not in custom_models],
         key=_normalize_model_name,
     )
-    return base_models + custom_models + ordered_dynamic
+    return ordered_custom + ordered_ollama
 
 
 def resolve_model_config(model_choice: str):
     """
     Resolve a model choice (case-insensitive) to the corresponding configuration.
-    Supports predefined remote models, locally installed Ollama models, and custom models.
+    Supports locally installed Ollama models and user-added custom models.
     """
-    _llm_config_map = _build_llm_config_map()
     model_choice_lower = _normalize_model_name(model_choice)
-
-    config = _llm_config_map.get(model_choice_lower)
-    if config:
-        return config
 
     for ollama_model in fetch_ollama_models():
         if _normalize_model_name(ollama_model) == model_choice_lower:

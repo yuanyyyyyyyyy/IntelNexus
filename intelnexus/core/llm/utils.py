@@ -53,58 +53,6 @@ def _get_config_values():
     }
 
 
-def _build_llm_config_map():
-    """只返回当前环境配置了对应凭证的云端模型；未配置 key 的厂商模型不列出。
-    本地 Ollama 模型与自定义模型在 get_model_choices() 中另行合并，不在此处处理。"""
-    cfg = _get_config_values()
-    models = {}
-
-    # OpenAI —— 需要 OPENAI_API_KEY
-    if cfg.get("OPENAI_API_KEY"):
-        for name in ["gpt-4.1", "gpt-4.1-mini", "gpt-4o", "gpt-4o-mini"]:
-            models[name] = {
-                'class': ChatOpenAI,
-                'constructor_params': {'model_name': name}
-            }
-
-    # Anthropic —— 需要 ANTHROPIC_API_KEY
-    if cfg.get("ANTHROPIC_API_KEY"):
-        for name in ["claude-sonnet-4-0", "claude-3-5-sonnet-latest"]:
-            models[name] = {
-                'class': ChatAnthropic,
-                'constructor_params': {'model': name}
-            }
-
-    # Google —— 需要 GOOGLE_API_KEY
-    if cfg.get("GOOGLE_API_KEY"):
-        for name in ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro"]:
-            models[name] = {
-                'class': ChatGoogleGenerativeAI,
-                'constructor_params': {'model': name, 'google_api_key': cfg["GOOGLE_API_KEY"]}
-            }
-
-    # OpenRouter —— 需要 OPENROUTER_API_KEY
-    if cfg.get("OPENROUTER_API_KEY"):
-        models['gpt-4.1-openrouter'] = {
-            'class': ChatOpenAI,
-            'constructor_params': {
-                'model_name': 'openai/gpt-4.1',
-                'base_url': cfg["OPENROUTER_BASE_URL"],
-                'api_key': cfg["OPENROUTER_API_KEY"]
-            }
-        }
-        models['claude-sonnet-4.0-openrouter'] = {
-            'class': ChatOpenAI,
-            'constructor_params': {
-                'model_name': 'anthropic/claude-sonnet-4',
-                'base_url': cfg["OPENROUTER_BASE_URL"],
-                'api_key': cfg["OPENROUTER_API_KEY"]
-            }
-        }
-
-    return models
-
-
 def _normalize_model_name(name: str) -> str:
     return name.strip().lower()
 
@@ -154,10 +102,9 @@ _ollama_models_cache = {"models": None, "time": 0}
 
 def get_model_choices() -> List[str]:
     """
-    Combine the statically configured cloud models with the locally available Ollama models and custom models.
+    只返回本地 Ollama 模型与用户添加的自定义模型，不暴露任何云端预设。
+    自定义模型持久化在 data/custom_models.json，重新运行项目不会丢失。
     """
-    _llm_config_map = _build_llm_config_map()
-    base_models = list(_llm_config_map.keys())
     dynamic_models = fetch_ollama_models()
 
     try:
@@ -166,36 +113,32 @@ def get_model_choices() -> List[str]:
     except ImportError:
         custom_models = []
 
-    normalized = {_normalize_model_name(m): m for m in base_models}
+    normalized = {}
 
+    # 用户添加的自定义模型优先
+    for cm in custom_models:
+        normalized[_normalize_model_name(cm)] = cm
+
+    # 本地 Ollama 自动探测到的模型
     for dm in dynamic_models:
         key = _normalize_model_name(dm)
         if key not in normalized:
             normalized[key] = dm
 
-    for cm in custom_models:
-        key = _normalize_model_name(cm)
-        if key not in normalized:
-            normalized[key] = cm
-
-    ordered_dynamic = sorted(
-        [name for key, name in normalized.items() if name not in base_models and name not in custom_models],
+    ordered_custom = sorted(custom_models, key=_normalize_model_name)
+    ordered_ollama = sorted(
+        [name for key, name in normalized.items() if name not in custom_models],
         key=_normalize_model_name,
     )
-    return base_models + custom_models + ordered_dynamic
+    return ordered_custom + ordered_ollama
 
 
 def resolve_model_config(model_choice: str):
     """
     Resolve a model choice (case-insensitive) to the corresponding configuration.
-    Supports predefined remote models, locally installed Ollama models, and custom models.
+    Supports locally installed Ollama models and user-added custom models.
     """
-    _llm_config_map = _build_llm_config_map()
     model_choice_lower = _normalize_model_name(model_choice)
-
-    config = _llm_config_map.get(model_choice_lower)
-    if config:
-        return config
 
     for ollama_model in fetch_ollama_models():
         if _normalize_model_name(ollama_model) == model_choice_lower:
