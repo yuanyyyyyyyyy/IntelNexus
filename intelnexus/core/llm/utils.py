@@ -54,78 +54,55 @@ def _get_config_values():
 
 
 def _build_llm_config_map():
-    """Build the LLM config map with current config values."""
+    """只返回当前环境配置了对应凭证的云端模型；未配置 key 的厂商模型不列出。
+    本地 Ollama 模型与自定义模型在 get_model_choices() 中另行合并，不在此处处理。"""
     cfg = _get_config_values()
-    return {
-        'gpt-4.1': {
-            'class': ChatOpenAI,
-            'constructor_params': {'model_name': 'gpt-4.1'}
-        },
-        'gpt-5.1': {
-            'class': ChatOpenAI,
-            'constructor_params': {'model_name': 'gpt-5.1'}
-        },
-        'gpt-5-mini': {
-            'class': ChatOpenAI,
-            'constructor_params': {'model_name': 'gpt-5-mini'}
-        },
-        'gpt-5-nano': {
-            'class': ChatOpenAI,
-            'constructor_params': {'model_name': 'gpt-5-nano'}
-        },
-        'claude-sonnet-4-5': {
-            'class': ChatAnthropic,
-            'constructor_params': {'model': 'claude-sonnet-4-5'}
-        },
-        'claude-sonnet-4-0': {
-            'class': ChatAnthropic,
-            'constructor_params': {'model': 'claude-sonnet-4-0'}
-        },
-        'gemini-2.5-flash': {
-            'class': ChatGoogleGenerativeAI,
-            'constructor_params': {'model': 'gemini-2.5-flash', 'google_api_key': cfg["GOOGLE_API_KEY"]}
-        },
-        'gemini-2.5-flash-lite': {
-            'class': ChatGoogleGenerativeAI,
-            'constructor_params': {'model': 'gemini-2.5-flash-lite', 'google_api_key': cfg["GOOGLE_API_KEY"]}
-        },
-        'gemini-2.5-pro': {
-            'class': ChatGoogleGenerativeAI,
-            'constructor_params': {'model': 'gemini-2.5-pro', 'google_api_key': cfg["GOOGLE_API_KEY"]}
-        },
-        'gpt-5.1-openrouter': {
+    models = {}
+
+    # OpenAI —— 需要 OPENAI_API_KEY
+    if cfg.get("OPENAI_API_KEY"):
+        for name in ["gpt-4.1", "gpt-4.1-mini", "gpt-4o", "gpt-4o-mini"]:
+            models[name] = {
+                'class': ChatOpenAI,
+                'constructor_params': {'model_name': name}
+            }
+
+    # Anthropic —— 需要 ANTHROPIC_API_KEY
+    if cfg.get("ANTHROPIC_API_KEY"):
+        for name in ["claude-sonnet-4-0", "claude-3-5-sonnet-latest"]:
+            models[name] = {
+                'class': ChatAnthropic,
+                'constructor_params': {'model': name}
+            }
+
+    # Google —— 需要 GOOGLE_API_KEY
+    if cfg.get("GOOGLE_API_KEY"):
+        for name in ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro"]:
+            models[name] = {
+                'class': ChatGoogleGenerativeAI,
+                'constructor_params': {'model': name, 'google_api_key': cfg["GOOGLE_API_KEY"]}
+            }
+
+    # OpenRouter —— 需要 OPENROUTER_API_KEY
+    if cfg.get("OPENROUTER_API_KEY"):
+        models['gpt-4.1-openrouter'] = {
             'class': ChatOpenAI,
             'constructor_params': {
-                'model_name': 'openai/gpt-5.1',
+                'model_name': 'openai/gpt-4.1',
                 'base_url': cfg["OPENROUTER_BASE_URL"],
                 'api_key': cfg["OPENROUTER_API_KEY"]
             }
-        },
-        'gpt-5-mini-openrouter': {
+        }
+        models['claude-sonnet-4.0-openrouter'] = {
             'class': ChatOpenAI,
             'constructor_params': {
-                'model_name': 'openai/gpt-5-mini',
+                'model_name': 'anthropic/claude-sonnet-4',
                 'base_url': cfg["OPENROUTER_BASE_URL"],
                 'api_key': cfg["OPENROUTER_API_KEY"]
             }
-        },
-        'claude-sonnet-4.5-openrouter': {
-            'class': ChatOpenAI,
-            'constructor_params': {
-                'model_name': 'anthropic/claude-sonnet-4.5',
-                'base_url': cfg["OPENROUTER_BASE_URL"],
-                'api_key': cfg["OPENROUTER_API_KEY"]
-            }
-        },
-        'grok-4.1-fast-openrouter': {
-            'class': ChatOpenAI,
-            'constructor_params': {
-                'model_name': 'x-ai/grok-4.1-fast',
-                'base_url': cfg["OPENROUTER_BASE_URL"],
-                'api_key': cfg["OPENROUTER_API_KEY"]
-            }
-        },
-    }
+        }
+
+    return models
 
 
 def _normalize_model_name(name: str) -> str:

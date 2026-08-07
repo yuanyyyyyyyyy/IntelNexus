@@ -576,10 +576,6 @@ def render_morandi_theme_css():
         border-left-color: var(--wb-tag-sub);
     }
 
-    .bf-panel.bf-panel--gen {
-        border-left-color: var(--wb-tag-gen);
-    }
-
     .bf-panel.bf-panel--cat {
         border-left-color: var(--wb-tag-cat);
     }
@@ -672,24 +668,6 @@ def render_morandi_theme_css():
         margin: 0;
     }
 
-    /* Generate button: full-width, high visual weight */
-    .bf-generate-btn {
-        width: 100%;
-        padding: 14px 24px;
-        background: var(--wb-accent) !important;
-        color: #FFFFFF !important;
-        border: none !important;
-        border-radius: 6px !important;
-        font-size: 15px !important;
-        font-weight: 600 !important;
-        cursor: pointer;
-        transition: background 0.15s ease !important;
-    }
-
-    .bf-generate-btn:hover {
-        background: #0550AE !important;
-    }
-
     /* Output area: clean, no tag bar */
     .bf-output {
         background: var(--wb-card);
@@ -708,6 +686,60 @@ def render_morandi_theme_css():
         margin-bottom: 14px;
         padding-bottom: 10px;
         border-bottom: 1px solid #EBEEF2;
+    }
+
+    /* 历史列表条目：清晰分隔、信息分层 */
+    .bf-history-item {
+        padding: 12px 0;
+        border-bottom: 1px solid var(--wb-border);
+    }
+    .bf-history-item:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+    .bf-history-item__time {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--wb-text-primary);
+        line-height: 1.4;
+    }
+    .bf-history-item__meta {
+        margin-top: 4px;
+        font-size: 12px;
+        color: var(--wb-text-secondary);
+        line-height: 1.5;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+    }
+    .bf-history-item__org {
+        font-weight: 500;
+        color: var(--wb-text-primary);
+    }
+    .bf-history-item__sep {
+        color: var(--wb-border);
+    }
+    /* 历史条目内的查看/删除按钮：轻量文字按钮风格，与左侧信息协调 */
+    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-history-item button {
+        width: 100% !important;
+        min-height: 28px !important;
+        padding: 2px 10px !important;
+        font-size: 13px !important;
+        font-weight: 500 !important;
+        border-radius: 5px !important;
+        background: transparent !important;
+        color: var(--wb-text-secondary) !important;
+        border: 1px solid var(--wb-border) !important;
+        box-shadow: none !important;
+        writing-mode: horizontal-tb !important;
+        text-orientation: mixed !important;
+        white-space: nowrap !important;
+    }
+    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-history-item button:hover {
+        background: var(--wb-surface) !important;
+        color: var(--wb-text-primary) !important;
+        border-color: var(--wb-accent) !important;
     }
 
     /* Empty state: action-oriented */
@@ -832,8 +864,8 @@ def render_workbench_css():
 
     .bf-panel.bf-panel--source { border-top-color: var(--wb-tag-source); }
     .bf-panel.bf-panel--sub { border-top-color: var(--wb-tag-sub); }
-    .bf-panel.bf-panel--gen { border-top-color: var(--wb-tag-gen); }
     .bf-panel.bf-panel--cat { border-top-color: var(--wb-tag-cat); }
+    .bf-panel.bf-panel--gen { border-top-color: var(--wb-tag-gen); }
 
     /* Onboarding 3-step bar */
     .bf-step {
@@ -1021,23 +1053,75 @@ def render_workbench_css():
         margin: 0;
     }
 
-    /* Primary generate button: full-width, prominent */
-    div[role="tabpanel"]:has(.bf-workbench-scope) div[data-testid="stButton"] > button[kind="primary"],
-    .bf-generate-btn-wrapper div[data-testid="stButton"] > button {
-        width: 100% !important;
-        padding: 14px 24px !important;
+    /* Generate 主按钮：紧凑、自适应宽度，彻底覆盖 Streamlit 默认大按钮
+       通过隐藏 marker(.bf-gen-btn-marker) 稳定命中，不依赖 DOM 兄弟顺序 */
+    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-gen-btn-marker + .element-container div[data-testid="stButton"] > button,
+    div[role="tabpanel"]:has(.bf-workbench-scope) .element-container:has(.bf-gen-btn-marker) + .element-container div[data-testid="stButton"] > button {
+        width: auto !important;
+        height: auto !important;
+        min-height: 30px !important;
+        padding: 5px 16px !important;
         background: var(--wb-accent) !important;
         color: #FFFFFF !important;
         border: none !important;
         border-radius: 6px !important;
-        font-size: 15px !important;
+        font-size: 13px !important;
         font-weight: 600 !important;
+        line-height: 1.2 !important;
         transition: background 0.15s ease !important;
     }
 
-    .bf-generate-btn-wrapper div[data-testid="stButton"] > button:hover {
+    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-gen-btn-marker + .element-container div[data-testid="stButton"] > button:hover,
+    div[role="tabpanel"]:has(.bf-workbench-scope) .element-container:has(.bf-gen-btn-marker) + .element-container div[data-testid="stButton"] > button:hover {
         background: #8E938A !important;
         transform: none !important;
+    }
+
+    /* Generate 概览折叠条：轻量、收敛，不喧宾夺主
+       基于 .bf-panel--gen 卡片头后面的 columns 命中，不再依赖 .bf-gen-header */
+    div[role="tabpanel"]:has(.bf-workbench-scope) .element-container:has(> div > .bf-panel--gen) + .element-container div[data-testid="stExpander"] {
+        border: 1px solid var(--wb-border) !important;
+        border-radius: 6px !important;
+        background: transparent !important;
+    }
+    div[role="tabpanel"]:has(.bf-workbench-scope) .element-container:has(> div > .bf-panel--gen) + .element-container div[data-testid="stExpander"] > summary {
+        font-size: 13px !important;
+        font-weight: 500 !important;
+        color: var(--wb-text-secondary) !important;
+        padding: 6px 12px !important;
+    }
+
+    /* 配置区 tab 切换器：把横向 radio 渲染成 tab 标签 */
+    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-settings-tabs-marker + .element-container div[data-testid="stRadio"] > div {
+        display: flex;
+        gap: 4px;
+    }
+    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-settings-tabs-marker + .element-container div[data-testid="stRadio"] label {
+        border-radius: 6px 6px 0 0 !important;
+        padding: 8px 16px !important;
+        background: transparent !important;
+        border: 1px solid var(--wb-border) !important;
+        border-bottom: 2px solid transparent !important;
+        color: var(--wb-text-secondary) !important;
+    }
+    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-settings-tabs-marker + .element-container div[data-testid="stRadio"] label:hover {
+        background: var(--wb-surface) !important;
+        color: var(--wb-text-primary) !important;
+    }
+    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-settings-tabs-marker + .element-container div[data-testid="stRadio"] input:checked + div {
+        background: var(--wb-surface) !important;
+        color: var(--wb-text-primary) !important;
+        border-color: var(--wb-border) !important;
+        border-bottom: 2px solid var(--wb-accent) !important;
+    }
+
+    /* 生成结果统计：轻量卡片，与主操作区视觉分离 */
+    .bf-generate-stats {
+        margin-top: 16px;
+        padding: 14px 16px;
+        border: 1px solid var(--wb-border);
+        border-radius: 8px;
+        background: var(--wb-surface);
     }
 
     /* 通用确认/操作按钮：收紧尺寸，避免「添加数据源」「保存」「删除」等过大 */
@@ -1070,6 +1154,60 @@ def render_workbench_css():
         margin-bottom: 14px;
         padding-bottom: 10px;
         border-bottom: 1px solid #E2DDD5;
+    }
+
+    /* 历史列表条目：清晰分隔、信息分层 */
+    .bf-history-item {
+        padding: 12px 0;
+        border-bottom: 1px solid var(--wb-border);
+    }
+    .bf-history-item:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+    .bf-history-item__time {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--wb-text-primary);
+        line-height: 1.4;
+    }
+    .bf-history-item__meta {
+        margin-top: 4px;
+        font-size: 12px;
+        color: var(--wb-text-secondary);
+        line-height: 1.5;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+    }
+    .bf-history-item__org {
+        font-weight: 500;
+        color: var(--wb-text-primary);
+    }
+    .bf-history-item__sep {
+        color: var(--wb-border);
+    }
+    /* 历史条目内的查看/删除按钮：轻量文字按钮风格，与左侧信息协调 */
+    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-history-item button {
+        width: 100% !important;
+        min-height: 28px !important;
+        padding: 2px 10px !important;
+        font-size: 13px !important;
+        font-weight: 500 !important;
+        border-radius: 5px !important;
+        background: transparent !important;
+        color: var(--wb-text-secondary) !important;
+        border: 1px solid var(--wb-border) !important;
+        box-shadow: none !important;
+        writing-mode: horizontal-tb !important;
+        text-orientation: mixed !important;
+        white-space: nowrap !important;
+    }
+    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-history-item button:hover {
+        background: var(--wb-surface) !important;
+        color: var(--wb-text-primary) !important;
+        border-color: var(--wb-accent) !important;
     }
 
     /* Light inline hint used for empty-state / module-unavailable messages
