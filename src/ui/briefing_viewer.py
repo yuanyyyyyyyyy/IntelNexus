@@ -186,7 +186,7 @@ def render_data_sources_panel():
                         if remove_source(source['id']):
                             st.rerun()
     else:
-        st.info(get_text("no_sources"))
+        st.info(f"{get_text('no_sources')} —— {get_text('welcome_step_sources_desc')}")
 
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -355,9 +355,17 @@ def render_subscriptions_panel():
 
                 with st.container():
                     st.caption(get_text("view_details"))
-                    st.json(sub)
+                    channels = sub.get("channels", {})
+                    active_channels = [k for k, v in channels.items() if isinstance(v, dict) and v.get("enabled")]
+                    schedule = sub.get("schedule", {})
+                    cats = sub.get("watch_categories", [])
+                    st.markdown(
+                        f"- {get_text('push_channels')}: {', '.join(active_channels) or '—'}\n"
+                        f"- {get_text('schedule_settings')}: {schedule.get('time', '—')} ({schedule.get('timezone', '—')})\n"
+                        f"- {get_text('watch_categories')}: {', '.join(cats) if cats else '—'}"
+                    )
     else:
-        st.info(get_text("no_subscribers"))
+        st.info(f"{get_text('no_subscribers')} —— {get_text('welcome_step_subscribers_desc')}")
 
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -379,20 +387,61 @@ def render_generate_panel():
     st.markdown('</div></div>', unsafe_allow_html=True)
 
 
+def _render_onboarding():
+    """简报中心 3 步引导条（无 emoji、不嵌套 expander）
+
+    用 session_state 中已有的数据源/订阅者配置进度标注当前到第几步。
+    """
+    try:
+        from src.config.sources import get_all_sources
+        from src.config.subscriptions import get_all_subscribers
+        sources = get_all_sources()
+        subs = get_all_subscribers()
+    except ImportError:
+        sources, subs = {}, []
+
+    step1_done = bool(sources.get("subscription_sources") or sources.get("custom_sources"))
+    step2_done = bool(subs)
+
+    steps = [
+        (get_text("welcome_step_sources"), get_text("welcome_step_sources_desc"), step1_done),
+        (get_text("welcome_step_subscribers"), get_text("welcome_step_subscribers_desc"), step2_done),
+        (get_text("welcome_step_generate"), get_text("welcome_step_generate_desc"), False),
+    ]
+
+    st.markdown(f'<p style="color: var(--wb-text-secondary); font-size: 14px; margin: 4px 0 12px 0;">{get_text("briefing_welcome_desc")}</p>', unsafe_allow_html=True)
+
+    cols = st.columns(3)
+    for i, (title, desc, done) in enumerate(steps):
+        dot = '<span class="status-dot active"></span>' if done else '<span class="status-dot"></span>'
+        label = f'<span style="opacity:.5;">{i + 1}.</span> {title}'
+        with cols[i]:
+            st.markdown(
+                f'<div class="bf-step">'
+                f'<div class="bf-step__head">{dot} {label}</div>'
+                f'<div class="bf-step__desc">{desc}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+
 def render_briefing_center():
     """
     Briefing Center 主渲染函数
 
     使用 workbench 风格的单栏垂直布局：
     - bf-workbench 容器包裹全部内容
+    - 顶部 3 步引导条（数据源 → 订阅者 → 生成）
     - 三个功能面板（SOURCES / SUBSCRIBERS / GENERATE）各有彩色标签条
     - 结果输出区（OUTPUT）无标签条
     """
     st.markdown('<div class="bf-workbench">', unsafe_allow_html=True)
 
-    # 标题 + 一行简洁描述（无 emoji）
+    # 标题
     st.markdown(f'<div class="main-title">{get_text("briefing_center")}</div>', unsafe_allow_html=True)
-    st.markdown('<p style="color: var(--wb-text-secondary); font-size: 14px; margin: 0 0 16px 0;">Configure sources, subscribers, then generate.</p>', unsafe_allow_html=True)
+
+    # 引导条
+    _render_onboarding()
 
     # 功能面板区
     render_data_sources_panel()
