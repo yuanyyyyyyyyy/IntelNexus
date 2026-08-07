@@ -528,8 +528,11 @@ def render_watch_categories_panel():
     st.markdown('</div>', unsafe_allow_html=True)
 
 
-def render_generate_panel():
-    """生成简报操作面板（青蓝标签条 + 全宽主按钮）"""
+def render_generate_top():
+    """置顶生成主操作区（青蓝标签条 + 横向类目/推送/按钮 + 高级折叠模型）
+
+    默认已选好类目、推送开启，用户一眼可见直接点「生成简报」。
+    """
     st.markdown(f'''
     <div class="bf-panel bf-panel--gen">
         <div class="bf-label">
@@ -540,15 +543,58 @@ def render_generate_panel():
     ''', unsafe_allow_html=True)
 
     from intelnexus.ui.briefing_runner import render_briefing_generate_controls
-    render_briefing_generate_controls(key_prefix="bf", model=None, compact=False)
+    render_briefing_generate_controls(key_prefix="bf", model=None, compact=False, top=True)
 
     st.markdown('</div></div>', unsafe_allow_html=True)
 
 
-def _render_onboarding():
-    """简报中心 3 步引导条（无 emoji、不嵌套 expander）
+def render_briefing_settings():
+    """可折叠配置区：用单个 expander 收起三个配置面板，内部以横向 tab 组织
 
-    用 session_state 中已有的数据源/订阅者配置进度标注当前到第几步。
+    点击引导条 step 会设置 st.session_state.bf_expand_settings / bf_active_tab，
+    这里据此展开并默认选中对应 tab（st.tabs 默认选中第一个，故以 active_tab
+    映射 index 并在首次展开时 st.rerun 切换）。
+    """
+    # 用 toggle 控制配置区显隐（替代 st.expander，避免与面板内二级 expander 嵌套报错）
+    expand_state = st.session_state.get("bf_expand_settings", False)
+    st.session_state.bf_expand_settings = st.toggle(
+        get_text("briefing_settings"),
+        value=expand_state,
+        key="bf_settings_toggle",
+    )
+    if not st.session_state.bf_expand_settings:
+        return
+
+    with st.container():
+        tab_labels = [
+            get_text("data_source_management"),
+            get_text("subscription_management"),
+            get_text("watch_categories_mgmt"),
+        ]
+        tabs = st.tabs(tab_labels)
+
+        # 默认选中的 tab index（由引导条点击驱动）
+        active = st.session_state.get("bf_active_tab", "sources")
+        active_idx = {"sources": 0, "subs": 1, "watch": 2}.get(active, 0)
+        # 仅当配置区刚被展开且目标 tab 非首时切换，避免每次 rerun 死循环
+        if st.session_state.get("bf_switch_tab") == active and active_idx != 0:
+            st.session_state.bf_switch_tab = None
+            st.rerun()
+
+        with tabs[0]:
+            render_data_sources_panel()
+        with tabs[1]:
+            render_subscriptions_panel()
+        with tabs[2]:
+            render_watch_categories_panel()
+
+
+def _render_onboarding():
+    """简报中心 3 步引导条（可点击，无 emoji、不嵌套 expander）
+
+    用 session_state 中已有的数据源/订阅者配置进度标注当前到第几步；
+    点击某一步会展开配置区（st.session_state.bf_expand_settings=True）
+    并记忆应激活的 tab（bf_active_tab），便于直接跳转到对应配置面板。
     """
     try:
         from intelnexus.config.sources import get_all_sources
@@ -562,15 +608,15 @@ def _render_onboarding():
     step2_done = bool(subs)
 
     steps = [
-        (get_text("welcome_step_sources"), get_text("welcome_step_sources_desc"), step1_done),
-        (get_text("welcome_step_subscribers"), get_text("welcome_step_subscribers_desc"), step2_done),
-        (get_text("welcome_step_generate"), get_text("welcome_step_generate_desc"), False),
+        (get_text("welcome_step_sources"), get_text("welcome_step_sources_desc"), step1_done, "sources"),
+        (get_text("welcome_step_subscribers"), get_text("welcome_step_subscribers_desc"), step2_done, "subs"),
+        (get_text("welcome_step_generate"), get_text("welcome_step_generate_desc"), False, None),
     ]
 
     st.markdown(f'<p style="color: var(--wb-text-secondary); font-size: 14px; margin: 0 0 12px 0;">{get_text("briefing_welcome_desc")}</p>', unsafe_allow_html=True)
 
     cols = st.columns(3)
-    for i, (title, desc, done) in enumerate(steps):
+    for i, (title, desc, done, tab_key) in enumerate(steps):
         if done:
             state_class = "bf-step--done"
             icon = "✓"
@@ -583,8 +629,21 @@ def _render_onboarding():
             icon = str(i + 1)
         label = f'<span class="bf-step__index">{icon}</span> {title}'
         with cols[i]:
+            # 用透明按钮覆盖整张卡片，实现「可点击引导条」
+            if st.button(
+                " ",
+                key=f"bf_step_{tab_key or 'gen'}",
+                use_container_width=True,
+                help=desc,
+            ):
+                if tab_key:
+                    st.session_state.bf_expand_settings = True
+                    st.session_state.bf_active_tab = tab_key
+                    st.session_state.bf_switch_tab = tab_key
+                    st.rerun()
+            # 渲染视觉卡片（按钮在上方，此处仅展示文本，靠负 margin 贴合）
             st.markdown(
-                f'<div class="bf-step {state_class}">'
+                f'<div class="bf-step {state_class}" style="margin-top:-46px;pointer-events:none;">'
                 f'<div class="bf-step__head">{label}</div>'
                 f'<div class="bf-step__desc">{desc}</div>'
                 f'</div>',
@@ -594,27 +653,38 @@ def _render_onboarding():
 
 def render_briefing_center():
     """
-    Briefing Center 主渲染函数
+    Briefing Center 主渲染函数（方案 A 布局重构）
 
-    使用 workbench 风格的单栏垂直布局：
-    - bf-workbench 容器包裹全部内容
-    - 顶部 3 步引导条（数据源 → 订阅者 → 生成）
-    - 三个功能面板（SOURCES / SUBSCRIBERS / GENERATE）各有彩色标签条
-    - 结果输出区（OUTPUT）无标签条
+    布局自上而下：
+    - 隐藏标记（CSS :has() 作用域）
+    - 3 步引导条（可点击跳转配置区）
+    - 置顶生成主操作区（类目/推送/按钮同行 + 高级折叠模型）
+    - 可折叠配置区（container + toggle 显隐 + 横向 tab 组织三个面板）
+    - 结果输出区（预览 / 条目 / 历史 toggle + 历史列表）
     """
     # 隐藏标记 — 用于 CSS :has() 选择器将 workbench 样式限定到简报 Tab
     st.markdown('<div class="bf-workbench-scope"></div>', unsafe_allow_html=True)
 
-    # 引导条（Tab 已标识当前模块，无需重复大标题）
+    # 引导条（可点击）
     _render_onboarding()
 
-    # 功能面板区
-    render_watch_categories_panel()
-    render_data_sources_panel()
-    render_subscriptions_panel()
-    render_generate_panel()
+    # 置顶生成主操作区
+    render_generate_top()
+
+    # 可折叠配置区
+    render_briefing_settings()
 
     # 输出区
     render_briefing_preview()
     render_briefing_entries()
+
+    # 历史记录常驻入口（toggle 替代原隐藏 session_state 开关）
+    col_hist_toggle, _ = st.columns([2, 4])
+    with col_hist_toggle:
+        show_hist = st.toggle(
+            get_text("show_history"),
+            value=st.session_state.get("show_briefing_history", False),
+            key="bf_history_toggle",
+        )
+        st.session_state.show_briefing_history = show_hist
     render_briefing_history()

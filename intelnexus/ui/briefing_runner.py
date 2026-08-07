@@ -20,7 +20,7 @@ def _category_options() -> dict:
     return {cid: cfg.get("name", cid) for cid, cfg in get_all_categories().items()}
 
 
-def render_briefing_generate_controls(key_prefix: str, model: str = None, compact: bool = False):
+def render_briefing_generate_controls(key_prefix: str, model: str = None, compact: bool = False, top: bool = False):
     """
     渲染生成控件与结果统计。
 
@@ -28,8 +28,45 @@ def render_briefing_generate_controls(key_prefix: str, model: str = None, compac
         key_prefix: 控件 key 前缀，三处必须不同（如 "sb" / "quick" / "bf"）
         model: 已选定的模型；为 None 时本控件内提供一个紧凑选择器
         compact: 侧边栏宽度下用紧凑统计（caption），否则用 metrics 四宫格
+        top: 置顶主操作模式。True 时类目多选 + 推送开关 + 生成按钮横向同一行，
+             模型选择收进「高级」expander；False 时保持原纵向块布局
     """
     cat_options = _category_options()
+
+    if top:
+        # 置顶主操作：类目（占宽）+ 推送 + 生成按钮 同一行
+        col_cat, col_push, col_btn = st.columns([5, 1, 1.2])
+        with col_cat:
+            selected_cats = st.multiselect(
+                get_text("select_categories"),
+                options=list(cat_options.keys()),
+                default=list(cat_options.keys()),
+                format_func=lambda c: cat_options[c],
+                key=f"{key_prefix}_cats",
+                label_visibility="collapsed",
+            )
+        with col_push:
+            push_enabled = st.checkbox(
+                get_text("generate_push_enabled"),
+                value=True,
+                key=f"{key_prefix}_push",
+                label_visibility="collapsed",
+            )
+        with col_btn:
+            if st.button(get_text("generate_briefing"), key=f"{key_prefix}_btn", use_container_width=True, type="primary"):
+                _run_pipeline(key_prefix, model, selected_cats, push_enabled)
+
+        # 模型选择收进高级折叠区，默认不展示
+        with st.expander(get_text("briefing_advanced"), expanded=False):
+            if model is None:
+                model_options = get_model_choices()
+                default_model = "qwen2.5:7b" if "qwen2.5:7b" in model_options else (model_options[0] if model_options else "gpt-4o")
+                idx = model_options.index(default_model) if default_model in model_options else 0
+                model = st.selectbox(get_text("llm_model"), model_options, index=idx, key=f"{key_prefix}_model")
+
+        _render_stats(key_prefix, compact)
+        return
+
     selected_cats = st.multiselect(
         get_text("select_categories"),
         options=list(cat_options.keys()),
