@@ -69,7 +69,7 @@
 
 ### 1.2 软件功能定位
 
-IntelNexus是一款面向全领域用户的智能网络情报分析平台，通过集成本地运行的大语言模型（Ollama LLM）为用户提供多源同步搜索服务，同时从网页、新闻等多个来源获取信息，自动抓取目标网页的完整内容，利用大语言模型理解内容语义生成结构化摘要，支持Markdown、PDF、Word、Excel四种报告格式导出，灵活选择本地Ollama模型或多种云端API，并支持中英文界面和跨语言搜索。一句话概括：IntelNexus是一款基于大语言模型技术的智能网络情报分析平台，为用户提供多源搜索、内容抓取、AI分析和多格式报告导出的一站式服务。
+IntelNexus是一款面向全领域用户的智能网络情报分析平台，通过集成本地运行的大语言模型（Ollama LLM）为用户提供多源同步搜索服务，同时从网页、新闻等多个来源获取信息，自动抓取目标网页的完整内容，利用大语言模型理解内容语义生成结构化摘要，支持Markdown、PDF、Word、Excel四种报告格式导出，并支持在界面添加自定义模型（本地 Ollama 与各类云端 API 均可），以及中英文界面和跨语言搜索。一句话概括：IntelNexus是一款基于大语言模型技术的智能网络情报分析平台，为用户提供多源搜索、内容抓取、AI分析和多格式报告导出的一站式服务。
 
 ### 1.3 运行环境
 
@@ -283,15 +283,14 @@ export --> storage
 
 **运行模型：**
 
-- 本地模型：qwen2.5:7b、llama2、mistral（通过Ollama本地运行）
-- 云端模型：OpenAI GPT-4o/GPT-3.5-turbo
-- 云端模型：Anthropic Claude 3系列
-- 云端模型：Google Gemini Pro
-- 云端模型：通义千问、智谱AI、文心一言、讯飞星火
+- 本地模型：qwen2.5:7b、llama2、mistral 等（通过 Ollama 本地运行，自动探测）
+- 自定义模型：在界面「添加自定义模型」中添加的任意模型（OpenAI / Anthropic / Google / 通义千问 / 智谱AI / 文心一言 / 讯飞星火 / OpenRouter 等），持久化保存，重启不丢失
+
+> 说明：系统不内置任何云端预设模型。模型下拉框只显示「本地 Ollama 自动探测到的模型」与「你添加的自定义模型」。
 
 **技术特点：**
 
-- 本地推理：无需云端API，保护隐私
+- 本地推理：默认使用本地 Ollama，保护隐私；也可按需添加云端 API 模型
 - 上下文窗口：支持长对话（视模型而定）
 - 温度参数：0.7（平衡创造性与可靠性）
 - 响应超时：30秒（防止长时间阻塞）
@@ -865,27 +864,25 @@ stop
 
 #### 3.6.1 功能概述
 
-自定义模型管理模块允许用户添加和管理自己喜好的大语言模型，包括本地模型和云端API。
+自定义模型管理模块允许用户添加和管理自己喜好的大语言模型，包括本地 Ollama 实例与各类云端 API。添加的模型持久化到 `data/custom_models.json`，重启项目不会丢失。
 
 **核心功能：**
 
-- 模型类型选择：支持多种模型供应商
-- API配置管理：安全存储API密钥
+- 模型类型选择：支持本地 Ollama 及多种云端供应商（OpenAI / Anthropic / Google / 通义千问 / 智谱AI / 文心一言 / 讯飞星火 / OpenRouter 等）
+- API配置管理：安全存储API密钥（加密保存）
 - 模型切换：快速在不同模型间切换
 - 默认模型设置：设置首选模型
 
-#### 3.6.2 支持的模型供应商
+#### 3.6.2 支持的自定义模型类型
 
 | 类型 | 供应商 | 说明 |
 |------|--------|------|
-| 本地 | Ollama | 本地运行的开源模型 |
-| 云端 | OpenAI | GPT-4o, GPT-3.5-turbo |
-| 云端 | Anthropic | Claude 3系列 |
-| 云端 | Google | Gemini Pro |
-| 云端 | 通义千问 | 阿里云 |
-| 云端 | 智谱AI | GLM系列 |
-| 云端 | 百度文心一言 | ERNIE系列 |
-| 云端 | 讯飞星火 | Spark系列 |
+| 本地 | Ollama | 本地运行的开源模型（需填写 Base URL，可选） |
+| 云端 | OpenAI | 自定义添加，需填写 Base URL、API 密钥、模型 ID |
+| 云端 | Anthropic | 自定义添加，需填写 API 密钥、模型 ID |
+| 云端 | Google | 自定义添加，需填写 API 密钥、模型 ID |
+| 云端 | 通义千问 / 智谱AI / 文心一言 / 讯飞星火 | 走 OpenAI 兼容接口自定义添加 |
+| 云端 | OpenRouter | 自定义添加，可访问多种第三方模型 |
 
 #### 3.6.3 业务流程图
 
@@ -1079,13 +1076,12 @@ stop
       {"name": "llama2", "provider": "ollama", "status": "ready"},
       {"name": "mistral", "provider": "ollama", "status": "not_downloaded"}
     ],
-    "cloud_models": [
-      {"name": "gpt-4o", "provider": "openai", "status": "configured"},
-      {"name": "claude-3-opus", "provider": "anthropic", "status": "not_configured"}
-    ],
+    "cloud_models": [],
     "custom_models": [
       {"name": "my-custom-model", "provider": "openai", "is_default": false}
     ]
+
+> 说明：`cloud_models` 始终为空数组——系统不内置任何云端预设模型；模型列表仅由 `local_models`（本地 Ollama 自动探测）与 `custom_models`（界面添加的自定义模型）组成。
   },
   "code": 200
 }
@@ -1228,12 +1224,14 @@ python --version
 ollama pull qwen2.5:7b    # 推荐的中英双语模型
 ```
 
-**第3步：获取API密钥（可选，用于云端AI模型）**
+**第3步：获取API密钥（可选，仅用于自定义云端模型）**
 
-若希望使用云端大模型（如GPT-4o、Claude等），需前往对应平台注册并获取API密钥：
+若希望在「添加自定义模型」中使用云端 API（如 OpenAI / Anthropic / Google 等类型），需前往对应平台注册并获取 API 密钥：
 - OpenAI: https://platform.openai.com/api-keys
 - Anthropic: https://console.anthropic.com/
 - Google: https://aistudio.google.com/
+
+> 仅使用本地 Ollama 模型时无需任何密钥，可跳过本步。
 
 #### 5.1.2 项目安装
 
@@ -1289,7 +1287,7 @@ python main.py search -q "人工智能最新发展趋势" -s all
 |------|------|------|--------|
 | `--query` | `-q` | 搜索关键词（必填） | 任意文本 |
 | `--search-mode` | `-s` | 搜索模式 | `all`（全部）/ `web`（网页）/ `news`（新闻）/ `darkweb`（暗网） |
-| `--model` | `-m` | AI模型 | 如 `qwen2.5:7b`、`gpt-4o` |
+| `--model` | `-m` | AI模型 | 如 `qwen2.5:7b`（本地 Ollama 或已添加的自定义模型名称） |
 | `--threads` | `-t` | 并发线程数 | 1-16，默认5 |
 | `--output` | `-o` | 输出文件名前缀 | 如 `my_report` |
 
@@ -1322,8 +1320,8 @@ python main.py --help
 #### 5.2.4 命令行高级用法
 
 ```bash
-# 使用云端GPT-4o模型，8线程搜索新闻
-python main.py search -q "cybersecurity threats 2026" -s news -m gpt-4o -t 8 -o cyber_threat_report
+# 使用本地 Ollama 模型（或已添加的自定义模型），8线程搜索新闻
+python main.py search -q "cybersecurity threats 2026" -s news -m qwen2.5:7b -t 8 -o cyber_threat_report
 
 # 仅搜索网页，指定输出文件名
 python main.py search -q "量子计算突破" -s web -o quantum_computing
@@ -1396,7 +1394,7 @@ python main.py ui
 
 **操作位置：** 侧边栏"设置"区域 → "AI模型"下拉框
 
-**操作步骤：** 点击下拉框，从列表中选择要使用的AI分析模型。列表包含本地Ollama模型（如 `qwen2.5:7b`）和云端模型（如 `gpt-4o`、`claude-sonnet-4-20250514` 等）。
+**操作步骤：** 点击下拉框，从列表中选择要使用的AI分析模型。列表仅包含本地 Ollama 自动探测到的模型（如 `qwen2.5:7b`）与你在「添加自定义模型」中添加的模型；系统不内置任何云端预设。
 
 ![图4：AI模型选择](./images/04_model_select.png)
 
@@ -1404,8 +1402,8 @@ python main.py ui
 
 **注意事项：**
 - 使用本地Ollama模型时，请确保Ollama服务已启动
-- 使用云端模型时，请确保已在 `.env` 文件中配置对应的API密钥
-- 默认选中 `qwen2.5:7b`（如在Ollama中可用），否则为首个可用模型
+- 使用自定义云端模型时，密钥在添加模型时一并填写，无需在 `.env` 中配置
+- 列表为空时会提示：请先启动本地 Ollama 或在下方「添加自定义模型」
 
 **（3）线程数设置**
 
@@ -1679,7 +1677,7 @@ python main.py ui
 
 ### 5.5 自定义AI模型管理
 
-IntelNexus支持用户添加自己喜好的大语言模型，包括本地Ollama实例和云端商业API。
+IntelNexus支持用户添加自己喜好的大语言模型，包括本地 Ollama 实例与各类云端商业 API。添加的模型持久化保存，重启项目不会丢失。
 
 #### 5.5.1 展开"添加自定义模型"面板
 
@@ -1785,7 +1783,9 @@ IntelNexus支持用户添加自己喜好的大语言模型，包括本地Ollama�
 | llama2:7b | 22.3秒 | 2600字 | 4.5GB | 良好 |
 | mistral:7b | 16.8秒 | 2700字 | 4.0GB | 一般 |
 
-#### 6.3.2 云端模型性能
+#### 6.3.2 自定义模型性能参考
+
+> 以下为常见云端模型的历史实测参考值（需通过「添加自定义模型」自行接入，系统不内置）。
 
 | 模型 | 平均生成时间 | 生成字数 | API延迟 | 响应质量 |
 |------|------------|---------|---------|---------|
@@ -1917,19 +1917,21 @@ CACHE_DIR=./data/cache
 
 ### A.2 API密钥配置
 
+> 以下密钥**仅当**你在「添加自定义模型」中选择对应云端类型、且未在该模型配置中填写密钥时作为兜底。系统不内置任何云端预设，纯本地 Ollama 使用无需此节。
+
 ```env
 # ===========================================
-# OpenAI API 配置
+# OpenAI API 配置（仅自定义模型兜底用）
 # ===========================================
 OPENAI_API_KEY=sk-your-openai-api-key-here
 
 # ===========================================
-# Anthropic Claude API 配置
+# Anthropic Claude API 配置（仅自定义模型兜底用）
 # ===========================================
 ANTHROPIC_API_KEY=sk-ant-your-anthropic-api-key-here
 
 # ===========================================
-# Google Gemini API 配置
+# Google Gemini API 配置（仅自定义模型兜底用）
 # ===========================================
 GOOGLE_API_KEY=your-google-api-key-here
 
@@ -2367,7 +2369,7 @@ A7: 有两种方式：
 1. 在Web界面侧边栏选择模型
 2. 命令行使用`-m`参数：
 ```bash
-python main.py search -q "AI趋势" -m gpt-4o
+python main.py search -q "AI趋势" -m qwen2.5:7b
 ```
 
 ### C.3 性能问题
@@ -2378,7 +2380,7 @@ A8: 优化建议：
 1. 减少`max_results`参数值
 2. 减少`max_workers`线程数
 3. 启用缓存避免重复搜索
-4. 使用本地模型替代云端API
+4. 使用本地 Ollama 模型替代自定义云端 API 模型
 5. 检查网络连接质量
 
 **Q9: 内存占用过高？**

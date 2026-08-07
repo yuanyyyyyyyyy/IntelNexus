@@ -12,7 +12,7 @@
 |------|------|
 | **多源搜索** | 同时搜索网页(Bing/DDG/Yahoo/Yandex/Baidu)、新闻和暗网 |
 | **AI智能分析** | LLM自动优化查询、筛选结果、生成专业报告 |
-| **本地+云端LLM** | 支持Ollama本地部署(GPT-4o/Claude/Gemini等云端模型) |
+| **本地+自定义LLM** | 支持Ollama本地部署与界面添加自定义模型，不内置任何云端预设 |
 | **多格式导出** | 一键导出Markdown/PDF/Word/Excel |
 | **暗网搜索** | 支持Ahmia(无需Tor) + OnionLink/TorDex(需Tor) + 自定义.onion站点 |
 | **Topic 中枢** | 搜索与简报共享的关注点注册表，驱动采集与推送的统一数据源 |
@@ -186,14 +186,12 @@ python main.py scheduler
 创建 `.env` 文件（参考 `.env.example`）：
 
 ```env
-# 本地Ollama (推荐)
+# 本地Ollama (推荐，必填)
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 
-# 云端模型 (可选)
-OPENAI_API_KEY=sk-xxx
-ANTHROPIC_API_KEY=sk-ant-xxx
-GOOGLE_API_KEY=xxx
-OPENROUTER_API_KEY=xxx
+# 自定义模型兜底密钥（可选，仅当界面添加的 OpenRouter/Google 类型模型未填密钥时使用）
+# GOOGLE_API_KEY=xxx
+# OPENROUTER_API_KEY=xxx
 
 # 暗网搜索 (可选)
 ENABLE_DARKWEB=false
@@ -209,11 +207,12 @@ SMTP_PASSWORD=your-password
 
 ## 支持的模型
 
-| 类型 | 示例 |
+> 不内置任何云端预设模型。模型下拉只显示「本地 Ollama 自动探测到的模型」与「你在界面添加的自定义模型」。
+
+| 类型 | 说明 / 示例 |
 |------|------|
-| 本地(Ollama) | qwen2.5:7b, llama3.2, deepseek-r1 |
-| 云端 | GPT-4o, Claude Sonnet, Gemini Flash |
-| OpenRouter | 各种免费模型 |
+| 本地(Ollama) | 自动探测：qwen2.5:7b, llama3.2, deepseek-r1 等 |
+| 自定义模型 | 在侧栏「添加自定义模型」中添加（OpenAI/Anthropic/Google/Ollama/OpenRouter 等），持久化到 data/custom_models.json，重启不丢失 |
 
 ---
 
