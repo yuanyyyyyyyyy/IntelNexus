@@ -163,3 +163,18 @@ def relevance_passes(result: dict, query) -> bool:
 
     threshold = 2 if len(tokens) >= 2 else len(tokens)
     return matched >= threshold
+
+
+# ========== 统一搜索源抽象（SearchSource） ==========
+# 新增：基类 / 模式常量 / 注册表 / 适配器包
+from shared.search.source import (  # noqa: E402,F401
+    BaseSearchSource,
+    CATEGORY_WEB, CATEGORY_NEWS, CATEGORY_DARKWEB, CATEGORY_CUSTOM,
+)
+from shared.search.modes import (  # noqa: E402,F401
+    SEARCH_MODES, MODE_DESCRIPTIONS, SEARCH_MODES_LABELS,
+    get_mode_categories, get_mode_description,
+)
+from shared.search.registry import SearchSourceRegistry  # noqa: E402,F401
+from shared.search import sources  # noqa: E402,F401
+

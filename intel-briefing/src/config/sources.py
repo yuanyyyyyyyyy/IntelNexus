@@ -58,7 +58,8 @@ def get_sources_by_type(source_type: str) -> List[Dict]:
     return all_sources.get(type_key, [])
 
 
-def add_source(source_type: str, name: str, url: str, category: str) -> bool:
+def add_source(source_type: str, name: str, url: str, category: str,
+               fetch_type: str = None) -> bool:
     """
     添加数据源
 
@@ -66,7 +67,9 @@ def add_source(source_type: str, name: str, url: str, category: str) -> bool:
         source_type: 数据源类型（rss或web）
         name: 数据源名称
         url: 数据源URL
-        category: 分类
+        category: 分类（简报业务类，如 ai_gov_usage；搜索源类别由 fetch_type 决定）
+        fetch_type: 抓取方式（rss / web_engine / onion）。为 None 时按 source_type 推断：
+                    rss -> rss，web -> web_engine。
 
     Returns:
         bool: 是否添加成功
@@ -80,6 +83,10 @@ def add_source(source_type: str, name: str, url: str, category: str) -> bool:
     if not data:
         data = {"subscription_sources": [], "custom_sources": []}
 
+    # fetch_type 推断：rss 源用 rss，web 源默认 web_engine
+    if fetch_type is None:
+        fetch_type = "rss" if source_type == "rss" else "web_engine"
+
     new_source = {
         "id": f"src_{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
         "name": name,
@@ -87,6 +94,7 @@ def add_source(source_type: str, name: str, url: str, category: str) -> bool:
         "type": source_type,
         "category": category,
         "enabled": True,
+        "fetch_type": fetch_type,
         "added_at": datetime.now().isoformat()
     }
 

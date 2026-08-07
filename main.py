@@ -34,45 +34,32 @@ set_config({
 
 import click
 from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from shared.logger import get_logger
 from shared.search.scraper import scrape_multiple
-from shared.search.web import get_web_results
-from shared.search.news import get_news_results
-from src.search.darkweb import get_darkweb_results, is_available as darkweb_available
+from shared.search.registry import SearchSourceRegistry
+from shared.search.modes import SEARCH_MODES_LABELS
+
+import config as app_config
 
 from shared.llm.core import get_llm, expand_query, generate_summary
 from shared.llm.utils import get_model_choices
 
 logger = get_logger(__name__)
 
-SEARCH_MODES = {
-    "web": "Web Search",
-    "news": "News Articles",
-    "darkweb": "Dark Web (Optional)",
-    "all": "All Sources"
-}
+# 向后兼容：CLI 回显用（值不变）
+SEARCH_MODES = SEARCH_MODES_LABELS
 
 
 def execute_search(mode, query, max_workers):
-    results = []
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = []
-        if mode in ["web", "all"]:
-            futures.append(executor.submit(get_web_results, query, max_workers, 20))
-        if mode in ["news", "all"]:
-            futures.append(executor.submit(get_news_results, query, 15, api_key=NEWS_API_KEY))
-        if mode in ["darkweb", "all"] and darkweb_available():
-            futures.append(executor.submit(get_darkweb_results, query, max_workers))
-        for future in as_completed(futures):
-            try:
-                source = future.result()
-                if source:
-                    results.extend(source)
-            except Exception as e:
-                logger.warning(f"Search error: {e}")
-    return results
+    """按 mode 遍历注册表并发检索（统一源抽象，无硬编码分支）。"""
+    registry = SearchSourceRegistry(
+        news_api_key=NEWS_API_KEY,
+        darkweb_advanced=app_config.ENABLE_DARKWEB,
+        tor_port=app_config.TOR_PROXY_PORT,
+        web_threads=max_workers,
+    )
+    return registry.collect(mode, query, max_results=20, threads=max_workers)
 
 
 @click.group()

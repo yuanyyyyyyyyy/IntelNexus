@@ -2,12 +2,9 @@ import os
 import html
 import streamlit as st
 from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor
 
 from shared.logger import get_logger
-from shared.search.web import get_web_results
-from shared.search.news import get_news_results
-from src.search.darkweb import get_darkweb_results, is_available as darkweb_available
+from shared.search.registry import SearchSourceRegistry
 from shared.search.scraper import scrape_multiple
 from shared.llm.core import get_llm, expand_query, expand_query_for_search, generate_summary
 from shared.llm.utils import BufferedStreamingHandler
@@ -23,30 +20,15 @@ logger = get_logger(__name__)
 
 @st.cache_data(ttl=200, show_spinner=False)
 def cached_search(mode, refined_query, threads, advanced_mode=False, tor_port=DEFAULT_TOR_PORT, ui_sites=None):
-    results = []
-    
-    with ThreadPoolExecutor(max_workers=threads) as executor:
-        futures = []
-        
-        if mode in ["web", "all"]:
-            futures.append(executor.submit(get_web_results, refined_query, threads, 25))
-        
-        if mode in ["news", "all"]:
-            futures.append(executor.submit(get_news_results, refined_query, 15, api_key=NEWS_API_KEY))
-        
-        if mode in ["darkweb", "all"]:
-            if darkweb_available():
-                futures.append(executor.submit(get_darkweb_results, refined_query, threads, advanced_mode, tor_port, ui_sites))
-            else:
-                logger.warning("暗网搜索已启用但Tor未连接或Ahmia不可用")
-        
-        for f in futures:
-            try:
-                results.extend(f.result())
-            except Exception as e:
-                logger.warning(f"Search error: {e}")
-    
-    return results
+    """按 mode 遍历注册表并发检索（统一源抽象，无硬编码分支）。"""
+    registry = SearchSourceRegistry(
+        news_api_key=NEWS_API_KEY,
+        darkweb_advanced=advanced_mode,
+        tor_port=tor_port,
+        ui_sites=ui_sites or [],
+        web_threads=threads,
+    )
+    return registry.collect(mode, refined_query, max_results=25, threads=threads)
 
 
 @st.cache_data(ttl=200, show_spinner=False)
