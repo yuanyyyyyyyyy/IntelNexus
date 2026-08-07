@@ -896,6 +896,43 @@ def render_workbench_css():
         opacity: 0.85;
     }
 
+    /* 可点击引导条：按钮叠加在卡片上方，卡片负 margin 贴合，禁用按钮视觉 */
+    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-step + div[data-testid="stButton"],
+    div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stButton"] > button {
+        margin-top: 0 !important;
+    }
+    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-step {
+        margin-top: -42px !important;
+    }
+    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-step[style*="margin-top"] {
+        border-top: 3px solid var(--wb-border);
+        cursor: pointer;
+    }
+
+    /* 可折叠配置区：tab 面板透明，避免双层卡片背景 */
+    div[role="tabpanel"]:has(.bf-workbench-scope) .stTabs [data-baseweb="tab-panel"] {
+        background: transparent !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+    /* tab 内 .bf-panel 收敛外边距与顶部彩色条，避免与 tab 重复 */
+    div[role="tabpanel"]:has(.bf-workbench-scope) .stTabs .bf-panel {
+        margin: 8px 0 0 0 !important;
+        border-top-width: 3px !important;
+    }
+
+    /* 配置区外层由 expander 改为 toggle + container，补区块间距与轻量边界 */
+    div[role="tabpanel"]:has(.bf-workbench-scope) > div[data-testid="stVerticalBlock"] > div[data-testid="stToggle"] {
+        margin-top: 18px !important;
+    }
+    div[role="tabpanel"]:has(.bf-workbench-scope) .stContainer {
+        border: 1px solid var(--wb-border);
+        border-radius: 8px;
+        padding: 14px 16px 4px 16px;
+        margin-top: 6px;
+        background: var(--wb-surface);
+    }
+
     /* Section label with tag + title */
     .bf-label {
         display: flex;
