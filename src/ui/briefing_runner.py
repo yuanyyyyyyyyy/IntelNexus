@@ -11,13 +11,13 @@
 import streamlit as st
 
 from ai_briefing.pipeline import run_briefing_pipeline
-from ai_briefing.config import WATCH_CATEGORIES
+from ai_briefing.config import get_all_categories
 from src.ui.i18n import get_text
 from shared.llm.utils import get_model_choices
 
 
 def _category_options() -> dict:
-    return {cid: cfg.get("name", cid) for cid, cfg in WATCH_CATEGORIES.items()}
+    return {cid: cfg.get("name", cid) for cid, cfg in get_all_categories().items()}
 
 
 def render_briefing_generate_controls(key_prefix: str, model: str = None, compact: bool = False):

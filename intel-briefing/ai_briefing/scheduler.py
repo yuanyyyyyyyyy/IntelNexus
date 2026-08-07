@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 from datetime import datetime
 import threading
 
-from ai_briefing.config import WATCH_CATEGORIES, BRIEFING_CONFIG
+from ai_briefing.config import get_all_categories, BRIEFING_CONFIG
 from ai_briefing.collector import AIBriefingCollector
 from ai_briefing.analyzer import AIBriefingAnalyzer
 from ai_briefing.notifier import AIBriefingNotifier
@@ -149,12 +149,13 @@ class AIBriefingScheduler:
                 logger.info(f"Executing briefing for {subscriber.get('name', subscriber_id)}")
                 
                 # 1. 获取订阅者关注的类别
-                categories = subscriber.get("categories", list(WATCH_CATEGORIES.keys()))
+                all_cats = get_all_categories()
+                categories = subscriber.get("categories", list(all_cats.keys()))
                 
                 # 2. 采集数据
                 collected_data = {}
                 for category in categories:
-                    if category in WATCH_CATEGORIES:
+                    if category in all_cats:
                         collected_data[category] = self.collector.collect_for_category(category)
                 
                 # 3. 生成简报

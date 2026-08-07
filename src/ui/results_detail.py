@@ -1,5 +1,30 @@
 import streamlit as st
 from src.ui.i18n import get_text
+from src.config.briefing_drafts import add_draft, get_drafts
+
+
+def _render_collect_button(item: dict, key_suffix: str):
+    """为单条搜索结果渲染「收藏到简报」按钮（去重：已收藏则提示）。"""
+    url = item.get("url") or item.get("link", "")
+    if not url:
+        return
+    drafts = get_drafts()
+    already = any(d.get("url") == url for d in drafts)
+    label = get_text("collected") if already else get_text("collect_to_briefing")
+    if st.button(label, key=f"collect_{key_suffix}", disabled=already,
+                 help=get_text("collect_help")):
+        ok = add_draft({
+            "title": item.get("title", ""),
+            "url": url,
+            "content": item.get("content", item.get("description", "")),
+            "description": item.get("description", ""),
+            "source": item.get("source", "Unknown"),
+        })
+        if ok:
+            st.toast(get_text("collect_ok"))
+        else:
+            st.toast(get_text("collect_dup"))
+        st.rerun()
 
 
 def render_results_detail():
@@ -63,4 +88,6 @@ def render_results_detail():
                 if item.get('link') or item.get('url'):
                     link = item.get('link') or item.get('url')
                     st.markdown(get_text("view_original").format(link=link))
+                # 收藏到简报草稿（搜→报飞轮闭环）
+                _render_collect_button(item, f"{start_idx}_{i}")
                 st.markdown("---")

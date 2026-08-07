@@ -91,6 +91,14 @@ def render_morandi_theme_css():
         margin-top: 4px;
     }
 
+    .main-guidance {
+        font-size: 13px;
+        font-weight: 400;
+        color: var(--morandi-text-light);
+        margin-top: 6px;
+        opacity: 0.85;
+    }
+
     .search-input input {
         border-radius: 14px !important;
         border: 1px solid var(--morandi-border) !important;
@@ -602,6 +610,10 @@ def render_morandi_theme_css():
         border-left-color: var(--wb-tag-gen);
     }
 
+    .bf-panel.bf-panel--cat {
+        border-left-color: var(--wb-tag-cat);
+    }
+
     /* Onboarding 3-step bar */
     .bf-step {
         background: var(--wb-card);
@@ -764,6 +776,7 @@ def render_workbench_css():
         --wb-tag-source: #0969DA;
         --wb-tag-sub: #1A7F37;
         --wb-tag-gen: #0E8A8A;
+        --wb-tag-cat: #8250DF;
         --wb-hover: #F6F8FA;
         background: var(--wb-surface) !important;
         padding: 16px 20px;
