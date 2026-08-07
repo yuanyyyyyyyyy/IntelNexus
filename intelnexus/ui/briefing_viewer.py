@@ -151,7 +151,7 @@ def render_briefing_history():
     st.markdown(f'<div class="bf-output"><div class="bf-output__header">{get_text("briefing_history")}</div>', unsafe_allow_html=True)
 
     if not history:
-        st.info(get_text("briefing_history_empty"))
+        st.markdown(f"<p class='bf-hint'>{get_text('briefing_history_empty')}</p>", unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
         return
 
@@ -216,7 +216,7 @@ def render_data_sources_panel():
         SOURCES_AVAILABLE = False
 
     if not SOURCES_AVAILABLE:
-        st.warning(get_text("module_unavailable"))
+        st.markdown(f"<p class='bf-hint bf-hint--warn'>{get_text('module_unavailable')}</p>", unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
         return
 
@@ -273,7 +273,10 @@ def render_data_sources_panel():
                         if remove_source(source['id']):
                             st.rerun()
     else:
-        st.info(f"{get_text('no_sources')} —— {get_text('welcome_step_sources_desc')}")
+        st.markdown(
+            f"<p class='bf-hint'>{get_text('no_sources')} —— {get_text('welcome_step_sources_desc')}</p>",
+            unsafe_allow_html=True
+        )
 
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -295,7 +298,7 @@ def render_subscriptions_panel():
         SUBSCRIPTION_AVAILABLE = False
 
     if not SUBSCRIPTION_AVAILABLE:
-        st.warning(get_text("module_unavailable"))
+        st.markdown(f"<p class='bf-hint bf-hint--warn'>{get_text('module_unavailable')}</p>", unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
         return
 
@@ -452,7 +455,10 @@ def render_subscriptions_panel():
                         f"- {get_text('watch_categories')}: {', '.join(cats) if cats else '—'}"
                     )
     else:
-        st.info(f"{get_text('no_subscribers')} —— {get_text('welcome_step_subscribers_desc')}")
+        st.markdown(
+            f"<p class='bf-hint'>{get_text('no_subscribers')} —— {get_text('welcome_step_subscribers_desc')}</p>",
+            unsafe_allow_html=True
+        )
 
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -476,7 +482,7 @@ def render_watch_categories_panel():
         CAT_AVAILABLE = False
 
     if not CAT_AVAILABLE:
-        st.warning(get_text("module_unavailable"))
+        st.markdown(f"<p class='bf-hint bf-hint--warn'>{get_text('module_unavailable')}</p>", unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
         return
 
@@ -523,7 +529,10 @@ def render_watch_categories_panel():
                             st.success(get_text("watch_category_deleted"))
                             st.rerun()
     else:
-        st.info(get_text("no_watch_categories"))
+        st.markdown(
+            f"<p class='bf-hint'>{get_text('no_watch_categories')}</p>",
+            unsafe_allow_html=True
+        )
 
     st.markdown('</div>', unsafe_allow_html=True)
 

@@ -991,13 +991,15 @@ def render_workbench_css():
         padding-bottom: 0;
         border-bottom: none;
     }
-    /* 标题头与首个 expander 之间拉开间距，整块视觉为「一张卡片」 */
-    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-panel > .bf-label + [data-testid="stExpander"],
-    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-panel > .bf-label + div [data-testid="stExpander"] {
-        margin-top: 14px;
-    }
+    /* 标题头与首个内部分区之间保留自然间距，避免内容紧贴标题 */
     div[role="tabpanel"]:has(.bf-workbench-scope) .bf-panel > .bf-label {
-        margin-bottom: 4px;
+        margin-bottom: 20px;
+    }
+    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-panel > .bf-label + [data-testid="stExpander"],
+    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-panel > .bf-label + div [data-testid="stExpander"],
+    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-panel > .bf-label + div [data-testid="stAlertContainer"],
+    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-panel > .bf-label + div .stAlert {
+        margin-top: 0 !important;
     }
 
     .bf-label__tag {
@@ -1038,6 +1040,16 @@ def render_workbench_css():
         transform: none !important;
     }
 
+    /* 通用确认/操作按钮：收紧尺寸，避免「添加数据源」「保存」「删除」等过大 */
+    div[role="tabpanel"]:has(.bf-workbench-scope) div[data-testid="stButton"] > button[kind="secondary"],
+    div[role="tabpanel"]:has(.bf-workbench-scope) div[data-testid="stButton"] > button:not([kind="primary"]):not([kind="secondary"]) {
+        padding: 6px 14px !important;
+        min-height: 32px !important;
+        font-size: 13px !important;
+        font-weight: 500 !important;
+        border-radius: 6px !important;
+    }
+
     /* Output area */
     .bf-output {
         background: var(--wb-card);
@@ -1058,6 +1070,20 @@ def render_workbench_css():
         margin-bottom: 14px;
         padding-bottom: 10px;
         border-bottom: 1px solid #E2DDD5;
+    }
+
+    /* Light inline hint used for empty-state / module-unavailable messages
+       inside cards — reads as part of the card, not a separate alert block */
+    .bf-hint {
+        margin: 4px 0 !important;
+        padding: 6px 0 6px 12px !important;
+        border-left: 3px solid var(--wb-border);
+        color: var(--wb-text-secondary);
+        font-size: 13px;
+        line-height: 1.5;
+    }
+    .bf-hint--warn {
+        border-left-color: #C99A2E;
     }
 
     /* Override expander styling in workbench:
@@ -1110,6 +1136,39 @@ def render_workbench_css():
     /* give the expander body a little breathing room */
     .bf-panel [data-testid="stExpander"] [data-testid="stExpanderDetails"] {
         padding: 4px 4px 8px 4px !important;
+    }
+
+    /* Flatten st.info / st.warning inside the card: keep them as inline
+       light hints (left color bar only) instead of standalone alert blocks */
+    .bf-panel .stAlert,
+    .bf-panel [data-testid="stAlertContainer"],
+    .bf-panel [data-testid="stAlertContainer"] > div,
+    .bf-panel [data-baseweb="notification"] {
+        background: transparent !important;
+        border: none !important;
+        border-left: 3px solid var(--wb-border) !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        padding: 6px 0 6px 12px !important;
+        margin: 4px 0 !important;
+    }
+    .bf-panel .stAlert[data-baseweb="notification"][kind="info"] {
+        border-left-color: var(--wb-tag-source) !important;
+    }
+    .bf-panel .stAlert[data-baseweb="notification"][kind="warning"] {
+        border-left-color: #C99A2E !important;
+    }
+    .bf-panel .stAlert [data-testid="stMarkdownContainer"],
+    .bf-panel [data-testid="stAlertContainer"] [data-testid="stMarkdownContainer"] {
+        color: var(--wb-text-secondary) !important;
+        font-size: 13px !important;
+        line-height: 1.5 !important;
+    }
+    /* mute the icon so it doesn't read as a separate colored chip */
+    .bf-panel .stAlert [data-testid="stIcon"],
+    .bf-panel [data-testid="stAlertContainer"] [data-testid="stIcon"] {
+        color: var(--wb-text-secondary) !important;
+        opacity: 0.7 !important;
     }
 
     /* Clean up old briefing styles inside workbench */
