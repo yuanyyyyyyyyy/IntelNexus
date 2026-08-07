@@ -768,7 +768,7 @@ def render_morandi_theme_css():
 
 
 def render_workbench_css():
-    """Workbench theme for Briefing Center tab (cold-gray industrial style)."""
+    """Workbench theme for Briefing Center tab (Morandi soft palette)."""
     st.markdown("""
 <style>
     /* 隐藏定位标记 */
@@ -778,17 +778,17 @@ def render_workbench_css():
 
     /* 通过 :has() 将 workbench 样式限定到包含标记的简报 Tab panel */
     div[role="tabpanel"]:has(.bf-workbench-scope) {
-        --wb-surface: #F4F5F7;
+        --wb-surface: #FFFFFF;
         --wb-card: #FFFFFF;
-        --wb-text-primary: #111827;
-        --wb-text-secondary: #6B7280;
-        --wb-accent: #0366D6;
-        --wb-border: #D1D5DB;
-        --wb-tag-source: #0969DA;
-        --wb-tag-sub: #1A7F37;
-        --wb-tag-gen: #0E8A8A;
-        --wb-tag-cat: #8250DF;
-        --wb-hover: #F6F8FA;
+        --wb-text-primary: #4A4540;
+        --wb-text-secondary: #8C857D;
+        --wb-accent: #A3A89B;
+        --wb-border: #E2DDD5;
+        --wb-tag-source: #A7B0AE;
+        --wb-tag-sub: #A9B59A;
+        --wb-tag-gen: #A6B2BC;
+        --wb-tag-cat: #B7A6B0;
+        --wb-hover: #ECE7DF;
         background: var(--wb-surface) !important;
         padding: 0 20px 16px 20px !important;
     }
@@ -817,32 +817,35 @@ def render_workbench_css():
     .bf-panel {
         background: var(--wb-card);
         border: 1px solid var(--wb-border);
-        border-left: 4px solid var(--wb-tag-source);
-        border-radius: 6px;
+        border-top: 3px solid var(--wb-tag-source);
+        border-radius: 8px;
         padding: 20px 24px;
         margin: 12px 0;
-        transition: border-color 0.15s ease;
+        box-shadow: 0 1px 3px rgba(90,80,70,0.05);
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
 
     .bf-panel:hover {
-        border-color: #B0B7C3;
+        border-color: #D2CABC;
+        box-shadow: 0 2px 8px rgba(90,80,70,0.10);
     }
 
-    .bf-panel.bf-panel--source { border-left-color: var(--wb-tag-source); }
-    .bf-panel.bf-panel--sub { border-left-color: var(--wb-tag-sub); }
-    .bf-panel.bf-panel--gen { border-left-color: var(--wb-tag-gen); }
-    .bf-panel.bf-panel--cat { border-left-color: var(--wb-tag-cat); }
+    .bf-panel.bf-panel--source { border-top-color: var(--wb-tag-source); }
+    .bf-panel.bf-panel--sub { border-top-color: var(--wb-tag-sub); }
+    .bf-panel.bf-panel--gen { border-top-color: var(--wb-tag-gen); }
+    .bf-panel.bf-panel--cat { border-top-color: var(--wb-tag-cat); }
 
     /* Onboarding 3-step bar */
     .bf-step {
         background: var(--wb-card);
         border: 1px solid var(--wb-border);
-        border-left: 3px solid var(--wb-border);
-        border-radius: 6px;
+        border-top: 3px solid var(--wb-border);
+        border-radius: 8px;
         padding: 12px 14px;
         height: 100%;
         min-height: 84px;
-        transition: border-color 0.15s ease, background 0.15s ease;
+        box-shadow: 0 1px 2px rgba(90,80,70,0.04);
+        transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
     }
     .bf-step__head {
         font-size: 13px;
@@ -862,7 +865,7 @@ def render_workbench_css():
         font-size: 11px;
         font-weight: 700;
         flex-shrink: 0;
-        background: #EAECEF;
+        background: #DED8CE;
         color: var(--wb-text-secondary);
     }
     .bf-step__desc {
@@ -873,23 +876,23 @@ def render_workbench_css():
     }
     /* State variants */
     .bf-step--done {
-        border-left-color: var(--wb-tag-sub);
-        background: #F4FBF5;
+        border-top-color: var(--wb-tag-sub);
+        background: #EBF0E4;
     }
     .bf-step--done .bf-step__index {
         background: var(--wb-tag-sub);
         color: #FFFFFF;
     }
     .bf-step--current {
-        border-left-color: var(--wb-accent);
-        background: #F0F6FF;
+        border-top-color: var(--wb-accent);
+        background: #E8ECEE;
     }
     .bf-step--current .bf-step__index {
         background: var(--wb-accent);
         color: #FFFFFF;
     }
     .bf-step--pending {
-        border-left-color: var(--wb-border);
+        border-top-color: var(--wb-border);
         opacity: 0.85;
     }
 
@@ -900,7 +903,7 @@ def render_workbench_css():
         gap: 10px;
         margin-bottom: 16px;
         padding-bottom: 12px;
-        border-bottom: 1px solid #EBEEF2;
+        border-bottom: 1px solid #E2DDD5;
     }
 
     .bf-label__tag {
@@ -909,7 +912,7 @@ def render_workbench_css():
         text-transform: uppercase;
         letter-spacing: 0.08em;
         color: var(--wb-text-secondary);
-        background: #F0F2F5;
+        background: #E6E0D8;
         padding: 3px 8px;
         border-radius: 3px;
         flex-shrink: 0;
@@ -937,7 +940,7 @@ def render_workbench_css():
     }
 
     .bf-generate-btn-wrapper div[data-testid="stButton"] > button:hover {
-        background: #0550AE !important;
+        background: #8E938A !important;
         transform: none !important;
     }
 
@@ -945,9 +948,11 @@ def render_workbench_css():
     .bf-output {
         background: var(--wb-card);
         border: 1px solid var(--wb-border);
-        border-radius: 6px;
+        border-top: 3px solid var(--wb-accent);
+        border-radius: 8px;
         padding: 20px 24px;
         margin: 12px 0;
+        box-shadow: 0 1px 3px rgba(90,80,70,0.05);
     }
 
     .bf-output__header {
@@ -958,7 +963,7 @@ def render_workbench_css():
         letter-spacing: 0.06em;
         margin-bottom: 14px;
         padding-bottom: 10px;
-        border-bottom: 1px solid #EBEEF2;
+        border-bottom: 1px solid #E2DDD5;
     }
 
     /* Override expander styling in workbench */
