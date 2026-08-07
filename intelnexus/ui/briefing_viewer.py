@@ -627,28 +627,26 @@ def _render_onboarding():
         else:
             state_class = "bf-step--pending"
             icon = str(i + 1)
-        label = f'<span class="bf-step__index">{icon}</span> {title}'
+        label = f"{icon}  {title}"
         with cols[i]:
-            # 用透明按钮覆盖整张卡片，实现「可点击引导条」
+            # 隐藏 marker：携带状态类，供 CSS 经 :has() 给本列 button 上色
+            st.markdown(
+                f'<div class="bf-step-marker {state_class}" style="display:none"></div>',
+                unsafe_allow_html=True,
+            )
+            # 按钮即卡片：label 渲染序号+标题，help 作为唯一悬停提示
             if st.button(
-                " ",
+                label,
                 key=f"bf_step_{tab_key or 'gen'}",
                 use_container_width=True,
                 help=desc,
+                type="secondary",
             ):
                 if tab_key:
                     st.session_state.bf_expand_settings = True
                     st.session_state.bf_active_tab = tab_key
                     st.session_state.bf_switch_tab = tab_key
                     st.rerun()
-            # 渲染视觉卡片（按钮在上方，此处仅展示文本，靠负 margin 贴合）
-            st.markdown(
-                f'<div class="bf-step {state_class}" style="margin-top:-46px;pointer-events:none;">'
-                f'<div class="bf-step__head">{label}</div>'
-                f'<div class="bf-step__desc">{desc}</div>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
 
 
 def render_briefing_center():

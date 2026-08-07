@@ -896,17 +896,66 @@ def render_workbench_css():
         opacity: 0.85;
     }
 
-    /* 可点击引导条：按钮叠加在卡片上方，卡片负 margin 贴合，禁用按钮视觉 */
-    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-step + div[data-testid="stButton"],
-    div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stButton"] > button {
-        margin-top: 0 !important;
-    }
-    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-step {
-        margin-top: -42px !important;
-    }
-    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-step[style*="margin-top"] {
+    /* 引导条：st.button 即卡片（去掉透明叠加层，help 作唯一悬停提示）
+       本列含隐藏 marker(.bf-step-marker.状态)，经 :has() 给同列 button 上卡片样式 */
+    div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker) [data-testid="stButton"] > button {
+        width: 100%;
+        text-align: left;
+        justify-content: flex-start;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid var(--wb-border);
         border-top: 3px solid var(--wb-border);
-        cursor: pointer;
+        border-radius: 8px;
+        padding: 12px 14px;
+        min-height: 84px;
+        background: var(--wb-card);
+        box-shadow: 0 1px 2px rgba(90,80,70,0.04);
+        transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--wb-text-primary);
+        display: flex;
+    }
+    div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker) [data-testid="stButton"] > button:hover {
+        box-shadow: 0 2px 8px rgba(90,80,70,0.12);
+    }
+    div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker) [data-testid="stButton"] > button .bf-step__index {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        font-size: 11px;
+        font-weight: 700;
+        flex-shrink: 0;
+        background: #DED8CE;
+        color: var(--wb-text-secondary);
+    }
+    div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker) [data-testid="stButton"] > button .bf-step__title {
+        line-height: 1.4;
+    }
+    /* 三态配色（边框顶部色条 + 背景） */
+    div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker.bf-step--done) [data-testid="stButton"] > button {
+        border-top-color: var(--wb-tag-sub);
+        background: #EBF0E4;
+    }
+    div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker.bf-step--done) [data-testid="stButton"] > button .bf-step__index {
+        background: var(--wb-tag-sub);
+        color: #FFFFFF;
+    }
+    div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker.bf-step--current) [data-testid="stButton"] > button {
+        border-top-color: var(--wb-accent);
+        background: #E8ECEE;
+    }
+    div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker.bf-step--current) [data-testid="stButton"] > button .bf-step__index {
+        background: var(--wb-accent);
+        color: #FFFFFF;
+    }
+    div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker.bf-step--pending) [data-testid="stButton"] > button {
+        border-top-color: var(--wb-border);
+        opacity: 0.85;
     }
 
     /* 可折叠配置区：tab 面板透明，避免双层卡片背景 */
@@ -933,14 +982,22 @@ def render_workbench_css():
         background: var(--wb-surface);
     }
 
-    /* Section label with tag + title */
-    .bf-label {
+    /* Section label as card header (merged into .bf-panel, no separate divider) */
+    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-panel > .bf-label {
         display: flex;
         align-items: center;
         gap: 10px;
-        margin-bottom: 16px;
-        padding-bottom: 12px;
-        border-bottom: 1px solid #E2DDD5;
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+    }
+    /* 标题头与首个 expander 之间拉开间距，整块视觉为「一张卡片」 */
+    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-panel > .bf-label + [data-testid="stExpander"],
+    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-panel > .bf-label + div [data-testid="stExpander"] {
+        margin-top: 14px;
+    }
+    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-panel > .bf-label {
+        margin-bottom: 4px;
     }
 
     .bf-label__tag {
@@ -1003,16 +1060,56 @@ def render_workbench_css():
         border-bottom: 1px solid #E2DDD5;
     }
 
-    /* Override expander styling in workbench */
+    /* Override expander styling in workbench:
+       make expanders look like inner sections of ONE card, not separate cards */
     .bf-panel [data-testid="stExpander"] {
         border: none !important;
         background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    /* the inner <details> still draws its own border/background — kill it */
+    .bf-panel [data-testid="stExpander"] details,
+    .bf-panel [data-testid="stExpander"] > div {
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    /* summary row: a plain inner heading, no hover card */
+    .bf-panel [data-testid="stExpander"] summary {
+        border: none !important;
+        background: transparent !important;
+        border-radius: 0 !important;
+        padding: 8px 4px !important;
+        font-size: 13px !important;
+        font-weight: 600 !important;
+        color: var(--wb-text-primary) !important;
+    }
+    .bf-panel [data-testid="stExpander"] summary:hover {
+        background: transparent !important;
+    }
+    .bf-panel [data-testid="stExpander"] summary p {
+        font-weight: 600 !important;
+        color: var(--wb-text-primary) !important;
     }
 
     .bf-panel [data-testid="stExpanderToggle"] {
         font-size: 13px !important;
-        font-weight: 500 !important;
+        font-weight: 600 !important;
         color: var(--wb-text-primary) !important;
+    }
+
+    /* thin divider between consecutive expander sections inside the card */
+    .bf-panel [data-testid="stExpander"] + [data-testid="stExpander"] {
+        border-top: 1px solid var(--wb-border) !important;
+        margin-top: 4px !important;
+        padding-top: 4px !important;
+    }
+
+    /* give the expander body a little breathing room */
+    .bf-panel [data-testid="stExpander"] [data-testid="stExpanderDetails"] {
+        padding: 4px 4px 8px 4px !important;
     }
 
     /* Clean up old briefing styles inside workbench */
