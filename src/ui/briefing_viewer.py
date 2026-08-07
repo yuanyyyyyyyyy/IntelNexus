@@ -353,7 +353,8 @@ def render_subscriptions_panel():
                         if remove_subscriber(sub['id']):
                             st.rerun()
 
-                with st.expander(get_text("view_details"), key=f"bf_details_{sub['id']}"):
+                with st.container():
+                    st.caption(get_text("view_details"))
                     st.json(sub)
     else:
         st.info(get_text("no_subscribers"))
