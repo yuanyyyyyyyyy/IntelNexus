@@ -60,3 +60,18 @@ test_*.py
 
 # Streamlit
 .streamlit/
+
+# AI tooling / IDE caches
+.codebuddy/
+.opencode/
+
+# Test & type-check caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
+.cache/
+.ipynb_checkpoints/
