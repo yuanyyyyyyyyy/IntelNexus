@@ -1,7 +1,7 @@
 """UserSource：rss / web_engine / onion 三种抓取方式与代理收口。"""
 from unittest.mock import MagicMock, patch
 
-from shared.search.sources.user_source import UserSource
+from intelnexus.core.search.sources.user_source import UserSource
 
 
 def _resp(text, status=200):

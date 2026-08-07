@@ -1,8 +1,8 @@
 """SearchSourceRegistry：注册、按 mode 查询、collect 跨源去重。"""
 from unittest.mock import patch
 
-from shared.search.registry import SearchSourceRegistry
-from shared.search.modes import SEARCH_MODES
+from intelnexus.core.search.registry import SearchSourceRegistry
+from intelnexus.core.search.modes import SEARCH_MODES
 
 
 def _make_registry():

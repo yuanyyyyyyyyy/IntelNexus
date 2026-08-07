@@ -1,7 +1,7 @@
 """Tests for query refinement and expansion logic."""
 
 import pytest
-from shared.llm.core import expand_query, expand_query_for_search
+from intelnexus.core.llm.core import expand_query, expand_query_for_search
 
 
 class TestRefineQuery:

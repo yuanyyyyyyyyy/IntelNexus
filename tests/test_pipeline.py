@@ -61,7 +61,7 @@ class TestQueryRefinementPipeline:
 
     def test_refine_then_expand(self):
         """expand_query output should feed correctly into expand_query_for_search."""
-        from shared.llm.core import expand_query, expand_query_for_search
+        from intelnexus.core.llm.core import expand_query, expand_query_for_search
 
         variants = expand_query("人工智能")
         assert isinstance(variants, list)
@@ -74,7 +74,7 @@ class TestQueryRefinementPipeline:
 
     def test_single_query_expand(self):
         """Short query should pass through refine and expand correctly."""
-        from shared.llm.core import expand_query, expand_query_for_search
+        from intelnexus.core.llm.core import expand_query, expand_query_for_search
 
         variants = expand_query("AI")
         expanded = expand_query_for_search(variants)
@@ -195,7 +195,7 @@ class TestScrapeToCredibilityPipeline:
                 return np.array(result)
 
         with patch("src.analysis.credibility.load_sentence_model", return_value=MockModel()):
-            from src.analysis.credibility import SourceScorer
+            from intelnexus.analysis.credibility import SourceScorer
             scorer = SourceScorer()
             results = scorer.evaluate(sample_search_results, sample_scraped_content)
             assert all("credibility_score" in r for r in results)
@@ -216,7 +216,7 @@ class TestScrapeToCredibilityPipeline:
                 return np.array(result)
 
         with patch("src.analysis.evidence_tracer.load_sentence_model", return_value=MockModel()):
-            from src.analysis.evidence_tracer import EvidenceTracer
+            from intelnexus.analysis.evidence_tracer import EvidenceTracer
             tracer = EvidenceTracer()
             result = tracer.trace(sample_report, sample_scraped_content)
             assert "claims" in result
@@ -231,7 +231,7 @@ class TestGenerateSummary:
 
     def test_generate_summary_returns_string(self):
         """generate_summary should return a string."""
-        from shared.llm.core import generate_summary
+        from intelnexus.core.llm.core import generate_summary
 
         mock_llm = MagicMock()
 
@@ -255,7 +255,7 @@ class TestGenerateSummary:
 
     def test_error_handling_timeout(self):
         """generate_summary should handle timeout errors gracefully."""
-        from shared.llm.core import generate_summary
+        from intelnexus.core.llm.core import generate_summary
 
         mock_llm = MagicMock()
 
@@ -318,7 +318,7 @@ class TestFullPipelineIntegration:
         self, mock_llm, mock_web, mock_news, mock_scrape, mock_summary, tmp_path
     ):
         """Each stage should produce correct data types."""
-        from shared.llm.core import expand_query, expand_query_for_search
+        from intelnexus.core.llm.core import expand_query, expand_query_for_search
 
         # Stage 1: Expand query
         variants = expand_query("AI regulation")

@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
-from shared.search.source import (
+from intelnexus.core.search.source import (
     BaseSearchSource, CATEGORY_WEB, CATEGORY_NEWS, CATEGORY_DARKWEB, CATEGORY_CUSTOM,
 )
 

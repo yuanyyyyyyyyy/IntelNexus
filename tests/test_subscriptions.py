@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from src.config import subscriptions as subs
+from intelnexus.config import subscriptions as subs
 
 
 @pytest.fixture

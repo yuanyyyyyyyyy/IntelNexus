@@ -32,14 +32,14 @@ def mock_model():
 @pytest.fixture
 def scorer(mock_model):
     with patch("src.analysis.credibility.load_sentence_model", return_value=mock_model):
-        from src.analysis.credibility import SourceScorer
+        from intelnexus.analysis.credibility import SourceScorer
         return SourceScorer()
 
 
 @pytest.fixture
 def consistency_analyzer(mock_model):
     with patch("src.analysis.credibility.load_sentence_model", return_value=mock_model):
-        from src.analysis.credibility import ConsistencyAnalyzer
+        from intelnexus.analysis.credibility import ConsistencyAnalyzer
         return ConsistencyAnalyzer()
 
 
@@ -158,7 +158,7 @@ class TestConflictDetector:
 
     def test_no_conflict_similar_texts(self):
         """Similar texts should produce no conflicts."""
-        from src.analysis.credibility import ConflictDetector
+        from intelnexus.analysis.credibility import ConflictDetector
         detector = ConflictDetector()
         results = [
             {"title": "t1", "link": "u1", "source": "S1"},
@@ -174,7 +174,7 @@ class TestConflictDetector:
 
     def test_numeric_conflict(self):
         """Large numeric differences should produce numeric conflicts."""
-        from src.analysis.credibility import ConflictDetector
+        from intelnexus.analysis.credibility import ConflictDetector
         detector = ConflictDetector()
         results = [
             {"title": "t1", "link": "u1", "source": "S1"},
@@ -191,7 +191,7 @@ class TestConflictDetector:
 
     def test_temporal_conflict(self):
         """Years differing by >= 2 should produce temporal conflicts."""
-        from src.analysis.credibility import ConflictDetector
+        from intelnexus.analysis.credibility import ConflictDetector
         detector = ConflictDetector()
         results = [
             {"title": "t1", "link": "u1", "source": "S1"},
@@ -208,7 +208,7 @@ class TestConflictDetector:
 
     def test_stance_conflict(self):
         """Positive vs negative stance should produce stance conflicts."""
-        from src.analysis.credibility import ConflictDetector
+        from intelnexus.analysis.credibility import ConflictDetector
         detector = ConflictDetector()
         results = [
             {"title": "t1", "link": "u1", "source": "S1"},
@@ -225,7 +225,7 @@ class TestConflictDetector:
 
     def test_single_source_no_conflicts(self):
         """Single source should produce no conflicts."""
-        from src.analysis.credibility import ConflictDetector
+        from intelnexus.analysis.credibility import ConflictDetector
         detector = ConflictDetector()
         results = [{"title": "t1", "link": "u1", "source": "S1"}]
         scraped = {"u1": "Some text"}
@@ -234,7 +234,7 @@ class TestConflictDetector:
 
     def test_conflict_structure(self):
         """Each conflict should have required keys."""
-        from src.analysis.credibility import ConflictDetector
+        from intelnexus.analysis.credibility import ConflictDetector
         detector = ConflictDetector()
         results = [
             {"title": "t1", "link": "u1", "source": "S1"},

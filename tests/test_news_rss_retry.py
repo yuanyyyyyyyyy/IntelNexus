@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 import requests
 
-from shared.search.news import NewsSearch, RSS_FETCH_TIMEOUT
+from intelnexus.core.search.news import NewsSearch, RSS_FETCH_TIMEOUT
 
 
 def _make_response(text: str = "<rss></rss>"):

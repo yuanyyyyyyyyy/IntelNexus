@@ -7,23 +7,17 @@ Unified CLI composing intel-search and intel-briefing sub-projects.
 import os
 import sys
 
-# Ensure root project dir resolves first (so root-level src/ and config.py win
-# over same-named modules inside sub-projects like intel-briefing/src).
+# Ensure root project dir resolves first so root-level config.py and the
+# intelnexus/ package are importable. The single-package layout removes the
+# old sys.path hacks that worked around duplicated sub-project modules.
 _ROOT = os.path.dirname(os.path.abspath(__file__))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-# Add shared library to path
-sys.path.insert(0, os.path.join(_ROOT, "shared"))
-
-# Appended (not inserted at 0) so ai_briefing resolves to intel-briefing/ai_briefing/
-# without overriding the root-level src/ package.
-sys.path.append(os.path.join(_ROOT, "intel-briefing"))
-
 from config import NEWS_API_KEY
 
 # Inject config into shared library
-from shared.settings import set as set_config
+from intelnexus.core.settings import set as set_config
 set_config({
     "OLLAMA_BASE_URL": os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
     "OPENROUTER_BASE_URL": os.getenv("OPENROUTER_BASE_URL", ""),
@@ -35,15 +29,15 @@ set_config({
 import click
 from datetime import datetime
 
-from shared.logger import get_logger
-from shared.search.scraper import scrape_multiple
-from shared.search.registry import SearchSourceRegistry
-from shared.search.modes import SEARCH_MODES_LABELS
+from intelnexus.core.logger import get_logger
+from intelnexus.core.search.scraper import scrape_multiple
+from intelnexus.core.search.registry import SearchSourceRegistry
+from intelnexus.core.search.modes import SEARCH_MODES_LABELS
 
 import config as app_config
 
-from shared.llm.core import get_llm, expand_query, generate_summary
-from shared.llm.utils import get_model_choices
+from intelnexus.core.llm.core import get_llm, expand_query, generate_summary
+from intelnexus.core.llm.utils import get_model_choices
 
 logger = get_logger(__name__)
 
@@ -117,7 +111,7 @@ def _register_search_commands():
 
         if not no_credibility:
             click.echo("[4.5/5] Analyzing credibility...")
-            from src.analysis.credibility import SourceScorer, ConflictDetector
+            from intelnexus.analysis.credibility import SourceScorer, ConflictDetector
             scorer = SourceScorer()
             scorer.evaluate(search_filtered, scraped_results)
             cred_lines = []
@@ -136,7 +130,7 @@ def _register_search_commands():
                     [f"- [{c['type']}] {c['description']}" for c in conflicts_list[:5]])
 
             click.echo("[4.6/5] Building knowledge graph...")
-            from src.analysis.intelligence_graph import EntityExtractor, IntelligenceGraph
+            from intelnexus.analysis.intelligence_graph import EntityExtractor, IntelligenceGraph
             extractor = EntityExtractor()
             kg_raw = extractor.extract(scraped_results)
             kg = IntelligenceGraph()
@@ -175,12 +169,12 @@ def _register_briefing_commands():
     def briefing(model, notify_only, export_format):
         """Generate and send AI briefing to all subscribers."""
         try:
-            from ai_briefing.collector import AIBriefingCollector
-            from ai_briefing.analyzer import AIBriefingAnalyzer
-            from ai_briefing.notifier import AIBriefingNotifier
-            from ai_briefing.config import BRIEFING_CONFIG
-            from src.config.subscriptions import get_active_subscribers, update_last_sent
-            from ai_briefing.templates import render_markdown_briefing, render_email_html, markdown_to_html_sections
+            from intelnexus.briefing.collector import AIBriefingCollector
+            from intelnexus.briefing.analyzer import AIBriefingAnalyzer
+            from intelnexus.briefing.notifier import AIBriefingNotifier
+            from intelnexus.briefing.config import BRIEFING_CONFIG
+            from intelnexus.config.subscriptions import get_active_subscribers, update_last_sent
+            from intelnexus.briefing.templates import render_markdown_briefing, render_email_html, markdown_to_html_sections
 
             click.echo("AI Briefing Generator")
             click.echo("=" * 50)
@@ -214,7 +208,7 @@ def _register_briefing_commands():
             except Exception as e:
                 click.echo(f"  Warning: Could not generate HTML: {e}")
 
-            from src.config.briefing_history import get_briefing_history
+            from intelnexus.config.briefing_history import get_briefing_history
             briefing_filename = get_briefing_history().save_briefing(
                 markdown_content=briefing_md, html_content=briefing_html,
                 organization_name=organization_name,
@@ -235,12 +229,7 @@ def _register_briefing_commands():
                 click.echo(f"  HTML exported: {html_path}")
             if export_format in ("pdf", "all"):
                 try:
-                    import importlib.util as _ilu
-                    _exp_path = os.path.join(_ROOT, "intel-briefing", "src", "export", "briefing_export.py")
-                    _spec = _ilu.spec_from_file_location("briefing_export", _exp_path)
-                    _mod = _ilu.module_from_spec(_spec)
-                    _spec.loader.exec_module(_mod)
-                    export_briefing_pdf = _mod.export_briefing_pdf
+                    from intelnexus.briefing.export.briefing_export import export_briefing_pdf
                     pdf_path = f"data/briefings/briefing_{timestamp}.pdf"
                     export_briefing_pdf(briefing_md, pdf_path)
                     click.echo(f"  PDF exported: {pdf_path}")
@@ -279,7 +268,7 @@ def _register_briefing_commands():
     def scheduler():
         """Run the AI briefing scheduler in background."""
         try:
-            from ai_briefing.scheduler import AIBriefingScheduler
+            from intelnexus.briefing.scheduler import AIBriefingScheduler
 
             click.echo("AI Briefing Scheduler")
             click.echo("=" * 50)
@@ -311,7 +300,7 @@ def _start_ai_scheduler():
     """Start the AI briefing scheduler for UI mode."""
     global _ai_scheduler
     try:
-        from ai_briefing.scheduler import AIBriefingScheduler
+        from intelnexus.briefing.scheduler import AIBriefingScheduler
         email_config = {
             "smtp_server": os.getenv("SMTP_SERVER", ""),
             "smtp_port": int(os.getenv("SMTP_PORT", "587")),

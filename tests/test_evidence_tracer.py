@@ -26,7 +26,7 @@ def mock_model():
 @pytest.fixture
 def tracer(mock_model):
     with patch("src.analysis.evidence_tracer.load_sentence_model", return_value=mock_model):
-        from src.analysis.evidence_tracer import EvidenceTracer
+        from intelnexus.analysis.evidence_tracer import EvidenceTracer
         return EvidenceTracer()
 
 
@@ -124,7 +124,7 @@ class TestEvidenceTracer:
     def test_model_none_returns_empty(self, sample_report, sample_scraped_content):
         """When model is None, trace should return empty claims."""
         with patch("src.analysis.evidence_tracer.load_sentence_model", return_value=None):
-            from src.analysis.evidence_tracer import EvidenceTracer
+            from intelnexus.analysis.evidence_tracer import EvidenceTracer
             tracer = EvidenceTracer()
             result = tracer.trace(sample_report, sample_scraped_content)
             assert result["claims"] == []
