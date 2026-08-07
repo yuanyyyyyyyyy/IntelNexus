@@ -122,6 +122,10 @@ class AIBriefingAnalyzer:
         generated_date = self._format_date()
         llm = self._get_llm()
 
+        # 可信度概览（复用搜索的 SourceScorer / ConflictDetector，降级无 LLM 也能展示）
+        on_progress("credibility_overview", "正在评估来源可信度...", 0.35)
+        credibility_overview = self._build_credibility_overview(collected_data)
+
         # 逐板块生成，并在每个板块前后上报进度
         contents: Dict[str, str] = {}
         total = len(GENERATION_SECTIONS)
@@ -131,11 +135,15 @@ class AIBriefingAnalyzer:
             on_progress("generate_progress", f"正在生成：{label}（{idx + 1}/{total}）", pct)
             contents[key] = getattr(self, method_name)(collected_data, llm)
 
+        # 可信度概览作为简报首个板块（拼接到 top3 之前，复用现有模板签名）
+        top3_with_overview = credibility_overview + "\n\n---\n\n" + contents["top3"] \
+            if credibility_overview else contents["top3"]
+
         # 渲染完整简报
         briefing = render_markdown_briefing(
             generated_date=generated_date,
             organization=org,
-            top3_content=contents["top3"],
+            top3_content=top3_with_overview,
             ai_dynamic_content=contents["ai_dynamic"],
             cyber_dynamic_content=contents["cyber_dynamic"],
             cve_table_content=contents["cve_table"],
@@ -146,6 +154,63 @@ class AIBriefingAnalyzer:
         if with_warnings:
             return briefing, self._warnings
         return briefing
+
+    def _build_credibility_overview(self, collected_data: Dict[str, List[Dict]]) -> str:
+        """基于采集结果生成「可信度概览」栏（复用 SourceScorer / ConflictDetector）。
+
+        无抓取全文时，以 content/description 字段作为 scraped 近似输入。
+        返回 Markdown 字符串；若无可评估数据返回空串。
+        """
+        # 汇总全部结果，构造 url->text 近似 scraped
+        all_items = []
+        for items in collected_data.values():
+            all_items.extend(items)
+        if not all_items:
+            return ""
+
+        scraped = {}
+        for it in all_items:
+            url = it.get("url") or it.get("link", "")
+            text = it.get("content") or it.get("description", "")
+            if url and text:
+                scraped[url] = text
+
+        try:
+            from src.analysis.credibility import SourceScorer, ConflictDetector
+            scorer = SourceScorer()
+            scored = scorer.evaluate(
+                [dict(r, **{"url": r.get("url") or r.get("link", "")}) for r in all_items],
+                scraped
+            )
+            detector = ConflictDetector()
+            conflicts = detector.detect(scored, scraped)
+        except Exception as e:
+            logger.warning(f"可信度概览评估失败，降级跳过: {e}")
+            return ""
+
+        scores = [r.get("credibility_score", 0.5) for r in scored]
+        avg = round(sum(scores) / len(scores), 2) if scores else 0.5
+        high = sum(1 for s in scores if s >= 0.7)
+        low = sum(1 for s in scores if s < 0.4)
+        conflict_count = len(conflicts)
+
+        level = "高" if avg >= 0.7 else ("中" if avg >= 0.4 else "低")
+        lines = [
+            "## 来源可信度概览",
+            "",
+            f"- **平均可信度**：{avg:.2f}（{level}）",
+            f"- **高可信来源**：{high} 条 · **低可信来源**：{low} 条",
+            f"- **跨源冲突提示**：{conflict_count} 处"
+            if conflict_count else "- **跨源冲突提示**：未检测到明显冲突",
+        ]
+        if conflicts:
+            lines.append("")
+            lines.append("**冲突要点：**")
+            for c in conflicts[:3]:
+                lines.append(f"- {c.get('description', '')}（严重度 {c.get('severity', 0):.2f}）")
+        lines.append("")
+        lines.append("> 本栏由来源可信度评分自动生成，供研判参考。")
+        return "\n".join(lines)
 
     def _generate_top3(self, collected_data: Dict[str, List[Dict]], llm) -> str:
         """生成近日要闻TOP3"""

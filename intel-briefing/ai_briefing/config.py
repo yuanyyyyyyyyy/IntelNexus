@@ -215,15 +215,25 @@ BRIEFING_CONFIG = {
 
 
 def get_category_by_id(category_id: str) -> dict:
-    """根据ID获取关注点配置"""
-    return WATCH_CATEGORIES.get(category_id, None)
+    """根据ID获取关注点配置（含用户覆盖）"""
+    return get_all_categories().get(category_id, None)
 
 
 def get_all_category_ids() -> list:
-    """获取所有关注点ID"""
-    return list(WATCH_CATEGORIES.keys())
+    """获取所有关注点ID（含用户覆盖）"""
+    return list(get_all_categories().keys())
 
 
 def get_all_categories() -> dict:
-    """获取所有关注点配置"""
-    return WATCH_CATEGORIES
+    """
+    获取所有关注点配置。
+
+    原 WATCH_CATEGORIES 为代码默认；现叠加 data/watch_categories.json 的用户覆盖
+    （新增/修改/禁用），实现「关注点可配置化」。用户未覆盖时完全回退默认。
+    """
+    try:
+        from src.config.watch_categories import get_all_categories as _merged
+        return _merged()
+    except Exception:
+        # 回退：配置文件读取失败时，仍返回代码默认，保证不破坏现有逻辑
+        return WATCH_CATEGORIES

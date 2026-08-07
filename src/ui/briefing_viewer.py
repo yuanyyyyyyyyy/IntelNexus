@@ -370,6 +370,77 @@ def render_subscriptions_panel():
     st.markdown('</div>', unsafe_allow_html=True)
 
 
+def render_watch_categories_panel():
+    """关注点管理面板（紫标签条）：新增/编辑/删除关注点，可配置化"""
+    st.markdown(f'''
+    <div class="bf-panel bf-panel--cat">
+        <div class="bf-label">
+            <span class="bf-label__tag">Watch</span>
+            <span class="bf-label__title">{get_text("watch_categories_mgmt")}</span>
+        </div>
+    ''', unsafe_allow_html=True)
+
+    try:
+        from src.config.watch_categories import (
+            get_all_categories, add_category, remove_category
+        )
+        CAT_AVAILABLE = True
+    except ImportError:
+        CAT_AVAILABLE = False
+
+    if not CAT_AVAILABLE:
+        st.warning(get_text("module_unavailable"))
+        st.markdown('</div>', unsafe_allow_html=True)
+        return
+
+    cats = get_all_categories()
+
+    # 新增关注点表单
+    with st.expander(get_text("add_watch_category")):
+        new_id = st.text_input(get_text("category_id"), key="bf_cat_new_id")
+        new_name = st.text_input(get_text("category_name"), key="bf_cat_new_name")
+        new_queries = st.text_area(
+            get_text("category_queries"),
+            placeholder=get_text("category_queries_ph"),
+            key="bf_cat_new_queries"
+        )
+        if st.button(get_text("add_watch_category_btn"), key="bf_cat_add_btn"):
+            if new_id and new_name and new_queries:
+                cfg = {
+                    "name": new_name,
+                    "name_en": new_name,
+                    "description": "",
+                    "icon": "🔍",
+                    "search_queries": [q.strip() for q in new_queries.splitlines() if q.strip()],
+                    "enabled": True,
+                }
+                if add_category(new_id, cfg):
+                    st.success(get_text("watch_category_added"))
+                    st.rerun()
+                else:
+                    st.error(get_text("watch_category_failed"))
+            else:
+                st.warning(get_text("fill_fields"))
+
+    # 现有关注点列表（可删除）
+    if cats:
+        with st.expander(get_text("manage_watch_categories")):
+            for cid, cfg in cats.items():
+                col_info, col_del = st.columns([5, 1])
+                with col_info:
+                    st.write(f"**{cfg.get('name', cid)}**")
+                    st.caption(f"{cid} · {len(cfg.get('search_queries', []))} 条查询")
+                with col_del:
+                    if st.button(get_text("delete"), key=f"bf_del_cat_{cid}"):
+                        if remove_category(cid):
+                            st.success(get_text("watch_category_deleted"))
+                            st.rerun()
+    else:
+        st.info(get_text("no_watch_categories"))
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
 def render_generate_panel():
     """生成简报操作面板（青蓝标签条 + 全宽主按钮）"""
     st.markdown(f'''
@@ -444,6 +515,7 @@ def render_briefing_center():
     _render_onboarding()
 
     # 功能面板区
+    render_watch_categories_panel()
     render_data_sources_panel()
     render_subscriptions_panel()
     render_generate_panel()

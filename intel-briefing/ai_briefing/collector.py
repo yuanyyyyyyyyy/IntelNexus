@@ -8,10 +8,11 @@ from typing import Dict, List, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
-from ai_briefing.config import WATCH_CATEGORIES
+from ai_briefing.config import get_all_categories, WATCH_CATEGORIES
 from src.config.sources import get_enabled_sources, get_sources_by_category
+from src.config.briefing_drafts import consume_drafts
 from shared.logger import get_logger
-from config import NEWS_API_KEY
+from config import NEWS_API_KEY, ENABLE_DARKWEB
 
 logger = get_logger(__name__)
 
@@ -24,6 +25,7 @@ class AIBriefingCollector:
         self._web_search = None
         self._news_search = None
         self._scrape = None
+        self._darkweb_search = None
     
     def _get_web_search(self):
         """延迟加载web_search模块"""
@@ -57,6 +59,20 @@ class AIBriefingCollector:
                 logger.warning("scrape module not available")
                 self._scrape = lambda urls, max_workers=5: {}
         return self._scrape
+
+    def _get_darkweb_search(self):
+        """延迟加载暗网搜索模块（仅在 ENABLE_DARKWEB 为真时生效）"""
+        if self._darkweb_search is None:
+            try:
+                from src.search.darkweb import get_darkweb_results
+                # get_darkweb_results 内部已检查 ENABLE_DARKWEB 主开关
+                self._darkweb_search = lambda q, max_r=10: get_darkweb_results(
+                    q, max_workers=max_r, advanced_mode=False,
+                    tor_port=9150, ui_sites=None)
+            except ImportError:
+                logger.warning("darkweb module not available")
+                self._darkweb_search = lambda q, max_r=10: []
+        return self._darkweb_search
     
     def collect_for_category(self, category: str, max_results: int = 20) -> List[Dict]:
         """
@@ -69,14 +85,15 @@ class AIBriefingCollector:
         Returns:
             List[Dict]: 搜索结果列表
         """
-        if category not in WATCH_CATEGORIES:
+        categories = get_all_categories()
+        if category not in categories:
             logger.warning(f"Unknown category: {category}")
             return []
         
-        cat_config = WATCH_CATEGORIES[category]
+        cat_config = categories[category]
         all_results = []
         
-        # 1. 使用关键词搜索
+        # 1. 使用关键词搜索（web + news + 暗网）
         search_results = self._search_by_keywords(
             cat_config.get("search_queries", []),
             max_results
@@ -102,7 +119,19 @@ class AIBriefingCollector:
                         "source": source_info.get("name", "Custom Source")
                     })
         
-        # 3. 去重
+        # 3. 合并收藏草稿（高优：置顶该关注点）
+        drafts = consume_drafts([category]).get(category, [])
+        for d in drafts:
+            all_results.insert(0, {
+                "title": d.get("title", ""),
+                "url": d.get("url", ""),
+                "content": d.get("content", ""),
+                "description": d.get("description", ""),
+                "source": d.get("source", "Collected Draft"),
+                "from_draft": True,
+            })
+        
+        # 4. 去重
         all_results = self._deduplicate_results(all_results)
         
         return all_results[:max_results * 3]
@@ -114,8 +143,9 @@ class AIBriefingCollector:
         Returns:
             Dict[str, List[Dict]]: {category_id: [results]}
         """
+        categories = get_all_categories()
         results = {}
-        category_ids = list(WATCH_CATEGORIES.keys())
+        category_ids = list(categories.keys())
 
         with ThreadPoolExecutor(max_workers=len(category_ids)) as executor:
             futures = {
@@ -126,7 +156,7 @@ class AIBriefingCollector:
                 cat_id = futures[future]
                 try:
                     results[cat_id] = future.result()
-                    logger.info(f"Collected {len(results[cat_id])} results for {WATCH_CATEGORIES[cat_id]['name']}")
+                    logger.info(f"Collected {len(results[cat_id])} results for {categories[cat_id]['name']}")
                 except Exception as e:
                     logger.error(f"Error collecting {cat_id}: {e}")
                     results[cat_id] = []
@@ -135,7 +165,7 @@ class AIBriefingCollector:
     
     def _search_by_keywords(self, queries: List[str], max_results: int = 10) -> List[Dict]:
         """
-        使用关键词进行搜索
+        使用关键词进行搜索（web + news + 暗网）
         
         Args:
             queries: 查询列表
@@ -147,6 +177,7 @@ class AIBriefingCollector:
         results = []
         web_search = self._get_web_search()
         news_search = self._get_news_search()
+        darkweb_search = self._get_darkweb_search()
         
         for query in queries:
             try:
@@ -171,6 +202,21 @@ class AIBriefingCollector:
                         "description": r.get("description", ""),
                         "source": r.get("source", "News Search")
                     })
+
+                # 暗网搜索（仅在 ENABLE_DARKWEB 为真时生效）
+                if ENABLE_DARKWEB:
+                    try:
+                        darkweb_results = darkweb_search(query, max_results=max_results)
+                        for r in darkweb_results:
+                            results.append({
+                                "title": r.get("title", ""),
+                                "url": r.get("url", r.get("link", "")),
+                                "content": r.get("content", r.get("description", "")),
+                                "description": r.get("description", ""),
+                                "source": r.get("source", "Dark Web")
+                            })
+                    except Exception as e:
+                        logger.warning(f"Darkweb search error for query '{query}': {e}")
             except Exception as e:
                 logger.warning(f"Search error for query '{query}': {e}")
                 continue

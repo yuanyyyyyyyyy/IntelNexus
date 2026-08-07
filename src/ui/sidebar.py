@@ -41,9 +41,9 @@ def _render_search_mode():
 
             tor_running = check_tor_status(tor_port)
             if tor_running:
-                st.success(f"<span class='status-dot active'></span>{get_text('tor_running')}", unsafe_allow_html=True)
+                st.markdown(f"<span class='status-dot active'></span>{get_text('tor_running')}", unsafe_allow_html=True)
             else:
-                st.error(f"<span class='status-dot error'></span>{get_text('tor_not_running')}", unsafe_allow_html=True)
+                st.markdown(f"<span class='status-dot error'></span>{get_text('tor_not_running')}", unsafe_allow_html=True)
 
             col_tor1, col_tor2 = st.columns([1, 1])
             with col_tor1:
