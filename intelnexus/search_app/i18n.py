@@ -102,6 +102,7 @@ LANG = {
         "view": "查看",
         "advanced_config": "高级配置",
         "module_guidance": "简报中心：配置数据源、管理订阅，并生成与推送情报简报",
+        "no_model_hint": "暂无可用模型：请先启动本地 Ollama 并在下方「添加自定义模型」，或刷新后重试",
     },
     "en": {
         "title": "IntelNexus",
@@ -204,6 +205,7 @@ LANG = {
         "view": "View",
         "advanced_config": "Advanced Settings",
         "module_guidance": "Briefing Center: configure sources, manage subscribers, then generate and push intelligence briefings",
+        "no_model_hint": "No models available: start local Ollama and add a custom model below, or refresh and retry",
     }
 }
 

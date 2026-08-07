@@ -42,8 +42,11 @@ def render_briefing_generate_controls(key_prefix: str, model: str = None, compac
         push_enabled = st.session_state.get(f"{key_prefix}_push", True)
         if model is None:
             model_options = get_model_choices()
-            default_model = "qwen2.5:7b" if "qwen2.5:7b" in model_options else (model_options[0] if model_options else "gpt-4o")
-            model = st.session_state.get(f"{key_prefix}_model", default_model)
+            if not model_options:
+                st.info(get_text("no_model_hint"))
+                model = None
+            else:
+                model = st.session_state.get(f"{key_prefix}_model", model_options[0])
 
         col_summary, col_btn = st.columns([1, 1])
         with col_summary:
@@ -66,9 +69,10 @@ def render_briefing_generate_controls(key_prefix: str, model: str = None, compac
                 )
                 if model is None:
                     m_opts = get_model_choices()
-                    d_model = "qwen2.5:7b" if "qwen2.5:7b" in m_opts else (m_opts[0] if m_opts else "gpt-4o")
-                    d_idx = m_opts.index(d_model) if d_model in m_opts else 0
-                    st.selectbox(get_text("llm_model"), m_opts, index=d_idx, key=f"{key_prefix}_model")
+                    if not m_opts:
+                        st.info(get_text("no_model_hint"))
+                    else:
+                        st.selectbox(get_text("llm_model"), m_opts, index=0, key=f"{key_prefix}_model")
         with col_btn:
             # 隐藏 marker：让 CSS 能稳定命中本列按钮（Streamlit 的 DOM 顺序不可靠）
             st.markdown('<div class="bf-gen-btn-marker" style="display:none"></div>', unsafe_allow_html=True)
@@ -76,6 +80,7 @@ def render_briefing_generate_controls(key_prefix: str, model: str = None, compac
                 get_text("generate_briefing"),
                 key=f"{key_prefix}_btn",
                 type="primary",
+                disabled=(model is None),
             ):
                 _run_pipeline(
                     key_prefix,
@@ -103,11 +108,13 @@ def render_briefing_generate_controls(key_prefix: str, model: str = None, compac
 
     if model is None:
         model_options = get_model_choices()
-        default_model = "qwen2.5:7b" if "qwen2.5:7b" in model_options else (model_options[0] if model_options else "gpt-4o")
-        idx = model_options.index(default_model) if default_model in model_options else 0
-        model = st.selectbox(get_text("llm_model"), model_options, index=idx, key=f"{key_prefix}_model")
+        if not model_options:
+            st.info(get_text("no_model_hint"))
+            model = None
+        else:
+            model = st.selectbox(get_text("llm_model"), model_options, index=0, key=f"{key_prefix}_model")
 
-    if st.button(get_text("generate_briefing"), key=f"{key_prefix}_btn", use_container_width=True):
+    if st.button(get_text("generate_briefing"), key=f"{key_prefix}_btn", use_container_width=True, disabled=(model is None)):
         _run_pipeline(key_prefix, model, selected_cats, push_enabled)
 
     _render_stats(key_prefix, compact)

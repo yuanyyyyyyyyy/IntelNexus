@@ -134,10 +134,11 @@ def _render_model_settings():
     st.markdown(f'<div class="section-header">{get_text("settings")}</div>', unsafe_allow_html=True)
 
     model_options = get_model_choices()
-    default_model = "qwen2.5:7b" if "qwen2.5:7b" in model_options else (model_options[0] if model_options else "gpt-4o")
-    model_index = model_options.index(default_model) if default_model in model_options else 0
-
-    model = st.selectbox(get_text("llm_model"), model_options, index=model_index)
+    if not model_options:
+        st.info(get_text("no_model_hint"))
+        model = None
+    else:
+        model = st.selectbox(get_text("llm_model"), model_options, index=0)
     threads = st.slider(get_text("threads"), 1, 16, 5)
 
     lang_options = {get_text("zh"): "zh", get_text("en"): "en"}

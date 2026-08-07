@@ -37,7 +37,6 @@ from intelnexus.core.search.modes import SEARCH_MODES_LABELS
 import config as app_config
 
 from intelnexus.core.llm.core import get_llm, expand_query, generate_summary
-from intelnexus.core.llm.utils import get_model_choices
 
 logger = get_logger(__name__)
 
