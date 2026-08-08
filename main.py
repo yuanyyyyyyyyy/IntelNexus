@@ -6,6 +6,44 @@ Unified CLI composing intel-search and intel-briefing sub-projects.
 
 import os
 import sys
+import logging
+
+# Suppress the harmless torch.classes probe warning emitted during Streamlit
+# reloads ("Examining the path of torch.classes raised: Tried to instantiate
+# class '__path__._path'..."). It is a known no-op message, not an error.
+# We filter it at the stderr stream level so real errors stay visible.
+class _StderrTorchFilter:
+    def __init__(self, stream):
+        self._stream = stream
+        self._buf = ""
+
+    _TORCH_NOISE = (
+        "Examining the path of torch.classes raised",
+        "Tried to instantiate class '__path__._path'",
+    )
+
+    def write(self, data):
+        # torch prints this as a single line; buffer until newline to decide
+        self._buf += data
+        if "\n" in self._buf:
+            head, self._buf = self._buf.rsplit("\n", 1)
+            head += "\n"
+            if not any(k in head for k in self._TORCH_NOISE):
+                self._stream.write(head)
+
+    def flush(self):
+        if self._buf and not any(k in self._buf for k in self._TORCH_NOISE):
+            self._stream.write(self._buf)
+        self._stream.flush()
+
+    def __getattr__(self, name):
+        return getattr(self._stream, name)
+
+
+if not getattr(sys, "frozen", False):
+    sys.stderr = _StderrTorchFilter(sys.stderr)
+
+logging.getLogger("torch").setLevel(logging.CRITICAL + 1)
 
 # Ensure root project dir resolves first so root-level config.py and the
 # intelnexus/ package are importable. The single-package layout removes the
