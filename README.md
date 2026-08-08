@@ -95,7 +95,9 @@ python main.py search -q "关键词" -m qwen2.5:7b  # CLI模式
 
 ### 推荐：使用 conda base 一键启动（无需手动激活）
 
-项目提供两个 Windows 脚本完成初始化与启动，无需手动激活环境：
+> **本地脚本说明**：`run.bat` 与 `setup.bat` 为 **Windows 平台本地专属启动脚本**（自动定位本机 Anaconda/Miniconda 并激活 `base` 环境），**不纳入 Git 仓库**（已在 `.gitignore` 中忽略）。仓库克隆后这两个文件不会存在，但你可以从本机复制或在本地自行创建；以下也提供了等价的纯命令行步骤。
+
+项目提供一个 Windows 脚本完成初始化与启动，无需手动激活环境（脚本仅存在于本地）：
 
 ```bash
 setup.bat              # 一键初始化：激活 conda base -> 安装 requirements.txt 依赖 -> 下载 spaCy 中英文模型（只需一次）
@@ -108,9 +110,16 @@ run.bat search -q "关键词"
 
 `run.bat` 自动定位本机 Anaconda/Miniconda 并激活 `base` 环境（缺失则回退系统 `python`），启动前会自检核心依赖（streamlit / click / intelnexus），若未安装会提示先运行 `setup.bat`，避免直接崩溃。
 
-若手动操作：`conda activate base` → `pip install -r requirements.txt` → `python -m spacy download en_core_web_sm zh_core_web_sm` → `python main.py ui`。
+**纯命令行等价操作**（适用于非 Windows 或没有脚本时）：
 
-> 注意：spaCy 模型需从 GitHub 下载，若网络受限可使用 `setup.bat --no-models` 跳过，并手动离线安装已下载好的 `zh_core_web_sm` wheel。
+```bash
+conda activate base                       # 或：source activate base
+pip install -r requirements.txt           # 安装依赖
+python -m spacy download en_core_web_sm zh_core_web_sm   # 下载 spaCy 模型（可选）
+python main.py ui                          # 启动 Web 界面
+```
+
+> 注意：spaCy 模型需从 GitHub 下载，若网络受限可使用 `setup.bat --no-models` 跳过（有脚本时），并手动离线安装已下载好的 `zh_core_web_sm` wheel。
 
 ---
 
