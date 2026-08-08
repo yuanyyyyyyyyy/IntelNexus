@@ -1,29 +1,76 @@
 @echo off
-setlocal
-cd /d "%~dp0"
+setlocal enabledelayedexpansion
 
+echo [IntelNexus] Starting setup...
+
+set "PYTHON_EXE="
 set "CONDA_ROOT="
-for %%P in (
-  "D:\Tool\Develop\anaconda3"
-  "%USERPROFILE%\anaconda3"
-  "%USERPROFILE%\miniconda3"
-  "C:\ProgramData\Anaconda3"
-  "C:\ProgramData\Miniconda3"
+
+for %%p in (
+    "D:\Tool\Develop\anaconda3"
+    "%USERPROFILE%\anaconda3"
+    "%USERPROFILE%\miniconda3"
+    "C:\anaconda3"
+    "C:\miniconda3"
+    "D:\anaconda3"
+    "D:\miniconda3"
 ) do (
-  if exist "%%~P\Scripts\activate.bat" set "CONDA_ROOT=%%~P"
+    set "p=%%~p"
+    if not defined PYTHON_EXE (
+        if exist "!p!\python.exe" (
+            set "PYTHON_EXE=!p!\python.exe"
+            set "CONDA_ROOT=!p!"
+        )
+    )
 )
-if not defined CONDA_ROOT (
-  echo [IntelNexus] 未找到 conda，请先安装 Anaconda/Miniconda。
-  pause
-  exit /b 1
+
+if not defined PYTHON_EXE (
+    for /f "delims=" %%i in ('where python 2^>nul') do (
+        if not defined PYTHON_EXE set "PYTHON_EXE=%%i"
+    )
 )
 
-call "%CONDA_ROOT%\Scripts\activate.bat" base
+if not defined PYTHON_EXE (
+    echo [IntelNexus] ERROR: python not found. Install Python or Anaconda.
+    pause
+    exit /b 1
+)
 
-echo [IntelNexus] 运行依赖应已随 conda base 就绪（torch / spacy / streamlit 等）。
-echo [IntelNexus] 仅补充 spaCy 中英文模型（首次需要联网，约 60MB）...
-python -m spacy download en_core_web_sm
-python -m spacy download zh_core_web_sm
+echo [IntelNexus] Using python: %PYTHON_EXE%
 
-echo [IntelNexus] 初始化完成！双击 run.bat 即可启动。
+"%PYTHON_EXE%" -c "import pip" 2>nul
+if errorlevel 1 (
+    echo [IntelNexus] ERROR: pip not available for %PYTHON_EXE%. Please use a Python with pip.
+    pause
+    exit /b 1
+)
+
+echo [IntelNexus] Upgrading pip...
+"%PYTHON_EXE%" -m pip install --upgrade pip
+if errorlevel 1 (
+    echo [IntelNexus] WARNING: pip upgrade failed, continuing...
+)
+
+echo [IntelNexus] Installing requirements...
+"%PYTHON_EXE%" -m pip install -r "%~dp0requirements.txt"
+if errorlevel 1 (
+    echo [IntelNexus] ERROR: failed to install requirements
+    pause
+    exit /b 1
+)
+
+set "INSTALL_MODELS=1"
+for %%a in (%*) do (
+    if /I "%%~a"=="--no-models" set "INSTALL_MODELS=0"
+)
+
+if %INSTALL_MODELS%==1 (
+    echo [IntelNexus] Installing spaCy models...
+    "%PYTHON_EXE%" -m pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl || echo [IntelNexus] WARNING: en_core_web_sm install failed
+    "%PYTHON_EXE%" -m pip install https://github.com/explosion/spacy-models/releases/download/zh_core_web_sm-3.8.0/zh_core_web_sm-3.8.0-py3-none-any.whl || echo [IntelNexus] WARNING: zh_core_web_sm install failed
+) else (
+    echo [IntelNexus] Skipping model installation (--no-models)
+)
+
+echo [IntelNexus] Setup complete.
 pause

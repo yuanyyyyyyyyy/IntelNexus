@@ -95,18 +95,22 @@ python main.py search -q "关键词" -m qwen2.5:7b  # CLI模式
 
 ### 推荐：使用 conda base 一键启动（无需手动激活）
 
-项目依赖（torch / sentence-transformers / spaCy / streamlit 等）已随 Anaconda `base` 环境就绪，只需补全 spaCy 中英文模型：
+项目提供两个 Windows 脚本完成初始化与启动，无需手动激活环境：
 
 ```bash
-setup.bat        # 一键初始化：激活 conda base + 下载 spaCy 模型（只需一次，已装会跳过）
-run.bat ui       # 之后每次启动，双击 run.bat 即可，无需手动 activate
+setup.bat              # 一键初始化：激活 conda base -> 安装 requirements.txt 依赖 -> 下载 spaCy 中英文模型（只需一次）
+setup.bat --no-models  # 离线/已下载模型时，仅安装依赖、跳过 spaCy 模型下载
+run.bat ui             # 之后每次启动：双击 run.bat（或 run.bat ui）启动 Web 界面
 run.bat search -q "关键词"
 ```
 
-`run.bat` 自动定位本机 Anaconda/Miniconda 并激活 `base` 环境后运行 `main.py`，彻底免去手动激活的麻烦。
-若手动操作：`conda activate base` → `python -m spacy download en_core_web_sm zh_core_web_sm` → `python main.py ui`。
+`setup.bat` 会先激活本机 Anaconda/Miniconda 的 `base` 环境（若未安装 conda 则使用系统 `python`），升级 pip 并安装 `requirements.txt` 全部依赖，再下载 spaCy 模型。
 
-> 注意：spaCy 模型需从 GitHub 下载，若网络受限可参考 `setup.bat` 离线安装已下载好的 `zh_core_web_sm` wheel。
+`run.bat` 自动定位本机 Anaconda/Miniconda 并激活 `base` 环境（缺失则回退系统 `python`），启动前会自检核心依赖（streamlit / click / intelnexus），若未安装会提示先运行 `setup.bat`，避免直接崩溃。
+
+若手动操作：`conda activate base` → `pip install -r requirements.txt` → `python -m spacy download en_core_web_sm zh_core_web_sm` → `python main.py ui`。
+
+> 注意：spaCy 模型需从 GitHub 下载，若网络受限可使用 `setup.bat --no-models` 跳过，并手动离线安装已下载好的 `zh_core_web_sm` wheel。
 
 ---
 

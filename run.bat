@@ -1,34 +1,53 @@
 @echo off
-setlocal
-REM IntelNexus one-click launcher (uses conda base env, no manual activation needed)
-REM Usage:
-REM   run.bat ui              -> start Web UI
-REM   run.bat search -q ...   -> CLI search
-REM   run.bat briefing / scheduler
-REM Note: deps and spaCy model live in conda base; first-time missing model -> run setup.bat
+setlocal enabledelayedexpansion
 
+echo [IntelNexus] Starting IntelNexus...
+
+set "PYTHON_EXE="
 set "CONDA_ROOT="
-for %%P in (
-  "D:\Tool\Develop\anaconda3"
-  "%USERPROFILE%\anaconda3"
-  "%USERPROFILE%\miniconda3"
-  "C:\ProgramData\Anaconda3"
-  "C:\ProgramData\Miniconda3"
+
+for %%p in (
+    "D:\Tool\Develop\anaconda3"
+    "%USERPROFILE%\anaconda3"
+    "%USERPROFILE%\miniconda3"
+    "C:\anaconda3"
+    "C:\miniconda3"
+    "D:\anaconda3"
+    "D:\miniconda3"
 ) do (
-  if exist "%%~P\Scripts\activate.bat" set "CONDA_ROOT=%%~P"
+    set "p=%%~p"
+    if not defined PYTHON_EXE (
+        if exist "!p!\python.exe" (
+            set "PYTHON_EXE=!p!\python.exe"
+            set "CONDA_ROOT=!p!"
+        )
+    )
 )
-if not defined CONDA_ROOT (
-  echo [IntelNexus] conda not found, please install Anaconda/Miniconda.
-  pause
-  exit /b 1
+
+if not defined PYTHON_EXE (
+    for /f "delims=" %%i in ('where python 2^>nul') do (
+        if not defined PYTHON_EXE set "PYTHON_EXE=%%i"
+    )
 )
 
-call "%CONDA_ROOT%\Scripts\activate.bat" base
+if not defined PYTHON_EXE (
+    echo [IntelNexus] ERROR: python not found. Install Python or Anaconda.
+    pause
+    exit /b 1
+)
 
-REM Clear ghost proxy vars inherited from the Shell. load_dotenv() will not
-REM overwrite existing env vars, so clearing them lets .env proxy settings apply.
-set "HTTP_PROXY="
-set "HTTPS_PROXY="
-set "USE_TOR="
+echo [IntelNexus] Using python: %PYTHON_EXE%
 
-python "%~dp0main.py" %*
+set HTTP_PROXY=
+set HTTPS_PROXY=
+set USE_TOR=
+
+echo [IntelNexus] Checking dependencies...
+"%PYTHON_EXE%" -c "import streamlit, click" 2>nul
+if errorlevel 1 (
+    echo [IntelNexus] ERROR: streamlit or click not installed. Please run setup.bat first.
+    pause
+    exit /b 1
+)
+
+"%PYTHON_EXE%" "%~dp0main.py" %*
