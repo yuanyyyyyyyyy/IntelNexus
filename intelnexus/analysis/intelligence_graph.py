@@ -11,7 +11,23 @@ Provides:
 
 import re
 import os
+import threading
 import networkx as nx
+
+
+# 模块级 EntityExtractor 单例，避免每次搜索都重建（spaCy 模型加载代价极高）
+_shared_extractor = None
+_extractor_lock = threading.Lock()
+
+
+def get_entity_extractor():
+    """获取进程内复用的 EntityExtractor 单例（双检锁）。"""
+    global _shared_extractor
+    if _shared_extractor is None:
+        with _extractor_lock:
+            if _shared_extractor is None:
+                _shared_extractor = EntityExtractor()
+    return _shared_extractor
 
 
 class EntityExtractor:

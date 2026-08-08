@@ -1,4 +1,5 @@
 import re
+import threading
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from intelnexus.core.llm.utils import _common_llm_params, resolve_model_config, get_model_choices
@@ -6,6 +7,10 @@ from intelnexus.core.llm.utils import _common_llm_params, resolve_model_config, 
 from intelnexus.core.logger import get_logger
 
 logger = get_logger(__name__)
+
+# 模块级 LLM 实例缓存（按 model_choice），避免每次搜索都重建模型连接
+_llm_cache = {}
+_llm_cache_lock = threading.Lock()
 
 _ERROR_TEMPLATE_TIMEOUT = """## 一、执行摘要
 
@@ -38,7 +43,7 @@ _ERROR_TEMPLATE_GENERIC = """## 一、执行摘要
 """
 
 
-def get_llm(model_choice):
+def get_llm(model_choice, use_cache=True):
     config = resolve_model_config(model_choice)
 
     if config is None:
@@ -48,12 +53,22 @@ def get_llm(model_choice):
             f"Supported models (case-insensitive match) are: {', '.join(supported_models)}"
         )
 
+    if use_cache:
+        with _llm_cache_lock:
+            cached = _llm_cache.get(model_choice)
+        if cached is not None:
+            return cached
+
     llm_class = config["class"]
     model_specific_params = config["constructor_params"]
 
     all_params = {**_common_llm_params, **model_specific_params}
 
     llm_instance = llm_class(**all_params)
+
+    if use_cache:
+        with _llm_cache_lock:
+            _llm_cache[model_choice] = llm_instance
 
     return llm_instance
 

@@ -626,7 +626,7 @@ def render_briefing_settings():
         # 用 radio 替代 st.tabs。不传 index：带 key 的 radio 由自身维护选中状态，
         # 若传 index 会在每次 rerun 强制重置选中项，导致要点两下才生效。
         selected_label = st.radio(
-            "",
+            get_text("settings_tabs_label"),
             tab_labels,
             horizontal=True,
             label_visibility="collapsed",

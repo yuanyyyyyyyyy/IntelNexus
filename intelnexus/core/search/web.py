@@ -8,7 +8,7 @@ from urllib3.util.retry import Retry
 from urllib.parse import quote, urlencode
 
 from intelnexus.core.logger import get_logger
-from intelnexus.core.search import USER_AGENTS, get_http_proxies, is_blocked_domain, relevance_passes
+from intelnexus.core.search import USER_AGENTS, get_http_proxies, is_blocked_domain, relevance_passes, get_session as _get_shared_session
 
 logger = get_logger(__name__)
 
@@ -66,26 +66,8 @@ _shared_session = None
 
 
 def get_session():
-    global _shared_session
-    if _shared_session is None:
-        with _session_lock:
-            if _shared_session is None:
-                session = requests.Session()
-                proxies = get_http_proxies()
-                if proxies:
-                    session.proxies = proxies
-                retry = Retry(
-                    total=2,
-                    read=1,
-                    connect=1,
-                    backoff_factor=0.5,
-                    status_forcelist=[500, 502, 503, 504]
-                )
-                adapter = HTTPAdapter(max_retries=retry)
-                session.mount("http://", adapter)
-                session.mount("https://", adapter)
-                _shared_session = session
-    return _shared_session
+    """复用 core.search 顶层的共享 session 工厂（全局代理配置）。"""
+    return _get_shared_session(get_http_proxies())
 
 
 def _fetch_engine(engine_name: str, query: str, page: int = 0):

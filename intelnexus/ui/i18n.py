@@ -114,6 +114,10 @@ _BRIEFING_ZH = {
     "forensic_loading": "正在从简报条目启动取证搜索...",
     "forensic_triggered": "已从简报条目「{title}」启动取证搜索",
     "untitled": "无标题",
+    # 搜索流水线异常兜底提示
+    "no_model_error": "未配置可用模型：请在左侧栏启动 Ollama 或添加自定义模型后再搜索。",
+    "search_failed": "搜索失败",
+    "settings_tabs_label": "简报设置分区",
 }
 
 _BRIEFING_EN = {
@@ -218,6 +222,9 @@ _BRIEFING_EN = {
     "forensic_loading": "Launching forensic search from briefing entry...",
     "forensic_triggered": "Forensic search launched from briefing entry \"{title}\"",
     "untitled": "Untitled",
+    "no_model_error": "No model configured: start Ollama or add a custom model in the sidebar, then search again.",
+    "search_failed": "Search failed",
+    "settings_tabs_label": "Briefing settings section",
 }
 
 

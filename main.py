@@ -7,6 +7,7 @@ Unified CLI composing intel-search and intel-briefing sub-projects.
 import os
 import sys
 import logging
+from typing import Dict, List
 
 # Suppress the harmless torch.classes probe warning emitted during Streamlit
 # reloads ("Examining the path of torch.classes raised: Tried to instantiate
@@ -75,22 +76,39 @@ from intelnexus.core.search.modes import SEARCH_MODES_LABELS
 import config as app_config
 
 from intelnexus.core.llm.core import get_llm, expand_query, generate_summary
+from intelnexus.core.search.registry import get_registry
 
 logger = get_logger(__name__)
 
 # 向后兼容：CLI 回显用（值不变）
 SEARCH_MODES = SEARCH_MODES_LABELS
 
+# CLI 进程内搜索结果缓存（同一查询参数下跳过重复检索）
+_cli_search_cache: Dict[tuple, List[Dict]] = {}
+
 
 def execute_search(mode, query, max_workers):
-    """按 mode 遍历注册表并发检索（统一源抽象，无硬编码分支）。"""
-    registry = SearchSourceRegistry(
+    """按 mode 遍历注册表并发检索（统一源抽象，无硬编码分支）。
+
+    复用进程内 SearchSourceRegistry 单例，并对相同
+    (mode, query, max_workers) 的检索结果做进程内缓存，
+    避免 CLI 连续检索、或重复检索时的重复磁盘读取与网络开销。
+    """
+    cache_key = (mode, query, max_workers)
+    cached = _cli_search_cache.get(cache_key)
+    if cached is not None:
+        logger.debug("CLI 搜索命中进程内缓存，跳过重复检索: %s", query)
+        return cached
+
+    registry = get_registry(
         news_api_key=NEWS_API_KEY,
         darkweb_advanced=app_config.ENABLE_DARKWEB,
         tor_port=app_config.TOR_PROXY_PORT,
         web_threads=max_workers,
     )
-    return registry.collect(mode, query, max_results=20, threads=max_workers)
+    results = registry.collect(mode, query, max_results=20, threads=max_workers)
+    _cli_search_cache[cache_key] = results
+    return results
 
 
 @click.group()

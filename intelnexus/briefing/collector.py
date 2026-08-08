@@ -177,12 +177,15 @@ class AIBriefingCollector:
     
     def _search_by_keywords(self, queries: List[str], max_results: int = 10) -> List[Dict]:
         """
-        使用关键词进行搜索（web + news + 暗网）
-        
+        使用关键词进行搜索（web + news + 暗网）。
+
+        单个关键词内，web / news / 暗网三种检索源相互独立，
+        用线程池并行执行并合并结果，缩短单关键词等待时间。
+
         Args:
             queries: 查询列表
             max_results: 每个查询的最大结果数
-        
+
         Returns:
             List[Dict]: 搜索结果
         """
@@ -190,49 +193,61 @@ class AIBriefingCollector:
         web_search = self._get_web_search()
         news_search = self._get_news_search()
         darkweb_search = self._get_darkweb_search()
-        
-        for query in queries:
+
+        def _search_one(query: str):
+            """单个关键词的并行检索，返回该词下的结果列表。"""
+            local = []
             try:
-                # 网页搜索
-                web_results = web_search(query, max_results=max_results)
+                def _web():
+                    return web_search(query, max_results=max_results)
+
+                def _news():
+                    return news_search(query, max_results=max_results, api_key=NEWS_API_KEY)
+
+                def _dark():
+                    if not ENABLE_DARKWEB:
+                        return []
+                    return darkweb_search(query, max_results=max_results)
+
+                with ThreadPoolExecutor(max_workers=3) as ex:
+                    f_web = ex.submit(_web)
+                    f_news = ex.submit(_news)
+                    f_dark = ex.submit(_dark)
+                    web_results = f_web.result()
+                    news_results = f_news.result()
+                    darkweb_results = f_dark.result()
+
                 for r in web_results:
-                    results.append({
+                    local.append({
                         "title": r.get("title", ""),
                         "url": r.get("url", r.get("link", "")),
                         "content": r.get("content", r.get("description", "")),
                         "description": r.get("description", ""),
                         "source": r.get("source", "Web Search")
                     })
-                
-                # 新闻搜索
-                news_results = news_search(query, max_results=max_results, api_key=NEWS_API_KEY)
                 for r in news_results:
-                    results.append({
+                    local.append({
                         "title": r.get("title", ""),
                         "url": r.get("url", r.get("link", "")),
                         "content": r.get("content", r.get("description", "")),
                         "description": r.get("description", ""),
                         "source": r.get("source", "News Search")
                     })
-
-                # 暗网搜索（仅在 ENABLE_DARKWEB 为真时生效）
-                if ENABLE_DARKWEB:
-                    try:
-                        darkweb_results = darkweb_search(query, max_results=max_results)
-                        for r in darkweb_results:
-                            results.append({
-                                "title": r.get("title", ""),
-                                "url": r.get("url", r.get("link", "")),
-                                "content": r.get("content", r.get("description", "")),
-                                "description": r.get("description", ""),
-                                "source": r.get("source", "Dark Web")
-                            })
-                    except Exception as e:
-                        logger.warning(f"Darkweb search error for query '{query}': {e}")
+                for r in darkweb_results:
+                    local.append({
+                        "title": r.get("title", ""),
+                        "url": r.get("url", r.get("link", "")),
+                        "content": r.get("content", r.get("description", "")),
+                        "description": r.get("description", ""),
+                        "source": r.get("source", "Dark Web")
+                    })
             except Exception as e:
                 logger.warning(f"Search error for query '{query}': {e}")
-                continue
-        
+            return local
+
+        for query in queries:
+            results.extend(_search_one(query))
+
         return results
     
     def _scrape_custom_urls(self, urls: List[Dict]) -> Dict[str, str]:

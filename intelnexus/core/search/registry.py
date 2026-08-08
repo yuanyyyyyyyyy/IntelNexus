@@ -24,6 +24,39 @@ from intelnexus.core.search.sources.user_source import UserSource
 
 logger = get_logger(__name__)
 
+# 模块级注册表实例缓存（按构造参数维度），避免每次 collect 都重建并读盘
+_registry_cache: Dict[tuple, "SearchSourceRegistry"] = {}
+_registry_cache_lock = None
+
+
+def get_registry(news_api_key: Optional[str] = None,
+                 darkweb_advanced: bool = False, tor_port: int = 9150,
+                 ui_sites: Optional[List[Dict]] = None, web_threads: int = 5):
+    """
+    获取进程内复用的 SearchSourceRegistry 实例（双检锁）。
+
+    注册表构造涉及磁盘读取 sources.json，频繁重建代价高；
+    同一组构造参数下复用单例可显著降低 CLI 重复检索开销。
+    """
+    import threading
+    global _registry_cache_lock
+    if _registry_cache_lock is None:
+        _registry_cache_lock = threading.Lock()
+    key = (news_api_key, darkweb_advanced, tor_port,
+           tuple(sorted((s.get("name"), s.get("url")) for s in (ui_sites or []))),
+           web_threads)
+    cached = _registry_cache.get(key)
+    if cached is not None:
+        return cached
+    with _registry_cache_lock:
+        cached = _registry_cache.get(key)
+        if cached is None:
+            cached = SearchSourceRegistry(
+                news_api_key=news_api_key, darkweb_advanced=darkweb_advanced,
+                tor_port=tor_port, ui_sites=ui_sites, web_threads=web_threads)
+            _registry_cache[key] = cached
+    return cached
+
 
 class SearchSourceRegistry:
     def __init__(self, news_api_key: Optional[str] = None,

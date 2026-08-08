@@ -21,6 +21,7 @@ from bs4 import BeautifulSoup
 
 from intelnexus.core.logger import get_logger
 from intelnexus.core.search import USER_AGENTS, get_http_proxies_for, get_tor_proxy_port, \
+    get_session, get_shared_tor_session, \
     is_blocked_domain, relevance_passes
 from intelnexus.core.search.source import BaseSearchSource, CATEGORY_CUSTOM
 
@@ -97,7 +98,7 @@ class UserSource(BaseSearchSource):
             url = url.format(query=quote(query))
         proxies = self.get_proxies()
         headers = {"User-Agent": random.choice(USER_AGENTS)}
-        resp = requests.get(url, headers=headers, timeout=RSS_TIMEOUT, proxies=proxies)
+        resp = get_session(proxies).get(url, headers=headers, timeout=RSS_TIMEOUT)
         if resp.status_code != 200:
             return []
         try:
@@ -138,7 +139,7 @@ class UserSource(BaseSearchSource):
         url = url.format(query=quote(query))
         proxies = self.get_proxies()
         headers = {"User-Agent": random.choice(USER_AGENTS)}
-        resp = requests.get(url, headers=headers, timeout=12, proxies=proxies)
+        resp = get_session(proxies).get(url, headers=headers, timeout=12)
         if resp.status_code != 200:
             return []
         soup = BeautifulSoup(resp.text, "html.parser")
@@ -170,6 +171,12 @@ class UserSource(BaseSearchSource):
                 pass
 
         session = requests.Session()
+        from requests.adapters import HTTPAdapter
+        from urllib3.util.retry import Retry
+        _retry = Retry(total=3, read=3, connect=3, backoff_factor=0.3,
+                       status_forcelist=[500, 502, 503, 504])
+        session.mount("http://", HTTPAdapter(max_retries=_retry))
+        session.mount("https://", HTTPAdapter(max_retries=_retry))
         session.headers.update({"User-Agent": random.choice(USER_AGENTS)})
         # 代理收口：优先用统一 get_proxies()（沿用 get_http_proxies_for），
         # 未配置全局代理时回退到本地 Tor SOCKS5（onion 必须走 Tor）。
