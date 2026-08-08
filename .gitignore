@@ -40,8 +40,10 @@ Thumbs.db
 # Data files
 data/*.json
 data/*.csv
+data/*.txt
 data/cache/
 data/briefings/
+data/reports/
 src/config/data/
 !data/sources.json
 !data/subscriptions.json
