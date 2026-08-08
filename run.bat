@@ -50,4 +50,13 @@ if errorlevel 1 (
     exit /b 1
 )
 
-"%PYTHON_EXE%" "%~dp0main.py" %*
+REM Default to Web UI when launched by double-click (no arguments)
+if "%~1"=="" (
+    echo [IntelNexus] No command given, starting Web UI...
+    "%PYTHON_EXE%" "%~dp0main.py" ui
+) else (
+    "%PYTHON_EXE%" "%~dp0main.py" %*
+)
+
+echo [IntelNexus] Exited.
+pause
