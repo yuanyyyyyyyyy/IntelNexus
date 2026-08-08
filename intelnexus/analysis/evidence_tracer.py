@@ -12,6 +12,7 @@ import re
 import numpy as np
 
 from intelnexus.analysis import load_sentence_model
+from intelnexus.analysis.embed_cache import encode_texts, encode_single
 
 
 class EvidenceTracer:
@@ -52,6 +53,7 @@ class EvidenceTracer:
             return {"claims": [], "coverage": 0.0}
 
         # 预批量 encode 所有 scraped 文本（O(M) 而非 O(N*M)）
+        # 共享 embed_cache，与 SourceScorer/ConsistencyAnalyzer 复用同一批编码
         url_list = list(scraped_content.keys())
         text_list = [scraped_content[u][:2000] for u in url_list]
         valid_indices = [i for i, t in enumerate(text_list) if t]
@@ -60,9 +62,11 @@ class EvidenceTracer:
 
         scraped_embeddings = None
         if valid_texts:
-            scraped_embeddings = self._model.encode(valid_texts, show_progress_bar=False)
-            norms = np.linalg.norm(scraped_embeddings, axis=1, keepdims=True)
-            scraped_embeddings = scraped_embeddings / (norms + 1e-10)
+            scraped_embeddings = encode_texts(valid_texts)
+            if scraped_embeddings is not None:
+                scraped_embeddings = np.asarray(scraped_embeddings, dtype=np.float32)
+                norms = np.linalg.norm(scraped_embeddings, axis=1, keepdims=True)
+                scraped_embeddings = scraped_embeddings / (norms + 1e-10)
 
         claims = []
         for sent in sentences:
@@ -80,7 +84,9 @@ class EvidenceTracer:
             evidence_list = []
             if scraped_embeddings is not None and len(scraped_embeddings) > 0:
                 try:
-                    claim_emb = self._model.encode([sent], show_progress_bar=False)[0]
+                    claim_emb = encode_single(sent)
+                    if claim_emb is None:
+                        continue
                     claim_norm = claim_emb / (np.linalg.norm(claim_emb) + 1e-10)
                     sims = np.dot(scraped_embeddings, claim_norm)
 

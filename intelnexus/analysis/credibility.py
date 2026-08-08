@@ -13,6 +13,7 @@ import numpy as np
 from urllib.parse import urlparse
 
 from intelnexus.analysis import load_sentence_model
+from intelnexus.analysis.embed_cache import encode_texts
 
 
 class SourceScorer:
@@ -49,29 +50,31 @@ class SourceScorer:
     def __init__(self):
         self._model = load_sentence_model()
 
-    def evaluate(self, results, scraped_content):
+    def evaluate(self, results, scraped_content, emb_by_url=None):
         """
         Add credibility scores to each result dict in-place.
 
         Args:
             results: list of dicts with keys (title, link/source, source, description)
             scraped_content: dict of {url: scraped_text}
+            emb_by_url: 可选，预计算的 {url: embedding}（来自 embed_cache），
+                        传入可避免重复编码同一批文本
 
         Returns:
             The same results list with added keys:
               - credibility_score: float 0-1
               - credibility_details: dict with sub-scores and reason
         """
-        # Batch-encode all texts once to avoid O(N²) re-encoding
+        # 批量编码所有文本一次（共享 embed_cache，避免 O(N²) 重复编码）
         url_list = list(scraped_content.keys())
         text_list = [scraped_content[u] for u in url_list]
-        emb_cache = {}
-        if self._model is not None and text_list:
+        emb_cache = dict(emb_by_url) if emb_by_url else {}
+        if self._model is not None and text_list and not emb_cache:
             try:
-                valid_texts = [t if t else "" for t in text_list]
-                embs = self._model.encode(valid_texts, show_progress_bar=False)
-                for u, e in zip(url_list, embs):
-                    emb_cache[u] = e
+                embs = encode_texts(text_list)
+                if embs is not None:
+                    for u, e in zip(url_list, embs):
+                        emb_cache[u] = e
             except Exception:
                 emb_cache = {}
 
@@ -230,11 +233,12 @@ class ConsistencyAnalyzer:
     def __init__(self):
         self._model = load_sentence_model()
 
-    def analyze(self, results, scraped_content):
+    def analyze(self, results, scraped_content, emb_by_url=None):
         """
         Args:
             results: list of result dicts
             scraped_content: dict of {url: text}
+            emb_by_url: 可选，预计算的 {url: embedding}（来自 embed_cache）
 
         Returns:
             dict with keys:
@@ -271,7 +275,22 @@ class ConsistencyAnalyzer:
             }
 
         try:
-            embs = self._model.encode(valid_texts, show_progress_bar=False)
+            # 优先复用预编码 embedding（按 url 对齐），否则统一批量编码一次
+            embs = None
+            if emb_by_url:
+                embs = np.array([emb_by_url[results[i].get("link") or results[i].get("url", "")]
+                                 for i in valid_indices], dtype=np.float32)
+                if embs.shape[0] != len(valid_texts):
+                    embs = None
+            if embs is None:
+                embs = encode_texts(valid_texts)
+            if embs is None:
+                return {
+                    "consistency_matrix": [[1.0]],
+                    "overall_consistency": 1.0,
+                    "outlier_indices": [],
+                    "source_labels": labels
+                }
             n = len(valid_texts)
             matrix = [[0.0] * n for _ in range(n)]
             for i in range(n):

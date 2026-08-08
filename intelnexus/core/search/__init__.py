@@ -1,6 +1,7 @@
 import random
 import os
 import re
+import threading
 import requests
 from typing import Optional
 from urllib.parse import urlparse
@@ -35,6 +36,59 @@ def get_tor_session():
         "https": f"socks5h://127.0.0.1:{port}"
     }
     return session
+
+
+# ========== 共享 Tor Session 单例（避免每次抓取都重建 SOCKS 连接） ==========
+_shared_tor_session = None
+_tor_session_lock = threading.Lock()
+
+
+def get_shared_tor_session():
+    """获取进程内复用的 Tor Session 单例（双检锁）。"""
+    global _shared_tor_session
+    if _shared_tor_session is None:
+        with _tor_session_lock:
+            if _shared_tor_session is None:
+                _shared_tor_session = get_tor_session()
+    return _shared_tor_session
+
+
+# ========== 共享 HTTP Session 工厂（连接池 + 重试，按代理配置缓存） ==========
+_session_cache = {}
+_session_cache_lock = threading.Lock()
+
+
+def get_session(proxies: Optional[dict] = None):
+    """
+    获取带连接池与自动重试的 requests.Session（按 proxies 配置缓存复用）。
+
+    - proxies=None：直连（国内源、本地抓取）
+    - proxies=dict：走指定代理（与 get_http_proxies() 返回一致）
+
+    复用 Session 可避免每次请求重复 TCP/TLS 握手，显著降低抓取延迟。
+    """
+    key = None
+    if proxies:
+        key = tuple(sorted((k, v) for k, v in proxies.items()))
+    with _session_cache_lock:
+        cached = _session_cache.get(key)
+        if cached is not None:
+            return cached
+        session = requests.Session()
+        retry = Retry(
+            total=3,
+            read=3,
+            connect=3,
+            backoff_factor=0.3,
+            status_forcelist=[500, 502, 503, 504],
+        )
+        adapter = HTTPAdapter(max_retries=retry, pool_connections=20, pool_maxsize=20)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        if proxies:
+            session.proxies = proxies
+        _session_cache[key] = session
+        return session
 
 
 def get_http_proxies():

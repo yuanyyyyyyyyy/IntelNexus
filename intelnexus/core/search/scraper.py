@@ -1,13 +1,10 @@
 import random
-import requests
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from intelnexus.core.settings.cache import get_cached, set_cached
 
 from intelnexus.core.logger import get_logger
-from intelnexus.core.search import USER_AGENTS, get_tor_session
+from intelnexus.core.search import USER_AGENTS, get_http_proxies, get_session, get_shared_tor_session
 
 logger = get_logger(__name__)
 
@@ -34,10 +31,13 @@ def scrape_single(url_data, rotate=False, rotate_interval=5, control_port=9051, 
 
     try:
         if use_tor:
-            session = get_tor_session()
+            # 复用共享 Tor Session 单例（带连接池与重试）
+            session = get_shared_tor_session()
             response = session.get(url, headers=headers, timeout=45)
         else:
-            response = requests.get(url, headers=headers, timeout=15)
+            # 复用共享 HTTP Session（连接池 + 自动重试）
+            session = get_session(get_http_proxies())
+            response = session.get(url, headers=headers, timeout=15)
 
         if response.status_code == 200:
             if response.encoding is None or response.encoding.lower() == 'iso-8859-1':

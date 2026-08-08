@@ -12,7 +12,7 @@ except ImportError:
     NewsApiClient = None
 
 from intelnexus.core.logger import get_logger
-from intelnexus.core.search import USER_AGENTS, get_http_proxies, get_http_proxies_for, is_blocked_domain, relevance_passes
+from intelnexus.core.search import USER_AGENTS, get_http_proxies, get_http_proxies_for, get_session, is_blocked_domain, relevance_passes
 
 logger = get_logger(__name__)
 
@@ -81,10 +81,11 @@ class NewsSearch:
 
     def _fetch_rss_with_retry(self, url: str, headers: Dict, proxies, timeout: int = RSS_FETCH_TIMEOUT, max_retries: int = 2):
         """带指数退避的 RSS 请求封装，仅在 requests 异常时重试。"""
+        session = get_session(proxies)
         last_err = None
         for attempt in range(max_retries + 1):
             try:
-                return requests.get(url, headers=headers, timeout=timeout, proxies=proxies)
+                return session.get(url, headers=headers, timeout=timeout)
             except requests.exceptions.RequestException as e:
                 last_err = e
                 if attempt < max_retries:
@@ -175,7 +176,7 @@ class NewsSearch:
             params = {"q": query, "form": "QBRE", "sp": "-1"}
             headers = {"User-Agent": random.choice(USER_AGENTS)}
 
-            response = requests.get(url, params=params, headers=headers, timeout=10, proxies=None)
+            response = get_session(None).get(url, params=params, headers=headers, timeout=10)
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, "html.parser")
 
@@ -212,7 +213,7 @@ class NewsSearch:
             params = {"q": query, "hl": "en-US", "gl": "US"}
             headers = {"User-Agent": random.choice(USER_AGENTS)}
 
-            response = requests.get(url, params=params, headers=headers, timeout=10, proxies=get_http_proxies())
+            response = get_session(get_http_proxies()).get(url, params=params, headers=headers, timeout=10)
             if response.status_code == 200:
                 soup = BeautifulSoup(response.content, "xml")
 

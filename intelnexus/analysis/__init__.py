@@ -12,3 +12,14 @@ def load_sentence_model():
         return _shared_model
     except Exception:
         return None
+
+
+def warm_up_models():
+    """
+    预热分析所需的重模型（sentence-transformers）。
+    在流水线启动早期调用一次，把冷启动代价从首次搜索转移到应用加载阶段。
+    """
+    try:
+        load_sentence_model()
+    except Exception:
+        pass
