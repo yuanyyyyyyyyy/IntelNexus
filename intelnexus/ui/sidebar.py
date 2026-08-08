@@ -5,7 +5,7 @@ import os
 from intelnexus.core.logger import get_logger
 from intelnexus.ui.i18n import get_text
 from intelnexus.core.ui.helpers import SEARCH_MODES, DEFAULT_TOR_PORT, check_tor_status
-from intelnexus.core.llm.utils import get_model_choices
+from intelnexus.core.llm.utils import get_model_choices, is_vision_model
 from intelnexus.core.llm.models import add_custom_model, get_custom_model_names, remove_custom_model
 from intelnexus.search_app.darkweb import is_available as darkweb_available
 
@@ -138,6 +138,8 @@ def _render_model_settings():
         model = None
     else:
         model = st.selectbox(get_text("llm_model"), model_options, index=0)
+        if is_vision_model(model):
+            st.warning(get_text("vision_model_warning").format(model=model))
     threads = st.slider(get_text("threads"), 1, 16, 5)
 
     lang_options = {get_text("zh"): "zh", get_text("en"): "en"}

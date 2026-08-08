@@ -100,6 +100,49 @@ def fetch_ollama_models() -> List[str]:
 _ollama_models_cache = {"models": None, "time": 0}
 
 
+# 视觉模型关键字：仅适合图像任务，不适合长文本情报分析 / 摘要生成
+VISION_MODEL_HINTS = ("llava", "bakllava", "moondream", "vision", "llama3.2-vision", "minicpm-v")
+
+
+def is_vision_model(model: str) -> bool:
+    """判断模型名是否疑似视觉模型（仅做关键字匹配，不保证精确）。"""
+    name = (model or "").lower()
+    return any(hint in name for hint in VISION_MODEL_HINTS)
+
+
+def check_ollama_model_available(model: str, timeout: float = 3.0) -> tuple[bool, str]:
+    """检查 Ollama 服务可达且指定模型已存在。
+
+    Returns:
+        (available, message): available 为 True 时 message 为空；
+        否则 message 为中文错误说明，可直接展示给用户。
+    """
+    base_url = _get_ollama_base_url()
+    if not base_url:
+        return False, "未配置 OLLAMA_BASE_URL，无法连接本地模型服务。"
+
+    try:
+        resp = requests.get(urljoin(base_url, "api/tags"), timeout=timeout)
+        resp.raise_for_status()
+    except requests.exceptions.ConnectionError:
+        return False, "无法连接 Ollama 服务，请确认 Ollama 已启动。"
+    except requests.exceptions.Timeout:
+        return False, "Ollama 服务响应超时，请检查服务状态。"
+    except requests.RequestException as e:
+        return False, f"无法连接 Ollama 服务：{e}"
+
+    try:
+        data = resp.json()
+    except (ValueError, Exception) as e:
+        return False, f"Ollama 返回异常响应：{type(e).__name__}: {e}"
+
+    models = [m.get("name") or m.get("model") for m in data.get("models", [])]
+    models = [m for m in models if m]
+    if not any(_normalize_model_name(m) == _normalize_model_name(model) for m in models):
+        return False, f"本地未找到模型「{model}」，请先在 Ollama 中拉取该模型。"
+    return True, ""
+
+
 def get_model_choices() -> List[str]:
     """
     只返回本地 Ollama 模型与用户添加的自定义模型，不暴露任何云端预设。

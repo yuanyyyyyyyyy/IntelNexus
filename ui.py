@@ -6,6 +6,9 @@ Combines search and briefing UI from sub-projects.
 
 import os
 import sys
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Ensure root project dir resolves first so root-level config.py and the
 # intelnexus/ package are importable. Single-package layout removes the old
@@ -136,26 +139,44 @@ with tab_search:
     # 反向飞轮：从简报条目跳转过来的取证任务
     pending_query = st.session_state.pop("pending_forensic_query", None)
     pending_mode = st.session_state.pop("pending_forensic_mode", "all")
+    # 简报跳转的预填值写入输入框 session state（控件不再用 value= 回填）
+    if pending_query:
+        st.session_state.query_input = pending_query
 
-    col_search_input, col_search_btn = st.columns([10, 1])
-    with col_search_input:
-        query = st.text_input(
-            "query",
-            placeholder=get_text("search_placeholder"),
-            label_visibility="collapsed",
-            key="query_input",
-            value=pending_query if pending_query else "",
-        )
-    with col_search_btn:
-        run_button = st.button(get_text("search_button"), key="search_btn")
+    # 用 st.form 包裹输入框与提交按钮：表单提交时所有 widget 值会先同步到
+    # session_state，再触发 rerun，从而彻底解决“点按钮时输入框值未提交”的问题。
+    with st.form(key="search_form", clear_on_submit=False):
+        col_search_input, col_search_btn = st.columns([10, 1])
+        with col_search_input:
+            query = st.text_input(
+                "query",
+                placeholder=get_text("search_placeholder"),
+                label_visibility="collapsed",
+                key="query_input",
+            )
+        with col_search_btn:
+            run_button = st.form_submit_button(get_text("search_button"),
+                                               use_container_width=True)
 
     status_slot = st.empty()
 
+    # 表单提交后 session_state.query_input 已是最新输入值
+    live_query = st.session_state.get("query_input", query or "").strip()
+    effective_query = live_query or (query or "").strip()
+
+    logger.info(
+        f"[DEBUG] run_button={run_button!r}, query={query!r}, "
+        f"live_query={live_query!r}, pending_query={pending_query!r}, model={model!r}"
+    )
+
     # 来自简报的取证任务：自动触发搜索
-    if pending_query and not (run_button and query):
+    if pending_query and not (run_button and effective_query):
         run_search_pipeline(pending_query, pending_mode, model, threads, status_slot)
-    elif run_button and query:
-        run_search_pipeline(query, search_mode, model, threads, status_slot)
+    elif run_button and effective_query:
+        run_search_pipeline(effective_query, search_mode, model, threads, status_slot)
+    elif run_button and not effective_query:
+        # 兜底：点了搜索但关键词为空，给出可见提示而非静默无反应
+        status_slot.warning(get_text("search_placeholder"))
 
     render_results_panels()
     render_download_section()

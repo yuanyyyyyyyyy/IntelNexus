@@ -28,12 +28,18 @@ def _render_collect_button(item: dict, key_suffix: str):
 
 
 def render_results_detail():
-    """渲染分页搜索结果列表"""
-    if not (st.session_state.get("search_completed", False) and st.session_state.get("filtered")):
+    """渲染分页搜索结果列表。
+
+    只要搜索已完成（search_completed）即渲染：即便无结果也展示明确的空结果提示，
+    不再因缺少 streamed_summary 或 filtered 为空而整片留白。
+    """
+    if not st.session_state.get("search_completed", False):
         return
 
-    filtered = st.session_state.filtered
+    filtered = st.session_state.get("filtered", [])
     if len(filtered) == 0:
+        st.markdown("---")
+        st.info(get_text("no_results"))
         return
 
     st.markdown("---")
@@ -89,5 +95,6 @@ def render_results_detail():
                     link = item.get('link') or item.get('url')
                     st.markdown(get_text("view_original").format(link=link))
                 # 收藏到简报草稿（搜→报飞轮闭环）
-                _render_collect_button(item, f"{start_idx}_{i}")
+                # key 必须全局唯一：i 是组内索引会重复，故用 source+全局序号组合
+                _render_collect_button(item, f"{source}_{actual_idx}")
                 st.markdown("---")
