@@ -66,8 +66,8 @@ for %%a in (%*) do (
 
 if %INSTALL_MODELS%==1 (
     echo [IntelNexus] Installing spaCy models...
-    "%PYTHON_EXE%" -m pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl || echo [IntelNexus] WARNING: en_core_web_sm install failed
-    "%PYTHON_EXE%" -m pip install https://github.com/explosion/spacy-models/releases/download/zh_core_web_sm-3.8.0/zh_core_web_sm-3.8.0-py3-none-any.whl || echo [IntelNexus] WARNING: zh_core_web_sm install failed
+    "%PYTHON_EXE%" -m pip install "https://mirror.ghproxy.com/https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" || echo [IntelNexus] WARNING: en_core_web_sm install failed
+    "%PYTHON_EXE%" -m pip install "https://mirror.ghproxy.com/https://github.com/explosion/spacy-models/releases/download/zh_core_web_sm-3.8.0/zh_core_web_sm-3.8.0-py3-none-any.whl" || echo [IntelNexus] WARNING: zh_core_web_sm install failed
 ) else (
     echo [IntelNexus] Skipping model installation (--no-models)
 )
