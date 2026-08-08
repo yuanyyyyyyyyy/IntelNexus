@@ -1,7 +1,0 @@
-[server]
-runOnSave = false
-
-[theme]
-base="dark"
-backgroundColor="#000000"
-secondaryBackgroundColor="#222222"
