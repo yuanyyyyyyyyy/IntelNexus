@@ -65,6 +65,10 @@ test_*.py
 .codebuddy/
 .opencode/
 
+# Local-only Windows launcher scripts (not tracked in repo)
+run.bat
+setup.bat
+
 # Test & type-check caches
 .pytest_cache/
 .mypy_cache/
