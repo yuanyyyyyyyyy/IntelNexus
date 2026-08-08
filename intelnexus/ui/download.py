@@ -3,9 +3,23 @@ from intelnexus.ui.i18n import get_text
 
 
 def render_download_section():
-    """渲染报告下载区域"""
-    if not (st.session_state.get("search_completed", False) and st.session_state.get("streamed_summary")):
+    """渲染报告下载区域。
+
+    只要搜索已完成（search_completed）即可下载：即便报告生成失败，
+    也回退到以「原始搜索结果 / 抓取内容」生成可下载文档，避免无下载入口。
+    """
+    if not st.session_state.get("search_completed", False):
         return
+
+    # 报告内容：优先用生成的摘要，否则回退到原始抓取内容拼接
+    report_text = st.session_state.get("streamed_summary") or ""
+    if not report_text:
+        scraped = st.session_state.get("scraped", {})
+        if scraped:
+            parts = []
+            for url, content in scraped.items():
+                parts.append(f"## {url}\n\n{content[:3000]}\n")
+            report_text = "# 原始检索结果（报告生成失败，以下为抓取内容）\n\n" + "\n".join(parts)
 
     st.markdown("---")
     format_options = ["md", "pdf", "docx", "xlsx"]
@@ -26,7 +40,7 @@ def render_download_section():
             filename = f"report_{st.session_state.report_timestamp}"
             if download_format == 'pdf':
                 from intelnexus.export.report import export_pdf
-                pdf_path = export_pdf(st.session_state.streamed_summary, st.session_state.refined, filename)
+                pdf_path = export_pdf(report_text, st.session_state.refined, filename)
                 with open(pdf_path, 'rb') as f:
                     pdf_data = f.read()
                 st.download_button(
@@ -43,7 +57,7 @@ def render_download_section():
 
             elif download_format == 'docx':
                 from intelnexus.export.report import export_word
-                docx_path = export_word(st.session_state.streamed_summary, st.session_state.refined, filename)
+                docx_path = export_word(report_text, st.session_state.refined, filename)
                 with open(docx_path, 'rb') as f:
                     docx_data = f.read()
                 st.download_button(
@@ -60,7 +74,7 @@ def render_download_section():
 
             elif download_format == 'xlsx':
                 from intelnexus.export.report import export_excel
-                xlsx_path = export_excel(st.session_state.streamed_summary, st.session_state.refined, filename)
+                xlsx_path = export_excel(report_text, st.session_state.refined, filename)
                 with open(xlsx_path, 'rb') as f:
                     xlsx_data = f.read()
                 st.download_button(
@@ -78,7 +92,7 @@ def render_download_section():
             else:  # markdown
                 st.download_button(
                     label=get_text("md_ready"),
-                    data=st.session_state.streamed_summary,
+                    data=report_text,
                     file_name=f"{filename}.md",
                     mime="text/markdown",
                     key="md_download_now"

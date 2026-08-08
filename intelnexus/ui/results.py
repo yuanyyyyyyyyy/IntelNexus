@@ -3,8 +3,12 @@ import streamlit as st
 
 
 def render_results_panels():
-    """渲染所有结果可视化面板"""
-    if not (st.session_state.get("search_completed", False) and st.session_state.get("streamed_summary")):
+    """渲染所有结果可视化面板。
+
+    只要有搜索产物（search_completed）即可渲染；各子面板（可信度 / 冲突 /
+    知识图谱 / 证据链）独立判断自身数据是否存在，报告生成失败时仍展示其他分析。
+    """
+    if not st.session_state.get("search_completed", False):
         return
 
     st.markdown("<br>", unsafe_allow_html=True)
