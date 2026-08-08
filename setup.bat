@@ -66,8 +66,9 @@ for %%a in (%*) do (
 
 if %INSTALL_MODELS%==1 (
     echo [IntelNexus] Installing spaCy models...
-    "%PYTHON_EXE%" -m pip install "https://mirror.ghproxy.com/https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" || echo [IntelNexus] WARNING: en_core_web_sm install failed
-    "%PYTHON_EXE%" -m pip install "https://mirror.ghproxy.com/https://github.com/explosion/spacy-models/releases/download/zh_core_web_sm-3.8.0/zh_core_web_sm-3.8.0-py3-none-any.whl" || echo [IntelNexus] WARNING: zh_core_web_sm install failed
+    REM zh model is available on PyPI mirrors (e.g. aliyun); en model falls back to GitHub proxy
+    "%PYTHON_EXE%" -m pip install "zh-core-web-sm==3.8.0" -i http://mirrors.aliyun.com/pypi/simple --trusted-host mirrors.aliyun.com || echo [IntelNexus] WARNING: zh_core_web_sm install failed
+    "%PYTHON_EXE%" -m pip install "https://mirror.ghproxy.com/https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" --trusted-host mirror.ghproxy.com || echo [IntelNexus] WARNING: en_core_web_sm install failed
 ) else (
     echo [IntelNexus] Skipping model installation (--no-models)
 )
