@@ -66,9 +66,24 @@ for %%a in (%*) do (
 
 if %INSTALL_MODELS%==1 (
     echo [IntelNexus] Installing spaCy models...
-    REM zh model is available on PyPI mirrors (e.g. aliyun); en model falls back to GitHub proxy
+    REM zh model is available on PyPI mirrors (e.g. aliyun)
     "%PYTHON_EXE%" -m pip install "zh-core-web-sm==3.8.0" -i http://mirrors.aliyun.com/pypi/simple --trusted-host mirrors.aliyun.com || echo [IntelNexus] WARNING: zh_core_web_sm install failed
-    "%PYTHON_EXE%" -m pip install "https://mirror.ghproxy.com/https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" --trusted-host mirror.ghproxy.com || echo [IntelNexus] WARNING: en_core_web_sm install failed
+
+    REM en model: prefer local proxy (e.g. NekoBox Mixed port 2080) to reach GitHub directly,
+    REM then fall back to public GitHub proxies if no local proxy is available.
+    set "EN_MODEL_URL=https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"
+    set "PIP_PROXY="
+    powershell -Command "try { $n=New-Object System.Net.Sockets.TcpClient; $n.Connect('127.0.0.1',2080); $n.Close(); Write-Output 'PROXY_UP' } catch { Write-Output 'PROXY_DOWN' }" | findstr /C:"PROXY_UP" >nul && set "PIP_PROXY=http://127.0.0.1:2080"
+
+    if defined PIP_PROXY (
+        echo [IntelNexus] Local proxy detected at 127.0.0.1:2080, using it for en_core_web_sm
+        "%PYTHON_EXE%" -m pip install "%EN_MODEL_URL%" --proxy "%PIP_PROXY%" || echo [IntelNexus] WARNING: en_core_web_sm install failed via local proxy
+    ) else (
+        echo [IntelNexus] No local proxy; trying public GitHub proxies for en_core_web_sm
+        "%PYTHON_EXE%" -m pip install "https://ghproxy.net/https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" --trusted-host ghproxy.net || (
+            "%PYTHON_EXE%" -m pip install "https://github.bib.ink/https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" --trusted-host github.bib.ink || echo [IntelNexus] WARNING: en_core_web_sm install failed
+        )
+    )
 ) else (
     echo [IntelNexus] Skipping model installation (--no-models)
 )
