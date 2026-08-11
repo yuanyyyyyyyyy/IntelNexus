@@ -15,6 +15,7 @@ from intelnexus.analysis.intelligence_graph import get_entity_extractor, Intelli
 from intelnexus.analysis.evidence_tracer import EvidenceTracer
 from intelnexus.analysis import warm_up_models
 from intelnexus.analysis.embed_cache import encode_texts
+from intelnexus.analysis.relevance import compute_query_relevance
 from intelnexus.core.settings.result_cache import build_key, get_result, set_result
 from intelnexus.core.ui.helpers import DEFAULT_TOR_PORT
 from intelnexus.ui.i18n import get_text
@@ -171,7 +172,19 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
         st.session_state.report_timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         return
 
-    st.session_state.filtered = st.session_state.results[:20]
+    # 方案A+C：语义相关性排序 + 弱相关降权标注
+    # 在抓取之前完成，保证进报告/KG 的是最相关内容；模型不可用时降级到 results[:20]。
+    ranked = compute_query_relevance(query, st.session_state.results)
+    if ranked is not None:
+        st.session_state.results = ranked
+        # 高相关进 filtered 主干（弱相关沉底，不进主干统计/报告）
+        st.session_state.filtered = [r for r in ranked if not r.get("weak_related", False)][:20]
+        weak_count = sum(1 for r in ranked if r.get("weak_related", False))
+        if weak_count:
+            logger.info("相关性过滤：%d 条弱相关结果被降权（不进报告主干）", weak_count)
+    else:
+        # 降级：沿用原有 top-20 行为，不阻断搜索
+        st.session_state.filtered = st.session_state.results[:20]
 
     # 查询级结果缓存：同一 (mode, query, model, threads, ...) 命中时，
     # 直接复用上次的搜索结果 + 抓取内容，跳过最耗时的 IO 阶段
@@ -189,6 +202,7 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
     credibility_context = ""
     conflicts_context = ""
     kg_context = ""
+    cache_restored = False  # 命中缓存且已恢复报告/证据链时置 True，跳过阶段 6/7 重跑
     if cached_payload is not None:
         try:
             st.session_state.results = cached_payload.get("results", st.session_state.results)
@@ -203,6 +217,39 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
             credibility_context = cached_payload.get("credibility_context", "")
             conflicts_context = cached_payload.get("conflicts_context", "")
             kg_context = cached_payload.get("kg_context", "")
+            # 用缓存中的排序结果重建 filtered（弱相关沉底，不进抓取/报告主干）
+            _cached_ranked = st.session_state.results
+            if isinstance(_cached_ranked, list) and _cached_ranked:
+                st.session_state.filtered = [
+                    r for r in _cached_ranked if not r.get("weak_related", False)
+                ][:20]
+            # 命中缓存时一并恢复报告全文与证据链，确保与本次查询严格绑定
+            # （独立于 filtered 重建，即使 results 为空也应恢复，避免跨查询串味）
+            if "streamed_summary" in cached_payload or "evidence_data" in cached_payload:
+                st.session_state.streamed_summary = cached_payload.get("streamed_summary", "")
+                st.session_state.evidence_data = cached_payload.get("evidence_data")
+                logger.info("命中查询缓存，已恢复报告全文与证据链产物")
+            else:
+                # 旧缓存文件无新增字段：以当前查询的抓取内容补跑报告与证据链，
+                # 复用现有异常边界，避免跨查询残留串味
+                logger.info("命中查询缓存但缺少报告/证据链字段，触发补跑降级")
+                try:
+                    st.session_state.streamed_summary = generate_summary(
+                        llm, query, st.session_state.scraped, search_mode,
+                        credibility_context=credibility_context,
+                        kg_context=kg_context,
+                        conflicts_context=conflicts_context) or ""
+                    if st.session_state.streamed_summary:
+                        tracer = EvidenceTracer()
+                        st.session_state.evidence_data = tracer.trace(
+                            st.session_state.streamed_summary, st.session_state.scraped)
+                    else:
+                        st.session_state.evidence_data = None
+                except Exception as e:
+                    logger.error(f"缓存补跑报告/证据链失败: {e}", exc_info=True)
+                    st.session_state.streamed_summary = ""
+                    st.session_state.evidence_data = None
+            st.session_state.cache_restored = True
             st.success("✅ 命中查询缓存，跳过重复检索与抓取")
         except Exception as e:
             logger.error(f"恢复缓存失败 [{type(e).__name__}]: {e}", exc_info=True)
@@ -381,6 +428,10 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
                     "kg_context": st.session_state.get("kg_context", ""),
                     "credibility_context": credibility_context,
                     "conflicts_context": conflicts_context,
+                    # 报告全文与证据链产物随查询级缓存一并保存，
+                    # 与 results/scraped 视为同一查询的原子产物，避免跨查询串味
+                    "streamed_summary": st.session_state.get("streamed_summary", ""),
+                    "evidence_data": st.session_state.get("evidence_data"),
                 })
                 analyze_st.update(label=get_text("analyze_done"), state="complete")
         except Exception as e:
@@ -390,34 +441,51 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
             conflicts_context = ""
             kg_context = ""
 
-    st.session_state.streamed_summary = ""
-
-    def ui_emit(chunk):
-        st.session_state.streamed_summary += chunk
-        summary_slot.markdown(st.session_state.streamed_summary)
-
     st.markdown(f"""
     <div class="report-section">
         <div class="report-title">{get_text("report_title")}</div>
     </div>
     """, unsafe_allow_html=True)
 
-    # 6) 生成报告（独立异常边界：即便失败，前面结果仍可渲染）
-    try:
-        with status_slot.status(get_text("generating"), expanded=False) as gen_st:
-            stream_handler = BufferedStreamingHandler(ui_callback=ui_emit)
-            llm.callbacks = [stream_handler]
-            generated = generate_summary(llm, query, st.session_state.scraped, search_mode,
-                                         credibility_context=credibility_context,
-                                         kg_context=kg_context,
-                                         conflicts_context=conflicts_context)
-            # generate_summary 在超时/异常时返回错误模板文本而非抛异常
-            if generated:
-                st.session_state.streamed_summary = generated
-            gen_st.update(label=get_text("report_done"), state="complete")
-    except Exception as e:
-        logger.error(f"报告生成失败 [{type(e).__name__}]: {e}", exc_info=True)
-        status_slot.error(f"{get_text('report_failed')}: {type(e).__name__} — {e}")
+    # 命中查询缓存且已恢复报告/证据链时，跳过阶段 6/7 重跑，直接渲染已恢复内容
+    if not cache_restored:
+        st.session_state.streamed_summary = ""
+
+        def ui_emit(chunk):
+            st.session_state.streamed_summary += chunk
+            summary_slot.markdown(st.session_state.streamed_summary)
+
+        # 6) 生成报告（独立异常边界：即便失败，前面结果仍可渲染）
+        try:
+            with status_slot.status(get_text("generating"), expanded=False) as gen_st:
+                stream_handler = BufferedStreamingHandler(ui_callback=ui_emit)
+                llm.callbacks = [stream_handler]
+                generated = generate_summary(llm, query, st.session_state.scraped, search_mode,
+                                             credibility_context=credibility_context,
+                                             kg_context=kg_context,
+                                             conflicts_context=conflicts_context)
+                # generate_summary 在超时/异常时返回错误模板文本而非抛异常
+                if generated:
+                    st.session_state.streamed_summary = generated
+                gen_st.update(label=get_text("report_done"), state="complete")
+        except Exception as e:
+            logger.error(f"报告生成失败 [{type(e).__name__}]: {e}", exc_info=True)
+            status_slot.error(f"{get_text('report_failed')}: {type(e).__name__} — {e}")
+
+    # 命中缓存时已恢复 evidence_data；未命中/重跑时此处确保证据链存在
+    if not cache_restored or not st.session_state.get("evidence_data"):
+        # 7) 证据链追踪（独立异常边界，失败不阻断）
+        try:
+            with status_slot.status(get_text("tracing_evidence"), expanded=False) as ev_st:
+                if st.session_state.get("streamed_summary"):
+                    tracer = EvidenceTracer()
+                    st.session_state.evidence_data = tracer.trace(
+                        st.session_state.streamed_summary,
+                        st.session_state.scraped)
+                ev_st.update(label=get_text("evidence_done"), state="complete")
+        except Exception as e:
+            logger.error(f"证据链追踪失败: {e}")
+            st.session_state.evidence_data = None
 
     now = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     st.session_state.report_timestamp = now
@@ -427,16 +495,3 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
     st.session_state.export_format_choice = "md"
 
     status_slot.success(get_text("complete"))
-
-    # 7) 证据链追踪（独立异常边界，失败不阻断）
-    try:
-        with status_slot.status(get_text("tracing_evidence"), expanded=False) as ev_st:
-            if st.session_state.get("streamed_summary"):
-                tracer = EvidenceTracer()
-                st.session_state.evidence_data = tracer.trace(
-                    st.session_state.streamed_summary,
-                    st.session_state.scraped)
-            ev_st.update(label=get_text("evidence_done"), state="complete")
-    except Exception as e:
-        logger.error(f"证据链追踪失败: {e}")
-        st.session_state.evidence_data = None

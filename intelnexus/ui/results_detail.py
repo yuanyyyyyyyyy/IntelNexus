@@ -98,3 +98,26 @@ def render_results_detail():
                 # key 必须全局唯一：i 是组内索引会重复，故用 source+全局序号组合
                 _render_collect_button(item, f"{source}_{actual_idx}")
                 st.markdown("---")
+
+    # 弱相关结果（被语义相关性过滤降权，不进报告/KG 主干，但保留可追溯）
+    _all_results = st.session_state.get("results", []) or []
+    weak_items = [r for r in _all_results if r.get("weak_related", False)]
+    if weak_items:
+        with st.expander(
+            f"⚠️ {get_text('weak_related_title').format(count=len(weak_items))}",
+            expanded=False
+        ):
+            st.caption(get_text("weak_related_hint"))
+            for wi, item in enumerate(weak_items):
+                wkey = f"weak_{wi}"
+                st.markdown(f"**{item.get('title', get_text('no_title'))[:150]}**")
+                if item.get('description'):
+                    st.markdown(f"📝 {item.get('description', '')[:500]}...")
+                elif item.get('summary'):
+                    st.markdown(f"📝 {item.get('summary', '')[:500]}...")
+                if item.get('link') or item.get('url'):
+                    link = item.get('link') or item.get('url')
+                    st.markdown(get_text("view_original").format(link=link))
+                # key 加 weak_ 前缀，与主列表的 source_actual_idx 区分，避免 DuplicateWidgetID
+                _render_collect_button(item, f"weak_{wkey}")
+                st.markdown("---")
