@@ -114,11 +114,19 @@ def expand_query(user_input):
 
 def expand_query_for_search(query_variants):
     """
-    将查询变体扩展为搜索字符串
-    如果是列表，用 | 分隔多个查询
+    将查询变体扩展为搜索字符串。
+
+    修正（方案B）：不再把多语言变体用 ``|`` 拼成 OR 查询一次性塞给搜索引擎。
+    OR 拼接会稀释查询意图（如中文"九江" + "九江 English" 会拉回大量无关的英文全局新闻），
+    "搜不准"的根因之一。
+
+    改为：仅取第一个（最贴近原意的）变体作为搜索串，其余语言变体由管线层在
+    聚合后再做语义排序/过滤处理。若传入单个字符串则原样返回。
     """
     if isinstance(query_variants, list):
-        return " | ".join(query_variants)
+        if not query_variants:
+            return ""
+        return query_variants[0]
     return query_variants
 
 
