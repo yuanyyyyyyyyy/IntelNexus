@@ -80,5 +80,5 @@ setup.bat
 .coverage.*
 htmlcov/
 .cache/
-.ipynb_checkpoints/intelnexus/data/cache/
+intelnexus/data/cache/
 intelnexus/data/result_cache/
