@@ -27,7 +27,7 @@ WATCH_CATEGORIES = {
         "name": "美欧机构AI应用",
         "name_en": "US/EU Government AI Adoption",
         "description": "美欧国家机构、敏感部门应用新AI技术的报道",
-        "icon": "🏛️",
+        "icon": "govt",
         "keywords_en": [
             "US government AI", "Pentagon AI", "NATO AI", "EU AI adoption",
             "White House AI", "DoD artificial intelligence", "CIA AI",
@@ -53,7 +53,7 @@ WATCH_CATEGORIES = {
         "name": "涉我AI舆论",
         "name_en": "China-related AI Narrative",
         "description": "美欧涉我AI领域（算料算法算力等维度）的舆论报道",
-        "icon": "🇨🇳",
+        "icon": "china",
         "keywords_en": [
             "China AI", "Chinese AI companies", "Baidu AI", "Alibaba AI",
             "TikTok AI", "DeepSeek", "AI chip ban China", "semiconductor restrictions",
@@ -79,7 +79,7 @@ WATCH_CATEGORIES = {
         "name": "AI新法案",
         "name_en": "AI Legislation & Regulation",
         "description": "美欧涉AI领域且与我国有关的新法案出台情况",
-        "icon": "📜",
+        "icon": "legislation",
         "keywords_en": [
             "AI regulation", "AI legislation", "AI Act", "AI bill",
             "artificial intelligence law", "AI policy", "AI governance",
@@ -104,7 +104,7 @@ WATCH_CATEGORIES = {
         "name": "AI数据泄露",
         "name_en": "AI Data Breaches & Security",
         "description": "境外媒体报道的国外及国内因AI领域新技术引发的数据泄露风险事件",
-        "icon": "🔒",
+        "icon": "leak",
         "keywords_en": [
             "AI data breach", "AI security incident", "AI vulnerability",
             "machine learning data leak", "LLM security", "AI cyber attack",
@@ -130,7 +130,7 @@ WATCH_CATEGORIES = {
         "name": "漏洞与威胁",
         "name_en": "Vulnerabilities & Threats",
         "description": "近期披露的通用高危漏洞、CVE、0day 与在野利用情报",
-        "icon": "🛡️",
+        "icon": "vuln",
         "keywords_en": [
             "CVE vulnerability", "zero-day exploit", "RCE vulnerability",
             "critical vulnerability disclosed", "CISA KEV", "exploit published",
@@ -152,7 +152,7 @@ WATCH_CATEGORIES = {
         "name": "攻击事件与合规",
         "name_en": "Attack Incidents & Compliance",
         "description": "数据泄露、勒索攻击、重大安全事件及网络安全政策合规动态",
-        "icon": "🛡️",
+        "icon": "attack",
         "keywords_en": [
             "data breach", "ransomware attack", "dark web leak",
             "cyber attack incident", "breach disclosed", "security regulation",

@@ -1,5 +1,6 @@
 import os
 import streamlit as st
+from intelnexus.ui.icons import icon, status_icon
 
 
 def render_results_panels():
@@ -16,7 +17,7 @@ def render_results_panels():
     cred = st.session_state.get("credibility_data")
     if cred:
         st.markdown("---")
-        st.markdown("## 📊 来源可信度评估")
+        st.markdown(f"## {icon('chart', 'lg', 'blue')} 来源可信度评估", unsafe_allow_html=True)
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("平均可信度", f"{cred['avg_score']:.2f}")
         col2.metric("高可信来源", cred['high_count'])
@@ -25,7 +26,12 @@ def render_results_panels():
 
         rows = []
         for s in cred['scores'][:20]:
-            label = "🟢 高" if s['score'] >= 0.7 else ("🟡 中" if s['score'] >= 0.4 else "🔴 低")
+            if s['score'] >= 0.7:
+                label = "高"
+            elif s['score'] >= 0.4:
+                label = "中"
+            else:
+                label = "低"
             rows.append(f"| {s['name']} | {s['score']:.2f} | {label} | {s['reason'][:40]} |")
         if rows:
             header = "| 来源 | 可信度 | 等级 | 原因 |\n|------|--------|------|------|"
@@ -34,11 +40,16 @@ def render_results_panels():
     conflicts = st.session_state.get("conflicts", [])
     if conflicts:
         st.markdown("---")
-        st.markdown("## ⚠️ 跨源信息冲突")
+        st.markdown(f"## {icon('warning', 'lg', 'warning')} 跨源信息冲突", unsafe_allow_html=True)
         for c in conflicts[:5]:
             sev = c.get("severity", 0.5)
-            icon = "🔴" if sev >= 0.7 else ("🟡" if sev >= 0.4 else "🟢")
-            with st.expander(f"{icon} {c.get('description', '')[:80]}", expanded=sev >= 0.7):
+            if sev >= 0.7:
+                sev_label = "高"
+            elif sev >= 0.4:
+                sev_label = "中"
+            else:
+                sev_label = "低"
+            with st.expander(f"[{sev_label}] {c.get('description', '')[:80]}", expanded=sev >= 0.7):
                 st.markdown(f"**类型**: {c.get('type')} | **严重度**: {sev:.2f}")
                 st.markdown(f"**涉及来源**:")
                 for src in c.get("sources", []):
@@ -48,7 +59,7 @@ def render_results_panels():
     kg_path = st.session_state.get("kg_html_path", "")
     if kg_path and os.path.exists(kg_path):
         st.markdown("---")
-        st.markdown("## 🕸️ 情报知识图谱")
+        st.markdown(f"## {icon('knowledge', 'lg', 'lavender')} 情报知识图谱", unsafe_allow_html=True)
         entities = st.session_state.get("kg_entities", [])
         if entities:
             st.markdown("**关键实体**: " +
@@ -60,13 +71,13 @@ def render_results_panels():
     ev = st.session_state.get("evidence_data")
     if ev and ev.get("claims"):
         st.markdown("---")
-        st.markdown("## 🔗 证据链追踪")
+        st.markdown(f"## {icon('link', 'lg', 'terracotta')} 证据链追踪", unsafe_allow_html=True)
         st.metric("证据覆盖率", f"{ev['coverage']:.0%}")
         for claim in ev["claims"][:10]:
             if claim["is_unsupported"]:
-                st.markdown(f"⚠️ _{claim['text'][:80]}..._ — ❌ **无直接证据**")
+                st.markdown(f"{icon('error', 'sm', 'error')} _{claim['text'][:80]}..._ — **无直接证据**", unsafe_allow_html=True)
             else:
                 best = claim["evidence"][0]
-                st.markdown(f"✅ _{claim['text'][:80]}..._")
+                st.markdown(f"{icon('success', 'sm', 'sage')} _{claim['text'][:80]}..._", unsafe_allow_html=True)
                 st.markdown(f" → 置信度 {best['confidence']:.2f} | "
                             f"[查看原文]({best['url']})")

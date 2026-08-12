@@ -1,0 +1,212 @@
+"""
+知识库UI模块
+============
+显示用户收藏的简报条目、搜索结果和笔记
+"""
+import streamlit as st
+from typing import List, Optional
+from intelnexus.ui.i18n import get_text
+from intelnexus.ui.icons import icon
+
+
+def render_knowledge_base():
+    """渲染知识库主界面"""
+    from intelnexus.config.knowledge_base import get_items, get_tags, get_stats, add_item, add_tag
+    from intelnexus.core.ui.styles import render_workbench_css
+    
+    # 注入样式
+    render_workbench_css()
+    
+    # 统计信息
+    stats = get_stats()
+    
+    st.markdown(
+        '<div class="bf-panel bf-panel--gen">'
+        f'<div class="bf-label"><span class="bf-label__tag">KB</span>'
+        f'<span class="bf-label__title">{get_text("knowledge_base")}</span></div>',
+        unsafe_allow_html=True,
+    )
+    
+    # 统计卡片
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("总计", stats["total"])
+    with col2:
+        st.metric(get_text("kb_briefing"), stats["by_type"].get("briefing_entry", 0))
+    with col3:
+        st.metric(get_text("kb_search"), stats["by_type"].get("search_result", 0))
+    with col4:
+        st.metric(get_text("kb_note"), stats["by_type"].get("note", 0))
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # 筛选栏
+    col_filter1, col_filter2, col_filter3 = st.columns([2, 2, 1])
+    with col_filter1:
+        type_options = [
+            get_text("kb_all"),
+            get_text("kb_briefing"),
+            get_text("kb_search"),
+            get_text("kb_note")
+        ]
+        selected_type = st.selectbox(
+            get_text("kb_filter_type"),
+            type_options,
+            key="kb_type_filter"
+        )
+    with col_filter2:
+        tags = get_tags()
+        tag_options = [get_text("kb_all")] + tags
+        selected_tag = st.selectbox(
+            get_text("kb_filter_tag"),
+            tag_options,
+            key="kb_tag_filter"
+        )
+    with col_filter3:
+        if st.button(get_text("kb_add_note"), key="kb_add_note_btn"):
+            st.session_state.show_add_note = True
+    
+    # 显示添加笔记表单
+    if st.session_state.get("show_add_note"):
+        _render_add_note_form()
+    
+    # 筛选类型
+    type_map = {
+        get_text("kb_briefing"): "briefing_entry",
+        get_text("kb_search"): "search_result",
+        get_text("kb_note"): "note"
+    }
+    filter_type = type_map.get(selected_type)
+    
+    # 获取条目
+    items = get_items(
+        item_type=filter_type,
+        tag=selected_tag if selected_tag != get_text("kb_all") else None
+    )
+    
+    # 显示条目列表
+    if not items:
+        st.info(get_text("kb_no_items"))
+    else:
+        for item in items:
+            _render_kb_item(item)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+def _render_add_note_form():
+    """渲染添加笔记表单"""
+    from intelnexus.config.knowledge_base import add_item, get_tags, add_tag
+    
+    with st.expander(get_text("kb_add_note"), expanded=True):
+        title = st.text_input(get_text("kb_add_note_title"), key="note_title")
+        content = st.text_area(get_text("kb_add_note_content"), key="note_content")
+        
+        # 标签选择
+        existing_tags = get_tags()
+        new_tags = st.multiselect(
+            get_text("kb_tags"),
+            options=existing_tags,
+            key="note_tags"
+        )
+        
+        # 添加新标签
+        new_tag = st.text_input("新标签", key="new_tag_input", placeholder="输入新标签")
+        if new_tag and st.button("添加标签"):
+            add_tag(new_tag)
+            st.rerun()
+        
+        col1, col2 = st.columns([1, 4])
+        with col1:
+            if st.button(get_text("kb_add_note_btn")):
+                if title and content:
+                    add_item(
+                        item_type="note",
+                        title=title,
+                        content=content,
+                        tags=new_tags
+                    )
+                    st.success(get_text("kb_note_added"))
+                    st.session_state.show_add_note = False
+                    st.rerun()
+                else:
+                    st.warning("请填写标题和内容")
+        with col2:
+            if st.button("取消"):
+                st.session_state.show_add_note = False
+                st.rerun()
+
+
+def _render_kb_item(item: dict):
+    """渲染单个知识库条目"""
+    from intelnexus.config.knowledge_base import remove_item, update_item
+    
+    item_id = item.get("id", "")
+    item_type = item.get("type", "")
+    title = item.get("title", "")
+    url = item.get("url", "")
+    content = item.get("content", "")
+    source = item.get("source", "")
+    category = item.get("category", "")
+    tags = item.get("tags", [])
+    created_at = item.get("created_at", "")[:10]
+    
+    # 类型图标
+    type_icons = {
+        "briefing_entry": ("entry", "gray"),
+        "search_result": ("result", "blue"),
+        "note": ("note", "lavender")
+    }
+    icon_name, icon_color = type_icons.get(item_type, ("entry", "gray"))
+    
+    # 渲染条目卡片
+    st.markdown(
+        f'<div class="bf-entry-row">'
+        f'<div class="bf-entry-info">'
+        f'<span class="bf-entry-title">{icon(icon_name, "sm", icon_color)} {title[:80]}</span>'
+        f'<span class="bf-entry-source">{source or category or item_type}</span>'
+        f'<span class="bf-entry-cred">{created_at}</span>'
+        f'</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+    
+    # 显示标签
+    if tags:
+        tags_display = " ".join([f"`{tag}`" for tag in tags])
+        st.markdown(tags_display)
+    
+    # 显示内容预览
+    if content:
+        st.caption(content[:150] + "..." if len(content) > 150 else content)
+    
+    # 操作按钮
+    col1, col2, col3 = st.columns([1, 1, 4])
+    with col1:
+        if url:
+            st.link_button("查看", url)
+    with col2:
+        if st.button("删除", key=f"del_{item_id}"):
+            remove_item(item_id)
+            st.rerun()
+    
+    st.markdown("---")
+
+
+def render_knowledge_base_sidebar():
+    from intelnexus.config.knowledge_base import get_stats
+    
+    stats = get_stats()
+    
+    st.markdown(
+        f'<div class="sb-section"><span class="sb-section__label">Navigation</span></div>',
+        unsafe_allow_html=True
+    )
+    
+    if st.button(
+        f"{get_text('knowledge_base')} ({stats['total']})",
+        key="nav_kb",
+        use_container_width=True
+    ):
+        st.session_state.show_knowledge_base = True
+        st.rerun()

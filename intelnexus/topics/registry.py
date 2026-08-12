@@ -29,6 +29,12 @@ class Topic:
     origin: str = "preset"          # preset | user_search
     enabled: bool = True
     created_at: Optional[str] = None
+    # 参与度字段（第二阶段新增）
+    engagement_score: float = 0.0    # 综合评分
+    feedback_count: int = 0          # 反馈总数
+    positive_feedback: int = 0       # +数量
+    negative_feedback: int = 0       # -数量
+    last_feedback_at: Optional[str] = None
 
     def to_category_dict(self) -> Dict:
         """转换为与 WATCH_CATEGORIES 条目兼容的 dict，供 collector 直接使用。"""

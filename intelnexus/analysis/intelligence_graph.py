@@ -139,12 +139,14 @@ class EntityExtractor:
                     self._nlp_zh = spacy.load(
                         'zh_core_web_sm', disable=['parser', 'lemmatizer']
                     )
+                    self._nlp_zh.add_pipe('sentencizer')
                 return self._nlp_zh
             else:
                 if self._nlp_en is None:
                     self._nlp_en = spacy.load(
                         'en_core_web_sm', disable=['parser', 'lemmatizer']
                     )
+                    self._nlp_en.add_pipe('sentencizer')
                 return self._nlp_en
         except (OSError, ValueError, ImportError):
             return None

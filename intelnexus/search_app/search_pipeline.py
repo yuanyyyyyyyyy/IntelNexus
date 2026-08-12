@@ -16,6 +16,7 @@ from intelnexus.analysis.intelligence_graph import EntityExtractor, Intelligence
 from intelnexus.analysis.evidence_tracer import EvidenceTracer
 from intelnexus.core.ui.helpers import DEFAULT_TOR_PORT
 from intelnexus.ui.i18n import get_text
+from intelnexus.ui.icons import icon
 from config import NEWS_API_KEY
 
 logger = get_logger(__name__)
@@ -163,7 +164,7 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
                     c_lines = []
                     for c in st.session_state.conflicts[:5]:
                         c_lines.append(
-                            f"- ⚠️ [{c['type']}] {c['description']} ({get_text('severity')}: {c['severity']:.2f})")
+                            f"- {icon('warning', 'sm', 'warning')} [{c['type']}] {c['description']} ({get_text('severity')}: {c['severity']:.2f})")
                     conflicts_context = "\n".join(c_lines)
             except Exception as e:
                 logger.error(f"可信度评估失败: {e}")

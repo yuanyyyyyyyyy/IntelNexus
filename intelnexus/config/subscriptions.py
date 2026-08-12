@@ -81,7 +81,12 @@ def add_subscriber(
         "schedule": schedule,
         "categories": categories,
         "created_at": datetime.now().isoformat(),
-        "last_sent": None
+        "last_sent": None,
+        # 反馈相关字段（第二阶段新增）
+        "feedback_log": [],
+        "engagement_score": 0.0,
+        "preferred_sources": [],
+        "preferred_categories": {},
     }
 
     data.setdefault("subscribers", []).append(new_subscriber)

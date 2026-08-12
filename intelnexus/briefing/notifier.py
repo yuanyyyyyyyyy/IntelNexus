@@ -126,6 +126,15 @@ class AIBriefingNotifier:
             # HTML 由调用方基于裁剪后内容重新生成；此处回退为空以避免内容不一致
             send_html = None
         
+        # 基于参与度进一步个性化（第二阶段新增）
+        subscriber_id = subscriber.get("id", "")
+        if subscriber_id:
+            try:
+                from intelnexus.briefing.personalization import filter_briefing_by_engagement
+                send_content = filter_briefing_by_engagement(send_content, subscriber_id)
+            except Exception as e:
+                logger.warning(f"基于参与度过滤失败: {e}")
+        
         # 邮件推送
         if channels.get("email", {}).get("enabled", False):
             email = channels["email"].get("address", subscriber.get("email", ""))

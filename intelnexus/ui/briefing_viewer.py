@@ -13,6 +13,7 @@ import streamlit as st
 from datetime import datetime
 from intelnexus.config.briefing_history import get_briefing_history
 from intelnexus.ui.i18n import get_text
+from intelnexus.ui.icons import icon
 
 
 def render_briefing_preview():
@@ -126,24 +127,125 @@ def render_briefing_entries():
             unsafe_allow_html=True,
         )
 
-        col_btn, col_url = st.columns([1, 5])
+        col_feedback, col_btn, col_url = st.columns([1, 1, 5])
+        
+        with col_feedback:
+            # 反馈按钮（按分类记录）
+            entry_url = url or ""
+            category = entry.get("category", "unknown")
+            if entry_url:
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    if st.button(
+                        get_text("feedback_up"),
+                        key=f"up_{category}_{filename}_{i}",
+                        help=get_text("feedback_hint"),
+                    ):
+                        from intelnexus.config.feedback import save_briefing_feedback, track_feedback
+                        save_briefing_feedback(category, entry_url, "up")
+                        track_feedback(entry_url, "up", "briefing")
+                        st.toast(get_text("feedback_marked"))
+                        st.rerun()
+                with c2:
+                    if st.button(
+                        get_text("feedback_down"),
+                        key=f"down_{category}_{filename}_{i}",
+                        help=get_text("feedback_hint"),
+                    ):
+                        from intelnexus.config.feedback import save_briefing_feedback, track_feedback
+                        save_briefing_feedback(category, entry_url, "down")
+                        track_feedback(entry_url, "down", "briefing")
+                        st.toast(get_text("feedback_marked"))
+                        st.rerun()
+                with c3:
+                    # 收藏到知识库
+                    from intelnexus.config.knowledge_base import get_items, add_item
+                    existing_kb = get_items(url=entry_url, item_type="briefing_entry")
+                    if existing_kb:
+                        st.caption(get_text('kb_saved'))
+                    else:
+                        if st.button(get_text("kb_save"), key=f"kb_{category}_{filename}_{i}",
+                                     help=get_text("kb_save")):
+                            add_item(
+                                item_type="briefing_entry",
+                                title=title,
+                                url=entry_url,
+                                content=entry.get("description", ""),
+                                source=source,
+                                category=category,
+                                tags=[],
+                                metadata={
+                                    "briefing_id": filename,
+                                    "credibility_score": score
+                                }
+                            )
+                            st.toast("已收藏到知识库")
+                            st.rerun()
+        
         with col_btn:
-            btn_label = get_text("forensic_investigate")
+            btn_label = get_text('investigate_like_this')
             if has_conflict and conflict_sev >= 0.7:
-                btn_label = f"⚠ {btn_label}"
+                btn_label = f"! {btn_label}"
             if st.button(
                 btn_label,
                 key=f"forensic_{filename}_{i}",
                 use_container_width=True,
+                help=get_text("investigate_help"),
             ):
                 query = title if title else (url or "unknown")
                 st.session_state.pending_forensic_query = query
                 st.session_state.pending_forensic_mode = "all"
+                st.session_state.switch_to_search = True
                 st.rerun()
         with col_url:
             if url:
                 st.caption(url[:100])
 
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+def render_recommendations():
+    """渲染推荐区域"""
+    from intelnexus.briefing.recommendation import get_related_topics, get_similar_briefings
+    
+    # 获取当前简报
+    current_briefing_id = st.session_state.get("current_briefing_filename", "")
+    if not current_briefing_id:
+        # 尝试从历史记录获取最近的简报
+        history = get_briefing_history().get_briefings(limit=1)
+        if history:
+            current_briefing_id = history[0].get("id", "")
+    
+    if not current_briefing_id:
+        return
+    
+    # 获取推荐
+    related_topics = get_related_topics()
+    similar_briefings = get_similar_briefings(current_briefing_id)
+    
+    if not related_topics and not similar_briefings:
+        return
+    
+    st.markdown(
+        '<div class="bf-panel bf-panel--gen">'
+        f'<div class="bf-label"><span class="bf-label__tag">TIPS</span>'
+        f'<span class="bf-label__title">{get_text("recommendation")}</span></div>',
+        unsafe_allow_html=True,
+    )
+    
+    if related_topics:
+        st.markdown(f"**{get_text('related_topics')}：**")
+        for item in related_topics:
+            topic = item["topic"]
+            st.markdown(f"- {icon('link', 'sm', 'terracotta')} {topic.name}", unsafe_allow_html=True)
+    
+    if similar_briefings:
+        st.markdown(f"**{get_text('similar_briefings')}：**")
+        for item in similar_briefings:
+            briefing = item["briefing"]
+            sim = item["similarity"]
+            st.markdown(f"- {icon('entry', 'sm', 'gray')} {briefing.get('id', '')} ({sim:.0%}相似)", unsafe_allow_html=True)
+    
     st.markdown('</div>', unsafe_allow_html=True)
 
 
@@ -542,7 +644,7 @@ def render_watch_categories_panel():
                     "name": new_name,
                     "name_en": new_name,
                     "description": "",
-                    "icon": "🔍",
+                    "icon": "info",
                     "search_queries": [q.strip() for q in new_queries.splitlines() if q.strip()],
                     "enabled": True,
                 }
@@ -617,8 +719,9 @@ def render_briefing_settings():
             get_text("data_source_management"),
             get_text("subscription_management"),
             get_text("watch_categories_mgmt"),
+            get_text("analytics_dashboard"),
         ]
-        tab_keys = ["sources", "subs", "watch"]
+        tab_keys = ["sources", "subs", "watch", "analytics"]
 
         # Marker 供 CSS 把配置区 radio 渲染成 tab 样式
         st.markdown('<div class="bf-settings-tabs-marker" style="display:none"></div>', unsafe_allow_html=True)
@@ -639,6 +742,9 @@ def render_briefing_settings():
             render_data_sources_panel()
         elif active == "subs":
             render_subscriptions_panel()
+        elif active == "analytics":
+            from intelnexus.ui.analytics import render_analytics_dashboard
+            render_analytics_dashboard()
         else:
             render_watch_categories_panel()
 
@@ -724,6 +830,7 @@ def render_briefing_center():
     # 输出区
     render_briefing_preview()
     render_briefing_entries()
+    render_recommendations()
 
     # 历史记录常驻入口（toggle 替代原隐藏 session_state 开关）
     col_hist_toggle, _ = st.columns([2, 4])

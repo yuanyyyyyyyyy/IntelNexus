@@ -1,5 +1,6 @@
 import streamlit as st
 from intelnexus.ui.i18n import get_text
+from intelnexus.ui.icons import icon
 from intelnexus.config.briefing_drafts import add_draft, get_drafts
 
 
@@ -25,6 +26,53 @@ def _render_collect_button(item: dict, key_suffix: str):
         else:
             st.toast(get_text("collect_dup"))
         st.rerun()
+
+
+def _render_useful_button(item: dict, key_suffix: str):
+    """为单条搜索结果渲染「有用」标记按钮。"""
+    url = item.get("url") or item.get("link", "")
+    if not url:
+        return
+    
+    from intelnexus.config.feedback import get_search_feedback, save_search_feedback, track_feedback
+    
+    existing = get_search_feedback(url)
+    if existing == "useful":
+        st.caption(get_text("feedback_marked"))
+    else:
+        if st.button(get_text("feedback_useful"), key=f"useful_{key_suffix}",
+                     help=get_text("feedback_hint")):
+            save_search_feedback(url, "useful")
+            track_feedback(url, "useful", "search")
+            st.toast(get_text("feedback_marked"))
+            st.rerun()
+
+
+def _render_save_to_kb_button(item: dict, key_suffix: str):
+    """为单条搜索结果渲染「收藏到知识库」按钮。"""
+    url = item.get("url") or item.get("link", "")
+    if not url:
+        return
+    
+    from intelnexus.config.knowledge_base import get_items, add_item
+    
+    # 检查是否已收藏
+    existing = get_items(url=url, item_type="search_result")
+    if existing:
+        st.caption(get_text("kb_saved"))
+    else:
+        if st.button(get_text("kb_save"), key=f"kb_{key_suffix}",
+                     help=get_text("kb_save")):
+            add_item(
+                item_type="search_result",
+                title=item.get("title", ""),
+                url=url,
+                content=item.get("description", item.get("summary", "")),
+                source=item.get("source", "Unknown"),
+                tags=[]
+            )
+            st.toast("已收藏到知识库")
+            st.rerun()
 
 
 def render_results_detail():
@@ -88,15 +136,17 @@ def render_results_detail():
                 actual_idx = start_idx + i + 1
                 st.markdown(f"**{actual_idx}. {item.get('title', get_text('no_title'))[:150]}**")
                 if item.get('description'):
-                    st.markdown(f"📝 {item.get('description', '')[:500]}...")
+                    st.markdown(f"{icon('entry', 'sm', 'gray')} {item.get('description', '')[:500]}...", unsafe_allow_html=True)
                 elif item.get('summary'):
-                    st.markdown(f"📝 {item.get('summary', '')[:500]}...")
+                    st.markdown(f"{icon('note', 'sm', 'lavender')} {item.get('summary', '')[:500]}...", unsafe_allow_html=True)
                 if item.get('link') or item.get('url'):
                     link = item.get('link') or item.get('url')
                     st.markdown(get_text("view_original").format(link=link))
                 # 收藏到简报草稿（搜→报飞轮闭环）
                 # key 必须全局唯一：i 是组内索引会重复，故用 source+全局序号组合
                 _render_collect_button(item, f"{source}_{actual_idx}")
+                _render_useful_button(item, f"{source}_{actual_idx}")
+                _render_save_to_kb_button(item, f"{source}_{actual_idx}")
                 st.markdown("---")
 
     # 弱相关结果（被语义相关性过滤降权，不进报告/KG 主干，但保留可追溯）
@@ -104,7 +154,7 @@ def render_results_detail():
     weak_items = [r for r in _all_results if r.get("weak_related", False)]
     if weak_items:
         with st.expander(
-            f"⚠️ {get_text('weak_related_title').format(count=len(weak_items))}",
+            f"{get_text('weak_related_title').format(count=len(weak_items))}",
             expanded=False
         ):
             st.caption(get_text("weak_related_hint"))
@@ -112,9 +162,9 @@ def render_results_detail():
                 wkey = f"weak_{wi}"
                 st.markdown(f"**{item.get('title', get_text('no_title'))[:150]}**")
                 if item.get('description'):
-                    st.markdown(f"📝 {item.get('description', '')[:500]}...")
+                    st.markdown(f"{icon('entry', 'sm', 'gray')} {item.get('description', '')[:500]}...", unsafe_allow_html=True)
                 elif item.get('summary'):
-                    st.markdown(f"📝 {item.get('summary', '')[:500]}...")
+                    st.markdown(f"{icon('note', 'sm', 'lavender')} {item.get('summary', '')[:500]}...", unsafe_allow_html=True)
                 if item.get('link') or item.get('url'):
                     link = item.get('link') or item.get('url')
                     st.markdown(get_text("view_original").format(link=link))
