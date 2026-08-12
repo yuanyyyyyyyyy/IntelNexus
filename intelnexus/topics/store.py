@@ -100,3 +100,23 @@ def set_enabled(topic_id: str, enabled: bool) -> bool:
 def topic_to_category_map() -> Dict[str, dict]:
     """返回与 WATCH_CATEGORIES 兼容的 {id: category_dict}，供 collector 使用。"""
     return {t.id: t.to_category_dict() for t in get_enabled_topics()}
+
+
+def find_by_query(query: str) -> Optional[Topic]:
+    """根据查询文本查找已存在的Topic"""
+    if not query:
+        return None
+    query_lower = query.lower()
+    for topic in get_all_topics():
+        # 精确匹配搜索查询
+        if query in topic.search_queries:
+            return topic
+        # 模糊匹配名称
+        if query_lower in topic.name.lower():
+            return topic
+        # 匹配关键词
+        if query_lower in [kw.lower() for kw in topic.keywords_zh]:
+            return topic
+        if query_lower in [kw.lower() for kw in topic.keywords_en]:
+            return topic
+    return None

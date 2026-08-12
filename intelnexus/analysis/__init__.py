@@ -8,6 +8,11 @@ _MODEL_LOAD_TIMEOUT = 15
 
 def _build_sentence_model():
     """构造 SentenceTransformer 实例，失败抛异常（由调用方捕获处理）。"""
+    import os
+    # 跳过 hf-mirror.com 等镜像站的 SSL 证书验证（国内网络环境常见问题）
+    os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
+    os.environ.setdefault("CURL_CA_BUNDLE", "")
+    os.environ.setdefault("REQUESTS_CA_BUNDLE", "")
     from sentence_transformers import SentenceTransformer
     return SentenceTransformer('all-MiniLM-L6-v2')
 

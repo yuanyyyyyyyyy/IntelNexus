@@ -4,6 +4,7 @@ import json
 import os
 from intelnexus.core.logger import get_logger
 from intelnexus.ui.i18n import get_text
+from intelnexus.ui.icons import icon
 from intelnexus.core.ui.helpers import SEARCH_MODES, DEFAULT_TOR_PORT, check_tor_status
 from intelnexus.core.llm.utils import get_model_choices
 from intelnexus.core.llm.models import add_custom_model, get_custom_model_names, remove_custom_model
@@ -30,7 +31,7 @@ def _render_search_mode():
 
     if search_mode == "darkweb":
         st.markdown("---")
-        with st.expander(f"🧅 {get_text('darkweb_settings')}", expanded=True):
+        with st.expander(get_text('darkweb_settings'), expanded=True):
             tor_port = st.number_input(
                 get_text("tor_port"),
                 min_value=1,
@@ -41,9 +42,9 @@ def _render_search_mode():
 
             tor_running = check_tor_status(tor_port)
             if tor_running:
-                st.success(f"🟢 {get_text('tor_running')}")
+                st.success(get_text('tor_running'))
             else:
-                st.error(f"🔴 {get_text('tor_not_running')}")
+                st.error(get_text('tor_not_running'))
 
             col_tor1, col_tor2 = st.columns([1, 1])
             with col_tor1:
@@ -58,7 +59,7 @@ def _render_search_mode():
             )
 
             if not tor_running and advanced_mode:
-                st.warning(f"⚠️ {get_text('tor_not_running')} - {get_text('default_mode')}")
+                st.warning(f"{get_text('tor_not_running')} - {get_text('default_mode')}")
 
             st.markdown("---")
             st.markdown(f"**{get_text('custom_onion_sites')}**")
@@ -111,10 +112,10 @@ def _render_search_mode():
                 for i, site in enumerate(st.session_state.custom_onion_sites):
                     col_site, col_del = st.columns([4, 1])
                     with col_site:
-                        auth_info = " 🔒" if site.get("auth") else ""
-                        st.markdown(f"- {site.get('name', 'Unknown')}{auth_info}")
+                        auth_info = f" {icon('leak', 'sm', 'sage')}" if site.get("auth") else ""
+                        st.markdown(f"- {site.get('name', 'Unknown')}{auth_info}", unsafe_allow_html=True)
                     with col_del:
-                        if st.button("🗑️", key=f"del_site_{i}"):
+                        if st.button("删除", key=f"del_site_{i}"):
                             st.session_state.custom_onion_sites.pop(i)
                             try:
                                 with open("data/custom_onion_sites.json", "w", encoding="utf-8") as f:

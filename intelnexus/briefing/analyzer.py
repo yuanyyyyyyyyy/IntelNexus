@@ -144,8 +144,9 @@ class AIBriefingAnalyzer:
 
         # 知识图谱链接追加到「重要链接」板块
         if kg_path:
+            from intelnexus.ui.icons import icon
             contents["links"] = (contents.get("links", "") or "") + \
-                f"\n\n• 📊 本期实体关系图谱：{kg_path}"
+                f"\n\n• {icon('knowledge', 'sm', 'lavender')} 本期实体关系图谱：{kg_path}"
 
         # 可信度概览作为简报首个板块（拼接到 top3 之前，复用现有模板签名）
         top3_with_overview = credibility_overview + "\n\n---\n\n" + contents["top3"] \

@@ -4,6 +4,7 @@ import json
 import os
 from intelnexus.core.logger import get_logger
 from intelnexus.ui.i18n import get_text
+from intelnexus.ui.icons import icon
 from intelnexus.core.ui.helpers import SEARCH_MODES, DEFAULT_TOR_PORT, check_tor_status
 from intelnexus.core.llm.utils import get_model_choices, is_vision_model
 from intelnexus.core.llm.models import add_custom_model, get_custom_model_names, remove_custom_model
@@ -129,7 +130,7 @@ def _render_search_mode():
 
 
 def _render_model_settings():
-    """模型选择 + 线程数 + 语言"""
+    """模型选择（核心设置）"""
     st.markdown('<div class="sb-section"><span class="sb-section__label">Model</span></div>', unsafe_allow_html=True)
 
     model_options = get_model_choices()
@@ -140,24 +141,35 @@ def _render_model_settings():
         model = st.selectbox(get_text("llm_model"), model_options, index=0)
         if is_vision_model(model):
             st.warning(get_text("vision_model_warning").format(model=model))
-    threads = st.slider(get_text("threads"), 1, 16, 5)
 
-    lang_options = {get_text("zh"): "zh", get_text("en"): "en"}
-    selected_lang = st.selectbox(get_text("language"), list(lang_options.keys()),
-                                  index=0 if st.session_state.lang == "zh" else 1,
-                                  key="lang_selector")
-    if lang_options.get(selected_lang) != st.session_state.lang:
-        st.session_state.lang = lang_options[selected_lang]
-        st.rerun()
+    return model
 
-    return model, threads
+
+def _render_advanced_settings():
+    """高级设置（线程数 + 语言 + 自定义模型）"""
+    with st.expander("高级设置", expanded=False):
+        # 线程数
+        threads = st.slider(get_text("threads"), 1, 16, 5, key="threads_slider")
+
+        # 语言选择
+        lang_options = {get_text("zh"): "zh", get_text("en"): "en"}
+        selected_lang = st.selectbox(get_text("language"), list(lang_options.keys()),
+                                      index=0 if st.session_state.lang == "zh" else 1,
+                                      key="lang_selector")
+        if lang_options.get(selected_lang) != st.session_state.lang:
+            st.session_state.lang = lang_options[selected_lang]
+            st.rerun()
+
+        # 自定义模型
+        _render_custom_models()
+
+    return threads
 
 
 def _render_custom_models():
     """自定义模型管理"""
-    st.markdown('<hr class="sb-divider">', unsafe_allow_html=True)
     st.markdown('<div class="sb-section"><span class="sb-section__label">Custom Models</span></div>', unsafe_allow_html=True)
-    with st.expander(get_text("add_custom_model"), expanded=False):
+    with st.container():
         col_name, col_type = st.columns(2)
         with col_name:
             custom_model_name = st.text_input(get_text("model_name"), key="custom_model_name")
@@ -232,7 +244,7 @@ def render_sidebar():
     Sidebar: cold-gray workbench style.
 
     Structure:
-      Brand → Search Mode → Model → [divider] → Custom Models
+      Brand → Search Mode → Model → [Advanced Settings]
 
     简报业务（数据源/订阅者/生成）已收拢至简报 Tab，侧边栏仅保留全局设置。
     """
@@ -244,9 +256,9 @@ def render_sidebar():
         search_mode = _render_search_mode()
 
         # Core: Model Settings
-        model, threads = _render_model_settings()
+        model = _render_model_settings()
 
-        # Optional: Custom Models (collapsible)
-        _render_custom_models()
+        # Advanced: Threads, Language, Custom Models
+        threads = _render_advanced_settings()
 
     return search_mode, model, threads

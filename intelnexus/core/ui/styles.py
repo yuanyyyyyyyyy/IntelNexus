@@ -1760,3 +1760,168 @@ def render_intel_report_css():
     }
 </style>
 """, unsafe_allow_html=True)
+
+
+def render_onboarding_css():
+    """渲染首次使用向导的CSS样式"""
+    st.markdown("""
+<style>
+    /* --- Onboarding Wizard --- */
+    .ob-wizard {
+        background: var(--morandi-card);
+        border: 1px solid var(--morandi-border);
+        border-radius: 18px;
+        padding: 40px;
+        margin: 24px 0;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+        max-width: 800px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .ob-title {
+        font-size: 32px;
+        font-weight: 700;
+        color: var(--morandi-text);
+        text-align: center;
+        margin-bottom: 8px;
+        letter-spacing: -0.02em;
+    }
+
+    .ob-subtitle {
+        font-size: 16px;
+        font-weight: 400;
+        color: var(--morandi-text-light);
+        text-align: center;
+        margin-bottom: 32px;
+    }
+
+    .ob-step-indicator {
+        text-align: center;
+        margin-bottom: 24px;
+        font-size: 13px;
+        color: var(--morandi-text-light);
+    }
+
+    .ob-prompt {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--morandi-text);
+        text-align: center;
+        margin-bottom: 24px;
+    }
+
+    /* Choice Cards */
+    .ob-choice-card {
+        background: #FFFFFF;
+        border: 1px solid var(--morandi-border);
+        border-top: 3px solid var(--morandi-border);
+        border-radius: 12px;
+        padding: 32px 24px;
+        text-align: center;
+        min-height: 180px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+
+    .ob-choice-card:hover {
+        border-top-color: var(--morandi-accent);
+        box-shadow: 0 4px 16px rgba(123,156,181,0.12);
+        transform: translateY(-2px);
+    }
+
+    .ob-choice-icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+    }
+
+    .ob-choice-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--morandi-text);
+        margin-bottom: 8px;
+    }
+
+    .ob-choice-desc {
+        font-size: 13px;
+        color: var(--morandi-text-light);
+        line-height: 1.5;
+    }
+
+    /* Skip Button */
+    .ob-skip {
+        text-align: center;
+        margin-top: 24px;
+    }
+
+    .ob-skip button {
+        background: transparent !important;
+        border: none !important;
+        color: var(--morandi-text-light) !important;
+        font-size: 13px !important;
+        text-decoration: underline !important;
+    }
+
+    .ob-skip button:hover {
+        color: var(--morandi-text) !important;
+    }
+
+    /* Success State */
+    .ob-success-icon {
+        font-size: 64px;
+        text-align: center;
+        margin-bottom: 16px;
+    }
+
+    .ob-complete-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--morandi-text);
+        text-align: center;
+        margin-bottom: 8px;
+    }
+
+    .ob-complete-desc {
+        font-size: 14px;
+        color: var(--morandi-text-light);
+        text-align: center;
+        margin-bottom: 32px;
+    }
+
+    /* Category Checkboxes */
+    .ob-category-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        transition: background 0.15s ease;
+        background: #FFFFFF;
+        border: 1px solid var(--morandi-border);
+        margin-bottom: 8px;
+    }
+
+    .ob-category-item:hover {
+        background: var(--morandi-card);
+    }
+
+    /* Schedule Section */
+    .ob-schedule-row {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+
+    .ob-schedule-label {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--morandi-text);
+        min-width: 80px;
+    }
+</style>
+""", unsafe_allow_html=True)

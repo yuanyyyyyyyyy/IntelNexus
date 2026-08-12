@@ -18,6 +18,7 @@ from intelnexus.analysis.embed_cache import encode_texts
 from intelnexus.analysis.relevance import compute_query_relevance
 from intelnexus.core.settings.result_cache import build_key, get_result, set_result
 from intelnexus.core.ui.helpers import DEFAULT_TOR_PORT
+from intelnexus.ui.icons import icon
 from intelnexus.ui.i18n import get_text
 from config import NEWS_API_KEY
 
@@ -250,7 +251,7 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
                     st.session_state.streamed_summary = ""
                     st.session_state.evidence_data = None
             st.session_state.cache_restored = True
-            st.success("✅ 命中查询缓存，跳过重复检索与抓取")
+            st.success("命中查询缓存，跳过重复检索与抓取")
         except Exception as e:
             logger.error(f"恢复缓存失败 [{type(e).__name__}]: {e}", exc_info=True)
             status_slot.warning(f"缓存数据不完整，将重新分析：{e}")
@@ -321,7 +322,7 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
                         cred_lines = []
                         for s in scores_list[:15]:
                             cred_lines.append(
-                                f"- {s['name']}: {get_text('credibility_score')} {s['score']:.2f} ({s['reason']})")
+                                f"- {s['name']}: credibility_score {s['score']:.2f} ({s['reason']})")
                         credibility_context = "\n".join(cred_lines)
 
                         conflicts_context = ""
@@ -329,7 +330,7 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
                             c_lines = []
                             for c in _conflicts[:5]:
                                 c_lines.append(
-                                    f"- ⚠️ [{c['type']}] {c['description']} ({get_text('severity')}: {c['severity']:.2f})")
+                                    f"- [{c['type']}] {c['description']} (severity: {c['severity']:.2f})")
                             conflicts_context = "\n".join(c_lines)
                         return {
                             "results": _results,
