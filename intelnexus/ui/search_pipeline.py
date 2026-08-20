@@ -17,6 +17,7 @@ from intelnexus.analysis import warm_up_models
 from intelnexus.analysis.embed_cache import encode_texts
 from intelnexus.analysis.relevance import compute_query_relevance
 from intelnexus.core.settings.result_cache import build_key, get_result, set_result
+from intelnexus.knowledge.retrieval import retrieve_relevant, build_kb_context
 from intelnexus.core.ui.helpers import DEFAULT_TOR_PORT
 from intelnexus.ui.icons import icon
 from intelnexus.ui.i18n import get_text
@@ -203,6 +204,15 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
     credibility_context = ""
     conflicts_context = ""
     kg_context = ""
+    # 知识库 RAG：检索与本次查询相关的历史收藏，注入报告上下文；
+    # 知识库为空或编码模型不可用时返回空串，行为与原管线一致
+    kb_context = ""
+    try:
+        kb_context = build_kb_context(retrieve_relevant(query))
+        if kb_context:
+            logger.info("知识库命中相关条目，注入历史参考上下文")
+    except Exception as e:
+        logger.warning(f"知识库检索失败，跳过注入: {e}")
     cache_restored = False  # 命中缓存且已恢复报告/证据链时置 True，跳过阶段 6/7 重跑
     if cached_payload is not None:
         try:
@@ -239,7 +249,8 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
                         llm, query, st.session_state.scraped, search_mode,
                         credibility_context=credibility_context,
                         kg_context=kg_context,
-                        conflicts_context=conflicts_context) or ""
+                        conflicts_context=conflicts_context,
+                        kb_context=kb_context) or ""
                     if st.session_state.streamed_summary:
                         tracer = EvidenceTracer()
                         st.session_state.evidence_data = tracer.trace(
@@ -429,6 +440,7 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
                     "kg_context": st.session_state.get("kg_context", ""),
                     "credibility_context": credibility_context,
                     "conflicts_context": conflicts_context,
+                    "kb_context": kb_context,
                     # 报告全文与证据链产物随查询级缓存一并保存，
                     # 与 results/scraped 视为同一查询的原子产物，避免跨查询串味
                     "streamed_summary": st.session_state.get("streamed_summary", ""),
@@ -464,7 +476,8 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
                 generated = generate_summary(llm, query, st.session_state.scraped, search_mode,
                                              credibility_context=credibility_context,
                                              kg_context=kg_context,
-                                             conflicts_context=conflicts_context)
+                                             conflicts_context=conflicts_context,
+                                             kb_context=kb_context)
                 # generate_summary 在超时/异常时返回错误模板文本而非抛异常
                 if generated:
                     st.session_state.streamed_summary = generated
@@ -488,8 +501,59 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
             logger.error(f"证据链追踪失败: {e}")
             st.session_state.evidence_data = None
 
+    # 8) 证据角标注入（在证据链追踪完成后）
+    try:
+        if st.session_state.get("evidence_data") and st.session_state.get("streamed_summary"):
+            from intelnexus.analysis.evidence_annotator import annotate_report
+            annotated = annotate_report(
+                st.session_state.streamed_summary, st.session_state.evidence_data)
+            if annotated != st.session_state.streamed_summary:
+                st.session_state.streamed_summary = annotated
+                summary_slot.markdown(st.session_state.streamed_summary)
+    except Exception as e:
+        logger.warning(f"证据角标注入失败: {e}")
+
+    # 8.5) 可视化图表注入
+    try:
+        if st.session_state.get("evidence_data") or st.session_state.get("scraped"):
+            from config import ENABLE_VISUALIZATION
+            if ENABLE_VISUALIZATION:
+                from intelnexus.analysis.visualizer import generate_threat_chart, generate_timeline_chart, inject_visuals
+                charts = {}
+                if st.session_state.get("evidence_data"):
+                    charts["threat"] = generate_threat_chart(st.session_state.evidence_data)
+                if st.session_state.get("scraped"):
+                    charts["timeline"] = generate_timeline_chart(st.session_state.scraped)
+                if any(charts.values()):
+                    st.session_state.streamed_summary = inject_visuals(
+                        st.session_state.streamed_summary, charts)
+                    summary_slot.markdown(st.session_state.streamed_summary)
+    except Exception as e:
+        logger.warning(f"可视化图表注入失败: {e}")
+
+    # 8.6) 行动项提取
+    try:
+        if st.session_state.get("streamed_summary"):
+            from intelnexus.analysis.action_extractor import extract_actions
+            st.session_state.action_items = extract_actions(st.session_state.streamed_summary)
+    except Exception as e:
+        logger.warning(f"行动项提取失败: {e}")
+
     now = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     st.session_state.report_timestamp = now
+
+    # 9) TL;DR 速览卡提取与渲染（报告完成后）
+    try:
+        _tldr = _extract_tldr_card(st.session_state.get("streamed_summary", ""))
+        if _tldr:
+            summary_slot.markdown(
+                f'<div class="tldr-card" style="background:#e8f4fd;border-radius:8px;'
+                f'padding:16px;margin-bottom:16px;border-left:4px solid #1a73e8;">'
+                f'{_tldr}</div>',
+                unsafe_allow_html=True
+            )
+    except Exception as e:
+        logger.warning(f"TL;DR 速览卡提取失败: {e}")
 
     st.session_state.search_completed = True
     st.session_state.status_slot = "complete"

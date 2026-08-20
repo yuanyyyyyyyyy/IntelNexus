@@ -29,14 +29,14 @@ WATCH_CATEGORIES = {
         "description": "美欧国家机构、敏感部门应用新AI技术的报道",
         "icon": "govt",
         "keywords_en": [
-            "US government AI", "Pentagon AI", "NATO AI", "EU AI adoption",
-            "White House AI", "DoD artificial intelligence", "CIA AI",
-            "intelligence community AI", "federal AI strategy",
+            "US government AI", "Pentagon artificial intelligence", "NATO AI strategy",
+            "EU AI adoption", "White House AI", "DoD artificial intelligence",
+            "CIA AI", "intelligence community AI", "federal AI strategy",
             "UK government AI", "France AI military", "Germany AI defense",
             "AI military application", "AI defense system"
         ],
         "keywords_zh": [
-            "美国政府 人工智能", "五角大楼 AI", "北约 人工智能",
+            "美国政府 人工智能", "五角大楼 人工智能", "北约 人工智能",
             "欧盟 AI应用", "白宫 人工智能", "军方 人工智能",
             "英国政府 AI", "法国 军事AI", "德国 国防AI",
             "军事 人工智能", "国防 AI系统"
@@ -55,11 +55,11 @@ WATCH_CATEGORIES = {
         "description": "美欧涉我AI领域（算料算法算力等维度）的舆论报道",
         "icon": "china",
         "keywords_en": [
-            "China AI", "Chinese AI companies", "Baidu AI", "Alibaba AI",
-            "TikTok AI", "DeepSeek", "AI chip ban China", "semiconductor restrictions",
-            "computing power China", "data China AI", "algorithm China",
-            "Huawei AI", "Tencent AI", "SenseTime", "Megvii",
-            "AI restriction China", "China AI regulation"
+            "China artificial intelligence", "Chinese AI companies", "Baidu AI",
+            "Alibaba AI", "TikTok AI", "DeepSeek AI", "AI chip ban China",
+            "semiconductor restrictions China", "computing power China",
+            "data China AI", "algorithm China", "Huawei AI", "Tencent AI",
+            "SenseTime", "Megvii", "AI restriction China", "China AI regulation"
         ],
         "keywords_zh": [
             "中国 人工智能", "中国AI公司", "百度 阿里 腾讯 AI",
@@ -132,16 +132,18 @@ WATCH_CATEGORIES = {
         "description": "近期披露的通用高危漏洞、CVE、0day 与在野利用情报",
         "icon": "vuln",
         "keywords_en": [
-            "CVE vulnerability", "zero-day exploit", "RCE vulnerability",
-            "critical vulnerability disclosed", "CISA KEV", "exploit published",
-            "CVSS critical", "patch Tuesday", "vulnerability research"
+            "critical vulnerability disclosed", "zero-day exploit", "RCE vulnerability",
+            "CVE security advisory", "CISA KEV", "exploit published",
+            "CVSS critical score", "patch Tuesday security", "vulnerability research",
+            "security flaw discovered"
         ],
         "keywords_zh": [
             "漏洞 CVE", "高危漏洞", "0day 利用", "在野利用",
-            "远程代码执行", "漏洞披露", "补丁 安全公告"
+            "远程代码执行", "漏洞披露", "补丁 安全公告",
+            "安全漏洞 发布"
         ],
         "search_queries": [
-            f"critical CVE vulnerability disclosed {YEAR}",
+            f"critical vulnerability disclosed {YEAR}",
             "zero-day exploit in the wild",
             "CISA known exploited vulnerabilities update",
             "RCE vulnerability patch released",
@@ -186,6 +188,13 @@ BRIEFING_CONFIG = {
             "ORGANIZATION_DISCLAIMER",
             "本简报基于公开信息整理，不构成投资或其他专业建议。"
         )
+    },
+    "search": {
+        "time_window_days": 7,  # 搜索时间窗口（天数）
+        "max_results_per_category": 30,  # 每个关注点最大结果数
+        "global_timeout_seconds": 60,  # 全局搜索超时（秒）
+        "enable_otx": False,  # OTX源SSL证书异常，暂时禁用
+        "enable_nvd": False,  # NVD API查询格式错误，暂时禁用
     },
     "format": {
         "max_top3_items": 3,

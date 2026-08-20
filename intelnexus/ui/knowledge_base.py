@@ -181,16 +181,56 @@ def _render_kb_item(item: dict):
         st.caption(content[:150] + "..." if len(content) > 150 else content)
     
     # 操作按钮
-    col1, col2, col3 = st.columns([1, 1, 4])
+    converted_topic_id = (item.get("metadata") or {}).get("converted_topic_id")
+    col1, col2, col3, col4 = st.columns([1, 1, 1, 3])
     with col1:
         if url:
             st.link_button("查看", url)
     with col2:
+        if converted_topic_id:
+            st.markdown(get_text("kb_watching"))
+        elif st.button(get_text("kb_watch"), key=f"watch_{item_id}"):
+            topic_id = _convert_item_to_topic(item)
+            if topic_id:
+                update_item(item_id, {"metadata": {
+                    **(item.get("metadata") or {}), "converted_topic_id": topic_id}})
+                st.success(get_text("kb_watch_success"))
+                st.rerun()
+            else:
+                st.info(get_text("topic_subscribed").format(name=(title or item_id)[:50]))
+    with col3:
         if st.button("删除", key=f"del_{item_id}"):
             remove_item(item_id)
             st.rerun()
-    
+
     st.markdown("---")
+
+
+def _convert_item_to_topic(item: dict):
+    """把知识库条目转为常驻 Topic 进入简报巡防；已存在同类 Topic 时返回 None。"""
+    from intelnexus.topics.store import add_topic, find_by_query
+    from intelnexus.topics.registry import Topic
+    import hashlib
+
+    title = (item.get("title") or "").strip()
+    if not title:
+        return None
+    if find_by_query(title):
+        return None
+
+    keywords = list(dict.fromkeys(
+        [title] + [t for t in (item.get("tags") or []) if t]))[:5]
+    topic_id = f"topic_{hashlib.md5(title.encode()).hexdigest()[:8]}"
+    new_topic = Topic(
+        id=topic_id,
+        name=title[:50],
+        description=f"知识库收藏沉淀：{title[:100]}",
+        search_queries=[title],
+        keywords_zh=keywords,
+        keywords_en=[title],
+        origin="kb_item",
+    )
+    return topic_id if add_topic(new_topic) else None
 
 
 def render_knowledge_base_sidebar():

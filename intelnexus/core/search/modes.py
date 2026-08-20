@@ -11,18 +11,21 @@ from typing import Dict, List, Tuple
 # 模式 -> (i18n key, 中文名, 包含的来源类别)
 # UI 渲染用 i18n key；后端用 categories 决定 registry 查询哪些源。
 SEARCH_MODES: Dict[str, Tuple[str, str, List[str]]] = {
-    "all": ("mode_all", "全部来源", ["web", "news", "darkweb", "custom"]),
+    "all": ("mode_all", "全部来源", ["web", "news", "darkweb", "custom",
+                                     "threat_intel", "community", "exploit"]),
     "web": ("mode_web", "网页搜索", ["web"]),
     "news": ("mode_news", "新闻资讯", ["news"]),
     "darkweb": ("mode_darkweb", "暗网搜索", ["darkweb"]),
+    "threat": ("mode_threat", "威胁情报", ["threat_intel", "exploit"]),
 }
 
 # 人类可读描述（供 LLM 系统提示词与 CLI 回显使用）
 MODE_DESCRIPTIONS: Dict[str, str] = {
-    "all": "综合所有来源：网页、新闻、暗网",
+    "all": "综合所有来源：网页、新闻、暗网、威胁情报、社区、漏洞利用",
     "web": "主要来源：网页搜索结果",
     "news": "主要来源：新闻资讯",
     "darkweb": "主要来源：暗网资源（.onion 网站）",
+    "threat": "威胁情报与漏洞利用代码",
 }
 
 # 向后兼容：旧 main.py 用 {mode: 英文标签} 形式
@@ -31,6 +34,7 @@ SEARCH_MODES_LABELS: Dict[str, str] = {
     "news": "News Articles",
     "darkweb": "Dark Web (Optional)",
     "all": "All Sources",
+    "threat": "Threat Intelligence",
 }
 
 

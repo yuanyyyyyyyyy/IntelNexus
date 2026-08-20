@@ -81,3 +81,17 @@ def render_results_panels():
                 st.markdown(f"{icon('success', 'sm', 'sage')} _{claim['text'][:80]}..._", unsafe_allow_html=True)
                 st.markdown(f" → 置信度 {best['confidence']:.2f} | "
                             f"[查看原文]({best['url']})")
+
+    # 行动项清单面板
+    actions = st.session_state.get("action_items", [])
+    if actions:
+        st.markdown("---")
+        st.markdown(f"## {icon('checklist', 'lg', 'blue')} 行动项清单", unsafe_allow_html=True)
+        priority_icons = {"high": "🔴", "medium": "🟡", "low": "🟢"}
+        priority_labels = {"high": "紧急", "medium": "重要", "low": "建议"}
+        deadline_labels = {"immediate": "立即", "this_week": "本周", "this_month": "本月"}
+        for a in actions:
+            pi = priority_icons.get(a.get("priority", "low"), "⚪")
+            pl = priority_labels.get(a.get("priority", "low"), "建议")
+            dl = deadline_labels.get(a.get("deadline", "this_month"), "本月")
+            st.markdown(f"- {pi} **[{pl}]** {a.get('action', '')} *(时限: {dl})*")

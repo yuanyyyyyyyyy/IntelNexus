@@ -6,7 +6,7 @@
 
 设计原则：
 - 现有 get_*_results 成熟实现零改动，仅由适配器薄包调用（见 sources/ 包）。
-- 每个源统一产出 {title, link, description, source, category} 字典。
+- 每个源统一产出 {title, url, description, source, category, published_at, metadata} 字典。
 - 代理收口沿用 shared/search.__init__.get_http_proxies_for(requires_proxy)。
 """
 from abc import ABC, abstractmethod
@@ -22,6 +22,12 @@ CATEGORY_WEB = "web"
 CATEGORY_NEWS = "news"
 CATEGORY_DARKWEB = "darkweb"
 CATEGORY_CUSTOM = "custom"
+CATEGORY_THREAT_INTEL = "threat_intel"
+CATEGORY_COMMUNITY = "community"
+CATEGORY_EXPLOIT = "exploit"
+CATEGORY_THREAT_INTEL = "threat_intel"  # 威胁情报源
+CATEGORY_COMMUNITY = "community"        # 社区源
+CATEGORY_EXPLOIT = "exploit"            # 漏洞利用源
 
 
 class BaseSearchSource(ABC):
@@ -67,26 +73,27 @@ class BaseSearchSource(ABC):
     def normalize_result(self, item: Dict) -> Dict:
         """将单个结果归一化为统一结构。
 
-        统一字段：title / link / description / source / category。
-        暗网与新闻源使用 ``url`` 而非 ``link``，此处统一映射。
+        统一字段：title / url / description / source / category / published_at / metadata。
         """
         if not isinstance(item, dict):
             return {}
-        link = item.get("link") or item.get("url") or ""
+        url = item.get("url") or item.get("link") or ""
         return {
             "title": item.get("title", ""),
-            "link": link,
+            "url": url,
             "description": item.get("description", ""),
             "source": item.get("source", self.name) or self.name,
             "category": self.category,
+            "published_at": item.get("published_at") or item.get("published") or "",
+            "metadata": item.get("metadata", {}),
         }
 
     def normalize_results(self, items: List[Dict]) -> List[Dict]:
-        """批量归一化并剔除无效项（无 link 的丢弃）。"""
+        """批量归一化并剔除无效项（无 url 的丢弃）。"""
         out = []
         for it in items or []:
             norm = self.normalize_result(it)
-            if norm.get("link"):
+            if norm.get("url"):
                 out.append(norm)
         return out
 

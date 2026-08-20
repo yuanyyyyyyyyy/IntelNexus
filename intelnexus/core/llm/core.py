@@ -163,6 +163,21 @@ def _build_system_prompt(query, search_mode):
 
 报告模板结构：
 
+## TL;DR 情报速览
+
+在报告最开头生成结构化速览卡片（用粗体和换行保持视觉紧凑）：
+
+**威胁等级**: 🔴 高危 / 🟠 中高危 / 🟡 中危 / 🟢 低危 / ℹ️ 监控（根据报告涉及的风险/漏洞/攻击严重度判断）
+**核心判断**: 一句话概括当前最大风险或核心态势
+- 关键发现1（具体、可量化）
+- 关键发现2
+- 关键发现3
+**行动建议**: 一句话最高优先级建议
+
+（速览卡内容必须基于搜索结果，不得编造）
+
+---
+
 ## 一、执行摘要
 
 用3-5句话概括关于"{query}"的核心发现、当前状态和结论。
@@ -231,7 +246,7 @@ def _build_system_prompt(query, search_mode):
 """
 
 
-def _build_augmented_content(content, credibility_context="", kg_context="", conflicts_context=""):
+def _build_augmented_content(content, credibility_context="", kg_context="", conflicts_context="", kb_context=""):
     """Build the augmented content string with context from analysis modules."""
     augmented_content = ""
     if isinstance(content, dict):
@@ -250,12 +265,14 @@ def _build_augmented_content(content, credibility_context="", kg_context="", con
         augmented_content += f"\n\n=== 关键实体 ===\n{kg_context}\n"
     if conflicts_context:
         augmented_content += f"\n\n=== 跨源冲突信息 ===\n{conflicts_context}\n"
+    if kb_context:
+        augmented_content += f"\n\n=== 历史知识库参考（用户既往收藏，供关联分析） ===\n{kb_context}\n"
 
     return augmented_content
 
 
 def generate_summary(llm, query, content, search_mode="all",
-                     credibility_context="", kg_context="", conflicts_context=""):
+                     credibility_context="", kg_context="", conflicts_context="", kb_context=""):
     """生成情报报告，根据搜索模式调整分析重点"""
 
     logger.debug(f"Content type: {type(content)}")
@@ -270,7 +287,7 @@ def generate_summary(llm, query, content, search_mode="all",
         logger.debug(f"Content is list, length: {len(content)}")
 
     system_prompt = _build_system_prompt(query, search_mode)
-    augmented_content = _build_augmented_content(content, credibility_context, kg_context, conflicts_context)
+    augmented_content = _build_augmented_content(content, credibility_context, kg_context, conflicts_context, kb_context)
 
     prompt_template = ChatPromptTemplate(
         [("system", system_prompt), ("user", "搜索结果内容:\n{content}")]

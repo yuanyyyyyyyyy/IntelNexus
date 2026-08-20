@@ -79,13 +79,13 @@ class UserSource(BaseSearchSource):
         for item in raw:
             item.setdefault("source", self.name)
             # 用户源统一做黑名单 + 相关性收口（与源内行为一致）
-            link = item.get("link") or item.get("url", "")
-            if is_blocked_domain(link):
+            url = item.get("url") or item.get("link", "")
+            if is_blocked_domain(url):
                 continue
             if not relevance_passes(item, query):
                 continue
             norm = self.normalize_result(item)
-            if norm.get("link"):
+            if norm.get("url"):
                 results.append(norm)
         return results[:max_results]
 
@@ -124,7 +124,7 @@ class UserSource(BaseSearchSource):
                 else str(title)
             results.append({
                 "title": title_text,
-                "link": link_text,
+                "url": link_text,
                 "description": desc.get_text(strip=True)[:300] if desc and hasattr(desc, "get_text") else "",
             })
         return results
@@ -148,7 +148,7 @@ class UserSource(BaseSearchSource):
             href = str(a.get("href", ""))
             title = a.get_text(strip=True)
             if href.startswith("http") and len(title) > 2:
-                results.append({"title": title[:150], "link": href})
+                results.append({"title": title[:150], "url": href})
             if len(results) >= max_results:
                 break
         return results
@@ -212,7 +212,7 @@ class UserSource(BaseSearchSource):
                     if ".onion" in href.lower() or \
                             base_url.split("//")[1].split(".")[0] in href:
                         full = href if href.startswith("http") else f"{base_url}{href}"
-                        results.append({"title": title[:100], "link": full})
+                        results.append({"title": title[:100], "url": full})
                 if len(results) >= max_results:
                     break
         return results
