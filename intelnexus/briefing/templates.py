@@ -49,6 +49,24 @@ MARKDOWN_TEMPLATE = """
 
 ---
 
+## 政策法规动态
+
+{policy_content}
+
+---
+
+## 攻击事件深度分析
+
+{attack_analysis_content}
+
+---
+
+## 防护建议与厂商方案
+
+{protection_content}
+
+---
+
 ## 趋势研判与防护建议
 
 {insights_content}
@@ -112,6 +130,21 @@ EMAIL_HTML_TEMPLATE = """
 <h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">近日新增安全漏洞预警</h2>
 {cve_table_html}
 </td></tr>
+<!-- 政策法规动态 -->
+<tr><td style="padding:0 30px 25px;">
+<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">政策法规动态</h2>
+{policy_html}
+</td></tr>
+<!-- 攻击事件深度分析 -->
+<tr><td style="padding:0 30px 25px;">
+<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">攻击事件深度分析</h2>
+{attack_analysis_html}
+</td></tr>
+<!-- 防护建议与厂商方案 -->
+<tr><td style="padding:0 30px 25px;">
+<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">防护建议与厂商方案</h2>
+{protection_html}
+</td></tr>
 <!-- 趋势研判与防护建议 -->
 <tr><td style="padding:0 30px 25px;">
 <h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">趋势研判与防护建议</h2>
@@ -142,7 +175,7 @@ EMAIL_HTML_TEMPLATE = """
 def _md_to_html(text: str) -> str:
     """
     简单的 Markdown 转 HTML（内联样式，兼容邮件客户端）。
-    支持：标题、分割线、有序/无序列表、粗体、以及 Markdown 表格（| 分隔）。
+    支持：标题（h1-h4）、分割线、引用块、有序/无序列表、粗体、以及 Markdown 表格（| 分隔）。
     对用户/LLM内容做HTML转义，防止XSS。
     """
     lines = text.strip().split("\n")
@@ -195,7 +228,12 @@ def _md_to_html(text: str) -> str:
             continue
 
         # 标题
-        if stripped.startswith("### "):
+        if stripped.startswith("#### "):
+            safe = html.escape(stripped[5:])
+            html_lines.append(
+                f'<h4 style="color:#3A6A9E;font-size:13px;margin:12px 0 6px;">{safe}</h4>'
+            )
+        elif stripped.startswith("### "):
             safe = html.escape(stripped[4:])
             html_lines.append(
                 f'<h3 style="color:#2E5A88;font-size:15px;margin:15px 0 8px;">{safe}</h3>'
@@ -210,17 +248,33 @@ def _md_to_html(text: str) -> str:
             html_lines.append(
                 f'<h1 style="color:#1F4E88;font-size:24px;margin:20px 0 10px;">{safe}</h1>'
             )
+        # 引用块
+        elif stripped.startswith("> "):
+            quote_content = html.escape(stripped[2:])
+            quote_content = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', quote_content)
+            html_lines.append(
+                f'<blockquote style="border-left:3px solid #2E5A88;padding-left:10px;margin:8px 0;color:#555;background:#f8f9fa;">{quote_content}</blockquote>'
+            )
         # 无序列表
         elif stripped.startswith("- ") or stripped.startswith("* "):
-            item = html.escape(stripped[2:])
+            item = stripped[2:]
+            # 先处理粗体标记，再转义HTML（保留strong标签）
             item = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', item)
+            # 转义HTML，但保留strong标签
+            item = re.sub(r'&(?!amp;|lt;|gt;|quot;|#39;)', '&amp;', item)  # 只转义&符号
+            item = re.sub(r'<(?!/strong>|strong>)', '&lt;', item)  # 转义<但保留strong
+            item = re.sub(r'(?<!</strong|strong)<', '&lt;', item)  # 进一步处理
             html_lines.append(
                 f'<p style="margin:5px 0;padding-left:20px;">• {item}</p>'
             )
         # 有序列表（简单处理）
         elif len(stripped) > 2 and stripped[0].isdigit() and stripped[1] in '.):':
-            item = html.escape(stripped[2:].strip())
+            item = stripped[2:].strip()
+            # 先处理粗体标记，再转义HTML（保留strong标签）
             item = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', item)
+            # 转义HTML，但保留strong标签
+            item = re.sub(r'&(?!amp;|lt;|gt;|quot;|#39;)', '&amp;', item)
+            item = re.sub(r'<(?!/strong>|strong>)', '&lt;', item)
             num = stripped[0]
             html_lines.append(
                 f'<p style="margin:5px 0;padding-left:20px;">{num}. {item}</p>'
@@ -269,6 +323,9 @@ def render_markdown_briefing(
     ai_dynamic_content: str = "",
     cyber_dynamic_content: str = "",
     cve_table_content: str = "",
+    policy_content: str = "",
+    attack_analysis_content: str = "",
+    protection_content: str = "",
     insights_content: str = "",
     links_content: str = ""
 ) -> str:
@@ -305,6 +362,9 @@ def render_markdown_briefing(
         ai_dynamic_content=ai_dynamic_content,
         cyber_dynamic_content=cyber_dynamic_content,
         cve_table_content=cve_table_content,
+        policy_content=policy_content,
+        attack_analysis_content=attack_analysis_content,
+        protection_content=protection_content,
         insights_content=insights_content,
         links_content=links_content,
         disclaimer=disclaimer,
@@ -323,6 +383,9 @@ def render_email_html(
     ai_dynamic_html: str = "",
     cyber_dynamic_html: str = "",
     cve_table_html: str = "",
+    policy_html: str = "",
+    attack_analysis_html: str = "",
+    protection_html: str = "",
     insights_html: str = "",
     links_html: str = ""
 ) -> str:
@@ -356,6 +419,9 @@ def render_email_html(
         ai_dynamic_html=ai_dynamic_html,
         cyber_dynamic_html=cyber_dynamic_html,
         cve_table_html=cve_table_html,
+        policy_html=policy_html,
+        attack_analysis_html=attack_analysis_html,
+        protection_html=protection_html,
         insights_html=insights_html,
         links_html=links_html,
         disclaimer=html.escape(disclaimer),
@@ -371,6 +437,9 @@ SECTION_MAP = {
     "AI 领域动态": "ai_dynamic_html",
     "网络安全动态": "cyber_dynamic_html",
     "近日新增安全漏洞预警": "cve_table_html",
+    "政策法规动态": "policy_html",
+    "攻击事件深度分析": "attack_analysis_html",
+    "防护建议与厂商方案": "protection_html",
     "趋势研判与防护建议": "insights_html",
     "重要链接": "links_html",
 }
@@ -564,6 +633,21 @@ BRIEFING_STANDALONE_HTML = """<!DOCTYPE html>
         </div>
 
         <div class="section">
+            <h2>政策法规动态</h2>
+            {policy_content}
+        </div>
+
+        <div class="section">
+            <h2>攻击事件深度分析</h2>
+            {attack_analysis_content}
+        </div>
+
+        <div class="section">
+            <h2>防护建议与厂商方案</h2>
+            {protection_content}
+        </div>
+
+        <div class="section">
             <h2>趋势研判与防护建议</h2>
             {insights_content}
         </div>
@@ -594,6 +678,9 @@ def render_standalone_html(
     ai_dynamic_content: str = "",
     cyber_dynamic_content: str = "",
     cve_table_content: str = "",
+    policy_content: str = "",
+    attack_analysis_content: str = "",
+    protection_content: str = "",
     insights_content: str = "",
     links_content: str = ""
 ) -> str:
@@ -620,6 +707,9 @@ def render_standalone_html(
         ai_dynamic_content=ai_dynamic_content,
         cyber_dynamic_content=cyber_dynamic_content,
         cve_table_content=cve_table_content,
+        policy_content=policy_content,
+        attack_analysis_content=attack_analysis_content,
+        protection_content=protection_content,
         insights_content=insights_content,
         links_content=links_content,
         disclaimer=html.escape(disclaimer),

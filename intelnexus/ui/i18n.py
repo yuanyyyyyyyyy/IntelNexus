@@ -175,6 +175,9 @@ _BRIEFING_ZH = {
     "kb_add_note_content": "笔记内容",
     "kb_add_note_btn": "添加笔记",
     "kb_note_added": "笔记已添加",
+    "kb_watch": "持续关注",
+    "kb_watching": "已在巡防中 ✓",
+    "kb_watch_success": "已转为持续关注主题，后续简报将自动巡防",
     "recommendation": "你可能感兴趣",
     "related_topics": "相关主题",
     "similar_briefings": "相似简报",
@@ -182,6 +185,23 @@ _BRIEFING_ZH = {
     "timeline_entity": "实体",
     "timeline_event": "事件",
     "no_recommendations": "暂无推荐",
+    # 源健康面板
+    "source_health": "数据源状态",
+    "source_healthy": "正常",
+    "source_degraded": "降级",
+    "source_down": "不可用",
+    "source_latency": "延迟",
+    "source_success_rate": "成功率",
+    "source_reset": "重置",
+    # 行动项
+    "action_items": "行动项清单",
+    "action_items_desc": "从报告中提取的可执行待办事项",
+    "priority_high": "紧急",
+    "priority_medium": "重要",
+    "priority_low": "建议",
+    "deadline_immediate": "立即",
+    "deadline_this_week": "本周",
+    "deadline_this_month": "本月",
 }
 
 _BRIEFING_EN = {
@@ -346,6 +366,9 @@ _BRIEFING_EN = {
     "kb_add_note_content": "Note content",
     "kb_add_note_btn": "Add Note",
     "kb_note_added": "Note added",
+    "kb_watch": "Watch",
+    "kb_watching": "Watching ✓",
+    "kb_watch_success": "Converted to a watch topic; briefings will track it",
     "recommendation": "You may be interested in",
     "related_topics": "Related Topics",
     "similar_briefings": "Similar Briefings",
@@ -353,6 +376,23 @@ _BRIEFING_EN = {
     "timeline_entity": "Entity",
     "timeline_event": "Event",
     "no_recommendations": "No recommendations",
+    # Source health panel
+    "source_health": "Source Health",
+    "source_healthy": "Healthy",
+    "source_degraded": "Degraded",
+    "source_down": "Down",
+    "source_latency": "Latency",
+    "source_success_rate": "Success Rate",
+    "source_reset": "Reset",
+    # Action items
+    "action_items": "Action Items",
+    "action_items_desc": "Extracted actionable TODOs from the report",
+    "priority_high": "Urgent",
+    "priority_medium": "Important",
+    "priority_low": "Suggested",
+    "deadline_immediate": "Immediate",
+    "deadline_this_week": "This Week",
+    "deadline_this_month": "This Month",
 }
 
 

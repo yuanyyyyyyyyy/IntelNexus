@@ -12,6 +12,16 @@ from intelnexus.core.search import USER_AGENTS, get_http_proxies, is_blocked_dom
 
 logger = get_logger(__name__)
 
+# 词典/翻译/百科类域名黑名单（避免搜索"critical"等词汇时返回词典条目）
+BLOCKED_DOMAINS_WEB = [
+    "dictionary.cambridge.org", "iciba.com", "baike.baidu.com",
+    "zdic.net", "dict.cn", "youdao.com", "deepmind.com",
+    "en.wikipedia.org", "zh.wikipedia.org", "wikiwand.com",
+    "merriam-webster.com", "oxfordlearnersdictionaries.com",
+    "collinsdictionary.com", "macmillandictionary.com",
+    "铭版", "知乎", "百度百科", "快懂百科", "萌娘百科",
+]
+
 ENGINE_CONFIGS = {
     "Bing": {
         "url": "https://www.bing.com/search?q={query}&first={offset}",
@@ -116,9 +126,18 @@ def _fetch_engine(engine_name: str, query: str, page: int = 0):
                 if cfg.get("filter_bing") and "bing.com" in href:
                     continue
 
+                # 过滤词典/翻译/百科类域名
+                from urllib.parse import urlparse
+                try:
+                    domain = urlparse(href).netloc.lower()
+                    if any(blocked in domain for blocked in BLOCKED_DOMAINS_WEB):
+                        continue
+                except Exception:
+                    pass
+
                 results.append({
                     "title": title,
-                    "link": href,
+                    "url": href,
                     "description": description[:200],
                     "source": engine_name,
                 })
@@ -165,7 +184,7 @@ def _dedup_results(results):
     seen = set()
     unique = []
     for res in results:
-        link = res.get("link", "").rstrip('/')
+        link = res.get("url", "").rstrip('/')
         if link and link not in seen and len(link) > 10:
             seen.add(link)
             unique.append(res)
@@ -218,7 +237,7 @@ def get_web_results(query, max_workers: int = 5, max_results: int = 50) -> list:
 
     filtered = []
     for r in unique_results[:max_results]:
-        if is_blocked_domain(r.get("link", "")):
+        if is_blocked_domain(r.get("url", "")):
             continue
         if not relevance_passes(r, query):
             continue

@@ -20,6 +20,20 @@ NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 ENABLE_DARKWEB = os.getenv("ENABLE_DARKWEB", "false").lower() == "true"
 TOR_PROXY_PORT = int(os.getenv("TOR_PROXY_PORT", "9150"))
 ENABLE_CREDIBILITY = os.getenv("ENABLE_CREDIBILITY", "true").lower() == "true"
+ENABLE_OTX = os.getenv("ENABLE_OTX", "false").lower() == "true"  # OTX SSL证书异常，暂时禁用
+ENABLE_HN = os.getenv("ENABLE_HN", "true").lower() == "true"
+ENABLE_EXPLOITDB = os.getenv("ENABLE_EXPLOITDB", "false").lower() == "true"
+ENABLE_VISUALIZATION = os.getenv("ENABLE_VISUALIZATION", "true").lower() == "true"
+# NVD API查询格式错误（404），暂时禁用
+ENABLE_NVD = os.getenv("ENABLE_NVD", "false").lower() == "true"
+# CISA KEV在中国被墙（超时30s），暂时禁用
+ENABLE_CISA_KEV = os.getenv("ENABLE_CISA_KEV", "false").lower() == "true"
+# CNVD连接被拒，暂时禁用
+ENABLE_CNVD = os.getenv("ENABLE_CNVD", "false").lower() == "true"
+# arXiv在中国不稳定，暂时禁用
+ENABLE_ARXIV = os.getenv("ENABLE_ARXIV", "false").lower() == "true"
+# HuggingFace在中国被墙，暂时禁用
+ENABLE_HUGGINGFACE = os.getenv("ENABLE_HUGGINGFACE", "false").lower() == "true"
 
 # ========== 代理配置（仅在使用时生效；为空则不走代理） ==========
 HTTP_PROXY = os.getenv("HTTP_PROXY") or os.getenv("http_proxy")

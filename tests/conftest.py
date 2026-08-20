@@ -17,6 +17,12 @@ set_config({
     "NEWS_API_KEY": os.getenv("NEWS_API_KEY", ""),
 })
 
+# Inject feature flags for new sources
+os.environ.setdefault("ENABLE_OTX", "true")
+os.environ.setdefault("ENABLE_HN", "true")
+os.environ.setdefault("ENABLE_EXPLOITDB", "false")
+os.environ.setdefault("ENABLE_VISUALIZATION", "true")
+
 import pytest
 
 

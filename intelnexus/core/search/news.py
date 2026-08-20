@@ -16,15 +16,20 @@ from intelnexus.core.search import USER_AGENTS, get_http_proxies, get_http_proxi
 
 logger = get_logger(__name__)
 
-RSS_FETCH_TIMEOUT = 10
+RSS_FETCH_TIMEOUT = 25
 
 RSS_SOURCES = [
     # ---- 国内可直连、无需代理（高质量订阅源，不过滤相关性，仅域名黑名单）----
     {"name": "Bing News", "url": "https://www.bing.com/news/search?q={query}&format=rss", "requires_proxy": False},
-    {"name": "36氪", "url": "https://36kr.com/feed", "requires_proxy": False},
+    {"name": "Solidot", "url": "https://www.solidot.org/index.rss", "requires_proxy": False},
     {"name": "量子位", "url": "https://www.qbitai.com/feed", "requires_proxy": False},
     {"name": "IT之家", "url": "https://www.ithome.com/rss/", "requires_proxy": False},
     {"name": "少数派", "url": "https://sspai.com/feed", "requires_proxy": False},
+    # ---- 国内安全/技术订阅源（无需代理）----
+    {"name": "FreeBuf", "url": "https://www.freebuf.com/feed", "requires_proxy": False},
+    {"name": "安全客", "url": "https://api.anquanke.com/data/v1/rss", "requires_proxy": False},
+    {"name": "InfoQ 中文", "url": "https://www.infoq.cn/feed", "requires_proxy": False},
+    {"name": "先知社区", "url": "https://xz.aliyun.com/feed", "requires_proxy": False},
     # ---- 境外源，需代理（无代理时自动跳过，避免无效超时）----
     {"name": "Google News", "url": "https://news.google.com/rss/search?q={query}", "requires_proxy": True},
     {"name": "Yahoo News", "url": "https://news.yahoo.com/rss/search?p={query}", "requires_proxy": True},
@@ -32,7 +37,7 @@ RSS_SOURCES = [
     {"name": "TechCrunch", "url": "https://techcrunch.com/feed/", "requires_proxy": True},
     {"name": "The Verge", "url": "https://www.theverge.com/rss/index.xml", "requires_proxy": True},
     {"name": "Wired", "url": "https://www.wired.com/feed/rss", "requires_proxy": True},
-    {"name": "BBC", "url": "http://feeds.bbci.co.uk/news/technology/rss.xml", "requires_proxy": True},
+    {"name": "BBC", "url": "http://feeds.bbci.co.co/news/technology/rss.xml", "requires_proxy": True},
     {"name": "CNN", "url": "http://rss.cnn.com/rss/edition.rss", "requires_proxy": True},
 ]
 
@@ -98,6 +103,19 @@ class NewsSearch:
         results = []
 
         query_lower = query.lower()
+        query_tokens = set(query_lower.split())
+
+        # 安全相关关键词（用于过滤非安全类RSS源的无关内容）
+        SECURITY_KEYWORDS = [
+            "漏洞", "安全", "攻击", "泄露", "CVE", "vulnerability", "hack",
+            "cyber", "malware", "ransomware", "phishing", "breach", "exploit",
+            "后门", "木马", "勒索", "钓鱼", "入侵", "防护", "补丁", "patch",
+            "威胁", "情报", "审计", "加固", "应急", "响应", "检测", "监控",
+            "防火墙", "IDS", "IPS", "WAF", "EDR", "XDR", "SIEM",
+        ]
+
+        # 非安全类RSS源（需要额外安全关键词过滤）
+        NON_SECURITY_SOURCES = ["Solidot", "量子位", "IT之家", "少数派"]
 
         for source in RSS_SOURCES:
             if len(results) >= max_results:
@@ -114,6 +132,8 @@ class NewsSearch:
                 headers = {"User-Agent": random.choice(USER_AGENTS)}
                 response = self._fetch_rss_with_retry(url, headers, get_http_proxies_for(source.get("requires_proxy")))
 
+                source_results = 0
+                source_limit = 5 if source["name"] == "Solidot" else max_results
                 if response.status_code == 200:
                     try:
                         soup = BeautifulSoup(response.content, "xml")
@@ -125,7 +145,7 @@ class NewsSearch:
                         items = soup.find_all("entry")[:max_results]
 
                     for item in items:
-                        if len(results) >= max_results:
+                        if source_results >= source_limit:
                             break
 
                         title = item.find("title")
@@ -143,8 +163,20 @@ class NewsSearch:
                         if title and link_text:
                             title_text = title.get_text(strip=True) if hasattr(title, 'get_text') else str(title)
 
-                            if query_lower not in title_text.lower() and "{query}" in source["url"]:
+                            title_lower = title_text.lower()
+                            desc_text = (desc.get_text(strip=True) if desc and hasattr(desc, 'get_text') else "").lower()
+                            combined_text = f"{title_lower} {desc_text}"
+
+                            # 1. 查询token匹配（至少匹配1个）
+                            has_query_match = any(token in combined_text for token in query_tokens)
+                            if not has_query_match:
                                 continue
+
+                            # 2. 非安全类源：要求标题包含安全相关关键词
+                            if source["name"] in NON_SECURITY_SOURCES:
+                                has_security_keyword = any(kw.lower() in combined_text for kw in SECURITY_KEYWORDS)
+                                if not has_security_keyword:
+                                    continue
 
                             item = {
                                 "title": title_text,
@@ -157,15 +189,16 @@ class NewsSearch:
                                 "image_url": ""
                             }
 
-                            # 域名黑名单对所有源生效；相关性评分仅对「按查询检索」的源生效
                             if is_blocked_domain(item["url"]):
-                                continue
-                            if "{query}" in source["url"] and not relevance_passes(item, query):
                                 continue
 
                             results.append(item)
+                            source_results += 1
             except Exception as e:
                 logger.warning(f"RSS search error from {source['name']}: {e}")
+
+            if source_results > 0:
+                logger.info(f"RSS源 {source['name']} 返回 {source_results} 条结果")
 
         return results
 

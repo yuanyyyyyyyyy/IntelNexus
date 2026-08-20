@@ -177,10 +177,10 @@ class AIBriefingCollector:
     
     def _search_by_keywords(self, queries: List[str], max_results: int = 10) -> List[Dict]:
         """
-        使用关键词进行搜索（web + news + 暗网）。
+        使用关键词进行搜索（通过 Registry 统一调度）。
 
-        单个关键词内，web / news / 暗网三种检索源相互独立，
-        用线程池并行执行并合并结果，缩短单关键词等待时间。
+        通过 SearchSourceRegistry.collect() 调度所有搜索源，
+        获得跨源去重、权重排序和健康降级。
 
         Args:
             queries: 查询列表
@@ -189,64 +189,44 @@ class AIBriefingCollector:
         Returns:
             List[Dict]: 搜索结果
         """
+        from intelnexus.core.search.registry import get_registry
+
         results = []
-        web_search = self._get_web_search()
-        news_search = self._get_news_search()
-        darkweb_search = self._get_darkweb_search()
-
-        def _search_one(query: str):
-            """单个关键词的并行检索，返回该词下的结果列表。"""
-            local = []
-            try:
-                def _web():
-                    return web_search(query, max_results=max_results)
-
-                def _news():
-                    return news_search(query, max_results=max_results, api_key=NEWS_API_KEY)
-
-                def _dark():
-                    if not ENABLE_DARKWEB:
-                        return []
-                    return darkweb_search(query, max_results=max_results)
-
-                with ThreadPoolExecutor(max_workers=3) as ex:
-                    f_web = ex.submit(_web)
-                    f_news = ex.submit(_news)
-                    f_dark = ex.submit(_dark)
-                    web_results = f_web.result()
-                    news_results = f_news.result()
-                    darkweb_results = f_dark.result()
-
-                for r in web_results:
-                    local.append({
-                        "title": r.get("title", ""),
-                        "url": r.get("url", r.get("link", "")),
-                        "content": r.get("content", r.get("description", "")),
-                        "description": r.get("description", ""),
-                        "source": r.get("source", "Web Search")
-                    })
-                for r in news_results:
-                    local.append({
-                        "title": r.get("title", ""),
-                        "url": r.get("url", r.get("link", "")),
-                        "content": r.get("content", r.get("description", "")),
-                        "description": r.get("description", ""),
-                        "source": r.get("source", "News Search")
-                    })
-                for r in darkweb_results:
-                    local.append({
-                        "title": r.get("title", ""),
-                        "url": r.get("url", r.get("link", "")),
-                        "content": r.get("content", r.get("description", "")),
-                        "description": r.get("description", ""),
-                        "source": r.get("source", "Dark Web")
-                    })
-            except Exception as e:
-                logger.warning(f"Search error for query '{query}': {e}")
-            return local
+        try:
+            registry = get_registry(
+                news_api_key=NEWS_API_KEY,
+                darkweb_advanced=False,
+                tor_port=9150
+            )
+        except Exception as e:
+            logger.warning(f"Registry 初始化失败: {e}")
+            return []
 
         for query in queries:
-            results.extend(_search_one(query))
+            try:
+                # 使用 all 模式获取所有源
+                raw_results = registry.collect(
+                    mode="all",
+                    query=query,
+                    max_results=max_results,
+                    threads=5,
+                    global_timeout=60
+                )
+
+                # 转换为统一格式
+                for r in raw_results:
+                    results.append({
+                        "title": r.get("title", ""),
+                        "url": r.get("url", ""),
+                        "content": r.get("description", ""),
+                        "description": r.get("description", ""),
+                        "source": r.get("source", "Unknown"),
+                        "category": r.get("category", ""),
+                        "published_at": r.get("published_at", ""),
+                        "metadata": r.get("metadata", {}),
+                    })
+            except Exception as e:
+                logger.warning(f"Registry 搜索失败 query='{query}': {e}")
 
         return results
     

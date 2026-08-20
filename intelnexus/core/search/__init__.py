@@ -11,7 +11,7 @@ from urllib3.util.retry import Retry
 # Re-export shared constants/helpers from a standalone module to avoid a
 # circular import when darkweb (pulled in by the search source registry)
 # imports USER_AGENTS / get_tor_proxy_port.
-from intelnexus.core.search_constants import USER_AGENTS, get_tor_proxy_port  # noqa: E402,F401
+from intelnexus.core.search_constants import USER_AGENTS, get_tor_proxy_port, get_freshness_score, SYNONYM_DICT  # noqa: E402,F401
 
 
 def get_tor_session():
@@ -175,27 +175,112 @@ def extract_query_tokens(query) -> set:
     return tokens
 
 
+def expand_query_tokens(tokens: set) -> set:
+    """
+    对查询token进行同义词扩展。
+
+    Args:
+        tokens: 原始token集合
+
+    Returns:
+        扩展后的token集合（包含原始token和同义词）
+    """
+    from intelnexus.core.search_constants import SYNONYM_DICT
+
+    expanded = set(tokens)
+    for token in tokens:
+        if token in SYNONYM_DICT:
+            synonyms = SYNONYM_DICT[token]
+            for syn in synonyms[:2]:  # 最多取2个同义词
+                expanded.add(syn.lower())
+    return expanded
+
+
+def _calculate_bm25_score(text: str, query_tokens: set, k1: float = 1.5, b: float = 0.75) -> float:
+    """
+    计算简化版BM25评分。
+
+    Args:
+        text: 文本内容
+        query_tokens: 查询token集合
+        k1: 词频饱和参数
+        b: 文档长度归一化参数
+
+    Returns:
+        BM25评分（0.0 ~ 1.0）
+    """
+    if not text or not query_tokens:
+        return 0.0
+
+    text_lower = text.lower()
+    text_tokens = re.split(r"[\s,，。、;；]+", text_lower)
+    doc_len = len(text_tokens)
+    avg_dl = 50  # 假设平均文档长度
+
+    # 计算每个查询token的TF
+    score = 0.0
+    for token in query_tokens:
+        tf = text_lower.count(token)
+        if tf == 0:
+            continue
+
+        # 简化版IDF（假设文档集大小为10000）
+        idf = max(0, 1.0)  # 简化处理
+
+        # BM25评分公式
+        numerator = tf * (k1 + 1)
+        denominator = tf + k1 * (1 - b + b * doc_len / avg_dl)
+        score += idf * numerator / denominator
+
+    # 归一化到0-1范围
+    return min(score / 5.0, 1.0)
+
+
 def relevance_passes(result: dict, query) -> bool:
     """
     相关性评分：仅用于「按查询检索」的来源。
     - 域名黑名单命中直接丢弃；
-    - 否则要求标题+描述至少命中查询中 2 个（token 不足 2 个时要求全部）关键词，
-      以剔除仅蹭单个关键词的噪声（如 K-pop「PENTAGON」组合）。
+    - 结合同义词扩展、BM25评分和时效性评分进行综合评估；
+    - 阈值：综合评分 >= 0.3 视为相关。
     返回 False 表示应被过滤。
     """
-    link = result.get("link") or result.get("url") or ""
-    if is_blocked_domain(link):
+    url = result.get("url") or result.get("link") or ""
+    if is_blocked_domain(url):
         return False
 
     tokens = extract_query_tokens(query)
     if not tokens:
         return True  # 无可判定关键词时不误杀
 
-    text = ((result.get("title") or "") + " " + (result.get("description") or "")).lower()
-    matched = sum(1 for t in tokens if t in text)
+    # 同义词扩展
+    expanded_tokens = expand_query_tokens(tokens)
 
-    threshold = 2 if len(tokens) >= 2 else len(tokens)
-    return matched >= threshold
+    # 构建文本
+    title = result.get("title") or ""
+    description = result.get("description") or ""
+    text = f"{title} {description}"
+
+    # 计算关键词匹配分数（支持同义词）
+    matched = 0
+    for t in expanded_tokens:
+        if t in text.lower():
+            matched += 1
+
+    keyword_score = matched / len(expanded_tokens) if expanded_tokens else 0.0
+
+    # 计算BM25评分
+    bm25_score = _calculate_bm25_score(text, expanded_tokens)
+
+    # 计算时效性评分
+    published_at = result.get("published_at") or ""
+    freshness_score = get_freshness_score(published_at)
+
+    # 综合评分（权重：关键词0.5 + BM250.3 + 时效性0.2）
+    total_score = keyword_score * 0.5 + bm25_score * 0.3 + freshness_score
+
+    # 阈值判断
+    threshold = 0.3
+    return total_score >= threshold
 
 
 # ========== 统一搜索源抽象（SearchSource） ==========
@@ -203,6 +288,7 @@ def relevance_passes(result: dict, query) -> bool:
 from intelnexus.core.search.source import (  # noqa: E402,F401
     BaseSearchSource,
     CATEGORY_WEB, CATEGORY_NEWS, CATEGORY_DARKWEB, CATEGORY_CUSTOM,
+    CATEGORY_THREAT_INTEL, CATEGORY_COMMUNITY, CATEGORY_EXPLOIT,
 )
 from intelnexus.core.search.modes import (  # noqa: E402,F401
     SEARCH_MODES, MODE_DESCRIPTIONS, SEARCH_MODES_LABELS,

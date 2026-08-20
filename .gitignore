@@ -39,6 +39,8 @@ Thumbs.db
 
 # Data files
 data/*.json
+data/*.tmp.*
+data/source_health.json.tmp.*
 data/*.csv
 data/*.txt
 data/cache/
@@ -82,3 +84,6 @@ htmlcov/
 .cache/
 intelnexus/data/cache/
 intelnexus/data/result_cache/
+
+# zcode
+.zcode/

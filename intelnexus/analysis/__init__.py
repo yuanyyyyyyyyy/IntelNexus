@@ -1,9 +1,13 @@
 import threading
+import os
 
 _shared_model = None
 _model_load_lock = threading.Lock()
 # 模型加载超时（秒）：超过则视为不可用，降级运行，避免首次搜索长时间挂起
 _MODEL_LOAD_TIMEOUT = 15
+
+# 禁用 sentence-transformer（HuggingFace在中国无法访问，会导致20+分钟超时）
+DISABLE_SENTENCE_TRANSFORMER = os.getenv("DISABLE_SENTENCE_TRANSFORMER", "true").lower() == "true"
 
 
 def _build_sentence_model():
@@ -22,8 +26,16 @@ def load_sentence_model():
 
     若模型尚未加载，会在后台线程中加载并最多等待 ``_MODEL_LOAD_TIMEOUT`` 秒。
     超时或加载失败时返回 ``None``，调用方应降级运行（使用默认分数）。
+
+    注意：在中国大陆环境下，HuggingFace被墙会导致加载超时20+分钟，
+    因此默认禁用（DISABLE_SENTENCE_TRANSFORMER=true）。
     """
     global _shared_model
+
+    # 禁用检查：直接跳过，不尝试加载
+    if DISABLE_SENTENCE_TRANSFORMER:
+        return None
+
     if _shared_model is not None:
         return _shared_model
 

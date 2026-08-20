@@ -129,6 +129,48 @@ def _render_search_mode():
     return search_mode
 
 
+def _render_source_health():
+    """数据源健康状态面板"""
+    try:
+        from intelnexus.core.search.health import get_all_health, save_health
+        all_health = get_all_health()
+    except Exception:
+        return
+
+    with st.expander(get_text("source_health"), expanded=False):
+        if not all_health:
+            st.markdown(f"_{get_text('no_sources')}_")
+            return
+
+        for h in all_health:
+            if h.status == "healthy":
+                dot = '<span class="status-dot active"></span>'
+            elif h.status == "degraded":
+                dot = '<span class="status-dot warning"></span>'
+            else:
+                dot = '<span class="status-dot error"></span>'
+
+            rate = f"{h.success_rate:.0%}"
+            latency = f"{h.avg_latency_ms:.0f}ms" if h.avg_latency_ms > 0 else "-"
+
+            col_name, col_stat, col_rate, col_latency, col_action = st.columns([3, 1, 1, 1, 1])
+            with col_name:
+                st.markdown(f"{dot} **{h.source_name}**", unsafe_allow_html=True)
+            with col_stat:
+                label = get_text(f"source_{h.status}")
+                st.caption(label)
+            with col_rate:
+                st.caption(rate)
+            with col_latency:
+                st.caption(latency)
+            with col_action:
+                if h.status in ("degraded", "down"):
+                    if st.button(get_text("source_reset"), key=f"reset_{h.source_name}"):
+                        h.reset()
+                        save_health(h)
+                        st.rerun()
+
+
 def _render_model_settings():
     """模型选择（核心设置）"""
     st.markdown('<div class="sb-section"><span class="sb-section__label">Model</span></div>', unsafe_allow_html=True)
@@ -254,6 +296,9 @@ def render_sidebar():
 
         # Core: Search Mode
         search_mode = _render_search_mode()
+
+        # Source Health Panel
+        _render_source_health()
 
         # Core: Model Settings
         model = _render_model_settings()

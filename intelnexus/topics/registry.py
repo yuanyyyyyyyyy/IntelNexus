@@ -5,6 +5,7 @@ Topic Registry —— 情报主题中枢
 
 - 系统预设（preset）关注点来自 briefing.config.WATCH_CATEGORIES（原 6 类）。
 - 用户每次搜索可把查询固化为常驻 Topic（origin="user_search"），
+  知识库收藏条目也可一键转为常驻 Topic（origin="kb_item"），
   从而让「用户行为」反向驱动简报内容，形成双向飞轮。
 
 Topic 数据结构刻意兼容 WATCH_CATEGORIES 条目字段
@@ -26,7 +27,7 @@ class Topic:
     sources: List[str] = field(default_factory=lambda: ["web", "news"])
     subscribers: List[str] = field(default_factory=list)
     threshold: float = 0.0
-    origin: str = "preset"          # preset | user_search
+    origin: str = "preset"          # preset | user_search | kb_item
     enabled: bool = True
     created_at: Optional[str] = None
     # 参与度字段（第二阶段新增）
