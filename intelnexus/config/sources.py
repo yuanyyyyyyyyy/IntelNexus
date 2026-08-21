@@ -192,3 +192,54 @@ def get_enabled_sources() -> List[Dict]:
             if source.get("enabled", True):
                 result.append(source)
     return result
+
+
+def test_source(source_url: str, fetch_type: str = "web_engine", timeout: int = 10) -> Dict:
+    """
+    测试数据源是否可用
+
+    Args:
+        source_url: 数据源URL
+        fetch_type: 抓取方式 (rss / web_engine)
+        timeout: 超时时间(秒)
+
+    Returns:
+        dict: {"success": bool, "latency_ms": int, "message": str}
+    """
+    import time
+    import requests
+    from urllib.parse import urlparse
+
+    # URL 格式校验
+    parsed = urlparse(source_url)
+    if parsed.scheme not in ("http", "https"):
+        return {"success": False, "latency_ms": 0, "message": "URL 必须以 http:// 或 https:// 开头"}
+
+    # 禁止内网地址
+    hostname = parsed.hostname or ""
+    blocked_prefixes = ("127.", "10.", "192.168.", "169.254.", "0.")
+    if hostname in ("localhost", "0.0.0.0") or any(hostname.startswith(p) for p in blocked_prefixes):
+        return {"success": False, "latency_ms": 0, "message": "禁止访问内网地址"}
+
+    try:
+        start = time.time()
+        if fetch_type == "rss":
+            resp = requests.get(source_url, timeout=timeout, headers={"User-Agent": "IntelNexus/1.0"})
+            elapsed = int((time.time() - start) * 1000)
+            if resp.status_code == 200 and ("<?xml" in resp.text[:200] or "<rss" in resp.text[:200] or "<feed" in resp.text[:200]):
+                return {"success": True, "latency_ms": elapsed, "message": f"RSS 源可用 ({elapsed}ms)"}
+            else:
+                return {"success": False, "latency_ms": elapsed, "message": f"响应状态码 {resp.status_code}，或内容非 RSS 格式"}
+        else:
+            resp = requests.get(source_url, timeout=timeout, headers={"User-Agent": "IntelNexus/1.0"})
+            elapsed = int((time.time() - start) * 1000)
+            if resp.status_code == 200:
+                return {"success": True, "latency_ms": elapsed, "message": f"网页可达 ({elapsed}ms)"}
+            else:
+                return {"success": False, "latency_ms": elapsed, "message": f"响应状态码 {resp.status_code}"}
+    except requests.Timeout:
+        return {"success": False, "latency_ms": timeout * 1000, "message": f"请求超时 ({timeout}s)"}
+    except requests.ConnectionError:
+        return {"success": False, "latency_ms": 0, "message": "连接失败，请检查 URL"}
+    except Exception as e:
+        return {"success": False, "latency_ms": 0, "message": f"测试失败: {type(e).__name__}"}
