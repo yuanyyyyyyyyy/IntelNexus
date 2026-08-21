@@ -224,7 +224,7 @@ def _save_onboarding_config():
     else:  # 每周
         push_days = ["mon"]  # 默认周一
 
-    # 创建订阅者
+    # 创建订阅者（schedule.enabled=False，避免被调度器拾取无实际推送能力的用户）
     try:
         from intelnexus.config.subscriptions import add_subscriber
         add_subscriber(
@@ -234,7 +234,7 @@ def _save_onboarding_config():
             schedule={
                 "time": push_time_str,
                 "timezone": "Asia/Shanghai",
-                "enabled": True,
+                "enabled": False,
                 "days": push_days
             },
             categories=categories
