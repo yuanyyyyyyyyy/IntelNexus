@@ -61,6 +61,20 @@ def add_source(source_type: str, name: str, url: str, category: str,
     if not name or not url:
         return False
 
+    # URL 格式校验
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        logger.warning(f"URL 格式无效: {url} (必须以 http:// 或 https:// 开头)")
+        return False
+
+    # 禁止内网地址
+    hostname = parsed.hostname or ""
+    blocked_prefixes = ("127.", "10.", "192.168.", "169.254.", "0.")
+    if hostname in ("localhost", "0.0.0.0") or any(hostname.startswith(p) for p in blocked_prefixes):
+        logger.warning(f"禁止添加内网地址: {url}")
+        return False
+
     data = safe_read_json(SOURCES_FILE)
     if not data:
         data = {"subscription_sources": [], "custom_sources": []}

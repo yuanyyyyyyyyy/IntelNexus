@@ -207,10 +207,11 @@ class AIBriefingNotifier:
             return False
         
         if not use_tls:
-            logger.warning(
-                "SMTP use_tls=False：凭证与邮件内容将以明文传输，存在被窃听/中间人攻击风险，"
-                "建议设置 SMTP_USE_TLS=true（或 UI 中勾选'使用TLS'）"
+            logger.error(
+                "SMTP use_tls=False：出于安全考虑，禁止以明文方式传输凭证和邮件内容。"
+                "请设置 SMTP_USE_TLS=true（或 UI 中勾选'使用TLS'）"
             )
+            return False
         
         msg = MIMEMultipart("alternative")
         msg["From"] = f"{from_name} <{username}>"
