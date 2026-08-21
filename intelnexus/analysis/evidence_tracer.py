@@ -118,14 +118,3 @@ class EvidenceTracer:
         coverage = round(supported / total, 3) if total > 0 else 0.0
 
         return {"claims": claims, "coverage": coverage}
-
-    def _similarity(self, text_a, text_b):
-        if self._model is None:
-            return 0.0
-        try:
-            emb = self._model.encode([text_a, text_b], show_progress_bar=False)
-            sim = float(np.dot(emb[0], emb[1]) / (
-                np.linalg.norm(emb[0]) * np.linalg.norm(emb[1]) + 1e-10))
-            return sim
-        except Exception:
-            return 0.0

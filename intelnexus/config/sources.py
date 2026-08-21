@@ -40,24 +40,6 @@ def get_all_sources() -> Dict[str, List[Dict]]:
     return data
 
 
-def get_sources_by_category(category: str) -> List[Dict]:
-    """按类别获取数据源"""
-    all_sources = get_all_sources()
-    result = []
-    for source_type in ["subscription_sources", "custom_sources"]:
-        for source in all_sources.get(source_type, []):
-            if source.get("category") == category and source.get("enabled", True):
-                result.append(source)
-    return result
-
-
-def get_sources_by_type(source_type: str) -> List[Dict]:
-    """按类型获取数据源（rss或web）"""
-    all_sources = get_all_sources()
-    type_key = "subscription_sources" if source_type == "rss" else "custom_sources"
-    return all_sources.get(type_key, [])
-
-
 def add_source(source_type: str, name: str, url: str, category: str,
                fetch_type: str = None) -> bool:
     """
