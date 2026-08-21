@@ -33,13 +33,47 @@ class SourceScorer:
     }
 
     TRUSTED_DOMAINS = {
+        # 权威媒体
         'reuters.com': 0.90, 'ap.org': 0.90,
         'bbc.com': 0.85, 'bbc.co.uk': 0.85,
         'nytimes.com': 0.85, 'bloomberg.com': 0.85,
         'wsj.com': 0.85, 'economist.com': 0.85,
+        'washingtonpost.com': 0.85, 'ft.com': 0.85,
+        'cnn.com': 0.80, 'nbcnews.com': 0.80,
+        # 科技媒体
+        'arstechnica.com': 0.85, 'techcrunch.com': 0.85,
+        'theverge.com': 0.80, 'wired.com': 0.85,
+        'zdnet.com': 0.80, 'infoworld.com': 0.80,
+        'computerworld.com': 0.80, 'theregister.com': 0.80,
+        'arstechnica.com': 0.85, 'hackernews.com': 0.75,
+        # 安全媒体
+        'darkreading.com': 0.85, 'securityweek.com': 0.85,
+        'scmagazine.com': 0.80, 'cyberscoop.com': 0.80,
+        'bleepingcomputer.com': 0.85, 'krebsonsecurity.com': 0.90,
+        'securityweek.com': 0.85, 'threatpost.com': 0.80,
+        # 安全厂商
+        'kaspersky.com': 0.85, 'symantec.com': 0.85,
+        'crowdstrike.com': 0.85, 'mandiant.com': 0.90,
+        'fireeye.com': 0.85, 'paloaltonetworks.com': 0.85,
+        'fortinet.com': 0.80, 'checkpoint.com': 0.80,
+        'trendmicro.com': 0.80, 'mcafee.com': 0.80,
+        'sophos.com': 0.80, 'recordedfuture.com': 0.85,
+        # 学术与研究
         'nature.com': 0.90, 'ieee.org': 0.85, 'acm.org': 0.85,
         'springer.com': 0.80, 'sciencedirect.com': 0.85,
-        'scholar.google.com': 0.80,
+        'scholar.google.com': 0.80, 'arxiv.org': 0.85,
+        # 漏洞库与标准组织
+        'nvd.nist.gov': 0.95, 'cve.mitre.org': 0.95,
+        'cisa.gov': 0.95, 'nist.gov': 0.90,
+        'enisa.europa.eu': 0.90, 'owasp.org': 0.85,
+        'first.org': 0.85, 'exploit-db.com': 0.75,
+        # 中国政府与机构
+        'cert.org.cn': 0.90, 'isc.org.cn': 0.85,
+        'tc260.org.cn': 0.85, 'gov.cn': 0.90,
+        'miit.gov.cn': 0.85, 'cac.gov.cn': 0.85,
+        # 新闻聚合
+        'news.ycombinator.com': 0.75, 'reddit.com': 0.65,
+        'medium.com': 0.70, 'substack.com': 0.70,
     }
 
     AGGREGATOR_SOURCES = {'Bing', 'Google', 'DuckDuckGo', 'Yahoo', 'Yandex', 'Baidu'}
@@ -173,10 +207,30 @@ class SourceScorer:
                 try:
                     from datetime import datetime
                     if isinstance(published, str):
-                        for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+                        # 尝试多种日期格式
+                        for fmt in (
+                            "%Y-%m-%dT%H:%M:%S",
+                            "%Y-%m-%d %H:%M:%S",
+                            "%Y-%m-%dT%H:%M:%SZ",
+                            "%Y-%m-%dT%H:%M:%S%z",
+                            "%Y-%m-%d",
+                            "%Y/%m/%d",
+                            "%d/%m/%Y",
+                            "%m/%d/%Y",
+                            "%Y年%m月%d日",
+                            "%Y年%m月%d日 %H:%M:%S",
+                            "%b %d, %Y",       # Aug 21, 2026
+                            "%B %d, %Y",       # August 21, 2026
+                            "%d %b %Y",        # 21 Aug 2026
+                            "%d %B %Y",        # 21 August 2026
+                            "%Y-%m-%dT%H:%M:%S.%f",
+                            "%Y-%m-%dT%H:%M:%S.%fZ",
+                        ):
                             try:
                                 pub_dt = datetime.strptime(published[:19] if len(published) >= 19 else published, fmt)
                                 delta = (datetime.now() - pub_dt).total_seconds()
+                                if delta < 0:
+                                    return 0.5  # 未来日期，可能是解析错误
                                 if delta < 86400:
                                     return 1.0          # within 24h
                                 if delta < 604800:
@@ -188,6 +242,49 @@ class SourceScorer:
                                 return 0.3               # older
                             except (ValueError, IndexError):
                                 continue
+
+                        # 尝试中文日期格式：2026年08月21日
+                        import re
+                        cn_match = re.match(r'(\d{4})年(\d{1,2})月(\d{1,2})日', published)
+                        if cn_match:
+                            try:
+                                year, month, day = int(cn_match.group(1)), int(cn_match.group(2)), int(cn_match.group(3))
+                                pub_dt = datetime(year, month, day)
+                                delta = (datetime.now() - pub_dt).total_seconds()
+                                if delta < 0:
+                                    return 0.5
+                                if delta < 86400:
+                                    return 1.0
+                                if delta < 604800:
+                                    return 0.85
+                                if delta < 2592000:
+                                    return 0.7
+                                if delta < 7776000:
+                                    return 0.5
+                                return 0.3
+                            except (ValueError, IndexError):
+                                pass
+
+                        # 尝试使用dateutil解析（如果可用）
+                        try:
+                            from dateutil import parser as dateutil_parser
+                            pub_dt = dateutil_parser.parse(published)
+                            delta = (datetime.now() - pub_dt).total_seconds()
+                            if delta < 0:
+                                return 0.5
+                            if delta < 86400:
+                                return 1.0
+                            if delta < 604800:
+                                return 0.85
+                            if delta < 2592000:
+                                return 0.7
+                            if delta < 7776000:
+                                return 0.5
+                            return 0.3
+                        except ImportError:
+                            pass
+                        except (ValueError, TypeError):
+                            pass
                 except Exception:
                     pass
         return 0.8 if source_name in self.NEWS_SOURCES else 0.5
@@ -356,20 +453,38 @@ class ConflictDetector:
     def _detect_numeric(self, texts, results):
         conflicts = []
         entries = []
-        pattern = r'(\d+(?:\.\d+)?)\s*(billion|million|万亿|亿|万|%)'
+        # 扩展正则：支持更多中文数量词
+        pattern = r'(\d+(?:\.\d+)?)\s*(billion|million|trillion|千亿|百亿|十亿|万亿|亿|千万|百万|十万|万|%)'
 
         for i, t in enumerate(texts):
             for m in re.finditer(pattern, t, re.IGNORECASE):
                 try:
                     num = float(m.group(1))
                     unit = m.group(2).lower()
-                    if unit in ('billion', '亿'):
+                    # 修复映射：亿=1e8，billion=1e9
+                    if unit == 'billion':
                         norm = num * 1e9
-                    elif unit in ('万亿',):
+                    elif unit == 'trillion':
                         norm = num * 1e12
-                    elif unit in ('million', '百万'):
+                    elif unit == 'million':
                         norm = num * 1e6
-                    elif unit in ('万',):
+                    elif unit == '千亿':
+                        norm = num * 1e11
+                    elif unit == '百亿':
+                        norm = num * 1e10
+                    elif unit == '十亿':
+                        norm = num * 1e9
+                    elif unit == '万亿':
+                        norm = num * 1e12
+                    elif unit == '亿':
+                        norm = num * 1e8  # 修复：亿=1e8，不是1e9
+                    elif unit == '千万':
+                        norm = num * 1e7
+                    elif unit == '百万':
+                        norm = num * 1e6
+                    elif unit == '十万':
+                        norm = num * 1e5
+                    elif unit == '万':
                         norm = num * 1e4
                     else:
                         norm = num
@@ -389,8 +504,12 @@ class ConflictDetector:
                 max_n = max(n_a, n_b)
                 if max_n == 0:
                     continue
+                # 过滤：两个数值都 <= 10 时不判定冲突（小数值波动属正常）
+                if max_n <= 10:
+                    continue
                 ratio = abs(n_a - n_b) / max_n
-                if ratio > 0.5:
+                # 阈值 0.7：同一事件不同表述（如 398 vs 近400）不应判定为冲突
+                if ratio > 0.7:
                     conflicts.append({
                         "type": "numeric",
                         "severity": round(min(ratio, 1.0), 2),

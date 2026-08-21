@@ -46,7 +46,9 @@ WATCH_CATEGORIES = {
             "NATO AI strategy implementation",
             "EU AI Act government agencies",
             "US intelligence community AI tools",
-            "military AI applications news"
+            "military AI applications news",
+            f"AI model deployment government {YEAR}",
+            "federal AI procurement contract"
         ]
     },
     "ai_china_narrative": {
@@ -72,7 +74,9 @@ WATCH_CATEGORIES = {
             "Chinese AI companies global expansion",
             "US restrictions China AI technology",
             "DeepSeek AI model capabilities",
-            "China artificial intelligence news"
+            "China artificial intelligence news",
+            f"Baidu Alibaba AI model {YEAR}",
+            "Huawei AI chip Ascend"
         ]
     },
     "ai_legislation": {
@@ -97,7 +101,9 @@ WATCH_CATEGORIES = {
             "US AI regulation new bill",
             "AI legislation affecting China",
             "artificial intelligence governance policy",
-            f"AI regulation news {YEAR}"
+            f"AI regulation news {YEAR}",
+            f"AI safety standards {YEAR}",
+            "generative AI compliance requirement"
         ]
     },
     "ai_data_leak": {
@@ -123,7 +129,9 @@ WATCH_CATEGORIES = {
             "large language model security vulnerability",
             "AI powered cyber attack news",
             "training data privacy breach AI",
-            "AI security incident news"
+            "AI security incident news",
+            "LLM jailbreak vulnerability",
+            "AI model extraction attack"
         ]
     },
     "cyber_vuln": {
@@ -192,17 +200,28 @@ BRIEFING_CONFIG = {
     "search": {
         "time_window_days": 7,  # 搜索时间窗口（天数）
         "max_results_per_category": 30,  # 每个关注点最大结果数
+        "max_results_for_top3": 20,  # TOP3板块输入条数上限
+        "max_results_for_sections": 15,  # 其他板块输入条数上限
         "global_timeout_seconds": 60,  # 全局搜索超时（秒）
-        "enable_otx": False,  # OTX源SSL证书异常，暂时禁用
-        "enable_nvd": False,  # NVD API查询格式错误，暂时禁用
     },
     "format": {
         "max_top3_items": 3,
         "max_items_per_section": 10,
         "max_insights": 3,
-        "date_format": "%Y年%m月%d日（%A）",
+        "date_format": "%Y年%m月%d日",  # 星期由代码单独处理，避免Windows兼容性问题
         "include_cve_table": True,
         "include_links": True
+    },
+    "diff": {
+        "max_history_compare": 1,  # 对比最近N期历史
+        "max_added_display": 8,  # 新增条目最多显示数
+        "max_removed_display": 5,  # 消失条目最多显示数
+    },
+    "push": {
+        "wecom_max_chars": 4000,  # 企业微信截断字符数
+        "dingtalk_max_chars": 4500,  # 钉钉截断字符数
+        "retry_count": 3,  # 推送重试次数
+        "retry_delay_seconds": 2,  # 重试延迟基数（指数退避）
     },
     "tags": {
         "new_release": "[新发布]",
