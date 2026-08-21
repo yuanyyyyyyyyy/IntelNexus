@@ -6,7 +6,7 @@ AI简报分析生成器
 
 import os
 from typing import Dict, List
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from intelnexus.briefing.config import WATCH_CATEGORIES, BRIEFING_CONFIG
 from intelnexus.briefing.prompts import get_prompt
@@ -22,10 +22,14 @@ logger = get_logger(__name__)
 WEEKDAY_CN = ["一", "二", "三", "四", "五", "六", "日"]
 
 
-def format_briefing_date() -> str:
-    """生成中文星期日期，如「2026年7月7日（星期二）」"""
+def format_briefing_date(date_format: str = None) -> str:
+    """生成格式化日期字符串，支持从配置读取date_format"""
+    from .config import BRIEFING_CONFIG
     now = datetime.now()
-    return now.strftime("%Y年%m月%d日") + f"（星期{WEEKDAY_CN[now.weekday()]}）"
+    if date_format is None:
+        date_format = BRIEFING_CONFIG["format"]["date_format"]
+    weekday_cn = f"（星期{WEEKDAY_CN[now.weekday()]}）"
+    return now.strftime(date_format) + weekday_cn
 
 # 各板块对应的采集类目
 AI_DYNAMIC_CATS = ["ai_gov_usage", "ai_china_narrative", "ai_legislation", "ai_data_leak"]
@@ -95,11 +99,46 @@ class AIBriefingAnalyzer:
         return format_briefing_date()
 
     @staticmethod
-    def _collect(cats: List[str], collected_data: Dict[str, List[Dict]]) -> List[Dict]:
-        """合并若干类目的采集结果"""
+    def _clean_url(url: str) -> str:
+        """清洗 URL：去除 Yahoo 跟踪参数等垃圾参数"""
+        if not url:
+            return url
+        from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+        parsed = urlparse(url)
+        if not parsed.query:
+            return url
+        params = parse_qs(parsed.query, keep_blank_values=True)
+        # 移除常见跟踪/转发参数
+        garbage_keys = {"src", "utm_source", "utm_medium", "utm_campaign",
+                        "utm_content", "utm_term", "tcid", "ncid",
+                        "feature", "ref", "share"}
+        cleaned = {k: v for k, v in params.items()
+                   if k.lower() not in garbage_keys}
+        if len(cleaned) == len(params):
+            return url  # 无变化，直接返回
+        new_query = urlencode(cleaned, doseq=True)
+        return urlunparse(parsed._replace(query=new_query))
+
+    @staticmethod
+    def _collect(cats: List[str], collected_data: Dict[str, List[Dict]],
+                 max_days: int = None) -> List[Dict]:
+        """合并若干类目的采集结果，丢弃超过 max_days 天的旧内容"""
+        from .config import BRIEFING_CONFIG
+        if max_days is None:
+            max_days = BRIEFING_CONFIG["search"]["time_window_days"]
         results = []
+        cutoff = datetime.now() - timedelta(days=max_days)
         for cat in cats:
-            results.extend(collected_data.get(cat, []))
+            for item in collected_data.get(cat, []):
+                pub_str = item.get("published_at", "")
+                if pub_str:
+                    try:
+                        pub_dt = datetime.fromisoformat(pub_str.replace("Z", "+00:00").replace("+00:00", ""))
+                        if pub_dt < cutoff:
+                            continue
+                    except (ValueError, TypeError):
+                        pass  # 日期解析失败时保留条目
+                results.append(item)
         return results
 
     def _add_warning(self, section: str, message: str) -> None:
@@ -150,17 +189,25 @@ class AIBriefingAnalyzer:
         # 逐板块生成，并在每个板块前后上报进度
         contents: Dict[str, str] = {}
         total = len(GENERATION_SECTIONS)
+        top3_cve_ids = set()  # TOP3 中已覆盖的 CVE 编号
         for idx, (key, method_name) in enumerate(GENERATION_SECTIONS):
             label = SECTION_LABELS[key]
             pct = 0.4 + 0.55 * (idx / total)
             on_progress("generate_progress", f"正在生成：{label}（{idx + 1}/{total}）", pct)
-            contents[key] = getattr(self, method_name)(collected_data, llm)
+            if key == "cve_table":
+                contents[key] = getattr(self, method_name)(collected_data, llm,
+                                                          skip_cve_ids=top3_cve_ids)
+            else:
+                contents[key] = getattr(self, method_name)(collected_data, llm)
+            # TOP3 生成后提取其中的 CVE 编号，供后续 CVE 表格去重
+            if key == "top3":
+                import re
+                top3_cve_ids = set(re.findall(r'CVE-\d{4}-\d+', contents["top3"]))
 
         # 知识图谱链接追加到「重要链接」板块
         if kg_path:
-            from intelnexus.ui.icons import icon
             contents["links"] = (contents.get("links", "") or "") + \
-                f"\n\n• {icon('knowledge', 'sm', 'lavender')} 本期实体关系图谱：{kg_path}"
+                f"\n\n• [图谱] 本期实体关系图谱：{kg_path}"
 
         # 可信度概览作为简报首个板块（拼接到 top3 之前，复用现有模板签名）
         top3_with_overview = credibility_overview + "\n\n---\n\n" + contents["top3"] \
@@ -346,8 +393,12 @@ class AIBriefingAnalyzer:
                                  "你是一位网络安全情报分析师，请生成'网络安全动态'部分。",
                                  label="网络安全动态")
 
-    def _generate_cve_table(self, collected_data: Dict[str, List[Dict]], llm) -> str:
-        """生成近日新增安全漏洞预警（CVE 表格），直接使用结构化数据。"""
+    def _generate_cve_table(self, collected_data: Dict[str, List[Dict]], llm,
+                            skip_cve_ids: set = None) -> str:
+        """生成近日新增安全漏洞预警（CVE 表格），直接使用结构化数据。
+        skip_cve_ids: TOP3 中已覆盖的 CVE 编号，跳过不重复展示。"""
+        if skip_cve_ids is None:
+            skip_cve_ids = set()
         results = self._collect(CVE_CATS, collected_data)
         header = "| CVE编号 | 影响产品 | 漏洞类型 | CVSS | 利用状态 | 建议措施 |\n| --- | --- | --- | --- | --- | --- |"
 
@@ -359,7 +410,7 @@ class AIBriefingAnalyzer:
             from intelnexus.core.search.sources.cisa_kev_source import CISAKEVSource
             nvd = NVDSearchSource()
             kev = CISAKEVSource()
-            nvd_results = nvd.search("CVE", max_results=10)
+            nvd_results = nvd.search_recent_critical(days=7, max_results=10)
             kev_results = kev.search("vulnerability", max_results=10)
 
             # 提取 NVD 结构化数据
@@ -414,9 +465,13 @@ class AIBriefingAnalyzer:
             self._add_warning("近日新增安全漏洞预警", "未采集到漏洞相关情报，表格为空")
             return f"{header}\n| （暂无） | - | - | - | - | - |"
 
-        # 生成表格行
+        # 生成表格行（跳过 TOP3 中已覆盖的 CVE）
         rows = []
-        for cve_id, data in list(all_cves.items())[:10]:
+        for cve_id, data in list(all_cves.items()):
+            if cve_id in skip_cve_ids:
+                continue  # TOP3 已详细分析，跳过避免重复
+            if len(rows) >= 10:
+                break
             # 影响产品
             products = data.get("affected_products", [])
             if not products and data.get("product"):
@@ -439,9 +494,10 @@ class AIBriefingAnalyzer:
             # 建议措施
             if in_kev:
                 action = data.get("required_action", "")
-                if not action:
-                    action = "立即升级至安全版本"
-                suggestion = action[:50]
+                if action:
+                    suggestion = action if len(action) <= 50 else action[:47] + "…"
+                else:
+                    suggestion = "立即升级至安全版本"
             else:
                 suggestion = "升级至安全版本"
 
@@ -513,11 +569,67 @@ class AIBriefingAnalyzer:
             "新闻标题",
             "影响范围：",
             "紧急程度：",
+            "用2-3句话概括事件背景",
+            "具体描述攻击入口",
+            "具体描述执行的恶意操作",
+            "具体描述如何维持权限",
+            "具体描述内网扩散方式",
+            "具体描述最终造成的影响",
+            "具体区域/规模",
+            "具体行业",
+            "具体损失类型和规模",
+            "具体可执行的操作",
+            "具体改进方案",
+            "具体加固建议",
+            "用搜索结果中的真实事件名称替换",
+            "真实日期",
+            "真实事件节点",
         ]
         for pattern in template_patterns:
             if pattern in result:
                 logger.warning(f"LLM输出包含模板占位符，判定无效: {pattern}")
                 return False
+
+        # 检测英文标签泄漏（搜索结果格式被LLM复制）
+        english_label_patterns = [
+            r"(?m)^\s*URL:\s*http",
+            r"(?m)^\s*Source:\s*\w",
+            r"(?m)^\s*Date:\s*\d",
+            r"(?m)^\s*Description:\s*\w",
+            r"(?m)^No title",
+            r"(?m)^No URL",
+        ]
+        for pattern in english_label_patterns:
+            if re.search(pattern, result):
+                logger.warning(f"LLM输出包含英文标签泄漏，判定无效: {pattern}")
+                return False
+
+        # 检测Markdown代码块
+        if re.search(r"```[\s\S]*?```", result):
+            logger.warning("LLM输出包含Markdown代码块，判定无效")
+            return False
+
+        # 检测JSON/代码结构（大括号包裹的类JSON内容）
+        if re.search(r"^\s*\{[\s\S]{20,}\}\s*$", result, re.MULTILINE):
+            logger.warning("LLM输出包含JSON结构，判定无效")
+            return False
+
+        # 检测连续纯英文段落（超过3行，排除CVE编号等必要英文）
+        lines_for_english = result.split("\n")
+        english_streak = 0
+        for line in lines_for_english:
+            stripped = line.strip()
+            if not stripped or re.search(r"CVE-\d{4}-\d+", stripped):
+                english_streak = 0
+                continue
+            # 判断是否为纯英文（排除中文字符、数字、标点）
+            if re.match(r"^[a-zA-Z0-9\s\.\,\;\:\-\(\)\[\]\/\\\@\#\$\%\^\&\*\+\=\_\~\`\|\{\}\<\>\?\!]+$", stripped):
+                english_streak += 1
+                if english_streak >= 3:
+                    logger.warning("LLM输出包含连续纯英文段落，判定无效")
+                    return False
+            else:
+                english_streak = 0
 
         # 检测占位符CVE
         import re
@@ -571,6 +683,54 @@ class AIBriefingAnalyzer:
 
         return True
 
+    def _clean_llm_output(self, result: str) -> str:
+        """后处理清洗LLM输出，移除英文标签、代码块等残留痕迹"""
+        import re
+        lines = result.split("\n")
+        cleaned = []
+        skip_code_block = False
+
+        for line in lines:
+            stripped = line.strip()
+
+            # 跳过Markdown代码块
+            if stripped.startswith("```"):
+                skip_code_block = not skip_code_block
+                continue
+            if skip_code_block:
+                continue
+
+            # 移除英文标签行
+            if re.match(r"^(URL|Source|Date|Description|Link):\s*", stripped, re.IGNORECASE):
+                continue
+            if re.match(r"^(链接|来源|日期|摘要)：", stripped):
+                # 保留中文标签行（正常内容）
+                pass
+
+            # 移除模板占位符行
+            if re.search(r"\[.*(?:具体|真实|替换|描述).*\]", stripped):
+                continue
+
+            # 移除纯数字行（可能是序号错误）
+            if stripped and re.match(r"^\d+$", stripped):
+                continue
+
+            cleaned.append(line)
+
+        # 移除连续空行（保留最多1个）
+        final = []
+        prev_empty = False
+        for line in cleaned:
+            if not line.strip():
+                if not prev_empty:
+                    final.append(line)
+                prev_empty = True
+            else:
+                final.append(line)
+                prev_empty = False
+
+        return "\n".join(final).strip()
+
     def _run_prompt(self, prompt_name: str, results: List[Dict], llm, system_desc: str, label: str = None) -> str:
         """通用：调用提示词生成板块内容"""
         label = label or prompt_name
@@ -615,7 +775,9 @@ class AIBriefingAnalyzer:
                 else:
                     return "本日暂无相关动态。"
 
-            return result.strip()
+            # 后处理清洗
+            result = self._clean_llm_output(result)
+            return result
         except Exception as e:
             logger.error(f"Error generating {prompt_name}: {e}")
             self._add_warning(label, f"生成异常：{e}")
@@ -721,7 +883,7 @@ class AIBriefingAnalyzer:
 
         for results in collected_data.values():
             for item in results[:3]:  # 每个类别最多3个链接
-                url = item.get("url", "")
+                url = self._clean_url(item.get("url", ""))
                 title = item.get("title", "")[:50]
                 if url and url not in seen_urls:
                     seen_urls.add(url)
@@ -765,7 +927,7 @@ class AIBriefingAnalyzer:
             from intelnexus.analysis.intelligence_graph import (
                 EntityExtractor, IntelligenceGraph
             )
-            from datetime import datetime
+            from datetime import datetime, timedelta
 
             scraped = {}
             for items in collected_data.values():
@@ -797,17 +959,18 @@ class AIBriefingAnalyzer:
         """将搜索结果格式化为提示词可用的格式"""
         formatted = []
         for i, r in enumerate(results, 1):
-            title = r.get("title", "No title")
-            url = r.get("url", "No URL")
-            source = r.get("source", "Unknown")
-            date = r.get("published_at", "Unknown date")
+            title = r.get("title", "无标题")
+            url = r.get("url", "")
+            source = r.get("source", "未知来源")
+            date = r.get("published_at", "未知日期")
             desc = r.get("description", r.get("content", ""))[:200]
 
             formatted.append(f"{i}. {title}")
-            formatted.append(f"   URL: {url}")
-            formatted.append(f"   Source: {source}")
-            formatted.append(f"   Date: {date}")
-            formatted.append(f"   Description: {desc}")
+            if url:
+                formatted.append(f"   链接：{url}")
+            formatted.append(f"   来源：{source}")
+            formatted.append(f"   日期：{date}")
+            formatted.append(f"   摘要：{desc}")
             formatted.append("")
 
         return "\n".join(formatted)
