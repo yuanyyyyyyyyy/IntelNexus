@@ -351,7 +351,7 @@ def render_data_sources_panel():
     ''', unsafe_allow_html=True)
 
     try:
-        from intelnexus.config.sources import get_all_sources, add_source, remove_source, toggle_source
+        from intelnexus.config.sources import get_all_sources, add_source, remove_source, toggle_source, update_source, test_source
         SOURCES_AVAILABLE = True
     except ImportError:
         SOURCES_AVAILABLE = False
@@ -374,7 +374,9 @@ def render_data_sources_panel():
             "ai_gov_usage": get_text("category_gov"),
             "ai_china_narrative": get_text("category_china"),
             "ai_legislation": get_text("category_legislation"),
-            "ai_data_leak": get_text("category_leak")
+            "ai_data_leak": get_text("category_leak"),
+            "cyber_vuln": get_text("category_vuln"),
+            "cyber_attack": get_text("category_attack"),
         }
         source_category = st.selectbox(
             get_text("source_category"),
@@ -400,19 +402,59 @@ def render_data_sources_panel():
     if all_sources_list:
         with st.expander(get_text("manage_sources")):
             for source in all_sources_list:
-                col_info, col_toggle, col_delete = st.columns([4, 1, 1])
+                col_info, col_toggle, col_actions = st.columns([4, 1, 2])
                 with col_info:
                     st.write(f"**{source['name']}**")
-                    st.caption(f"{source['url'][:50]}...")
+                    st.caption(f"{source['url'][:60]}...")
                 with col_toggle:
                     enabled = st.toggle(get_text("enabled_label"), value=source.get("enabled", True), key=f"bf_toggle_{source['id']}", label_visibility="collapsed")
                     if enabled != source.get("enabled", True):
                         toggle_source(source['id'], enabled)
                         st.rerun()
-                with col_delete:
-                    if st.button(get_text("delete"), key=f"bf_del_source_{source['id']}"):
-                        if remove_source(source['id']):
+                with col_actions:
+                    act_cols = st.columns(3)
+                    with act_cols[0]:
+                        if st.button("测试", key=f"bf_test_{source['id']}", help="测试源是否可用"):
+                            fetch_type = source.get("fetch_type", "web_engine")
+                            result = test_source(source['url'], fetch_type)
+                            if result["success"]:
+                                st.success(result["message"])
+                            else:
+                                st.error(result["message"])
+                    with act_cols[1]:
+                        if st.button("编辑", key=f"bf_edit_{source['id']}", help="编辑源配置"):
+                            st.session_state[f"editing_source_{source['id']}"] = True
                             st.rerun()
+                    with act_cols[2]:
+                        if st.button(get_text("delete"), key=f"bf_del_source_{source['id']}"):
+                            if remove_source(source['id']):
+                                st.rerun()
+
+                # 编辑表单
+                if st.session_state.get(f"editing_source_{source['id']}"):
+                    with st.container():
+                        st.caption(f"编辑: {source['name']}")
+                        edit_name = st.text_input("名称", value=source['name'], key=f"bf_edit_name_{source['id']}")
+                        edit_url = st.text_input("URL", value=source['url'], key=f"bf_edit_url_{source['id']}")
+                        cat_options = list(categories.keys())
+                        edit_cat = st.selectbox(
+                            "分类",
+                            cat_options,
+                            index=cat_options.index(source.get('category', 'ai_gov_usage')) if source.get('category') in cat_options else 0,
+                            format_func=lambda x: categories[x],
+                            key=f"bf_edit_cat_{source['id']}"
+                        )
+                        ecol1, ecol2 = st.columns(2)
+                        with ecol1:
+                            if st.button("保存", key=f"bf_save_{source['id']}"):
+                                if edit_name and edit_url:
+                                    update_source(source['id'], {"name": edit_name, "url": edit_url, "category": edit_cat})
+                                    st.session_state[f"editing_source_{source['id']}"] = False
+                                    st.rerun()
+                        with ecol2:
+                            if st.button("取消", key=f"bf_cancel_{source['id']}"):
+                                st.session_state[f"editing_source_{source['id']}"] = False
+                                st.rerun()
     else:
         st.markdown(
             f"<p class='bf-hint'>{get_text('no_sources')} —— {get_text('welcome_step_sources_desc')}</p>",
