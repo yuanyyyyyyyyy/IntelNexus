@@ -79,7 +79,10 @@ class SourceScorer:
     AGGREGATOR_SOURCES = {'Bing', 'Google', 'DuckDuckGo', 'Yahoo', 'Yandex', 'Baidu'}
 
     NEWS_SOURCES = {'Google News', 'Bing News', 'Yahoo News',
-                    'Reuters', 'TechCrunch', 'The Verge', 'Wired', 'BBC', 'CNN'}
+                    'Reuters', 'TechCrunch', 'The Verge', 'Wired', 'BBC', 'CNN',
+                    'BleepingComputer', 'SecurityWeek', 'Dark Reading', 'The Hacker News',
+                    'FreeBuf', 'Solidot', 'IT之家', 'InfoQ', 'AI科技评论',
+                    'CyberScoop', 'The Record', 'Ars Technica', 'ZDNet'}
 
     def __init__(self):
         self._model = load_sentence_model()
@@ -201,6 +204,7 @@ class SourceScorer:
 
     def _freshness(self, source_name, result=None):
         """Compute freshness from published_at date, falling back to source type."""
+        import re
         if result:
             published = result.get("published_at") or result.get("published") or result.get("date")
             if published:
@@ -244,7 +248,6 @@ class SourceScorer:
                                 continue
 
                         # 尝试中文日期格式：2026年08月21日
-                        import re
                         cn_match = re.match(r'(\d{4})年(\d{1,2})月(\d{1,2})日', published)
                         if cn_match:
                             try:

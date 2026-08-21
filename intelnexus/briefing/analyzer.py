@@ -382,19 +382,29 @@ class AIBriefingAnalyzer:
 
         lines = ["来源可信度概览："]
         if high_trust:
-            lines.append(f"- 高可信来源（≥0.7）：{', '.join(set(high_trust)[:5])}")
+            lines.append(f"- 高可信来源（≥0.7）：{', '.join(list(set(high_trust))[:5])}")
         if medium_trust:
-            lines.append(f"- 中可信来源（0.4-0.7）：{', '.join(set(medium_trust)[:5])}")
+            lines.append(f"- 中可信来源（0.4-0.7）：{', '.join(list(set(medium_trust))[:5])}")
         if low_trust:
-            lines.append(f"- 低可信来源（<0.4）：{', '.join(set(low_trust)[:5])}")
+            lines.append(f"- 低可信来源（<0.4）：{', '.join(list(set(low_trust))[:5])}")
 
         return "\n".join(lines)
 
     def _generate_top3_fallback(self, all_results: List[Dict]) -> str:
         """TOP3降级方案：按可信度和紧急度排序，取Top3"""
+        # 过滤掉暗网链接和极低可信来源
+        filtered = [
+            r for r in all_results
+            if not r.get("url", "").endswith(".onion")
+            and r.get("credibility_score", 0) >= 0.2
+        ]
+        # 如果过滤后无结果，使用全部结果
+        if not filtered:
+            filtered = all_results
+
         # 按可信度降序排序
         sorted_results = sorted(
-            all_results,
+            filtered,
             key=lambda x: x.get("credibility_score", 0.5),
             reverse=True
         )
