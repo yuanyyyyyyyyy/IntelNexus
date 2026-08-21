@@ -325,25 +325,6 @@ class SourceScorer:
             return 0.3
         return 0.1
 
-    def _consistency(self, url, scraped, emb_cache):
-        """Compute consistency using pre-computed embeddings (no re-encoding)."""
-        if len(emb_cache) < 2:
-            return 0.5
-        emb = emb_cache.get(url)
-        if emb is None:
-            return 0.5
-        try:
-            similarities = []
-            for other_url, other_emb in emb_cache.items():
-                if other_url == url or other_emb is None:
-                    continue
-                sim = float(np.dot(emb, other_emb) / (
-                    np.linalg.norm(emb) * np.linalg.norm(other_emb) + 1e-10))
-                similarities.append(sim)
-            return float(np.mean(similarities)) if similarities else 0.5
-        except Exception:
-            return 0.5
-
 
 class ConsistencyAnalyzer:
     """
