@@ -660,7 +660,7 @@ def render_watch_categories_panel():
 
     try:
         from intelnexus.config.watch_categories import (
-            get_all_categories, add_category, remove_category
+            get_all_categories, add_category, remove_category, update_category
         )
         CAT_AVAILABLE = True
     except ImportError:
@@ -700,19 +700,63 @@ def render_watch_categories_panel():
             else:
                 st.warning(get_text("fill_fields"))
 
-    # 现有关注点列表（可删除）
+    # 现有关注点列表（可编辑/启禁用/删除）
     if cats:
         with st.expander(get_text("manage_watch_categories")):
             for cid, cfg in cats.items():
-                col_info, col_del = st.columns([5, 1])
+                is_enabled = cfg.get("enabled", True)
+                col_info, col_toggle, col_actions = st.columns([4, 1, 2])
                 with col_info:
-                    st.write(f"**{cfg.get('name', cid)}**")
+                    status_icon = "🟢" if is_enabled else "⚪"
+                    st.write(f"{status_icon} **{cfg.get('name', cid)}**")
                     st.caption(f"{cid} · {len(cfg.get('search_queries', []))} 条查询")
-                with col_del:
-                    if st.button(get_text("delete"), key=f"bf_del_cat_{cid}"):
-                        if remove_category(cid):
-                            st.success(get_text("watch_category_deleted"))
+                with col_toggle:
+                    new_enabled = st.toggle(
+                        "启用", value=is_enabled,
+                        key=f"bf_toggle_cat_{cid}",
+                        label_visibility="collapsed"
+                    )
+                    if new_enabled != is_enabled:
+                        update_category(cid, {"enabled": new_enabled})
+                        st.rerun()
+                with col_actions:
+                    act_cols = st.columns(2)
+                    with act_cols[0]:
+                        if st.button("编辑", key=f"bf_edit_cat_{cid}", help="编辑关注点"):
+                            st.session_state[f"editing_cat_{cid}"] = True
                             st.rerun()
+                    with act_cols[1]:
+                        if st.button(get_text("delete"), key=f"bf_del_cat_{cid}"):
+                            if remove_category(cid):
+                                st.success(get_text("watch_category_deleted"))
+                                st.rerun()
+
+                # 编辑表单
+                if st.session_state.get(f"editing_cat_{cid}"):
+                    with st.container():
+                        st.caption(f"编辑: {cfg.get('name', cid)}")
+                        edit_name = st.text_input("名称", value=cfg.get('name', ''), key=f"bf_edit_cat_name_{cid}")
+                        edit_queries = st.text_area(
+                            "搜索查询（每行一个）",
+                            value='\n'.join(cfg.get('search_queries', [])),
+                            key=f"bf_edit_cat_queries_{cid}"
+                        )
+                        ecol1, ecol2 = st.columns(2)
+                        with ecol1:
+                            if st.button("保存", key=f"bf_save_cat_{cid}"):
+                                if edit_name and edit_queries:
+                                    updates = {
+                                        "name": edit_name,
+                                        "name_en": edit_name,
+                                        "search_queries": [q.strip() for q in edit_queries.splitlines() if q.strip()]
+                                    }
+                                    update_category(cid, updates)
+                                    st.session_state[f"editing_cat_{cid}"] = False
+                                    st.rerun()
+                        with ecol2:
+                            if st.button("取消", key=f"bf_cancel_cat_{cid}"):
+                                st.session_state[f"editing_cat_{cid}"] = False
+                                st.rerun()
     else:
         st.markdown(
             f"<p class='bf-hint'>{get_text('no_watch_categories')}</p>",
