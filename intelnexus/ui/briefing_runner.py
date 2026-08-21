@@ -150,8 +150,6 @@ def _run_pipeline(key_prefix: str, model: str, selected_cats: list, push_enabled
 
         if result["warnings"]:
             st.warning(get_text("briefing_partial").format(n=len(result["warnings"])))
-        else:
-            st.success(get_text("briefing_ok"))
     except Exception as e:
         progress_bar.progress(1.0)
         status.update(label=get_text("briefing_failed"), state="error")

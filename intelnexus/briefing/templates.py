@@ -19,6 +19,12 @@ MARKDOWN_TEMPLATE = """
 {producer_unit_cover}
 ---
 
+## 今日要点
+
+{summary_content}
+
+---
+
 ## 近日要闻 TOP3
 
 {top3_content}
@@ -264,7 +270,6 @@ def _md_to_html(text: str) -> str:
             # 转义HTML，但保留strong标签
             item = re.sub(r'&(?!amp;|lt;|gt;|quot;|#39;)', '&amp;', item)  # 只转义&符号
             item = re.sub(r'<(?!/strong>|strong>)', '&lt;', item)  # 转义<但保留strong
-            item = re.sub(r'(?<!</strong|strong)<', '&lt;', item)  # 进一步处理
             html_lines.append(
                 f'<p style="margin:5px 0;padding-left:20px;">• {item}</p>'
             )
@@ -322,6 +327,7 @@ def render_markdown_briefing(
     generated_date: str,
     organization: dict,
     top3_content: str,
+    summary_content: str = "",
     delta_content: str = "",
     ai_dynamic_content: str = "",
     cyber_dynamic_content: str = "",
@@ -360,6 +366,7 @@ def render_markdown_briefing(
         generated_date=generated_date,
         org_name=org_name,
         producer_unit_cover=producer_unit_cover,
+        summary_content=summary_content,
         top3_content=top3_content,
         delta_content=delta_content,
         ai_dynamic_content=ai_dynamic_content,

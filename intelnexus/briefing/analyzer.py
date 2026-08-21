@@ -5,6 +5,7 @@ AI简报分析生成器
 """
 
 import os
+import re
 from typing import Dict, List
 from datetime import datetime, timedelta
 
@@ -20,6 +21,27 @@ logger = get_logger(__name__)
 
 # 中文星期（datetime.weekday(): 0=周一）
 WEEKDAY_CN = ["一", "二", "三", "四", "五", "六", "日"]
+
+# TOP3 主题相关性关键词（AI 与网络安全）
+_AI_SECURITY_KEYWORDS = frozenset([
+    'ai', 'artificial intelligence', 'machine learning', 'llm', 'gpt', 'deepseek',
+    'chatgpt', 'openai', 'anthropic', 'gemini', 'copilot', 'claude',
+    'cyber', 'security', 'breach', 'vulnerability', 'cve', 'ransomware', 'malware',
+    'hack', 'attack', 'exploit', 'zero-day', '0day', 'phishing', 'data leak',
+    'backdoor', 'apt', 'botnet', 'ddos', 'encryption', 'firewall',
+    '人工智能', '安全', '漏洞', '泄露', '勒索', '攻击', '入侵', '后门',
+    '补丁', '防火墙', '加密', '钓鱼', '挖矿', '木马', '病毒',
+    '数据泄露', '网络安全', '信息安全', '隐私', '合规', '监管',
+    '模型', '训练', '推理', '算力', '芯片', 'gpu', 'nvidia',
+    'patch', 'credential', 'oauth', 'token', 'auth', 'permission',
+])
+
+
+def _topic_relevance(title: str, description: str = "") -> float:
+    """计算条目与 AI/安全主题的相关性 (0-1)"""
+    text = f"{title} {description}".lower()
+    matches = sum(1 for kw in _AI_SECURITY_KEYWORDS if kw in text)
+    return min(matches / 5, 1.0)
 
 
 def format_briefing_date(date_format: str = None) -> str:
@@ -201,13 +223,16 @@ class AIBriefingAnalyzer:
                 contents[key] = getattr(self, method_name)(collected_data, llm)
             # TOP3 生成后提取其中的 CVE 编号，供后续 CVE 表格去重
             if key == "top3":
-                import re
                 top3_cve_ids = set(re.findall(r'CVE-\d{4}-\d+', contents["top3"]))
 
         # 知识图谱链接追加到「重要链接」板块
         if kg_path:
             contents["links"] = (contents.get("links", "") or "") + \
                 f"\n\n• [图谱] 本期实体关系图谱：{kg_path}"
+
+        # 生成执行摘要（今日要点）
+        on_progress("summary", "正在生成执行摘要...", 0.92)
+        summary_content = self._generate_summary(contents, collected_data)
 
         # 可信度概览作为简报首个板块（拼接到 top3 之前，复用现有模板签名）
         top3_with_overview = credibility_overview + "\n\n---\n\n" + contents["top3"] \
@@ -217,6 +242,7 @@ class AIBriefingAnalyzer:
         briefing = render_markdown_briefing(
             generated_date=generated_date,
             organization=org,
+            summary_content=summary_content,
             top3_content=top3_with_overview,
             delta_content=contents.get("delta", ""),
             ai_dynamic_content=contents["ai_dynamic"],
@@ -293,7 +319,15 @@ class AIBriefingAnalyzer:
             logger.warning(f"可信度概览评估失败，降级跳过: {e}")
             return ""
 
-        scores = [r.get("credibility_score", 0.5) for r in scored]
+        # 按来源聚合分数（同一来源取最高分）
+        source_scores = {}
+        for r in scored:
+            source = r.get("source", "Unknown")
+            score = r.get("credibility_score", 0.5)
+            if source not in source_scores or score > source_scores[source]:
+                source_scores[source] = score
+
+        scores = list(source_scores.values())
         avg = round(sum(scores) / len(scores), 2) if scores else 0.5
         high = sum(1 for s in scores if s >= 0.7)
         low = sum(1 for s in scores if s < 0.4)
@@ -304,7 +338,7 @@ class AIBriefingAnalyzer:
             "## 来源可信度概览",
             "",
             f"- **平均可信度**：{avg:.2f}（{level}）",
-            f"- **高可信来源**：{high} 条 · **低可信来源**：{low} 条",
+            f"- **高可信来源**：{high} 个 · **低可信来源**：{low} 个（共 {len(source_scores)} 个独立来源）",
             f"- **跨源冲突提示**：{conflict_count} 处"
             if conflict_count else "- **跨源冲突提示**：未检测到明显冲突",
         ]
@@ -314,7 +348,7 @@ class AIBriefingAnalyzer:
             for c in conflicts[:3]:
                 lines.append(f"- {c.get('description', '')}（严重度 {c.get('severity', 0):.2f}）")
         lines.append("")
-        lines.append("> 本栏由来源可信度评分自动生成，供研判参考。")
+        lines.append("> 本栏基于采集来源的域名权威性、时效性与内容深度自动评分，供研判参考。")
         return "\n".join(lines)
 
     def _generate_top3(self, collected_data: Dict[str, List[Dict]], llm) -> str:
@@ -391,23 +425,23 @@ class AIBriefingAnalyzer:
         return "\n".join(lines)
 
     def _generate_top3_fallback(self, all_results: List[Dict]) -> str:
-        """TOP3降级方案：按可信度和紧急度排序，取Top3"""
+        """TOP3降级方案：按可信度和主题相关性加权排序，取Top3"""
         # 过滤掉暗网链接和极低可信来源
         filtered = [
             r for r in all_results
             if not r.get("url", "").endswith(".onion")
             and r.get("credibility_score", 0) >= 0.2
         ]
-        # 如果过滤后无结果，使用全部结果
         if not filtered:
             filtered = all_results
 
-        # 按可信度降序排序
-        sorted_results = sorted(
-            filtered,
-            key=lambda x: x.get("credibility_score", 0.5),
-            reverse=True
-        )
+        # 按可信度(60%) + 主题相关性(40%) 加权排序
+        def _sort_key(x):
+            cred = x.get("credibility_score", 0.5)
+            rel = _topic_relevance(x.get("title", ""), x.get("description", ""))
+            return cred * 0.6 + rel * 0.4
+
+        sorted_results = sorted(filtered, key=_sort_key, reverse=True)
 
         top_items = sorted_results[:BRIEFING_CONFIG["format"].get("max_top3_items", 3)]
         if not top_items:
@@ -431,16 +465,6 @@ class AIBriefingAnalyzer:
     def _generate_ai_dynamic(self, collected_data: Dict[str, List[Dict]], llm) -> str:
         """生成 AI 领域动态（模型与技术 / 应用与落地 / 产业与市场）"""
         results = self._collect(AI_DYNAMIC_CATS, collected_data)
-        if not results:
-            self._add_warning("AI 领域动态", "未采集到相关情报数据，使用降级内容")
-            return self._fallback_subsections(
-                ["模型与技术", "应用与落地", "产业与市场"], results, llm)
-
-        if llm is None:
-            self._add_warning("AI 领域动态", "未加载 LLM，使用降级内容")
-            return self._fallback_subsections(
-                ["模型与技术", "应用与落地", "产业与市场"], results, llm)
-
         return self._run_prompt("ai_dynamic", results, llm,
                                  "你是一位AI领域情报分析师，请生成'AI 领域动态'部分。",
                                  label="AI 领域动态")
@@ -448,16 +472,6 @@ class AIBriefingAnalyzer:
     def _generate_cyber_dynamic(self, collected_data: Dict[str, List[Dict]], llm) -> str:
         """生成 网络安全动态（漏洞与威胁 / 攻击事件 / 政策与合规）"""
         results = self._collect(CYBER_DYNAMIC_CATS, collected_data)
-        if not results:
-            self._add_warning("网络安全动态", "未采集到相关情报数据，使用降级内容")
-            return self._fallback_subsections(
-                ["漏洞与威胁", "攻击事件", "政策与合规"], results, llm)
-
-        if llm is None:
-            self._add_warning("网络安全动态", "未加载 LLM，使用降级内容")
-            return self._fallback_subsections(
-                ["漏洞与威胁", "攻击事件", "政策与合规"], results, llm)
-
         return self._run_prompt("cyber_dynamic", results, llm,
                                  "你是一位网络安全情报分析师，请生成'网络安全动态'部分。",
                                  label="网络安全动态")
@@ -531,36 +545,80 @@ class AIBriefingAnalyzer:
                 all_cves[cve_id]["in_kev"] = True
 
         if not all_cves:
+            # 从搜索结果中补充 CVE 信息
+            for item in results:
+                metadata = item.get("metadata", {})
+                cve_id = metadata.get("cve_id", "")
+                if cve_id and cve_id not in all_cves:
+                    all_cves[cve_id] = {
+                        "cve_id": cve_id,
+                        "cvss_score": metadata.get("cvss_score", ""),
+                        "affected_products": metadata.get("affected_products", []),
+                        "vuln_types": metadata.get("vuln_types", []),
+                        "description": item.get("description", "")[:200],
+                        "url": item.get("url", ""),
+                    }
+            # 从标题中正则提取 CVE 编号
+            if not all_cves:
+                for item in results:
+                    title = item.get("title", "") + " " + item.get("description", "")
+                    for m in re.finditer(r'CVE-\d{4}-\d{4,}', title):
+                        cve_id = m.group(0)
+                        if cve_id not in all_cves:
+                            all_cves[cve_id] = {
+                                "cve_id": cve_id,
+                                "cvss_score": "",
+                                "affected_products": [],
+                                "vuln_types": [],
+                                "description": item.get("description", "")[:200],
+                                "url": item.get("url", ""),
+                            }
+                    if len(all_cves) >= 10:
+                        break
+
+        if not all_cves:
             self._add_warning("近日新增安全漏洞预警", "未采集到漏洞相关情报，表格为空")
             return f"{header}\n| （暂无） | - | - | - | - | - |"
 
+        # 排序：在野利用优先，然后按 CVSS 降序
+        def _cve_sort_key(item):
+            cve_id, data = item
+            in_kev = data.get("in_kev", False)
+            try:
+                cvss = float(data.get("cvss_score", 0) or 0)
+            except (ValueError, TypeError):
+                cvss = 0
+            return (0 if in_kev else 1, -cvss)
+
+        sorted_cves = sorted(all_cves.items(), key=_cve_sort_key)
+
         # 生成表格行（跳过 TOP3 中已覆盖的 CVE）
         rows = []
-        for cve_id, data in list(all_cves.items()):
+        for cve_id, data in sorted_cves:
             if cve_id in skip_cve_ids:
-                continue  # TOP3 已详细分析，跳过避免重复
+                continue
             if len(rows) >= 10:
                 break
             # 影响产品
             products = data.get("affected_products", [])
             if not products and data.get("product"):
                 products = [data["product"]]
-            product_str = ", ".join(products[:3]) if products else "未知"
+            product_str = ", ".join(products[:3]) if products else "待确认"
 
             # 漏洞类型
             vuln_types = data.get("vuln_types", [])
-            vuln_type_str = ", ".join(vuln_types[:2]) if vuln_types else "未知"
+            vuln_type_str = ", ".join(vuln_types[:2]) if vuln_types else "待确认"
 
             # CVSS 评分
             cvss = data.get("cvss_score", "")
             if not cvss:
-                cvss = "未知"
+                cvss = "待评估"
 
             # 利用状态
             in_kev = data.get("in_kev", False)
-            exploit_status = "在野利用" if in_kev else "暂无在野利用"
+            exploit_status = "🔴 在野利用" if in_kev else "暂无在野利用"
 
-            # 建议措施
+            # 建议措施（根据漏洞类型和利用状态差异化）
             if in_kev:
                 action = data.get("required_action", "")
                 if action:
@@ -568,6 +626,18 @@ class AIBriefingAnalyzer:
                 else:
                     suggestion = "立即升级至安全版本"
             else:
+                # 根据漏洞类型给出差异化建议
+                desc_lower = (data.get("description", "") + vuln_type_str).lower()
+                if any(kw in desc_lower for kw in ['rce', 'remote code', '代码执行']):
+                    suggestion = "立即升级，前置WAF/IPS规则"
+                elif any(kw in desc_lower for kw in ['xss', 'cross-site', '跨站']):
+                    suggestion = "部署WAF，输入验证过滤"
+                elif any(kw in desc_lower for kw in ['sql', '注入', 'injection']):
+                    suggestion = "参数化查询，部署WAF"
+                elif any(kw in desc_lower for kw in ['info', 'information', '信息泄露']):
+                    suggestion = "限制访问控制，升级版本"
+                else:
+                    suggestion = "升级至安全版本"
                 suggestion = "升级至安全版本"
 
             rows.append(f"| {cve_id} | {product_str} | {vuln_type_str} | {cvss} | {exploit_status} | {suggestion} |")
@@ -580,14 +650,52 @@ class AIBriefingAnalyzer:
     def _generate_policy(self, collected_data: Dict[str, List[Dict]], llm) -> str:
         """生成政策法规动态（国内政策 / 国际法规 / 行业标准）"""
         results = self._collect(POLICY_CATS, collected_data)
-        if not results:
-            self._add_warning("政策法规动态", "未采集到相关情报数据，使用降级内容")
-            return "本日暂无相关动态。"
 
-        if llm is None:
-            self._add_warning("政策法规动态", "未加载 LLM，使用降级内容")
-            return self._fallback_subsections(
-                ["国内政策", "国际法规", "行业标准"], results, llm)
+        # 降级模式（无LLM）：按语言分离国内外内容
+        if llm is None or not results:
+            if not results:
+                self._add_warning("政策法规动态", "未采集到相关情报数据")
+                return self._get_fallback_content("policy", results)
+
+            zh_pattern = re.compile(r'[\u4e00-\u9fff]')
+            domestic = []
+            international = []
+            for r in results:
+                title = r.get("title", "") + " " + r.get("description", "")
+                if zh_pattern.search(title):
+                    domestic.append(r)
+                else:
+                    international.append(r)
+
+            lines = ["### 国内政策"]
+            if domestic:
+                for item in domestic[:3]:
+                    title = self._clean_search_title(item.get("title", ""))
+                    if not title:
+                        continue
+                    source = self._clean_source_name(item.get("source", ""), item.get("url", ""))
+                    date = self._clean_date(item.get("published_at", ""))
+                    lines.append(f"• [政策] {title}（来源：{source} / {date}）")
+            else:
+                lines.append("本日暂无相关动态。")
+
+            lines.append("")
+            lines.append("### 国际法规")
+            if international:
+                for item in international[:3]:
+                    title = self._clean_search_title(item.get("title", ""))
+                    if not title:
+                        continue
+                    source = self._clean_source_name(item.get("source", ""), item.get("url", ""))
+                    date = self._clean_date(item.get("published_at", ""))
+                    lines.append(f"• [法规] {title}（来源：{source} / {date}）")
+            else:
+                lines.append("本日暂无相关动态。")
+
+            lines.append("")
+            lines.append("### 行业标准")
+            lines.append("本日暂无相关动态。")
+            return "\n".join(lines)
 
         return self._run_prompt("policy", results, llm,
                                  "你是一位政策法规分析师，请生成'政策法规动态'部分。",
@@ -596,14 +704,6 @@ class AIBriefingAnalyzer:
     def _generate_attack_analysis(self, collected_data: Dict[str, List[Dict]], llm) -> str:
         """生成攻击事件深度分析"""
         results = self._collect(ATTACK_CATS, collected_data)
-        if not results:
-            self._add_warning("攻击事件深度分析", "未采集到相关情报数据")
-            return "本日暂无重大安全事件需要深度分析。"
-
-        if llm is None:
-            self._add_warning("攻击事件深度分析", "未加载 LLM，使用降级内容")
-            return "本日暂无重大安全事件需要深度分析。"
-
         return self._run_prompt("attack_analysis", results, llm,
                                  "你是一位网络安全事件分析师，请生成'攻击事件深度分析'部分。",
                                  label="攻击事件深度分析")
@@ -611,15 +711,6 @@ class AIBriefingAnalyzer:
     def _generate_protection(self, collected_data: Dict[str, List[Dict]], llm) -> str:
         """生成防护建议与厂商方案"""
         results = self._collect(PROTECTION_CATS, collected_data)
-        if not results:
-            self._add_warning("防护建议与厂商方案", "未采集到相关情报数据")
-            return "本日暂无相关动态。"
-
-        if llm is None:
-            self._add_warning("防护建议与厂商方案", "未加载 LLM，使用降级内容")
-            return self._fallback_subsections(
-                ["通用防护建议", "厂商解决方案"], results, llm)
-
         return self._run_prompt("protection", results, llm,
                                  "你是一位网络安全防护专家，请生成'防护建议与厂商方案'部分。",
                                  label="防护建议与厂商方案")
@@ -631,28 +722,27 @@ class AIBriefingAnalyzer:
 
         result = result.strip()
 
-        # 检测模板占位符（提示词中的示例格式）
+        # 检测模板占位符（提示词中的示例格式，带方括号的占位文字）
         template_patterns = [
             "事件概述（2-3句话说明发生了什么）",
             "影响分析或技术细节（1-2句话阐述意义或影响范围）",
             "新闻标题",
-            "影响范围：",
-            "紧急程度：",
+            "[具体区域/规模]",
+            "[具体行业]",
+            "[具体损失类型和规模]",
+            "[具体可执行的操作]",
+            "[具体改进方案]",
+            "[具体加固建议]",
+            "[用搜索结果中的真实事件名称替换]",
+            "[真实日期]",
+            "[真实事件节点]",
+            "[具体描述攻击入口]",
+            "[具体描述执行的恶意操作]",
+            "[具体描述如何维持权限]",
+            "[具体描述内网扩散方式]",
+            "[具体描述最终造成的影响]",
+            "[用2-3句话概括事件背景]",
             "用2-3句话概括事件背景",
-            "具体描述攻击入口",
-            "具体描述执行的恶意操作",
-            "具体描述如何维持权限",
-            "具体描述内网扩散方式",
-            "具体描述最终造成的影响",
-            "具体区域/规模",
-            "具体行业",
-            "具体损失类型和规模",
-            "具体可执行的操作",
-            "具体改进方案",
-            "具体加固建议",
-            "用搜索结果中的真实事件名称替换",
-            "真实日期",
-            "真实事件节点",
         ]
         for pattern in template_patterns:
             if pattern in result:
@@ -701,7 +791,6 @@ class AIBriefingAnalyzer:
                 english_streak = 0
 
         # 检测占位符CVE
-        import re
         if re.search(r"CVE-\d{4}-XXXX", result):
             logger.warning("LLM输出包含占位符CVE，判定无效")
             return False
@@ -754,7 +843,6 @@ class AIBriefingAnalyzer:
 
     def _clean_llm_output(self, result: str) -> str:
         """后处理清洗LLM输出，移除英文标签、代码块等残留痕迹"""
-        import re
         lines = result.split("\n")
         cleaned = []
         skip_code_block = False
@@ -800,9 +888,53 @@ class AIBriefingAnalyzer:
 
         return "\n".join(final).strip()
 
+    def _get_fallback_content(self, prompt_name: str, results: List[Dict] = None) -> str:
+        """统一降级输出：根据板块类型返回结构化降级内容（无需 LLM）"""
+        if results is None:
+            results = []
+        fallback_map = {
+            "top3": "本日暂无重大要闻。",
+            "cve_table": (
+                "| CVE编号 | 影响产品 | 漏洞类型 | CVSS | 利用状态 | 建议措施 |\n"
+                "| --- | --- | --- | --- | --- | --- |\n"
+                "| （暂无） | - | - | - | - | - |"
+            ),
+            "ai_dynamic": self._fallback_subsections(
+                ["模型与技术", "应用与落地", "产业与市场"], results, None),
+            "cyber_dynamic": self._fallback_subsections(
+                ["漏洞与威胁", "攻击事件"], results, None),
+            "policy": self._fallback_subsections(
+                ["国内政策", "国际法规", "行业标准"], results, None),
+            "attack_analysis": "本日暂无重大安全事件需要深度分析。",
+            "protection": self._fallback_subsections(
+                ["通用防护建议", "厂商解决方案"], results, None),
+            "insight": (
+                "1. **关注AI与网络安全动态**\n"
+                "   本日采集到若干公开信息，建议持续跟踪AI技术进展与网络安全威胁。\n\n"
+                "   **建议：** 保持对AI新技术的关注，及时评估潜在安全影响。\n\n"
+                "2. **加强安全防护**\n"
+                "   AI相关安全事件与漏洞披露频繁，需加强安全防护。\n\n"
+                "   **建议：** 定期检查系统安全性，及时更新防护措施。\n\n"
+                "3. **跟踪合规要求**\n"
+                "   各国AI与网络安全法规陆续出台，企业需关注合规。\n\n"
+                "   **建议：** 跟踪相关政策动态，确保业务合规。"
+            ),
+            "links": "暂无重要链接。",
+        }
+        return fallback_map.get(prompt_name, "本日暂无相关动态。")
+
     def _run_prompt(self, prompt_name: str, results: List[Dict], llm, system_desc: str, label: str = None) -> str:
         """通用：调用提示词生成板块内容"""
         label = label or prompt_name
+
+        # ---- 前置校验：数据为空或 LLM 不可用时直接降级 ----
+        if not results:
+            self._add_warning(label, "无可用数据，使用降级内容")
+            return self._get_fallback_content(prompt_name, results)
+        if llm is None:
+            self._add_warning(label, "LLM 不可用，使用降级内容")
+            return self._get_fallback_content(prompt_name, results)
+
         try:
             # 使用配置中的max_results_for_sections参数
             max_results = BRIEFING_CONFIG["search"].get("max_results_for_sections", 15)
@@ -824,52 +956,135 @@ class AIBriefingAnalyzer:
             if not self._validate_llm_output(result, prompt_name):
                 logger.warning(f"{label}: LLM输出校验失败，回退到降级模式")
                 self._add_warning(label, "LLM输出校验失败，使用降级内容")
-                # 根据板块类型回退到降级模式
-                if prompt_name == "top3":
-                    return "本日暂无重大要闻。"
-                elif prompt_name == "cve_table":
-                    return "| CVE编号 | 影响产品 | 漏洞类型 | CVSS | 利用状态 | 建议措施 |\n| --- | --- | --- | --- | --- | --- |\n| （暂无） | - | - | - | - | - |"
-                elif prompt_name == "ai_dynamic":
-                    return self._fallback_subsections(
-                        ["模型与技术", "应用与落地", "产业与市场"], results, llm)
-                elif prompt_name == "cyber_dynamic":
-                    return self._fallback_subsections(
-                        ["漏洞与威胁", "攻击事件"], results, llm)
-                elif prompt_name == "policy":
-                    return self._fallback_subsections(
-                        ["国内政策", "国际法规", "行业标准"], results, llm)
-                elif prompt_name == "attack_analysis":
-                    return "本日暂无重大安全事件需要深度分析。"
-                elif prompt_name == "protection":
-                    return self._fallback_subsections(
-                        ["通用防护建议", "厂商解决方案"], results, llm)
-                else:
-                    return "本日暂无相关动态。"
+                return self._get_fallback_content(prompt_name, results)
 
             # 后处理清洗
             result = self._clean_llm_output(result)
             return result
         except Exception as e:
             logger.error(f"Error generating {prompt_name}: {e}")
-            self._add_warning(label, f"生成异常：{e}")
-            return "简报生成过程中出现错误。"
+            self._add_warning(label, f"生成异常：{type(e).__name__}: {str(e)[:200]}")
+            return self._get_fallback_content(prompt_name, results)
+
+    @staticmethod
+    def _clean_search_title(title: str) -> str:
+        """清洗搜索结果标题：移除URL、日期片段、搜索引擎残留文本"""
+        if not title:
+            return "未知标题"
+        t = title.strip()
+        # 移除 .onion URL
+        if ".onion" in t:
+            return ""
+        # 移除完整URL（含路径）
+        t = re.sub(r'https?://\S+', '', t)
+        t = re.sub(r'\S+\.com\S*', '', t)
+        t = re.sub(r'\S+\.org\S*', '', t)
+        t = re.sub(r'\S+\.gov\S*', '', t)
+        t = re.sub(r'\S+\.edu\S*', '', t)
+        # 移除日期时间片段
+        t = re.sub(r'\b\d{1,2}\s+(hours?|days?|minutes?|months?)\s+ago\b', '', t, flags=re.IGNORECASE)
+        t = re.sub(r'\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun),?\s+\d{1,2}\s+\w+\s+\d{4}\s+\d{2}:\d{2}:\d{2}\s+\w+\b', '', t)
+        t = re.sub(r'\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s*\d{4}\b', '', t)
+        t = re.sub(r'\b\d{4}年\d{1,2}月\d{1,2}日\b', '', t)
+        # 移除搜索引擎UI文案残留
+        t = re.sub(r'Add\s+\w+\s+as\s+a\s+preferred\s+source.*', '', t, flags=re.IGNORECASE)
+        t = re.sub(r'Show\s+HN:\s*', '', t)
+        # 移除多余的 > 符号和路径分隔符
+        t = re.sub(r'›', ' ', t)
+        t = re.sub(r'\s+', ' ', t).strip()
+        # 移除首尾标点
+        t = t.strip(' .·|:-')
+        return t if t else ""
+
+    @staticmethod
+    def _clean_source_name(source: str, url: str = "") -> str:
+        """清洗来源名称：从URL提取域名或规范化来源名"""
+        # 如果来源是搜索引擎，尝试从URL提取实际来源
+        search_engines = {'Bing', 'Google', 'Yahoo', 'DuckDuckGo', 'Baidu', 'Yandex'}
+        if source in search_engines and url:
+            try:
+                from urllib.parse import urlparse
+                parsed = urlparse(url)
+                domain = parsed.netloc.lower()
+                if domain.startswith('www.'):
+                    domain = domain[4:]
+                # 取主域名
+                parts = domain.split('.')
+                if len(parts) >= 2:
+                    return parts[-2].capitalize()
+            except Exception:
+                pass
+        # 清洗来源名称中的URL残留
+        if source:
+            cleaned = re.sub(r'https?://\S+', '', source).strip()
+            cleaned = re.sub(r'\s+', ' ', cleaned).strip(' .·|:-')
+            if cleaned:
+                return cleaned
+        return source or "未知来源"
+
+    @staticmethod
+    def _clean_date(date_str: str) -> str:
+        """清洗日期：标准化为 YYYY-MM-DD 格式"""
+        if not date_str:
+            return datetime.now().strftime("%Y-%m-%d")
+        # 移除时间部分
+        d = date_str.strip()
+        # 处理 ISO 格式
+        if 'T' in d:
+            d = d.split('T')[0]
+        # 处理 "Mon, 17 Jun 2026 02:21:00 GMT" 格式
+        m = re.match(r'(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),?\s+(\d{1,2})\s+(\w{3})\s+(\d{4})', d)
+        if m:
+            from datetime import datetime as dt
+            try:
+                parsed = dt.strptime(f"{m.group(1)} {m.group(2)} {m.group(3)}", "%d %b %Y")
+                return parsed.strftime("%Y-%m-%d")
+            except ValueError:
+                pass
+        # 处理 "Aug 13,2026" 或 "Aug 13, 2026" 格式
+        m = re.match(r'(\w{3})\s+(\d{1,2}),?\s*(\d{4})', d)
+        if m:
+            from datetime import datetime as dt
+            try:
+                parsed = dt.strptime(f"{m.group(1)} {m.group(2)} {m.group(3)}", "%b %d %Y")
+                return parsed.strftime("%Y-%m-%d")
+            except ValueError:
+                pass
+        # 已经是 YYYY-MM-DD 格式
+        if re.match(r'\d{4}-\d{2}-\d{2}', d):
+            return d[:10]
+        # 无法解析，返回原值截断
+        return d[:10] if len(d) >= 10 else d
 
     def _fallback_subsections(self, subsections: List[str], results: List[Dict], llm) -> str:
-        """无 LLM 时的降级：输出子板块结构并填入原始条目（增强版）"""
+        """无 LLM 时的降级：输出子板块结构并填入清洗后的条目"""
         if not results:
             return "\n".join(f"### {s}\n本日暂无相关动态。" for s in subsections)
 
-        chunks = [results[i::len(subsections)] for i in range(len(subsections))]
+        # 过滤 .onion 链接
+        filtered = [r for r in results if not (r.get("url", "") or r.get("link", "")).endswith(".onion")]
+        if not filtered:
+            filtered = results
+
+        chunks = [filtered[i::len(subsections)] for i in range(len(subsections))]
         blocks = []
-        today = datetime.now().strftime("%Y-%m-%d")
         for sub, items in zip(subsections, chunks):
             lines = [f"### {sub}"]
             for item in items[:4]:
                 metadata = item.get("metadata", {})
-                title = item.get("title", "未知标题")
-                description = item.get("description", "")[:120]
-                source = item.get("source", "未知来源")
-                date = item.get("published_at", today)
+                # 清洗标题
+                title = self._clean_search_title(item.get("title", ""))
+                if not title:
+                    continue  # 跳过.onion或无效条目
+                # 清洗来源和日期
+                raw_url = item.get("url", "") or item.get("link", "")
+                source = self._clean_source_name(item.get("source", "未知来源"), raw_url)
+                date = self._clean_date(item.get("published_at", ""))
+                description = item.get("description", "")[:150]
+                # 清洗描述中的URL和搜索引擎残留
+                if description:
+                    description = re.sub(r'https?://\S+', '', description)
+                    description = re.sub(r'\s+', ' ', description).strip()
 
                 # 增强降级展示：提取结构化字段
                 extra_info = []
@@ -879,8 +1094,6 @@ class AIBriefingAnalyzer:
                     extra_info.append(f"**CVSS**: {metadata['cvss_score']}")
                 if metadata.get("threat_type"):
                     extra_info.append(f"**类型**: {metadata['threat_type']}")
-                if metadata.get("author"):
-                    extra_info.append(f"**作者**: {metadata['author']}")
                 if metadata.get("tags"):
                     tags = metadata["tags"][:3]
                     extra_info.append(f"**标签**: {', '.join(tags)}")
@@ -893,8 +1106,49 @@ class AIBriefingAnalyzer:
                     entry += "\n  " + " | ".join(extra_info)
                 entry += f"\n  （来源：{source} / {date}）"
                 lines.append(entry)
+            # 如果该子板块无有效条目
+            if len(lines) == 1:
+                lines.append("本日暂无相关动态。")
             blocks.append("\n".join(lines))
         return "\n\n".join(blocks)
+
+    def _generate_summary(self, contents: Dict[str, str], collected_data: Dict[str, List[Dict]]) -> str:
+        """生成执行摘要（今日要点），从各板块提取关键信息"""
+        bullets = []
+
+        # 从 TOP3 提取关键事件
+        top3 = contents.get("top3", "")
+        if top3:
+            titles = re.findall(r'\*\*(.+?)\*\*', top3)
+            for t in titles[:3]:
+                if t and len(t) > 5:
+                    bullets.append(f"- 🔴 {t}")
+
+        # 从漏洞表格提取高危CVE
+        cve = contents.get("cve_table", "")
+        if cve:
+            kev_cves = re.findall(r'(CVE-\d{4}-\d+).*?在野利用', cve)
+            for c in kev_cves[:2]:
+                bullets.append(f"- ⚠️ {c}：已发现在野利用，需立即处置")
+
+        # 从趋势研判提取核心观点
+        insights = contents.get("insights", "")
+        if insights:
+            insight_titles = re.findall(r'\*\*(.+?)\*\*', insights)
+            for t in insight_titles[:2]:
+                if t and len(t) > 5:
+                    bullets.append(f"- 📊 {t}")
+
+        # 从政策动态提取重要法规
+        policy = contents.get("policy", "")
+        if policy:
+            if "国内政策" in policy:
+                bullets.append("- 📋 今日有国内AI/网络安全政策动态（详见政策法规板块）")
+
+        if not bullets:
+            return "本日暂无特别需要关注的要点。"
+
+        return "\n".join(bullets[:8])  # 最多8条要点
 
     def _generate_insights(self, collected_data: Dict[str, List[Dict]], llm) -> str:
         """生成趋势研判与防护建议"""
@@ -911,21 +1165,8 @@ class AIBriefingAnalyzer:
         today_highlights = "\n".join(highlights)
 
         if llm is None:
-            self._add_warning("趋势研判与防护建议", "未加载 LLM，使用默认趋势研判")
-            return """1. **关注AI与网络安全动态**
-   本日采集到若干公开信息，建议持续跟踪AI技术进展与网络安全威胁。
-
-   **建议：** 保持对AI新技术的关注，及时评估潜在安全影响。
-
-2. **加强安全防护**
-   AI相关安全事件与漏洞披露频繁，需加强安全防护。
-
-   **建议：** 定期检查系统安全性，及时更新防护措施。
-
-3. **跟踪合规要求**
-   各国AI与网络安全法规陆续出台，企业需关注合规。
-
-   **建议：** 跟踪相关政策动态，确保业务合规。"""
+            self._add_warning("趋势研判与防护建议", "LLM 不可用，使用默认趋势研判")
+            return self._get_fallback_content("insight")
 
         try:
             prompt = get_prompt("insight", today_highlights=today_highlights,
@@ -941,11 +1182,14 @@ class AIBriefingAnalyzer:
             chain = prompt_template | llm | StrOutputParser()
 
             result = chain.invoke({"prompt": prompt})
-            return result if result.strip() else "趋势分析生成过程中出现错误。"
+            if not result or not result.strip():
+                self._add_warning("趋势研判与防护建议", "LLM 返回空结果，使用降级内容")
+                return self._get_fallback_content("insight")
+            return result
         except Exception as e:
             logger.error(f"Error generating insights: {e}")
-            self._add_warning("趋势研判与防护建议", f"生成异常：{e}")
-            return "趋势分析生成过程中出现错误。"
+            self._add_warning("趋势研判与防护建议", f"生成异常：{type(e).__name__}: {str(e)[:200]}")
+            return self._get_fallback_content("insight")
 
     def _generate_links(self, collected_data: Dict[str, List[Dict]], llm=None) -> str:
         """生成重要链接部分"""
@@ -953,17 +1197,40 @@ class AIBriefingAnalyzer:
         seen_urls = set()
 
         for results in collected_data.values():
-            for item in results[:3]:  # 每个类别最多3个链接
+            for item in results[:3]:
                 url = self._clean_url(item.get("url", ""))
-                title = item.get("title", "")[:50]
-                if url and url not in seen_urls:
-                    seen_urls.add(url)
-                    links.append(f"• {title}: {url}")
+                # 过滤 .onion 和重定向URL
+                if not url or ".onion" in url:
+                    continue
+                if "r.search.yahoo.com" in url:
+                    # 尝试从Yahoo重定向URL中提取实际目标URL
+                    ru_match = re.search(r'RU=([^/]+)', url)
+                    if ru_match:
+                        from urllib.parse import unquote
+                        actual_url = unquote(ru_match.group(1))
+                        if actual_url.startswith("http"):
+                            url = actual_url
+                if url in seen_urls:
+                    continue
+                # 清洗标题
+                title = self._clean_search_title(item.get("title", ""))
+                if not title:
+                    # 从URL提取域名作为标题
+                    try:
+                        from urllib.parse import urlparse
+                        parsed = urlparse(url)
+                        title = parsed.netloc.replace("www.", "")
+                    except Exception:
+                        title = url[:50]
+                if len(title) > 60:
+                    title = title[:57] + "..."
+                seen_urls.add(url)
+                links.append(f"• {title}: {url}")
 
         if not links:
             return "暂无重要链接。"
 
-        return "\n".join(links[:10])  # 最多10个链接
+        return "\n".join(links[:10])
 
     def _generate_delta(self, collected_data: Dict[str, List[Dict]], llm=None) -> str:
         """生成增量感知：对比上一期简报，输出新增/消失条目。"""

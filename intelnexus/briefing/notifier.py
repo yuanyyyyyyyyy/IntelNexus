@@ -126,8 +126,19 @@ class AIBriefingNotifier:
         send_html = briefing_html
         if interests:
             send_content = filter_briefing_by_interests(briefing_content, interests)
-            # HTML 由调用方基于裁剪后内容重新生成；此处回退为空以避免内容不一致
-            send_html = None
+            # 基于裁剪后内容重新生成 HTML，避免 Markdown 与 HTML 不一致
+            try:
+                from intelnexus.briefing.templates import render_email_html, markdown_to_html_sections
+                from datetime import datetime
+                sections = markdown_to_html_sections(send_content)
+                send_html = render_email_html(
+                    generated_date=datetime.now().strftime("%Y年%m月%d日"),
+                    organization={},
+                    **sections
+                )
+            except Exception as e:
+                logger.warning(f"Could not regenerate HTML after interest filtering: {e}")
+                send_html = None
         
         # 基于参与度进一步个性化（第二阶段新增）
         subscriber_id = subscriber.get("id", "")

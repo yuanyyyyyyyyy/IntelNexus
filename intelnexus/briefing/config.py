@@ -103,7 +103,14 @@ WATCH_CATEGORIES = {
             f"artificial intelligence governance policy {YEAR}",
             f"AI regulation news {YEAR}",
             f"AI safety standards {YEAR}",
-            f"generative AI compliance requirement {YEAR}"
+            f"generative AI compliance requirement {YEAR}",
+            f"中国 人工智能 法案 {YEAR}",
+            f"网信办 人工智能 监管 {YEAR}",
+            f"工信部 人工智能 政策 {YEAR}",
+            f"中国 AI 监管 合规 {YEAR}",
+            f"生成式AI 管理办法 {YEAR}",
+            f"算法备案 管理规定 {YEAR}",
+            f"数据安全 个人信息保护 AI {YEAR}",
         ]
     },
     "ai_data_leak": {

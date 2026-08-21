@@ -90,11 +90,15 @@ def run_briefing_pipeline(
     # ---- 2. 生成 ----
     on_progress("generate_start", "开始生成简报...", 0.4)
     from intelnexus.core.llm.core import get_llm
-    try:
-        llm = get_llm(model) if model else None
-    except Exception as e:
-        logger.warning(f"Failed to load LLM '{model}': {e}; 将以降级模式生成。")
-        llm = None
+    llm = None
+    if model:
+        try:
+            llm = get_llm(model)
+        except Exception as e:
+            logger.warning(f"Failed to load LLM '{model}': {e}; 将以降级模式生成。")
+            on_progress("llm_error", f"LLM 加载失败，将以降级模式生成: {type(e).__name__}: {str(e)[:100]}", 0.4)
+    else:
+        on_progress("llm_skipped", "未指定 LLM 模型，将以降级模式生成", 0.4)
 
     analyzer = AIBriefingAnalyzer(llm=llm)
     md, warnings = analyzer.generate_briefing(
@@ -103,6 +107,22 @@ def run_briefing_pipeline(
         with_warnings=True,
         on_progress=on_progress,
     )
+
+    # ---- 2.5 生成 HTML 版本（用于邮件推送）----
+    briefing_html = None
+    try:
+        from intelnexus.briefing.templates import render_email_html, markdown_to_html_sections
+        from intelnexus.briefing.analyzer import format_briefing_date
+        org_cfg = dict(BRIEFING_CONFIG["organization"])
+        generated_date = format_briefing_date()
+        sections = markdown_to_html_sections(md)
+        briefing_html = render_email_html(
+            generated_date=generated_date,
+            organization=org_cfg,
+            **sections
+        )
+    except Exception as e:
+        logger.warning(f"Could not generate HTML for email: {e}")
 
     # ---- 3. 保存历史 + 条目数据（反向飞轮：供取证快速入口）----
     on_progress("save", "保存简报历史...", 0.95)
@@ -129,9 +149,17 @@ def run_briefing_pipeline(
             notifier = AIBriefingNotifier(email_config=email_config)
             for sub in subscribers:
                 try:
-                    results = notifier.notify(sub, md)
+                    results = notifier.notify(sub, md, briefing_html)
                     if any(results.values()):
                         pushed += 1
+                    else:
+                        # 记录推送失败原因
+                        active_channels = [k for k, v in sub.get("channels", {}).items()
+                                           if isinstance(v, dict) and v.get("enabled")]
+                        if not active_channels:
+                            logger.warning(f"订阅者 {sub.get('name')} 无启用的推送渠道")
+                        else:
+                            logger.warning(f"订阅者 {sub.get('name')} 渠道 {active_channels} 推送失败")
                 except Exception as e:
                     logger.error(f"Push failed for {sub.get('name', '?')}: {e}")
             on_progress(

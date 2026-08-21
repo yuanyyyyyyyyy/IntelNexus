@@ -195,11 +195,31 @@ class SourceScorer:
         except Exception:
             pass
 
-        # Fallback: score by source type
-        if source_name in self.NEWS_SOURCES:
-            return 0.7
-        if source_name in self.AGGREGATOR_SOURCES:
-            return 0.5
+        # Fallback: score by source type (case-insensitive partial match)
+        source_lower = source_name.lower()
+        for ns in self.NEWS_SOURCES:
+            if ns.lower() in source_lower or source_lower in ns.lower():
+                return 0.7
+        for agg in self.AGGREGATOR_SOURCES:
+            if agg.lower() in source_lower or source_lower in agg.lower():
+                return 0.5
+
+        # Keyword-based trust detection for known authoritative sources
+        trust_keywords = {
+            'reuters': 0.90, 'associated press': 0.90, 'ap ': 0.90,
+            'bbc': 0.85, 'nytimes': 0.85, 'bloomberg': 0.85,
+            'krebs': 0.90, 'dark reading': 0.85, 'securityweek': 0.85,
+            'bleepingcomputer': 0.85, 'techcrunch': 0.85, 'wired': 0.85,
+            'zdnet': 0.80, 'ars technica': 0.85, 'the register': 0.80,
+            'kaspersky': 0.85, 'crowdstrike': 0.85, 'mandiant': 0.90,
+            'palo alto': 0.85, 'fortinet': 0.80, 'symantec': 0.85,
+            'nist': 0.90, 'cisa': 0.95, 'nvd': 0.95,
+            'freebuf': 0.70, 'solidot': 0.65, 'infoq': 0.70,
+        }
+        for keyword, score in trust_keywords.items():
+            if keyword in source_lower:
+                return score
+
         return 0.4
 
     def _freshness(self, source_name, result=None):
@@ -451,6 +471,12 @@ class ConflictDetector:
         conflicts.extend(self._detect_numeric(texts, results))
         conflicts.extend(self._detect_temporal(texts, results))
         conflicts.extend(self._detect_stance(texts, results))
+        # 全局冲突上限：避免简报中冲突列表过长
+        MAX_CONFLICTS = 30
+        if len(conflicts) > MAX_CONFLICTS:
+            # 按严重度排序，保留最严重的
+            conflicts.sort(key=lambda c: c.get("severity", 0), reverse=True)
+            conflicts = conflicts[:MAX_CONFLICTS]
         return conflicts
 
     def _detect_numeric(self, texts, results):
@@ -498,21 +524,53 @@ class ConflictDetector:
                 except Exception:
                     continue
 
+        # 预计算来源标题关键词集，用于语义关联过滤
+        title_words = []
+        for r in results:
+            title = (r.get("title") or "").lower()
+            words = set(w for w in re.split(r'\W+', title) if len(w) >= 2)
+            title_words.append(words)
+
+        # 限制每对来源最多3个冲突，全局最多50个
+        pair_conflict_count = {}
+        MAX_PER_PAIR = 3
+        MAX_TOTAL = 50
+
         for a in range(len(entries)):
+            if len(conflicts) >= MAX_TOTAL:
+                break
             for b in range(a + 1, len(entries)):
+                if len(conflicts) >= MAX_TOTAL:
+                    break
                 idx_a, ctx_a, n_a, u_a = entries[a]
                 idx_b, ctx_b, n_b, u_b = entries[b]
                 if idx_a == idx_b:
                     continue
+
+                # 语义关联过滤：仅对标题有关键词重叠的来源进行比对
+                if idx_a < len(title_words) and idx_b < len(title_words):
+                    words_a = title_words[idx_a]
+                    words_b = title_words[idx_b]
+                    if words_a and words_b:
+                        overlap = len(words_a & words_b) / max(len(words_a | words_b), 1)
+                        if overlap < 0.15:
+                            continue
+
                 max_n = max(n_a, n_b)
                 if max_n == 0:
                     continue
-                # 过滤：两个数值都 <= 10 时不判定冲突（小数值波动属正常）
                 if max_n <= 10:
                     continue
+                # 量级差异豁免：相差100倍以上不判定为冲突
+                min_n = min(n_a, n_b)
+                if min_n > 0 and max_n / min_n > 100:
+                    continue
                 ratio = abs(n_a - n_b) / max_n
-                # 阈值 0.7：同一事件不同表述（如 398 vs 近400）不应判定为冲突
                 if ratio > 0.7:
+                    pair_key = (min(idx_a, idx_b), max(idx_a, idx_b))
+                    if pair_conflict_count.get(pair_key, 0) >= MAX_PER_PAIR:
+                        continue
+                    pair_conflict_count[pair_key] = pair_conflict_count.get(pair_key, 0) + 1
                     conflicts.append({
                         "type": "numeric",
                         "severity": round(min(ratio, 1.0), 2),
@@ -547,6 +605,13 @@ class ConflictDetector:
                 except Exception:
                     continue
 
+        # 预计算标题关键词
+        title_words = []
+        for r in results:
+            title = (r.get("title") or "").lower()
+            words = set(w for w in re.split(r'\W+', title) if len(w) >= 2)
+            title_words.append(words)
+
         for a in range(len(entries)):
             for b in range(a + 1, len(entries)):
                 idx_a, y_a, ctx_a = entries[a]
@@ -554,6 +619,14 @@ class ConflictDetector:
                 if idx_a == idx_b:
                     continue
                 if abs(y_a - y_b) >= 2:
+                    # 标题关联过滤
+                    if idx_a < len(title_words) and idx_b < len(title_words):
+                        words_a = title_words[idx_a]
+                        words_b = title_words[idx_b]
+                        if words_a and words_b:
+                            overlap = len(words_a & words_b) / max(len(words_a | words_b), 1)
+                            if overlap < 0.15:
+                                continue
                     conflicts.append({
                         "type": "temporal",
                         "severity": 0.8,
@@ -590,6 +663,13 @@ class ConflictDetector:
             else:
                 stances.append(('neutral', 0))
 
+        # 预计算标题关键词
+        title_words = []
+        for r in results:
+            title = (r.get("title") or "").lower()
+            words = set(w for w in re.split(r'\W+', title) if len(w) >= 2)
+            title_words.append(words)
+
         conflicts = []
         for a in range(len(stances)):
             for b in range(a + 1, len(stances)):
@@ -601,6 +681,14 @@ class ConflictDetector:
                     severity = 0.6
                 else:
                     continue
+                # 标题关联过滤
+                if a < len(title_words) and b < len(title_words):
+                    words_a = title_words[a]
+                    words_b = title_words[b]
+                    if words_a and words_b:
+                        overlap = len(words_a & words_b) / max(len(words_a | words_b), 1)
+                        if overlap < 0.15:
+                            continue
                 conflicts.append({
                     "type": "stance",
                     "severity": severity,

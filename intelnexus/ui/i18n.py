@@ -202,6 +202,20 @@ _BRIEFING_ZH = {
     "deadline_immediate": "立即",
     "deadline_this_week": "本周",
     "deadline_this_month": "本月",
+    # 简报流水线状态
+    "briefing_generating": "正在生成简报...",
+    "briefing_done": "简报生成完成",
+    "briefing_ok": "简报生成成功",
+    "briefing_failed": "简报生成失败",
+    "briefing_partial": "部分板块生成失败（{n} 个警告）",
+    "briefing_no_category": "请至少选择一个关注点",
+    "generate_push_enabled": "推送给订阅者",
+    # 统计面板标签
+    "briefing_stat_collected": "采集数",
+    "briefing_stat_words": "字数",
+    "briefing_stat_pushed": "推送数",
+    "briefing_stat_elapsed": "耗时",
+    "briefing_stat_warnings": "生成警告",
 }
 
 _BRIEFING_EN = {
@@ -393,6 +407,20 @@ _BRIEFING_EN = {
     "deadline_immediate": "Immediate",
     "deadline_this_week": "This Week",
     "deadline_this_month": "This Month",
+    # Briefing pipeline status
+    "briefing_generating": "Generating briefing...",
+    "briefing_done": "Briefing complete",
+    "briefing_ok": "Briefing generated successfully",
+    "briefing_failed": "Briefing generation failed",
+    "briefing_partial": "Partial generation failed ({n} warnings)",
+    "briefing_no_category": "Please select at least one category",
+    "generate_push_enabled": "Push to subscribers",
+    # Stats panel labels
+    "briefing_stat_collected": "Collected",
+    "briefing_stat_words": "Words",
+    "briefing_stat_pushed": "Pushed",
+    "briefing_stat_elapsed": "Elapsed",
+    "briefing_stat_warnings": "Warnings",
 }
 
 

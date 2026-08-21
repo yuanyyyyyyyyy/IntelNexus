@@ -7,7 +7,10 @@ from intelnexus.ui.i18n import get_text
 from intelnexus.ui.icons import icon
 from intelnexus.core.ui.helpers import SEARCH_MODES, DEFAULT_TOR_PORT, check_tor_status
 from intelnexus.core.llm.utils import get_model_choices
-from intelnexus.core.llm.models import add_custom_model, get_custom_model_names, remove_custom_model
+from intelnexus.core.llm.models import (
+    add_custom_model, get_custom_model_names, remove_custom_model,
+    get_custom_models, get_model_config, update_custom_model, test_model_connection,
+)
 from intelnexus.search_app.darkweb import is_available as darkweb_available
 
 logger = get_logger(__name__)
@@ -154,56 +157,209 @@ def _render_model_settings():
 
 
 def _render_custom_models():
-    """自定义模型管理"""
+    """自定义模型管理：添加 / 编辑 / 测试连接 / 删除"""
     st.markdown("---")
-    with st.expander(get_text("add_custom_model"), expanded=False):
-        col_name, col_type = st.columns(2)
-        with col_name:
-            custom_model_name = st.text_input(get_text("model_name"), key="custom_model_name")
-        with col_type:
-            model_type = st.selectbox(
-                get_text("model_type"),
-                ["OpenAI", "Azure OpenAI", "Anthropic", "Google", "Cohere",
-                 "Mistral", "DeepSeek", "Ollama", get_text("model_type_qwen"), get_text("model_type_zhipu"),
-                 get_text("model_type_baidu"), get_text("model_type_xunfei"), "Moonshot", "01.AI"],
-                key="model_type_selector"
+
+    MODEL_TYPES = [
+        "OpenAI", "Azure OpenAI", "Anthropic", "Google", "Cohere",
+        "Mistral", "DeepSeek", "Ollama",
+        get_text("model_type_qwen"), get_text("model_type_zhipu"),
+        get_text("model_type_baidu"), get_text("model_type_xunfei"),
+        "Moonshot", "01.AI",
+    ]
+
+    DEFAULT_BASE_URLS = {
+        "OpenAI": "https://api.openai.com/v1",
+        "Azure OpenAI": "",
+        "DeepSeek": "https://api.deepseek.com",
+        "Anthropic": "https://api.anthropic.com",
+        "Google": "https://generativelanguage.googleapis.com/v1beta",
+        "Ollama": "http://127.0.0.1:11434",
+        "Moonshot": "https://api.moonshot.cn/v1",
+        get_text("model_type_qwen"): "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        get_text("model_type_zhipu"): "https://open.bigmodel.cn/api/paas/v4",
+        get_text("model_type_baidu"): "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop",
+        get_text("model_type_xunfei"): "https://spark-api-open.xf-yun.com/v1",
+        "01.AI": "https://api.01.ai/v1",
+        "Cohere": "https://api.cohere.ai",
+        "Mistral": "https://api.mistral.ai/v1",
+    }
+
+    MULTI_BASE_URLS = {
+        "DeepSeek": [
+            ("OpenAI 格式 (https://api.deepseek.com)", "https://api.deepseek.com"),
+            ("Anthropic 格式 (https://api.deepseek.com/anthropic)", "https://api.deepseek.com/anthropic"),
+        ],
+        "Azure OpenAI": [
+            ("自定义", ""),
+        ],
+    }
+
+    # ---- 已有模型列表 ----
+    custom_models = get_custom_models()
+    if custom_models:
+        st.markdown(f"**{get_text('custom_models_list')}**")
+        for model in custom_models:
+            mname = model["name"]
+            mtype = model.get("type", "")
+            editing_key = f"editing_{mname}"
+            is_editing = st.session_state.get(editing_key, False)
+
+            # 模型信息
+            st.markdown(f"**{mname}** ` `{mtype}` `")
+
+            # 按钮行（单层 columns，不嵌套）
+            if is_editing:
+                btn_save, btn_cancel = st.columns(2)
+                with btn_save:
+                    if st.button(get_text("save_changes"), key=f"save_{mname}", type="primary"):
+                        new_config = {
+                            "model_name": st.session_state.get(f"edit_model_id_{mname}", ""),
+                            "base_url": st.session_state.get(f"edit_base_url_{mname}", ""),
+                            "api_key": st.session_state.get(f"edit_api_key_{mname}", ""),
+                        }
+                        new_type = st.session_state.get(f"edit_type_{mname}", mtype)
+                        if update_custom_model(mname, new_type, new_config):
+                            st.success(get_text("model_update_success"))
+                            st.session_state[editing_key] = False
+                            st.rerun()
+                        else:
+                            st.error(get_text("error"))
+                with btn_cancel:
+                    if st.button(get_text("cancel_edit"), key=f"cancel_{mname}"):
+                        st.session_state[editing_key] = False
+                        st.rerun()
+            else:
+                btn_edit, btn_test, btn_del = st.columns(3)
+                with btn_edit:
+                    if st.button(get_text("edit_model"), key=f"edit_{mname}"):
+                        mconfig = get_model_config(mname)
+                        cfg = mconfig.get("config", {}) if mconfig else {}
+                        _norm_type = next((t for t in MODEL_TYPES if t.lower() == mtype.lower()), mtype)
+                        st.session_state[f"edit_type_{mname}"] = _norm_type
+                        st.session_state[f"edit_model_id_{mname}"] = cfg.get("model_name", "")
+                        st.session_state[f"edit_base_url_{mname}"] = cfg.get("base_url", "")
+                        st.session_state[f"edit_api_key_{mname}"] = cfg.get("api_key", "")
+                        st.session_state[editing_key] = True
+                        st.rerun()
+                with btn_test:
+                    if st.button(get_text("test_connection"), key=f"test_{mname}"):
+                        mconfig = get_model_config(mname)
+                        if mconfig:
+                            with st.spinner(get_text("testing_connection")):
+                                ok, msg = test_model_connection(
+                                    mconfig.get("type", ""),
+                                    mconfig.get("config", {}),
+                                )
+                                if ok:
+                                    st.success(f"✅ {get_text('connection_success')}")
+                                else:
+                                    st.error(f"❌ {msg}")
+                with btn_del:
+                    if st.button(get_text("delete"), key=f"delete_{mname}"):
+                        if remove_custom_model(mname):
+                            st.success(get_text("deleted"))
+                            st.rerun()
+
+            # 编辑表单
+            if is_editing:
+                prev_type_key = f"_prev_edit_type_{mname}"
+                cur_edit_type = st.session_state.get(f"edit_type_{mname}", mtype)
+                if prev_type_key not in st.session_state:
+                    st.session_state[prev_type_key] = cur_edit_type
+                elif cur_edit_type != st.session_state[prev_type_key]:
+                    if cur_edit_type in MULTI_BASE_URLS:
+                        st.session_state[f"edit_base_url_{mname}"] = MULTI_BASE_URLS[cur_edit_type][0][1]
+                    elif cur_edit_type in DEFAULT_BASE_URLS:
+                        st.session_state[f"edit_base_url_{mname}"] = DEFAULT_BASE_URLS[cur_edit_type]
+                    st.session_state[prev_type_key] = cur_edit_type
+
+                edit_type = st.selectbox(
+                    get_text("model_type"),
+                    MODEL_TYPES,
+                    key=f"edit_type_{mname}",
+                )
+                st.text_input(
+                    get_text("model_id"),
+                    key=f"edit_model_id_{mname}",
+                )
+
+                if edit_type in MULTI_BASE_URLS:
+                    options = MULTI_BASE_URLS[edit_type]
+                    labels = [opt[0] for opt in options]
+                    cur_url = st.session_state.get(f"edit_base_url_{mname}", "")
+                    cur_label = next((lbl for lbl, url in options if url == cur_url), labels[0])
+                    sel_label = st.selectbox(
+                        get_text("base_url"),
+                        labels,
+                        index=labels.index(cur_label) if cur_label in labels else 0,
+                        key=f"edit_base_url_format_{mname}",
+                    )
+                    st.session_state[f"edit_base_url_{mname}"] = options[labels.index(sel_label)][1]
+                else:
+                    st.text_input(
+                        get_text("base_url"),
+                        key=f"edit_base_url_{mname}",
+                    )
+
+                st.text_input(
+                    get_text("api_key"),
+                    type="password",
+                    key=f"edit_api_key_{mname}",
+                )
+
+                if st.button(get_text("test_connection"), key=f"test_edit_{mname}"):
+                    test_config = {
+                        "model_name": st.session_state.get(f"edit_model_id_{mname}", ""),
+                        "base_url": st.session_state.get(f"edit_base_url_{mname}", ""),
+                        "api_key": st.session_state.get(f"edit_api_key_{mname}", ""),
+                    }
+                    test_type = st.session_state.get(f"edit_type_{mname}", mtype)
+                    with st.spinner(get_text("testing_connection")):
+                        ok, msg = test_model_connection(test_type, test_config)
+                        if ok:
+                            st.success(f"✅ {get_text('connection_success')}")
+                        else:
+                            st.error(f"❌ {msg}")
+
+            st.divider()
+
+    # ---- 添加新模型（按钮折叠，不使用 expander 避免嵌套） ----
+    show_add = st.session_state.get("show_add_model", False)
+    if st.button(get_text("add_new_model"), key="toggle_add_model"):
+        st.session_state["show_add_model"] = not show_add
+        st.rerun()
+
+    if show_add:
+        custom_model_name = st.text_input(get_text("model_name"), key="custom_model_name")
+        model_type = st.selectbox(
+            get_text("model_type"),
+            MODEL_TYPES,
+            key="model_type_selector",
+        )
+
+        if model_type in MULTI_BASE_URLS:
+            options = MULTI_BASE_URLS[model_type]
+            labels = [opt[0] for opt in options]
+            selected_label = st.selectbox(get_text("base_url"), labels, key="add_base_url_format")
+            base_url = options[labels.index(selected_label)][1]
+        else:
+            default_url = DEFAULT_BASE_URLS.get(model_type, "")
+            if model_type != st.session_state.get("_prev_add_model_type", ""):
+                st.session_state["add_model_base_url"] = default_url
+                st.session_state["_prev_add_model_type"] = model_type
+            base_url = st.text_input(
+                get_text("base_url"),
+                value=st.session_state.get("add_model_base_url", default_url),
+                key="add_model_base_url",
             )
 
-        base_url = api_key = model_id = None
-        if model_type == "OpenAI":
-            base_url = st.text_input(get_text("base_url"))
-            api_key = st.text_input(get_text("api_key"), type="password", key="openai_api_key")
-            model_id = st.text_input(get_text("model_id"))
-        elif model_type == "Anthropic":
-            api_key = st.text_input(get_text("api_key"), type="password", key="anthropic_api_key")
-            model_id = st.text_input(get_text("model_id"))
-        elif model_type in ["Google", "Cohere", "Mistral", "DeepSeek", get_text("model_type_qwen"), get_text("model_type_zhipu"), get_text("model_type_baidu"), get_text("model_type_xunfei"), "Moonshot", "01.AI"]:
-            api_key = st.text_input(get_text("api_key"), type="password", key=f"{model_type.lower()}_api_key")
-            base_url = st.text_input(get_text("base_url"), key=f"{model_type.lower()}_base_url")
-            model_id = st.text_input(get_text("model_id"))
-        else:
-            base_url = st.text_input(get_text("ollama_base_url"), value="http://127.0.0.1:11434", key="ollama_base_url")
-            model_id = st.text_input(get_text("model_name"))
+        api_key = st.text_input(get_text("api_key"), type="password", key="add_model_api_key")
+        model_id = st.text_input(get_text("model_id"), key="add_model_id")
 
         if st.button(get_text("add_model")):
-            if custom_model_name and model_id:
-                config = {"model_name": model_id}
-                if model_type in ["OpenAI", "Azure OpenAI"]:
-                    if base_url:
-                        config["base_url"] = base_url
-                    if api_key:
-                        config["api_key"] = api_key
-                elif model_type == "Anthropic":
-                    if api_key:
-                        config["api_key"] = api_key
-                elif model_type in ["Google", "Cohere", "Mistral", "DeepSeek", get_text("model_type_qwen"), get_text("model_type_zhipu"), get_text("model_type_baidu"), get_text("model_type_xunfei"), "Moonshot", "01.AI"]:
-                    if api_key:
-                        config["api_key"] = api_key
-                    if base_url:
-                        config["base_url"] = base_url
-                else:
-                    config["base_url"] = base_url
-
+            if custom_model_name and model_id and base_url:
+                config = {"model_name": model_id, "base_url": base_url, "api_key": api_key}
                 if add_custom_model(custom_model_name, model_type.lower(), config):
                     st.success(get_text("model_add_success"))
                     st.rerun()
@@ -211,19 +367,6 @@ def _render_custom_models():
                     st.error(get_text("model_exists"))
             else:
                 st.error(get_text("fill_fields"))
-
-        custom_models = get_custom_model_names()
-        if custom_models:
-            st.markdown(f"**{get_text('custom_models_list')}**")
-            for custom_model in custom_models:
-                col_model, col_delete = st.columns([3, 1])
-                with col_model:
-                    st.write(custom_model)
-                with col_delete:
-                    if st.button(get_text("delete"), key=f"delete_{custom_model}"):
-                        if remove_custom_model(custom_model):
-                            st.success(get_text("deleted"))
-                            st.rerun()
 
 
 def render_sidebar():

@@ -33,6 +33,10 @@ from intelnexus.core.search.sources.arxiv_source import ArxivSource
 from intelnexus.core.search.sources.tech_community_source import TechCommunitySource
 from intelnexus.core.search.sources.huggingface_source import HuggingFaceSource
 from intelnexus.core.search.sources.qianxin_source import QianxinSource
+from config import (
+    ENABLE_OTX, ENABLE_HN, ENABLE_EXPLOITDB, ENABLE_NVD, ENABLE_CISA_KEV,
+    ENABLE_CNVD, ENABLE_ARXIV, ENABLE_HUGGINGFACE,
+)
 
 logger = get_logger(__name__)
 
@@ -81,7 +85,6 @@ class SearchSourceRegistry:
         self.web_threads = web_threads
 
         # 内置源
-        from config import ENABLE_OTX, ENABLE_HN, ENABLE_EXPLOITDB, ENABLE_NVD, ENABLE_CISA_KEV, ENABLE_CNVD, ENABLE_ARXIV, ENABLE_HUGGINGFACE
         self._builtin: List[BaseSearchSource] = [
             WebSearchSource(max_workers=web_threads),
             NewsSearchSource(api_key=news_api_key),
