@@ -46,6 +46,7 @@ data/*.txt
 data/cache/
 data/briefings/
 data/reports/
+data/docs/
 src/config/data/
 !data/sources.json
 !data/subscriptions.json
@@ -68,6 +69,7 @@ test_*.py
 # AI tooling / IDE caches
 .codebuddy/
 .opencode/
+.reasonix/
 
 # Local-only Windows launcher scripts (not tracked in repo)
 run.bat
