@@ -114,14 +114,17 @@ def _build_story(md: str, styles) -> list:
             title = _clean_md_inline(stripped[2:])
             story.append(Paragraph(title, styles["ChCoverTitle"]))
 
-            # 消费紧随其后的 **副标题** 行，直到 --- 或空行
+            # 消费紧随其后的 **副标题** 行，跳过空行直到 --- 或遇到非副标题内容
             j = i + 1
             subs = []
             while j < n:
                 s2 = lines[j].strip()
-                if s2.startswith("---") or s2 == "":
+                if s2.startswith("---"):
                     j += 1
                     break
+                if s2 == "":
+                    j += 1
+                    continue  # 跳过空行，继续寻找副标题
                 if s2.startswith("**") and s2.endswith("**"):
                     subs.append(_clean_md_inline(s2[2:-2]))
                     j += 1
@@ -209,11 +212,15 @@ def _make_cve_table(header: list, body: list, styles) -> Table:
 
 
 def _clean_md_inline(text: str) -> str:
-    """清理Markdown内联格式，保留纯文本（并转义XML特殊字符）"""
-    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
-    text = re.sub(r'\*(.+?)\*', r'\1', text)
-    text = re.sub(r'`(.+?)`', r'\1', text)
+    """清理Markdown内联格式，保留粗体/斜体/代码格式（转换为reportlab XML标签）"""
+    # 先转义XML特殊字符（但保留&用于后续处理）
     text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    # 转换粗体为reportlab的<b>标签
+    text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
+    # 转换斜体为reportlab的<i>标签
+    text = re.sub(r'\*(.+?)\*', r'<i>\1</i>', text)
+    # 转换行内代码为reportlab的<font color="#c7254e">标签
+    text = re.sub(r'`(.+?)`', r'<font color="#c7254e">\1</font>', text)
     return text
 
 
@@ -294,10 +301,10 @@ def _add_chinese_styles(styles):
     ))
     styles.add(ParagraphStyle(
         "ChCellHead", parent=styles["Normal"],
-        fontName="ChineseFont", fontSize=9, leading=12,
+        fontName="ChineseFont", fontSize=10, leading=13,
         textColor=colors.HexColor("#1F4E88")
     ))
     styles.add(ParagraphStyle(
         "ChCell", parent=styles["Normal"],
-        fontName="ChineseFont", fontSize=9, leading=12
+        fontName="ChineseFont", fontSize=9.5, leading=13
     ))
