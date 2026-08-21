@@ -188,7 +188,8 @@ def _md_to_html(text: str) -> str:
         stripped = line.strip()
 
         if not stripped:
-            html_lines.append('<p style="margin:5px 0;height:16px;">&nbsp;</p>')
+            # 简化空行处理：使用<br>替代<p>&nbsp;</p>减少HTML膨胀
+            html_lines.append('<br>')
             i += 1
             continue
 
@@ -267,18 +268,20 @@ def _md_to_html(text: str) -> str:
             html_lines.append(
                 f'<p style="margin:5px 0;padding-left:20px;">• {item}</p>'
             )
-        # 有序列表（简单处理）
-        elif len(stripped) > 2 and stripped[0].isdigit() and stripped[1] in '.):':
-            item = stripped[2:].strip()
-            # 先处理粗体标记，再转义HTML（保留strong标签）
-            item = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', item)
-            # 转义HTML，但保留strong标签
-            item = re.sub(r'&(?!amp;|lt;|gt;|quot;|#39;)', '&amp;', item)
-            item = re.sub(r'<(?!/strong>|strong>)', '&lt;', item)
-            num = stripped[0]
-            html_lines.append(
-                f'<p style="margin:5px 0;padding-left:20px;">{num}. {item}</p>'
-            )
+        # 有序列表（支持1-99）
+        elif len(stripped) > 2 and re.match(r'^\d{1,2}[.):]\s', stripped):
+            match = re.match(r'^(\d{1,2})[.):]\s*(.*)', stripped)
+            if match:
+                num = match.group(1)
+                item = match.group(2)
+                # 先处理粗体标记，再转义HTML（保留strong标签）
+                item = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', item)
+                # 转义HTML，但保留strong标签
+                item = re.sub(r'&(?!amp;|lt;|gt;|quot;|#39;)', '&amp;', item)
+                item = re.sub(r'<(?!/strong>|strong>)', '&lt;', item)
+                html_lines.append(
+                    f'<p style="margin:5px 0;padding-left:20px;">{num}. {item}</p>'
+                )
         # 粗体段落
         elif stripped.startswith("**") and stripped.endswith("**"):
             safe = html.escape(stripped[2:-2])
@@ -353,7 +356,7 @@ def render_markdown_briefing(
     producer_unit_footer = f"出品单位：{producer_unit}\n" if producer_unit else ""
     contact_footer = f"联系人：{contact}\n" if contact else ""
 
-    return MARKDOWN_TEMPLATE.format(
+    md = MARKDOWN_TEMPLATE.format(
         generated_date=generated_date,
         org_name=org_name,
         producer_unit_cover=producer_unit_cover,
@@ -373,6 +376,8 @@ def render_markdown_briefing(
         producer_unit_footer=producer_unit_footer,
         contact_footer=contact_footer
     )
+
+    return md
 
 
 def render_email_html(
@@ -444,6 +449,20 @@ SECTION_MAP = {
     "重要链接": "links_html",
 }
 
+# 关键词模糊匹配映射（用于标题不完全一致时的回退匹配）
+SECTION_KEYWORDS = {
+    "top3_html": ["要闻", "TOP3", "Top3", "top3"],
+    "delta_html": ["增量", "速览", "对比上期"],
+    "ai_dynamic_html": ["AI", "人工智能", "领域动态"],
+    "cyber_dynamic_html": ["网络安全", "安全动态", "漏洞", "攻击"],
+    "cve_table_html": ["CVE", "漏洞预警", "安全漏洞"],
+    "policy_html": ["政策", "法规", "合规"],
+    "attack_analysis_html": ["攻击事件", "深度分析", "攻击链"],
+    "protection_html": ["防护建议", "厂商方案", "防护"],
+    "insights_html": ["趋势研判", "趋势", "研判"],
+    "links_html": ["重要链接", "链接", "参考"],
+}
+
 
 def markdown_to_html_sections(markdown_content: str) -> dict:
     """
@@ -461,6 +480,20 @@ def markdown_to_html_sections(markdown_content: str) -> dict:
     current_section = None
     section_content = []
 
+    def _match_section(line: str) -> str:
+        """尝试匹配板块标题，支持精确匹配和关键词模糊匹配"""
+        # 精确匹配
+        for header_text, section_key in SECTION_MAP.items():
+            if header_text in line:
+                return section_key
+        # 关键词模糊匹配（针对## 标题行）
+        if line.strip().startswith("## "):
+            title_text = line.strip()[3:].strip()
+            for section_key, keywords in SECTION_KEYWORDS.items():
+                if any(kw in title_text for kw in keywords):
+                    return section_key
+        return None
+
     for line in lines:
         # 遇到页脚标记，停止向链接板块追加（页脚由邮件/独立HTML模板单独渲染）
         if line.strip() == "<!-- FOOTER -->":
@@ -468,16 +501,13 @@ def markdown_to_html_sections(markdown_content: str) -> dict:
                 sections[current_section] = _md_to_html("\n".join(section_content))
             break
 
-        matched = False
-        for header_text, section_key in SECTION_MAP.items():
-            if header_text in line:
-                if current_section and section_content:
-                    sections[current_section] = _md_to_html("\n".join(section_content))
-                current_section = section_key
-                section_content = []
-                matched = True
-                break
-        if not matched and current_section:
+        matched_section = _match_section(line)
+        if matched_section:
+            if current_section and section_content:
+                sections[current_section] = _md_to_html("\n".join(section_content))
+            current_section = matched_section
+            section_content = []
+        elif current_section:
             section_content.append(line)
 
     if current_section and section_content and current_section not in sections:
