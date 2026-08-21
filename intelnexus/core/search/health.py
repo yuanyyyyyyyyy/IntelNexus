@@ -9,6 +9,7 @@
   consecutive_failures >= DOWN_THRESHOLD   (6) → status = "down"
 """
 import os
+import threading
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -20,6 +21,7 @@ logger = get_logger(__name__)
 
 DEGRADE_THRESHOLD = 3
 DOWN_THRESHOLD = 6
+_health_lock = threading.Lock()
 
 HEALTH_FILE = os.path.join(
     os.path.dirname(__file__), "..", "..", "..", "data", "source_health.json"
@@ -115,10 +117,11 @@ def get_health(source_name: str) -> SourceHealth:
 
 
 def save_health(health: SourceHealth) -> bool:
-    data = _load_health_data()
-    data.setdefault("sources", {})[health.source_name] = health.to_dict()
-    data["updated_at"] = datetime.now().isoformat()
-    return _save_health_data(data)
+    with _health_lock:
+        data = _load_health_data()
+        data.setdefault("sources", {})[health.source_name] = health.to_dict()
+        data["updated_at"] = datetime.now().isoformat()
+        return _save_health_data(data)
 
 
 def get_all_health() -> List[SourceHealth]:

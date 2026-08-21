@@ -14,7 +14,9 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 # ========== 搜索配置 ==========
-NEWS_API_KEY = os.getenv("NEWS_API_KEY")
+NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")
+if NEWS_API_KEY and NEWS_API_KEY.startswith("your_"):
+    NEWS_API_KEY = ""
 
 # ========== 功能开关 ==========
 ENABLE_DARKWEB = os.getenv("ENABLE_DARKWEB", "false").lower() == "true"

@@ -13,7 +13,7 @@ from intelnexus.config.sources import get_enabled_sources, get_sources_by_catego
 from intelnexus.config.briefing_drafts import consume_drafts
 from intelnexus.core.logger import get_logger
 from intelnexus.topics.store import topic_to_category_map
-from config import NEWS_API_KEY, ENABLE_DARKWEB
+from config import NEWS_API_KEY, ENABLE_DARKWEB, TOR_PROXY_PORT
 
 
 def _resolve_categories() -> dict:
@@ -196,7 +196,7 @@ class AIBriefingCollector:
             registry = get_registry(
                 news_api_key=NEWS_API_KEY,
                 darkweb_advanced=False,
-                tor_port=9150
+                tor_port=TOR_PROXY_PORT
             )
         except Exception as e:
             logger.warning(f"Registry 初始化失败: {e}")

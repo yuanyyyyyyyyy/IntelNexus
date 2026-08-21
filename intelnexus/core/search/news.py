@@ -30,6 +30,8 @@ RSS_SOURCES = [
     {"name": "安全客", "url": "https://api.anquanke.com/data/v1/rss", "requires_proxy": False},
     {"name": "InfoQ 中文", "url": "https://www.infoq.cn/feed", "requires_proxy": False},
     {"name": "先知社区", "url": "https://xz.aliyun.com/feed", "requires_proxy": False},
+    # ---- 国内 AI 专项订阅源（无需代理）----
+    {"name": "AI科技评论", "url": "https://www.leiphone.com/feed", "requires_proxy": False},
     # ---- 境外源，需代理（无代理时自动跳过，避免无效超时）----
     {"name": "Google News", "url": "https://news.google.com/rss/search?q={query}", "requires_proxy": True},
     {"name": "Yahoo News", "url": "https://news.yahoo.com/rss/search?p={query}", "requires_proxy": True},
@@ -37,12 +39,17 @@ RSS_SOURCES = [
     {"name": "TechCrunch", "url": "https://techcrunch.com/feed/", "requires_proxy": True},
     {"name": "The Verge", "url": "https://www.theverge.com/rss/index.xml", "requires_proxy": True},
     {"name": "Wired", "url": "https://www.wired.com/feed/rss", "requires_proxy": True},
-    {"name": "BBC", "url": "http://feeds.bbci.co.co/news/technology/rss.xml", "requires_proxy": True},
+    {"name": "BBC", "url": "http://feeds.bbci.co.uk/news/technology/rss.xml", "requires_proxy": True},
     {"name": "CNN", "url": "http://rss.cnn.com/rss/edition.rss", "requires_proxy": True},
+    {"name": "Hacker News", "url": "https://hnrss.org/newest?q=AI+OR+LLM+OR+GPT+OR+deep+learning", "requires_proxy": True},
 ]
 
 
 class NewsSearch:
+    # 类级速率限制：记录上次 NewsAPI 限频时间，避免重复请求
+    _newsapi_last_rate_limit = 0.0
+    _newsapi_cooldown_seconds = 300  # 5分钟冷却期
+
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key
         if NewsApiClient and api_key:
@@ -57,6 +64,14 @@ class NewsSearch:
     def search_newsapi(self, query: str, max_results: int = 10) -> List[Dict]:
         results = []
         if not self.news_client:
+            return results
+
+        # 速率限制：如果刚被限频，跳过请求
+        import time
+        now = time.time()
+        if now - self._newsapi_last_rate_limit < self._newsapi_cooldown_seconds:
+            remaining = int(self._newsapi_cooldown_seconds - (now - self._newsapi_last_rate_limit))
+            logger.info(f"NewsAPI 冷却中（剩余 {remaining}s），跳过本次请求")
             return results
 
         try:
@@ -79,8 +94,16 @@ class NewsSearch:
                         "published_at": article.get("publishedAt", ""),
                         "image_url": article.get("urlToImage", "")
                     })
+            elif response.get("code") == "rateLimited":
+                NewsSearch._newsapi_last_rate_limit = now
+                logger.warning(f"NewsAPI 限频，进入 {self._newsapi_cooldown_seconds}s 冷却期")
         except Exception as e:
-            logger.warning(f"NewsAPI search error: {e}")
+            err_str = str(e).lower()
+            if "rate" in err_str or "429" in err_str:
+                NewsSearch._newsapi_last_rate_limit = now
+                logger.warning(f"NewsAPI 限频异常，进入 {self._newsapi_cooldown_seconds}s 冷却期: {e}")
+            else:
+                logger.warning(f"NewsAPI search error: {e}")
 
         return results
 

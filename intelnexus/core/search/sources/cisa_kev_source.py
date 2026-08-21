@@ -12,6 +12,7 @@ from typing import Dict, List
 import requests
 
 from intelnexus.core.logger import get_logger
+from intelnexus.core.search import get_http_proxies
 from intelnexus.core.search.source import BaseSearchSource, CATEGORY_WEB
 
 logger = get_logger(__name__)
@@ -112,7 +113,7 @@ class CISAKEVSource(BaseSearchSource):
 
         # 从远程拉取
         try:
-            proxies = self.get_proxies()
+            proxies = get_http_proxies()
             resp = requests.get(KEV_URL, proxies=proxies, timeout=30)
             resp.raise_for_status()
             data = resp.json()

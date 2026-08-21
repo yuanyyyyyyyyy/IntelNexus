@@ -11,7 +11,7 @@ from typing import Dict, List, Optional
 
 from intelnexus.core.logger import get_logger
 from intelnexus.core.search.source import BaseSearchSource, CATEGORY_WEB
-from intelnexus.core.search import get_session
+from intelnexus.core.search import get_session, get_http_proxies
 
 logger = get_logger(__name__)
 
@@ -39,7 +39,7 @@ class NVDSearchSource(BaseSearchSource):
                 return self._cache[cache_key]
 
         try:
-            proxies = self.get_proxies()
+            proxies = get_http_proxies()
             headers = {}
             if self._api_key:
                 headers["apiKey"] = self._api_key
@@ -63,6 +63,55 @@ class NVDSearchSource(BaseSearchSource):
             return results
         except Exception as e:
             logger.warning(f"NVDSearchSource 检索失败: {e}")
+            return []
+
+    def search_recent_critical(self, days: int = 7, max_results: int = 20) -> List[Dict]:
+        """按时间窗 + 严重度拉取近期高危 CVE（用于漏洞预警表）。
+
+        使用 NVD 2.0 的 pubStartDate/pubEndDate + cvssV3Severity 过滤，
+        避免 keywordSearch="CVE" 这类无意义查询。无 API key 时 NVD 限速
+        约 6s/请求，本方法内部做必要限速等待。
+        """
+        cache_key = f"recent_critical:{days}:{max_results}"
+        now = time.time()
+        if cache_key in self._cache:
+            if (now - self._cache_time.get(cache_key, 0)) < CACHE_TTL:
+                return self._cache[cache_key]
+
+        try:
+            from datetime import datetime, timedelta, timezone
+            proxies = get_http_proxies()
+            headers = {}
+            if self._api_key:
+                headers["apiKey"] = self._api_key
+
+            end = datetime.now(timezone.utc)
+            start = end - timedelta(days=days)
+            fmt = "%Y-%m-%dT%H:%M:%S.000Z"
+            params = {
+                "pubStartDate": start.strftime(fmt),
+                "pubEndDate": end.strftime(fmt),
+                "cvssV3Severity": "CRITICAL",
+                "resultsPerPage": min(max_results, 40),
+                "startIndex": 0,
+            }
+            session = get_session(proxies)
+            # 无 key 时 NVD 限速 ~6s/请求，等待以避免 403/429
+            if not self._api_key:
+                time.sleep(6)
+            resp = session.get(
+                self.BASE_URL, params=params, headers=headers or None,
+                timeout=20
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            results = self._parse_cves(data.get("vulnerabilities", []))
+
+            self._cache[cache_key] = results
+            self._cache_time[cache_key] = now
+            return results
+        except Exception as e:
+            logger.warning(f"NVD 近期高危 CVE 拉取失败: {e}")
             return []
 
     def _parse_cves(self, cves: list) -> List[Dict]:

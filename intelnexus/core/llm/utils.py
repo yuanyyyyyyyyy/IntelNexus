@@ -243,11 +243,21 @@ def resolve_model_config(model_choice: str):
                             }
                         }
                     elif model_type in ["cohere", "mistral", "deepseek", "通义千问", "智谱ai", "百度文心一言", "讯飞星火", "moonshot", "01.ai"]:
+                        base_url = config_params.get("base_url", "")
+                        if "/anthropic" in (base_url or "").lower():
+                            return {
+                                "class": ChatAnthropic,
+                                "constructor_params": {
+                                    "model": config_params.get("model_name", custom_model_name),
+                                    "anthropic_api_key": config_params.get("api_key"),
+                                    "anthropic_api_url": base_url,
+                                }
+                            }
                         return {
                             "class": ChatOpenAI,
                             "constructor_params": {
                                 "model_name": config_params.get("model_name", custom_model_name),
-                                "base_url": config_params.get("base_url"),
+                                "base_url": base_url,
                                 "api_key": config_params.get("api_key"),
                             }
                         }

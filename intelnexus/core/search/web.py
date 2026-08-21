@@ -243,6 +243,6 @@ def get_web_results(query, max_workers: int = 5, max_results: int = 50) -> list:
             continue
         filtered.append(r)
 
-    kept = filtered if filtered else unique_results[:max_results]
+    kept = filtered
     logger.info(f"网页检索原始 {len(unique_results[:max_results])} 条，过滤后保留 {len(kept)} 条")
     return kept
