@@ -540,7 +540,9 @@ def render_subscriptions_panel():
             "ai_gov_usage": get_text("category_gov"),
             "ai_china_narrative": get_text("category_china"),
             "ai_legislation": get_text("category_legislation"),
-            "ai_data_leak": get_text("category_leak")
+            "ai_data_leak": get_text("category_leak"),
+            "cyber_vuln": get_text("category_vuln"),
+            "cyber_attack": get_text("category_attack"),
         }
         selected_categories = []
         for cat_id, cat_name in categories.items():
@@ -589,7 +591,7 @@ def render_subscriptions_panel():
                     channels = sub.get("channels", {})
                     active_channels = [k for k, v in channels.items() if isinstance(v, dict) and v.get("enabled")]
                     schedule = sub.get("schedule", {})
-                    cats = sub.get("watch_categories", [])
+                    cats = sub.get("categories", [])
                     st.markdown(
                         f"- {get_text('push_channels')}: {', '.join(active_channels) or '—'}\n"
                         f"- {get_text('schedule_settings')}: {schedule.get('time', '—')} ({schedule.get('timezone', '—')})\n"
