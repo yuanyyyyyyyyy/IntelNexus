@@ -1,7 +1,7 @@
 """
 AI简报关注点配置
 ===============
-定义4个关注点的关键词、查询模板和简报配置
+定义6个关注点的关键词、查询模板和简报配置
 """
 
 import os
@@ -21,7 +21,7 @@ def _env_org(key: str, default: str) -> str:
 YEAR = datetime.now().year
 
 
-# ========== 4个关注点配置 ==========
+# ========== 6个关注点配置 ==========
 WATCH_CATEGORIES = {
     "ai_gov_usage": {
         "name": "美欧机构AI应用",
@@ -43,12 +43,12 @@ WATCH_CATEGORIES = {
         ],
         "search_queries": [
             f"Pentagon artificial intelligence {YEAR}",
-            "NATO AI strategy implementation",
-            "EU AI Act government agencies",
-            "US intelligence community AI tools",
-            "military AI applications news",
+            f"NATO AI strategy implementation {YEAR}",
+            f"EU AI Act government agencies {YEAR}",
+            f"US intelligence community AI tools {YEAR}",
+            f"military AI applications news {YEAR}",
             f"AI model deployment government {YEAR}",
-            "federal AI procurement contract"
+            f"federal AI procurement contract {YEAR}"
         ]
     },
     "ai_china_narrative": {
@@ -71,12 +71,12 @@ WATCH_CATEGORIES = {
         ],
         "search_queries": [
             f"China AI chip export controls {YEAR}",
-            "Chinese AI companies global expansion",
-            "US restrictions China AI technology",
-            "DeepSeek AI model capabilities",
-            "China artificial intelligence news",
+            f"Chinese AI companies global expansion {YEAR}",
+            f"US restrictions China AI technology {YEAR}",
+            f"DeepSeek AI model capabilities {YEAR}",
+            f"China artificial intelligence news {YEAR}",
             f"Baidu Alibaba AI model {YEAR}",
-            "Huawei AI chip Ascend"
+            f"Huawei AI chip Ascend {YEAR}"
         ]
     },
     "ai_legislation": {
@@ -98,12 +98,12 @@ WATCH_CATEGORIES = {
         ],
         "search_queries": [
             f"EU AI Act implementation {YEAR}",
-            "US AI regulation new bill",
-            "AI legislation affecting China",
-            "artificial intelligence governance policy",
+            f"US AI regulation new bill {YEAR}",
+            f"AI legislation affecting China {YEAR}",
+            f"artificial intelligence governance policy {YEAR}",
             f"AI regulation news {YEAR}",
             f"AI safety standards {YEAR}",
-            "generative AI compliance requirement"
+            f"generative AI compliance requirement {YEAR}"
         ]
     },
     "ai_data_leak": {
@@ -126,12 +126,12 @@ WATCH_CATEGORIES = {
         ],
         "search_queries": [
             f"AI data breach incident {YEAR}",
-            "large language model security vulnerability",
-            "AI powered cyber attack news",
-            "training data privacy breach AI",
-            "AI security incident news",
-            "LLM jailbreak vulnerability",
-            "AI model extraction attack"
+            f"large language model security vulnerability {YEAR}",
+            f"AI powered cyber attack news {YEAR}",
+            f"training data privacy breach AI {YEAR}",
+            f"AI security incident news {YEAR}",
+            f"LLM jailbreak vulnerability {YEAR}",
+            f"AI model extraction attack {YEAR}"
         ]
     },
     "cyber_vuln": {
@@ -152,10 +152,10 @@ WATCH_CATEGORIES = {
         ],
         "search_queries": [
             f"critical vulnerability disclosed {YEAR}",
-            "zero-day exploit in the wild",
-            "CISA known exploited vulnerabilities update",
-            "RCE vulnerability patch released",
-            "new vulnerability research disclosure"
+            f"zero-day exploit in the wild {YEAR}",
+            f"CISA known exploited vulnerabilities update {YEAR}",
+            f"RCE vulnerability patch released {YEAR}",
+            f"new vulnerability research disclosure {YEAR}"
         ]
     },
     "cyber_attack": {
@@ -174,10 +174,10 @@ WATCH_CATEGORIES = {
         ],
         "search_queries": [
             f"major data breach disclosed {YEAR}",
-            "ransomware attack incident news",
-            "dark web database for sale",
-            "cybersecurity regulation policy update",
-            "government cybersecurity compliance news"
+            f"ransomware attack incident news {YEAR}",
+            f"dark web database for sale {YEAR}",
+            f"cybersecurity regulation policy update {YEAR}",
+            f"government cybersecurity compliance news {YEAR}"
         ]
     }
 }
