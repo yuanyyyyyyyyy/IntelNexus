@@ -221,11 +221,21 @@ class IntelligenceGraph:
                 "LOC": "#8FA890", "UNKNOWN": "#999999",
             }
 
+            # 计算中心度和社区
+            centrality = self.compute_centrality()
+            communities = self.detect_communities()
+            node_community = {}
+            for i, comm in enumerate(communities):
+                for n in comm:
+                    node_community[n] = i
+
             for n, data in self.graph.nodes(data=True):
                 sz = data.get("importance", 0.5) * 30 + 10
                 c = type_colors.get(data.get("type", ""), "#999999")
                 label = data.get("name", n)
-                title = f"{label} ({data.get('type', '?')})"
+                cent = centrality.get(n, 0.0)
+                comm = node_community.get(n, -1)
+                title = f"{label} ({data.get('type', '?')})\n中心度: {cent:.3f}\n社区: {comm if comm >= 0 else '无'}"
                 net.add_node(n, label=label, title=title, size=sz, color=c)
 
             for u, v, data in self.graph.edges(data=True):
@@ -258,4 +268,23 @@ class IntelligenceGraph:
                 "predicate": data.get("predicate", "related"),
                 "confidence": data.get("confidence", 0.5)
             })
-        return {"nodes": nodes, "edges": edges}
+
+        # 计算中心度和社区检测
+        centrality = self.compute_centrality()
+        communities = self.detect_communities()
+
+        # 为每个节点添加中心度和社区信息
+        for node in nodes:
+            node["centrality"] = centrality.get(node["id"], 0.0)
+            node["community"] = -1
+            for i, comm in enumerate(communities):
+                if node["id"] in comm:
+                    node["community"] = i
+                    break
+
+        return {
+            "nodes": nodes,
+            "edges": edges,
+            "centrality": centrality,
+            "communities": communities
+        }
