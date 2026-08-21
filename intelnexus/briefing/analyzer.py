@@ -327,21 +327,20 @@ class AIBriefingAnalyzer:
 
         if llm is None:
             self._add_warning("近日要闻 TOP3", "未加载 LLM，使用原始条目降级展示")
-            top_items = all_results[:3]
-            result = []
-            for i, item in enumerate(top_items, 1):
-                result.append(format_news_item(
-                    title=item.get("title", "未知标题"),
-                    content=item.get("description", item.get("content", ""))[:200],
-                    source=item.get("source", "未知来源"),
-                    date=item.get("published_at", datetime.now().strftime("%Y-%m-%d"))
-                ).replace("\n", " "))
-            return "\n".join(f"{i}. {r}" for i, r in enumerate(result, 1))
+            return self._generate_top3_fallback(all_results)
 
         try:
-            search_summary = self._format_results_for_prompt(all_results[:20])
-            prompt = get_prompt("top3", search_results=search_summary,
-                                kb_context=self._kb_context)
+            # 生成可信度摘要，注入提示词
+            credibility_summary = self._build_credibility_summary(all_results)
+            search_summary = self._format_results_for_prompt(
+                all_results[:BRIEFING_CONFIG["search"].get("max_results_for_top3", 20)]
+            )
+            prompt = get_prompt(
+                "top3",
+                search_results=search_summary,
+                credibility_summary=credibility_summary,
+                kb_context=self._kb_context
+            )
 
             from langchain_core.prompts import ChatPromptTemplate
             from langchain_core.output_parsers import StrOutputParser
@@ -353,11 +352,71 @@ class AIBriefingAnalyzer:
             chain = prompt_template | llm | StrOutputParser()
 
             result = chain.invoke({"prompt": prompt})
-            return result if result.strip() else "本日暂无重要新闻。"
+            if result.strip():
+                return result
+
+            # LLM返回空结果，使用降级方案
+            self._add_warning("近日要闻 TOP3", "LLM返回空结果，使用降级方案")
+            return self._generate_top3_fallback(all_results)
+
         except Exception as e:
             logger.error(f"Error generating TOP3: {e}")
-            self._add_warning("近日要闻 TOP3", f"生成异常：{e}")
-            return "简报生成过程中出现错误，请检查LLM配置。"
+            self._add_warning("近日要闻 TOP3", f"生成异常，使用降级方案：{e}")
+            return self._generate_top3_fallback(all_results)
+
+    def _build_credibility_summary(self, results: List[Dict]) -> str:
+        """构建可信度摘要，供TOP3提示词使用"""
+        high_trust = []
+        medium_trust = []
+        low_trust = []
+
+        for r in results:
+            score = r.get("credibility_score", 0.5)
+            source = r.get("source", "Unknown")
+            if score >= 0.7:
+                high_trust.append(f"{source}({score:.2f})")
+            elif score >= 0.4:
+                medium_trust.append(f"{source}({score:.2f})")
+            else:
+                low_trust.append(f"{source}({score:.2f})")
+
+        lines = ["来源可信度概览："]
+        if high_trust:
+            lines.append(f"- 高可信来源（≥0.7）：{', '.join(set(high_trust)[:5])}")
+        if medium_trust:
+            lines.append(f"- 中可信来源（0.4-0.7）：{', '.join(set(medium_trust)[:5])}")
+        if low_trust:
+            lines.append(f"- 低可信来源（<0.4）：{', '.join(set(low_trust)[:5])}")
+
+        return "\n".join(lines)
+
+    def _generate_top3_fallback(self, all_results: List[Dict]) -> str:
+        """TOP3降级方案：按可信度和紧急度排序，取Top3"""
+        # 按可信度降序排序
+        sorted_results = sorted(
+            all_results,
+            key=lambda x: x.get("credibility_score", 0.5),
+            reverse=True
+        )
+
+        top_items = sorted_results[:BRIEFING_CONFIG["format"].get("max_top3_items", 3)]
+        if not top_items:
+            return "本日暂无符合标准的重要新闻。"
+
+        result = []
+        for i, item in enumerate(top_items, 1):
+            title = item.get("title", "未知标题")
+            desc = item.get("description", item.get("content", ""))[:200]
+            source = item.get("source", "未知来源")
+            date = item.get("published_at", datetime.now().strftime("%Y-%m-%d"))
+            score = item.get("credibility_score", 0)
+
+            result.append(
+                f"{i}. **{title}**\n"
+                f"   {desc}...\n"
+                f"   （来源：{source} / {date} | 可信度：{score:.2f}）"
+            )
+        return "\n".join(result)
 
     def _generate_ai_dynamic(self, collected_data: Dict[str, List[Dict]], llm) -> str:
         """生成 AI 领域动态（模型与技术 / 应用与落地 / 产业与市场）"""
@@ -735,7 +794,9 @@ class AIBriefingAnalyzer:
         """通用：调用提示词生成板块内容"""
         label = label or prompt_name
         try:
-            search_summary = self._format_results_for_prompt(results[:12])
+            # 使用配置中的max_results_for_sections参数
+            max_results = BRIEFING_CONFIG["search"].get("max_results_for_sections", 15)
+            search_summary = self._format_results_for_prompt(results[:max_results])
             prompt = get_prompt(prompt_name, search_results=search_summary,
                                 kb_context=self._kb_context)
 
