@@ -21,11 +21,12 @@ logger = get_logger(__name__)
 
 
 # 关注点 → 简报板块映射（用于按订阅者 interests 过滤推送内容）
+# 细化映射粒度：每个interest映射到更具体的子板块
 _TOPIC_TO_SECTION = {
     "ai_gov_usage": "AI 领域动态",
     "ai_china_narrative": "AI 领域动态",
-    "ai_legislation": "AI 领域动态",
-    "ai_data_leak": "AI 领域动态",
+    "ai_legislation": "政策法规动态",  # 修正：映射到政策法规动态
+    "ai_data_leak": "网络安全动态",
     "cyber_vuln": "网络安全动态",
     "cyber_attack": "网络安全动态",
 }
@@ -34,6 +35,8 @@ _SECTION_TO_TOPICS = {}
 for _tid, _sec in _TOPIC_TO_SECTION.items():
     _SECTION_TO_TOPICS.setdefault(_sec, []).append(_tid)
 _SECTION_TO_TOPICS["近日新增安全漏洞预警"] = ["cyber_vuln", "cyber_attack"]
+# 政策法规动态现在也受interests控制
+_SECTION_TO_TOPICS["政策法规动态"] = ["ai_legislation"]
 
 
 def filter_briefing_by_interests(briefing_content: str, interests: list) -> str:
