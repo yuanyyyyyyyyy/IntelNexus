@@ -475,7 +475,7 @@ def render_subscriptions_panel():
     ''', unsafe_allow_html=True)
 
     try:
-        from intelnexus.config.subscriptions import get_all_subscribers, add_subscriber, remove_subscriber
+        from intelnexus.config.subscriptions import get_all_subscribers, add_subscriber, remove_subscriber, update_subscriber
         SUBSCRIPTION_AVAILABLE = True
     except ImportError:
         SUBSCRIPTION_AVAILABLE = False
@@ -592,7 +592,13 @@ def render_subscriptions_panel():
                 selected_categories.append(cat_id)
 
         if st.button(get_text("add_subscriber_btn"), key="bf_add_sub_btn"):
-            if sub_name and sub_email:
+            import re
+            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            if not sub_name or not sub_email:
+                st.warning(get_text("fill_fields"))
+            elif not re.match(email_pattern, sub_email):
+                st.warning("邮箱格式不正确")
+            else:
                 channels = {
                     "email": {"enabled": email_enabled, "address": sub_email},
                     "wecom": {"enabled": wecom_enabled, "webhook": wecom_webhook},
@@ -609,24 +615,29 @@ def render_subscriptions_panel():
                     st.rerun()
                 else:
                     st.error(get_text("subscriber_add_failed"))
-            else:
-                st.warning(get_text("fill_fields"))
 
     subscribers = get_all_subscribers()
     if subscribers:
         with st.expander(get_text("manage_subscribers")):
             for sub in subscribers:
-                col_info, col_status, col_delete = st.columns([4, 1, 1])
+                col_info, col_status, col_actions = st.columns([4, 1, 2])
                 with col_info:
                     st.write(f"**{sub['name']}**")
                     st.caption(sub['email'])
                 with col_status:
                     status = "<span class='status-dot active'></span>" if sub.get("schedule", {}).get("enabled") else "<span class='status-dot error'></span>"
                     st.write(status, unsafe_allow_html=True)
-                with col_delete:
-                    if st.button(get_text("delete"), key=f"bf_del_sub_{sub['id']}"):
-                        if remove_subscriber(sub['id']):
+                with col_actions:
+                    act_cols = st.columns(2)
+                    with act_cols[0]:
+                        if st.button("编辑", key=f"bf_edit_sub_{sub['id']}", help="编辑订阅者"):
+                            st.session_state[f"editing_sub_{sub['id']}"] = True
                             st.rerun()
+                    with act_cols[1]:
+                        if st.button(get_text("delete"), key=f"bf_del_sub_{sub['id']}"):
+                            # 删除订阅者（调度器将在重启时自动清理）
+                            if remove_subscriber(sub['id']):
+                                st.rerun()
 
                 with st.container():
                     st.caption(get_text("view_details"))
@@ -639,6 +650,35 @@ def render_subscriptions_panel():
                         f"- {get_text('schedule_settings')}: {schedule.get('time', '—')} ({schedule.get('timezone', '—')})\n"
                         f"- {get_text('watch_categories')}: {', '.join(cats) if cats else '—'}"
                     )
+
+                # 编辑表单
+                if st.session_state.get(f"editing_sub_{sub['id']}"):
+                    with st.container():
+                        st.caption(f"编辑: {sub['name']}")
+                        edit_name = st.text_input("名称", value=sub['name'], key=f"bf_edit_sub_name_{sub['id']}")
+                        edit_email = st.text_input("邮箱", value=sub['email'], key=f"bf_edit_sub_email_{sub['id']}")
+
+                        # 编辑分类
+                        edit_cats = []
+                        for cat_id, cat_name in categories.items():
+                            if st.checkbox(cat_name, value=cat_id in cats, key=f"bf_edit_sub_cat_{sub['id']}_{cat_id}"):
+                                edit_cats.append(cat_id)
+
+                        ecol1, ecol2 = st.columns(2)
+                        with ecol1:
+                            if st.button("保存", key=f"bf_save_sub_{sub['id']}"):
+                                if edit_name and edit_email:
+                                    update_subscriber(sub['id'], {
+                                        "name": edit_name,
+                                        "email": edit_email,
+                                        "categories": edit_cats
+                                    })
+                                    st.session_state[f"editing_sub_{sub['id']}"] = False
+                                    st.rerun()
+                        with ecol2:
+                            if st.button("取消", key=f"bf_cancel_sub_{sub['id']}"):
+                                st.session_state[f"editing_sub_{sub['id']}"] = False
+                                st.rerun()
     else:
         st.markdown(
             f"<p class='bf-hint'>{get_text('no_subscribers')} —— {get_text('welcome_step_subscribers_desc')}</p>",
