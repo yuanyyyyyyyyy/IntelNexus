@@ -71,6 +71,9 @@ test_*.py
 .opencode/
 .reasonix/
 
+# 文档/学习资料
+docs/
+
 # Local-only Windows launcher scripts (not tracked in repo)
 run.bat
 setup.bat
