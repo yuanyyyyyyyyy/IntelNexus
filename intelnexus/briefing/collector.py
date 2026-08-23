@@ -150,7 +150,7 @@ class AIBriefingCollector:
     
     def collect_all_categories(self) -> Dict[str, List[Dict]]:
         """
-        为所有关注点采集数据（并行执行）
+        为所有关注点采集数据（并行执行，限制并发数避免 NewsAPI 限频）
         
         Returns:
             Dict[str, List[Dict]]: {category_id: [results]}
@@ -159,7 +159,9 @@ class AIBriefingCollector:
         results = {}
         category_ids = list(categories.keys())
 
-        with ThreadPoolExecutor(max_workers=len(category_ids)) as executor:
+        max_workers = min(3, len(category_ids))  # 限制并发数，避免 NewsAPI 并发限频
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {
                 executor.submit(self.collect_for_category, cat_id): cat_id
                 for cat_id in category_ids
@@ -190,6 +192,7 @@ class AIBriefingCollector:
             List[Dict]: 搜索结果
         """
         from intelnexus.core.search.registry import get_registry
+        from intelnexus.core.search.news import NewsSearch
 
         results = []
         try:
@@ -210,7 +213,7 @@ class AIBriefingCollector:
                     query=query,
                     max_results=max_results,
                     threads=5,
-                    global_timeout=60
+                    global_timeout=90  # 从60s增加到90s，减少超时错误
                 )
 
                 # 转换为统一格式
