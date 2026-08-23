@@ -55,10 +55,10 @@ def test_collect_dedup_across_sources():
     def fake_darkweb(query, max_workers, advanced_mode, tor_port, ui_sites):
         return []
 
-    with patch("shared.search.sources.web_source.get_web_results", side_effect=fake_web), \
-         patch("shared.search.sources.news_source.get_news_results", side_effect=fake_news), \
-         patch("shared.search.sources.darkweb_source.get_darkweb_results", side_effect=fake_darkweb), \
-         patch("shared.search.sources.darkweb_source.darkweb_available", return_value=True):
+    with patch("intelnexus.core.search.sources.web_source.get_web_results", side_effect=fake_web), \
+         patch("intelnexus.core.search.sources.news_source.get_news_results", side_effect=fake_news), \
+         patch("intelnexus.core.search.sources.darkweb_source.get_darkweb_results", side_effect=fake_darkweb), \
+         patch("intelnexus.core.search.sources.darkweb_source.darkweb_available", return_value=True):
         results = reg.collect("all", "query", max_results=20, threads=3)
 
     links = [r["link"] for r in results]
@@ -70,10 +70,10 @@ def test_collect_dedup_across_sources():
 
 def test_collect_empty_when_no_sources():
     reg = _make_registry()
-    with patch("shared.search.sources.web_source.get_web_results", return_value=[]), \
-         patch("shared.search.sources.news_source.get_news_results", return_value=[]), \
-         patch("shared.search.sources.darkweb_source.get_darkweb_results", return_value=[]), \
-         patch("shared.search.sources.darkweb_source.darkweb_available", return_value=True):
+    with patch("intelnexus.core.search.sources.web_source.get_web_results", return_value=[]), \
+         patch("intelnexus.core.search.sources.news_source.get_news_results", return_value=[]), \
+         patch("intelnexus.core.search.sources.darkweb_source.get_darkweb_results", return_value=[]), \
+         patch("intelnexus.core.search.sources.darkweb_source.darkweb_available", return_value=True):
         assert reg.collect("all", "q") == []
 
 

@@ -31,14 +31,14 @@ def mock_model():
 
 @pytest.fixture
 def scorer(mock_model):
-    with patch("src.analysis.credibility.load_sentence_model", return_value=mock_model):
+    with patch("intelnexus.analysis.credibility.load_sentence_model", return_value=mock_model):
         from intelnexus.analysis.credibility import SourceScorer
         return SourceScorer()
 
 
 @pytest.fixture
 def consistency_analyzer(mock_model):
-    with patch("src.analysis.credibility.load_sentence_model", return_value=mock_model):
+    with patch("intelnexus.analysis.credibility.load_sentence_model", return_value=mock_model):
         from intelnexus.analysis.credibility import ConsistencyAnalyzer
         return ConsistencyAnalyzer()
 

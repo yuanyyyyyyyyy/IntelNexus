@@ -51,7 +51,7 @@ def test_search_rss_skips_source_on_persistent_failure():
 
     # 仅留一个易控的源，验证失败路径不抛异常
     with patch.object(searcher, "_fetch_rss_with_retry", side_effect=err), \
-         patch("shared.search.news.RSS_SOURCES", [{"name": "36氪", "url": "https://36kr.com/feed", "requires_proxy": False}]):
+         patch("intelnexus.core.search.news.RSS_SOURCES", [{"name": "36氪", "url": "https://36kr.com/feed", "requires_proxy": False}]):
         results = searcher.search_rss("AI", max_results=5)
 
     assert results == []
@@ -104,8 +104,8 @@ def test_search_rss_skips_proxy_source_without_proxy():
         raise AssertionError(f"代理源不应被请求: {url}")
 
     with patch.object(searcher, "_fetch_rss_with_retry", side_effect=fake_fetch), \
-         patch("shared.search.news.get_http_proxies", return_value=None), \
-         patch("shared.search.news.RSS_SOURCES", [
+         patch("intelnexus.core.search.news.get_http_proxies", return_value=None), \
+         patch("intelnexus.core.search.news.RSS_SOURCES", [
              {"name": "Google News", "url": "https://news.google.com/rss/search?q={query}", "requires_proxy": True},
              {"name": "36氪", "url": "https://36kr.com/feed", "requires_proxy": False},
          ]):
@@ -129,8 +129,8 @@ def test_search_rss_parses_items_and_filters_blocked():
     resp = _make_response(rss)
 
     with patch.object(searcher, "_fetch_rss_with_retry", return_value=resp), \
-         patch("shared.search.news.get_http_proxies", return_value=None), \
-         patch("shared.search.news.RSS_SOURCES", [
+         patch("intelnexus.core.search.news.get_http_proxies", return_value=None), \
+         patch("intelnexus.core.search.news.RSS_SOURCES", [
              {"name": "Bing News", "url": "https://www.bing.com/news/search?q={query}&format=rss", "requires_proxy": False},
          ]):
         results = searcher.search_rss("AI security", max_results=10)
@@ -158,7 +158,7 @@ def test_search_aggregates_and_dedups():
     with patch.object(searcher, "search_rss", side_effect=fake_rss), \
          patch.object(searcher, "search_bing_news", side_effect=fake_bing), \
          patch.object(searcher, "search_google_news", side_effect=lambda *a, **k: []), \
-         patch("shared.search.news.get_http_proxies", return_value=None):
+         patch("intelnexus.core.search.news.get_http_proxies", return_value=None):
         results = searcher.search("AI", max_results=10)
 
     # 两个源都返回了相同的 news.example.com/ai，应去重为一条
@@ -175,6 +175,6 @@ def test_search_skips_google_without_proxy():
     with patch.object(searcher, "search_rss", return_value=[]), \
          patch.object(searcher, "search_bing_news", return_value=[]), \
          patch.object(searcher, "search_google_news", side_effect=lambda *a, **k: called.__setitem__("google", True) or []), \
-         patch("shared.search.news.get_http_proxies", return_value=None):
+         patch("intelnexus.core.search.news.get_http_proxies", return_value=None):
         searcher.search("AI")
     assert called["google"] is False

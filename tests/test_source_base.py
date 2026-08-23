@@ -77,11 +77,11 @@ def test_get_proxies_uses_proxy_gating():
 
     # requires_proxy=False -> 永远直连（None），不读环境、不触达 get_http_proxies
     direct = Dummy(name="d", requires_proxy=False)
-    with patch("shared.search.get_http_proxies", return_value={"http": "p"}) as mg:
+    with patch("intelnexus.core.search.get_http_proxies", return_value={"http": "p"}) as mg:
         assert direct.get_proxies() is None
         mg.assert_not_called()
 
     # requires_proxy=True -> 转发 get_http_proxies 返回值（代理收口）
     proxied = Dummy(name="p", requires_proxy=True)
-    with patch("shared.search.get_http_proxies", return_value={"http": "socks"}):
+    with patch("intelnexus.core.search.get_http_proxies", return_value={"http": "socks"}):
         assert proxied.get_proxies() == {"http": "socks"}
