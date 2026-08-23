@@ -48,9 +48,6 @@ data/briefings/
 data/reports/
 data/docs/
 src/config/data/
-!data/sources.json
-!data/subscriptions.json
-!data/custom_models.json
 
 # Output & Reports
 output/
