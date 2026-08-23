@@ -15,7 +15,9 @@ from intelnexus.core.settings.file_lock import safe_read_json, safe_write_json
 logger = get_logger(__name__)
 
 
-SOURCES_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "..", "data", "sources.json")
+from intelnexus.config.paths import get_data_dir
+
+SOURCES_FILE = os.path.join(get_data_dir(), "sources.json")
 
 
 def _ensure_sources_file():
@@ -89,6 +91,19 @@ def add_source(source_type: str, name: str, url: str, category: str,
     data = safe_read_json(SOURCES_FILE)
     if not data:
         data = {"subscription_sources": [], "custom_sources": []}
+
+    # URL 归一化去重（忽略大小写/末尾斜杠/查询串），避免同一源被重复添加后重复抓取
+    from urllib.parse import urlunparse
+
+    def _norm_url(u: str) -> str:
+        p = urlparse(u or "")
+        return urlunparse((p.scheme.lower(), p.netloc.lower(), (p.path or "").rstrip("/"), "", "", ""))
+
+    norm_new = _norm_url(url)
+    for existing in data.get("subscription_sources", []) + data.get("custom_sources", []):
+        if _norm_url(existing.get("url", "")) == norm_new:
+            logger.warning(f"重复数据源，取消添加: {url}")
+            return False
 
     # fetch_type 推断：rss 源用 rss，web 源默认 web_engine
     if fetch_type is None:
@@ -250,3 +265,38 @@ def test_source(source_url: str, fetch_type: str = "web_engine", timeout: int = 
         return {"success": False, "latency_ms": 0, "message": "连接失败，请检查 URL"}
     except Exception as e:
         return {"success": False, "latency_ms": 0, "message": f"测试失败: {type(e).__name__}"}
+
+
+def import_sources_opml(opml_content: str, category: str) -> Dict[str, int]:
+    """从 OPML 内容批量导入 RSS 源（复用 add_source 的 URL 校验与去重）。
+
+    Args:
+        opml_content: OPML 文件文本（UTF-8）
+        category: 归属关注点 ID
+
+    Returns:
+        {"imported": 成功数, "duplicates": 去重跳过数, "invalid": 无效条目数}
+    """
+    import xml.etree.ElementTree as ET
+
+    result = {"imported": 0, "duplicates": 0, "invalid": 0}
+    try:
+        root = ET.fromstring(opml_content)
+    except ET.ParseError as e:
+        logger.warning(f"OPML 解析失败: {e}")
+        result["invalid"] = -1  # -1 表示整个文件解析失败
+        return result
+
+    # 遍历所有 outline 节点，取带 xmlUrl 属性的（RSS 条目）
+    for outline in root.iter("outline"):
+        xml_url = (outline.get("xmlUrl") or "").strip()
+        if not xml_url:
+            continue
+        title = (outline.get("title") or outline.get("text") or xml_url).strip()
+        if add_source("rss", title[:100], xml_url, category):
+            result["imported"] += 1
+        else:
+            # add_source 失败 = URL 非法或重复；无法精确区分时按重复计（更常见）
+            result["duplicates"] += 1
+    logger.info(f"OPML import: {result}")
+    return result

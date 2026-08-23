@@ -23,9 +23,10 @@ DEGRADE_THRESHOLD = 3
 DOWN_THRESHOLD = 6
 _health_lock = threading.Lock()
 
-HEALTH_FILE = os.path.join(
+# 与 intelnexus.config.paths.get_data_dir() 同一锚点（本地计算以避免跨包导入）
+HEALTH_FILE = os.path.abspath(os.path.join(
     os.path.dirname(__file__), "..", "..", "..", "data", "source_health.json"
-)
+))
 
 
 @dataclass

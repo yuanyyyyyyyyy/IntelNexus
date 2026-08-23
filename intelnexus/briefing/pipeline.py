@@ -29,11 +29,6 @@ logger = get_logger(__name__)
 # 进度回调签名：(stage: str, message: str, percent: Optional[float]) -> None
 ProgressCallback = Callable[[str, str, Optional[float]], None]
 
-_DEFAULT_EMAIL_CONFIG = {
-    "smtp_server": "", "smtp_port": 587,
-    "username": "", "password": "", "use_tls": True,
-}
-
 
 def _noop_progress(stage: str, message: str, percent: Optional[float] = None):
     logger.info(f"[pipeline:{stage}] {message}")
@@ -69,7 +64,10 @@ def run_briefing_pipeline(
         }
     """
     start = time.time()
-    email_config = email_config or dict(_DEFAULT_EMAIL_CONFIG)
+    # 邮件配置：调用方传入优先，否则回退到统一持久化来源（文件+环境变量合并）
+    if email_config is None:
+        from intelnexus.config.email_settings import get_active_email_config
+        email_config = get_active_email_config() or {}
 
     # ---- 1. 采集（并行）----
     on_progress("collect_start", "开始采集情报数据...", 0.0)
@@ -150,6 +148,12 @@ def run_briefing_pipeline(
             for sub in subscribers:
                 try:
                     results = notifier.notify(sub, md, briefing_html)
+                    # 落盘推送结果（分析面板的推送成功率数据源；失败不影响主流程）
+                    try:
+                        from intelnexus.config.push_log import record_push_result
+                        record_push_result(filename, sub.get("id", ""), results)
+                    except Exception:
+                        pass
                     if any(results.values()):
                         pushed += 1
                     else:

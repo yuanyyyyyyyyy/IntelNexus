@@ -224,6 +224,9 @@ def _register_briefing_commands():
     def briefing(model, notify_only, export_format):
         """Generate and send AI briefing to all subscribers."""
         try:
+            from intelnexus.config.paths import migrate_legacy_data_files
+            migrate_legacy_data_files()
+
             from intelnexus.briefing.collector import AIBriefingCollector
             from intelnexus.briefing.analyzer import AIBriefingAnalyzer
             from intelnexus.briefing.notifier import AIBriefingNotifier
@@ -355,18 +358,19 @@ def _start_ai_scheduler():
     """Start the AI briefing scheduler for UI mode."""
     global _ai_scheduler
     try:
+        # 一次性迁移旧数据目录（仓库外）到仓库内 data/，幂等可重复调用
+        from intelnexus.config.paths import migrate_legacy_data_files
+        migrate_legacy_data_files()
+
         from intelnexus.briefing.scheduler import AIBriefingScheduler
-        email_config = {
-            "smtp_server": os.getenv("SMTP_SERVER", ""),
-            "smtp_port": int(os.getenv("SMTP_PORT", "587")),
-            "username": os.getenv("SMTP_USERNAME", ""),
-            "password": os.getenv("SMTP_PASSWORD", ""),
-            "use_tls": os.getenv("SMTP_USE_TLS", "true").lower() == "true"
-        }
-        if not email_config.get("smtp_server") or not email_config.get("username"):
-            email_config = None
+        # 与手动推送共用持久化邮件配置（文件 + 环境变量合并），不再只读环境变量
+        from intelnexus.config.email_settings import get_active_email_config
+        email_config = get_active_email_config()
         _ai_scheduler = AIBriefingScheduler(email_config=email_config)
         _ai_scheduler.start()
+        # 注册到调度器注册表：订阅者增删改后可热更新定时任务（无需重启）
+        from intelnexus.briefing.scheduler_registry import register_scheduler
+        register_scheduler(_ai_scheduler)
     except Exception:
         pass
 

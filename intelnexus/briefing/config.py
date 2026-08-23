@@ -21,6 +21,15 @@ def _env_org(key: str, default: str) -> str:
 YEAR = datetime.now().year
 
 
+# 简报中可被「订阅者关注点」过滤的板块（与 analyzer.SECTION_LABELS 保持一致；
+# 关注点通过 section 字段挂到这些板块上，推送时按订阅者 interests 裁剪）
+BRIEFING_SECTIONS = [
+    "AI 领域动态",
+    "网络安全动态",
+    "近日新增安全漏洞预警",
+    "政策法规动态",
+]
+
 # ========== 6个关注点配置 ==========
 WATCH_CATEGORIES = {
     "ai_gov_usage": {
@@ -28,6 +37,7 @@ WATCH_CATEGORIES = {
         "name_en": "US/EU Government AI Adoption",
         "description": "美欧国家机构、敏感部门应用新AI技术的报道",
         "icon": "govt",
+        "section": "AI 领域动态",
         "keywords_en": [
             "US government AI", "Pentagon artificial intelligence", "NATO AI strategy",
             "EU AI adoption", "White House AI", "DoD artificial intelligence",
@@ -56,6 +66,7 @@ WATCH_CATEGORIES = {
         "name_en": "China-related AI Narrative",
         "description": "美欧涉我AI领域（算料算法算力等维度）的舆论报道",
         "icon": "china",
+        "section": "AI 领域动态",
         "keywords_en": [
             "China artificial intelligence", "Chinese AI companies", "Baidu AI",
             "Alibaba AI", "TikTok AI", "DeepSeek AI", "AI chip ban China",
@@ -84,6 +95,7 @@ WATCH_CATEGORIES = {
         "name_en": "AI Legislation & Regulation",
         "description": "美欧涉AI领域且与我国有关的新法案出台情况",
         "icon": "legislation",
+        "section": "政策法规动态",
         "keywords_en": [
             "AI regulation", "AI legislation", "AI Act", "AI bill",
             "artificial intelligence law", "AI policy", "AI governance",
@@ -118,6 +130,7 @@ WATCH_CATEGORIES = {
         "name_en": "AI Data Breaches & Security",
         "description": "境外媒体报道的国外及国内因AI领域新技术引发的数据泄露风险事件",
         "icon": "leak",
+        "section": "网络安全动态",
         "keywords_en": [
             "AI data breach", "AI security incident", "AI vulnerability",
             "machine learning data leak", "LLM security", "AI cyber attack",
@@ -146,6 +159,7 @@ WATCH_CATEGORIES = {
         "name_en": "Vulnerabilities & Threats",
         "description": "近期披露的通用高危漏洞、CVE、0day 与在野利用情报",
         "icon": "vuln",
+        "section": "网络安全动态",
         "keywords_en": [
             "critical vulnerability disclosed", "zero-day exploit", "RCE vulnerability",
             "CVE security advisory", "CISA KEV", "exploit published",
@@ -170,6 +184,7 @@ WATCH_CATEGORIES = {
         "name_en": "Attack Incidents & Compliance",
         "description": "数据泄露、勒索攻击、重大安全事件及网络安全政策合规动态",
         "icon": "attack",
+        "section": "网络安全动态",
         "keywords_en": [
             "data breach", "ransomware attack", "dark web leak",
             "cyber attack incident", "breach disclosed", "security regulation",
@@ -209,7 +224,7 @@ BRIEFING_CONFIG = {
         "max_results_per_category": 30,  # 每个关注点最大结果数
         "max_results_for_top3": 20,  # TOP3板块输入条数上限
         "max_results_for_sections": 15,  # 其他板块输入条数上限
-        "global_timeout_seconds": 60,  # 全局搜索超时（秒）
+        "global_timeout_seconds": 90,  # 全局搜索超时（秒）- 从60增加到90
     },
     "format": {
         "max_top3_items": 3,

@@ -15,7 +15,9 @@ from intelnexus.core.settings.file_lock import safe_read_json, safe_write_json
 logger = get_logger(__name__)
 
 
-SUBSCRIPTIONS_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "..", "data", "subscriptions.json")
+from intelnexus.config.paths import get_data_dir
+
+SUBSCRIPTIONS_FILE = os.path.join(get_data_dir(), "subscriptions.json")
 
 
 def _ensure_subscriptions_file():
@@ -50,7 +52,7 @@ def add_subscriber(
     channels: Dict,
     schedule: Dict,
     categories: List[str]
-) -> bool:
+) -> Optional[str]:
     """
     添加订阅用户
 
@@ -62,19 +64,20 @@ def add_subscriber(
         categories: 关注类别列表
 
     Returns:
-        bool: 是否添加成功
+        Optional[str]: 成功返回新订阅者 id（"sub_..."），失败返回 None
     """
     _ensure_subscriptions_file()
 
     if not name or not email:
-        return False
+        return None
 
     data = safe_read_json(SUBSCRIPTIONS_FILE)
     if not data:
         data = {"subscribers": []}
 
+    subscriber_id = f"sub_{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
     new_subscriber = {
-        "id": f"sub_{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
+        "id": subscriber_id,
         "name": name,
         "email": email,
         "channels": channels,
@@ -91,7 +94,9 @@ def add_subscriber(
 
     data.setdefault("subscribers", []).append(new_subscriber)
 
-    return safe_write_json(SUBSCRIPTIONS_FILE, data)
+    if not safe_write_json(SUBSCRIPTIONS_FILE, data):
+        return None
+    return subscriber_id
 
 
 def remove_subscriber(subscriber_id: str) -> bool:

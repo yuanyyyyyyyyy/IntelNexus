@@ -12,7 +12,9 @@ from pathlib import Path
 
 
 class SearchHistory:
-    def __init__(self, storage_dir: str = "data"):
+    def __init__(self, storage_dir: str = None):
+        from intelnexus.config.paths import get_data_dir
+        storage_dir = storage_dir or get_data_dir()
         self.storage_dir = Path(storage_dir)
         self.history_file = self.storage_dir / "search_history.json"
         self.reports_dir = self.storage_dir / "reports"

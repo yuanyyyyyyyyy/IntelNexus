@@ -134,12 +134,14 @@ def _run_pipeline(key_prefix: str, model: str, selected_cats: list, push_enabled
         status.update(label=message, state="running")
 
     try:
+        # 邮件配置与定时调度器共用持久化来源（data/email_settings.json + 环境变量合并）
+        from intelnexus.config.email_settings import get_active_email_config
         result = run_briefing_pipeline(
             model=model,
             categories=selected_cats,
             push_enabled=push_enabled,
             org_name=get_text("default_org_name"),
-            email_config=st.session_state.get("email_config", None),
+            email_config=get_active_email_config(),
             on_progress=_ui_progress,
         )
         progress_bar.progress(1.0)

@@ -28,9 +28,10 @@ class CISAKEVSource(BaseSearchSource):
                  enabled: bool = True, requires_proxy: bool = False):
         super().__init__(name=name, category=category, enabled=enabled,
                          requires_proxy=requires_proxy)
-        self._cache_path = os.path.join(
-            os.path.dirname(__file__), "..", "..", "..", "data", "cache", "cisa_kev.json"
-        )
+        # 与 intelnexus.config.paths 同一锚点：仓库内 data/cache/（本地计算避免导入环）
+        self._cache_path = os.path.abspath(os.path.join(
+            os.path.dirname(__file__), "..", "..", "..", "..", "data", "cache", "cisa_kev.json"
+        ))
         self._cache = None
         self._cache_time = 0.0
 

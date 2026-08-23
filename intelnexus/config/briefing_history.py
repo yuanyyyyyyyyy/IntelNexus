@@ -18,7 +18,9 @@ logger = get_logger(__name__)
 class BriefingHistory:
     """简报历史管理器"""
     
-    def __init__(self, storage_dir: str = "data"):
+    def __init__(self, storage_dir: str = None):
+        from intelnexus.config.paths import get_data_dir
+        storage_dir = storage_dir or get_data_dir()
         self.storage_dir = storage_dir
         self.briefings_dir = os.path.join(storage_dir, "briefings")
         self.history_file = os.path.join(storage_dir, "briefing_history.json")

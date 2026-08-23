@@ -16,11 +16,12 @@ def isolated_subs(tmp_path, monkeypatch):
 
 
 def test_add_subscriber_success(isolated_subs):
-    ok = subs.add_subscriber(
+    sid = subs.add_subscriber(
         name="Alice", email="alice@example.com",
         channels={"email": True}, schedule={"enabled": True, "time": "09:00"},
         categories=["security", "ai"])
-    assert ok is True
+    # 返回值语义：成功返回订阅者 id（供调度器热更新使用），失败返回 None
+    assert isinstance(sid, str) and sid.startswith("sub_")
     data = json.loads(open(isolated_subs, encoding="utf-8").read())
     assert len(data["subscribers"]) == 1
     sub = data["subscribers"][0]
@@ -31,9 +32,9 @@ def test_add_subscriber_success(isolated_subs):
 
 
 def test_add_subscriber_requires_name_and_email(isolated_subs):
-    assert subs.add_subscriber("", "x@y.com", {}, {}, []) is False
-    assert subs.add_subscriber("Bob", "", {}, {}, []) is False
-    assert subs.add_subscriber("Bob", "b@y.com", {}, {}, []) is True
+    assert subs.add_subscriber("", "x@y.com", {}, {}, []) is None
+    assert subs.add_subscriber("Bob", "", {}, {}, []) is None
+    assert subs.add_subscriber("Bob", "b@y.com", {}, {}, [])
 
 
 def test_get_all_and_get_subscriber(isolated_subs):

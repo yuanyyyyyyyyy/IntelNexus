@@ -14,9 +14,9 @@ from intelnexus.topics.registry import Topic, topic_from_category
 
 logger = get_logger(__name__)
 
-TOPICS_FILE = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "data", "topics.json"
-)
+from intelnexus.config.paths import get_data_dir
+
+TOPICS_FILE = os.path.join(get_data_dir(), "topics.json")
 
 
 def _ensure_store():

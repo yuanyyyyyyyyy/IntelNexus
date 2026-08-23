@@ -112,12 +112,23 @@ class AIBriefingScheduler:
             self.scheduler.remove_job(job_id)
         
         from apscheduler.triggers.cron import CronTrigger
-        
-        trigger = CronTrigger(
-            day_of_week=",".join([day_map.get(d, d) for d in days]),
-            hour=hour,
-            minute=minute
-        )
+
+        # 时区：使用订阅者配置的 timezone（修复：原实现存而不读，时区选择形同虚设）
+        tz_name = schedule.get("timezone") or None
+        try:
+            trigger = CronTrigger(
+                day_of_week=",".join([day_map.get(d, d) for d in days]),
+                hour=hour,
+                minute=minute,
+                timezone=tz_name,
+            )
+        except Exception:
+            logger.warning(f"Invalid timezone {tz_name!r}, falling back to system default")
+            trigger = CronTrigger(
+                day_of_week=",".join([day_map.get(d, d) for d in days]),
+                hour=hour,
+                minute=minute,
+            )
         
         self.scheduler.add_job(
             func=self._execute_briefing,
@@ -190,7 +201,22 @@ class AIBriefingScheduler:
                     logger.error(f"Error generating HTML: {e}")
                 
                 # 6. 推送简报
+                # 邮件配置热生效：每次执行前刷新（修复：调度器的 notifier 在应用启动时
+                # 构造一次，用户之后在 UI 保存的 SMTP 配置需重启才能被定时任务用到）
+                try:
+                    from intelnexus.config.email_settings import get_active_email_config
+                    fresh_email_cfg = get_active_email_config()
+                    if fresh_email_cfg is not None:
+                        self.notifier.email_config = fresh_email_cfg
+                except Exception as e:
+                    logger.warning(f"Refresh email config failed, keeping previous: {e}")
                 results = self.notifier.notify(subscriber, briefing_md, briefing_html)
+                # 落盘推送结果（分析面板的推送成功率数据源；失败不影响主流程）
+                try:
+                    from intelnexus.config.push_log import record_push_result
+                    record_push_result(f"scheduled_{subscriber_id}", subscriber_id, results)
+                except Exception:
+                    pass
                 
                 # 7. 更新最后发送时间（仅在至少一个渠道成功时）
                 if any(results.values()):

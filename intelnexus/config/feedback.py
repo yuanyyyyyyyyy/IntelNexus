@@ -6,14 +6,16 @@
 - 用户行为追踪（简单版：点击+反馈）
 """
 import os
-import json
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from intelnexus.core.logger import get_logger
+from intelnexus.core.settings.file_lock import safe_read_json, safe_write_json
 
 logger = get_logger(__name__)
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "data")
+from intelnexus.config.paths import get_data_dir
+
+DATA_DIR = get_data_dir()
 FEEDBACK_FILE = os.path.join(DATA_DIR, "feedback.json")
 BEHAVIOR_FILE = os.path.join(DATA_DIR, "user_behavior.json")
 
@@ -27,26 +29,16 @@ def _ensure_data_dir():
 
 
 def _load_json(filepath: str) -> dict:
-    """加载JSON文件"""
+    """加载JSON文件（带文件锁，防多标签页并发写丢失）"""
     _ensure_data_dir()
-    if not os.path.exists(filepath):
-        return {}
-    try:
-        with open(filepath, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as e:
-        logger.warning(f"加载 {filepath} 失败: {e}")
-        return {}
+    data = safe_read_json(filepath)
+    return data if isinstance(data, dict) else {}
 
 
-def _save_json(filepath: str, data: dict):
-    """保存JSON文件"""
+def _save_json(filepath: str, data: dict) -> bool:
+    """保存JSON文件（带文件锁，防多标签页并发写丢失）"""
     _ensure_data_dir()
-    try:
-        with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        logger.warning(f"保存 {filepath} 失败: {e}")
+    return safe_write_json(filepath, data)
 
 
 def _cleanup_old_data(data: dict, days: int = RETENTION_DAYS) -> dict:
