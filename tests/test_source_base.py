@@ -30,7 +30,7 @@ def test_normalize_maps_url_to_link():
 
     src = Dummy(name="X")
     out = src.normalize_result({"title": "T", "url": "http://e.com", "description": "d"})
-    assert out["link"] == "http://e.com"
+    assert out["url"] == "http://e.com"
     assert out["title"] == "T"
     assert out["description"] == "d"
     assert out["source"] == "X"
@@ -65,7 +65,7 @@ def test_normalize_results_drops_missing_link():
         {},
     ])
     assert len(out) == 1
-    assert out[0]["link"] == "http://a.com"
+    assert out[0]["url"] == "http://a.com"
 
 
 def test_get_proxies_uses_proxy_gating():

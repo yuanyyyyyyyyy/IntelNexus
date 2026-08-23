@@ -123,7 +123,8 @@ class TestExploitDBMultiKeyword(unittest.TestCase):
         results = source.search("SQL injection")
 
         assert len(results) == 2
-        assert all(r["match_score"] == 1.0 for r in results)
+        # 现行契约：match_score 在 metadata 中
+        assert all(r["metadata"]["match_score"] == 1.0 for r in results)
 
     @patch("intelnexus.core.search.sources.exploitdb_source.ExploitDBSource._load_data")
     def test_match_score排序(self, mock_load_data):
@@ -139,7 +140,9 @@ class TestExploitDBMultiKeyword(unittest.TestCase):
         results = source.search("PHP SQL injection")
 
         assert len(results) == 2
-        assert results[0]["match_score"] > results[1]["match_score"]
+        # 现行契约：match_score 在 metadata 中（多关键词命中更多得分更高）
+        scores = [r["metadata"]["match_score"] for r in results]
+        assert scores[0] > scores[1]
 
 
 class TestHackerNewsMetadata(unittest.TestCase):
@@ -256,12 +259,12 @@ class TestNewSearchSources(unittest.TestCase):
         assert source.requires_proxy is False
 
     def test_arxiv_source_init(self):
-        """验证 arXiv 源初始化"""
+        """验证 arXiv 源初始化（境外学术源，默认需代理）"""
         from intelnexus.core.search.sources.arxiv_source import ArxivSource
         source = ArxivSource()
         assert source.name == "arXiv"
         assert source.category == "news"
-        assert source.requires_proxy is False
+        assert source.requires_proxy is True
 
     def test_tech_community_source_init(self):
         """验证技术社区源初始化"""
@@ -272,12 +275,12 @@ class TestNewSearchSources(unittest.TestCase):
         assert source.requires_proxy is False
 
     def test_huggingface_source_init(self):
-        """验证 HuggingFace 源初始化"""
+        """验证 HuggingFace 源初始化（境外源，默认需代理）"""
         from intelnexus.core.search.sources.huggingface_source import HuggingFaceSource
         source = HuggingFaceSource()
         assert source.name == "HuggingFace"
         assert source.category == "news"
-        assert source.requires_proxy is False
+        assert source.requires_proxy is True
 
     def test_qianxin_source_init(self):
         """验证奇安信源初始化"""

@@ -12,7 +12,7 @@ def test_web_adapter_normalizes():
         src = WebSearchSource()
         out = src.search("query", max_results=25)
     assert len(out) == 1
-    assert out[0]["link"] == "http://b.com"
+    assert out[0]["url"] == "http://b.com"
     assert out[0]["category"] == "web"
     assert out[0]["source"] == "Bing"
 
@@ -23,7 +23,7 @@ def test_news_adapter_normalizes():
         src = NewsSearchSource(api_key="k")
         out = src.search("query", max_results=15)
     assert len(out) == 1
-    assert out[0]["link"] == "http://n.com"  # url -> link
+    assert out[0]["url"] == "http://n.com"  
     assert out[0]["category"] == "news"
 
 
@@ -39,7 +39,7 @@ def test_darkweb_adapter_respects_availability():
         out = src.search("query")
     assert len(out) == 1
     assert out[0]["category"] == "darkweb"
-    assert out[0]["link"] == "http://x.onion/p"
+    assert out[0]["url"] == "http://x.onion/p"
 
 
 def test_darkweb_adapter_passes_advanced_params():

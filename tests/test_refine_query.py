@@ -82,8 +82,9 @@ class TestExpandQueryForSearch:
         assert result == "AI"
 
     def test_multiple_queries(self):
+        """多语言变体不再 OR 拼接（会稀释意图），仅取首个最贴近原意的变体。"""
         result = expand_query_for_search(["AI", "AI English", "AI news"])
-        assert result == "AI | AI English | " + "AI news"
+        assert result == "AI"
 
     def test_string_passthrough(self):
         """If input is already a string, return as-is."""

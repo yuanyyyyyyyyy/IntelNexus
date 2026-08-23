@@ -6,9 +6,11 @@ from intelnexus.core.search.modes import SEARCH_MODES
 
 
 def _make_registry():
-    """构造 registry 并替换内置源 search 行为，避免真实网络。"""
+    """构造 registry 并把全部源替换为可控 stub，避免任何真实网络。"""
     reg = SearchSourceRegistry(news_api_key=None, darkweb_advanced=False, tor_port=9150)
-    # 清空用户源，保证测试确定性
+    # 清空用户源；内置源以 stub 替换（测试按需注入 fake search）
+    for src in reg.all_sources():
+        src.search = lambda query, max_results=20: []
     reg._user_sources = []
     return reg
 
@@ -44,24 +46,30 @@ def test_disabled_source_excluded():
 def test_collect_dedup_across_sources():
     reg = _make_registry()
 
-    dup = {"title": "Dup", "link": "http://dup.com/x", "description": "d", "source": "S"}
+    dup = {"title": "Dup", "url": "http://dup.com/x", "description": "d", "source": "S"}
 
-    def fake_web(query, max_workers, max_results):
-        return [dup, {"title": "A", "link": "http://a.com", "description": "da", "source": "Web"}]
+    def make_stub(items):
+        def _search(query, max_results=20):
+            return [dict(i) for i in items]
+        return _search
 
-    def fake_news(query, max_results, api_key=None):
-        return [dict(dup), {"title": "B", "link": "http://b.com", "description": "db", "source": "News"}]
+    web_src, news_src, dark_src = (None, None, None)
+    for s in reg.all_sources():
+        if type(s).__name__ == "WebSearchSource":
+            web_src = s
+        elif type(s).__name__ == "NewsSearchSource":
+            news_src = s
+        elif type(s).__name__ == "DarkWebSource":
+            dark_src = s
+    web_src.search = make_stub([dup, {"title": "A", "url": "http://a.com",
+                                      "description": "da", "source": "Web"}])
+    news_src.search = make_stub([dict(dup), {"title": "B", "url": "http://b.com",
+                                             "description": "db", "source": "News"}])
+    dark_src.search = make_stub([])
 
-    def fake_darkweb(query, max_workers, advanced_mode, tor_port, ui_sites):
-        return []
+    results = reg.collect("all", "query", max_results=20, threads=3)
 
-    with patch("intelnexus.core.search.sources.web_source.get_web_results", side_effect=fake_web), \
-         patch("intelnexus.core.search.sources.news_source.get_news_results", side_effect=fake_news), \
-         patch("intelnexus.core.search.sources.darkweb_source.get_darkweb_results", side_effect=fake_darkweb), \
-         patch("intelnexus.core.search.sources.darkweb_source.darkweb_available", return_value=True):
-        results = reg.collect("all", "query", max_results=20, threads=3)
-
-    links = [r["link"] for r in results]
+    links = [r["url"] for r in results]
     assert links.count("http://dup.com/x") == 1  # 跨源去重
     assert "http://a.com" in links
     assert "http://b.com" in links
@@ -70,11 +78,7 @@ def test_collect_dedup_across_sources():
 
 def test_collect_empty_when_no_sources():
     reg = _make_registry()
-    with patch("intelnexus.core.search.sources.web_source.get_web_results", return_value=[]), \
-         patch("intelnexus.core.search.sources.news_source.get_news_results", return_value=[]), \
-         patch("intelnexus.core.search.sources.darkweb_source.get_darkweb_results", return_value=[]), \
-         patch("intelnexus.core.search.sources.darkweb_source.darkweb_available", return_value=True):
-        assert reg.collect("all", "q") == []
+    assert reg.collect("all", "q") == []
 
 
 def test_mode_categories_known():
