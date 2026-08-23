@@ -218,7 +218,10 @@ def get_enabled_sources() -> List[Dict]:
 
 def test_source(source_url: str, fetch_type: str = "web_engine", timeout: int = 10) -> Dict:
     """
-    测试数据源是否可用
+    测试数据源是否可用（与采集链路同款网络策略）
+
+    - 走 get_http_proxies() 代理（与 registry/scraper 一致；境外源直连会被墙）
+    - 403/拦截时自动用浏览器 UA 重试一次（部分站点屏蔽非浏览器 UA）
 
     Args:
         source_url: 数据源URL
@@ -243,28 +246,54 @@ def test_source(source_url: str, fetch_type: str = "web_engine", timeout: int = 
     if hostname in ("localhost", "0.0.0.0") or any(hostname.startswith(p) for p in blocked_prefixes):
         return {"success": False, "latency_ms": 0, "message": "禁止访问内网地址"}
 
+    # 与采集器同款代理策略（未配置代理时为 None，行为同直连）
     try:
-        start = time.time()
-        if fetch_type == "rss":
-            resp = requests.get(source_url, timeout=timeout, headers={"User-Agent": "IntelNexus/1.0"})
+        from intelnexus.core.search import get_http_proxies
+        proxies = get_http_proxies()
+    except Exception:
+        proxies = None
+
+    header_sets = [
+        {"User-Agent": "IntelNexus/1.0"},
+        {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                       "(KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+         "Accept": "*/*"},
+    ]
+
+    def _looks_like_feed(text_head: str) -> bool:
+        h = text_head[:300].lstrip().lower()
+        return h.startswith("<?xml") or "<rss" in h or "<feed" in h
+
+    last_msg = "测试失败"
+    for headers in header_sets:
+        try:
+            start = time.time()
+            resp = requests.get(source_url, timeout=timeout, headers=headers, proxies=proxies)
             elapsed = int((time.time() - start) * 1000)
-            if resp.status_code == 200 and ("<?xml" in resp.text[:200] or "<rss" in resp.text[:200] or "<feed" in resp.text[:200]):
-                return {"success": True, "latency_ms": elapsed, "message": f"RSS 源可用 ({elapsed}ms)"}
+            if fetch_type == "rss":
+                if resp.status_code == 200 and _looks_like_feed(resp.text):
+                    return {"success": True, "latency_ms": elapsed,
+                            "message": f"RSS 源可用 ({elapsed}ms)"}
+                if resp.status_code == 200:
+                    # 内容确定不是 feed，换 UA 也无意义，直接返回
+                    return {"success": False, "latency_ms": elapsed,
+                            "message": "响应 200 但内容不是 RSS/Atom 格式"}
             else:
-                return {"success": False, "latency_ms": elapsed, "message": f"响应状态码 {resp.status_code}，或内容非 RSS 格式"}
-        else:
-            resp = requests.get(source_url, timeout=timeout, headers={"User-Agent": "IntelNexus/1.0"})
-            elapsed = int((time.time() - start) * 1000)
-            if resp.status_code == 200:
-                return {"success": True, "latency_ms": elapsed, "message": f"网页可达 ({elapsed}ms)"}
+                if resp.status_code == 200:
+                    return {"success": True, "latency_ms": elapsed,
+                            "message": f"网页可达 ({elapsed}ms)"}
+            if resp.status_code in (401, 403):
+                last_msg = f"HTTP {resp.status_code}（站点拒绝访问），尝试浏览器 UA 重试…"
             else:
-                return {"success": False, "latency_ms": elapsed, "message": f"响应状态码 {resp.status_code}"}
-    except requests.Timeout:
-        return {"success": False, "latency_ms": timeout * 1000, "message": f"请求超时 ({timeout}s)"}
-    except requests.ConnectionError:
-        return {"success": False, "latency_ms": 0, "message": "连接失败，请检查 URL"}
-    except Exception as e:
-        return {"success": False, "latency_ms": 0, "message": f"测试失败: {type(e).__name__}"}
+                last_msg = f"响应状态码 {resp.status_code}"
+        except requests.Timeout:
+            last_msg = f"请求超时 ({timeout}s)"
+        except requests.ConnectionError:
+            last_msg = "连接失败，请检查 URL 或代理配置"
+        except Exception as e:
+            last_msg = f"测试失败: {type(e).__name__}"
+
+    return {"success": False, "latency_ms": 0, "message": last_msg}
 
 
 def import_sources_opml(opml_content: str, category: str) -> Dict[str, int]:
