@@ -26,7 +26,9 @@ from intelnexus.core.settings.file_lock import safe_read_json, safe_write_json
 logger = get_logger(__name__)
 
 
-DRAFTS_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "..", "data", "briefing_drafts.json")
+from intelnexus.config.paths import get_data_dir
+
+DRAFTS_FILE = os.path.join(get_data_dir(), "briefing_drafts.json")
 
 
 def _ensure_file():

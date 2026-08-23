@@ -20,9 +20,11 @@ from intelnexus.core.logger import get_logger
 logger = get_logger(__name__)
 
 
-# 关注点 → 简报板块映射（用于按订阅者 interests 过滤推送内容）
-# 细化映射粒度：每个interest映射到更具体的子板块
-_TOPIC_TO_SECTION = {
+# 旧静态映射：仅作回退保底（配置读取失败 / 关注点缺 section 字段时使用）。
+# 现主映射为动态构建：每个关注点配置中的 section 字段（briefing/config.py
+# 默认 + 用户覆盖文件）→ 简报板块。新增关注点只要带 section 即自动参与
+# 推送过滤，无需再改本文件（修复：原静态映射导致新关注点被当通用板块全量下发）。
+_LEGACY_TOPIC_TO_SECTION = {
     "ai_gov_usage": "AI 领域动态",
     "ai_china_narrative": "AI 领域动态",
     "ai_legislation": "政策法规动态",  # 修正：映射到政策法规动态
@@ -30,13 +32,26 @@ _TOPIC_TO_SECTION = {
     "cyber_vuln": "网络安全动态",
     "cyber_attack": "网络安全动态",
 }
-# 漏洞预警板块随网络安全动态一起被 interests 控制
-_SECTION_TO_TOPICS = {}
-for _tid, _sec in _TOPIC_TO_SECTION.items():
-    _SECTION_TO_TOPICS.setdefault(_sec, []).append(_tid)
-_SECTION_TO_TOPICS["近日新增安全漏洞预警"] = ["cyber_vuln", "cyber_attack"]
-# 政策法规动态现在也受interests控制
-_SECTION_TO_TOPICS["政策法规动态"] = ["ai_legislation"]
+_CVE_SECTION = "近日新增安全漏洞预警"
+_CYBER_SECTION = "网络安全动态"
+
+
+def _get_topic_to_section() -> Dict[str, str]:
+    """动态构建 关注点→简报板块 映射（每次调用读取最新配置，含用户自定义关注点）。"""
+    mapping = {}
+    try:
+        from intelnexus.briefing.config import get_all_categories
+        for cid, cfg in get_all_categories().items():
+            sec = (cfg or {}).get("section")
+            if sec:
+                mapping[cid] = sec
+    except Exception as e:
+        logger.warning(f"动态板块映射构建失败，回退静态映射: {e}")
+        return dict(_LEGACY_TOPIC_TO_SECTION)
+    # 兼容：未配置 section 的旧关注点回退静态映射
+    for tid, sec in _LEGACY_TOPIC_TO_SECTION.items():
+        mapping.setdefault(tid, sec)
+    return mapping
 
 
 def filter_briefing_by_interests(briefing_content: str, interests: list) -> str:
@@ -67,18 +82,20 @@ def filter_briefing_by_interests(briefing_content: str, interests: list) -> str:
     if current is not None:
         sections[current] = "\n".join(buf).strip()
 
-    # interests 命中的板块集合
+    # interests 命中的板块集合（动态映射；漏洞预警板块随网络安全板块一起解锁）
+    topic_to_section = _get_topic_to_section()
+    controllable_sections = set(topic_to_section.values()) | {_CVE_SECTION}
     wanted_sections = set()
     for tid in interests:
-        sec = _TOPIC_TO_SECTION.get(tid)
+        sec = topic_to_section.get(tid)
         if sec:
             wanted_sections.add(sec)
-        if tid in ("cyber_vuln", "cyber_attack"):
-            wanted_sections.add("近日新增安全漏洞预警")
+        if sec == _CYBER_SECTION:
+            wanted_sections.add(_CVE_SECTION)
 
     out = []
     for sec in order:
-        if sec in wanted_sections or sec not in _SECTION_TO_TOPICS:
+        if sec in wanted_sections or sec not in controllable_sections:
             # 通用板块或命中板块：原样保留
             out.append(f"## {sec}")
             out.append(sections.get(sec, ""))

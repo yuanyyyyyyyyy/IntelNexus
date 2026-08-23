@@ -11,7 +11,9 @@ from intelnexus.core.logger import get_logger
 
 logger = get_logger(__name__)
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "data")
+from intelnexus.config.paths import get_data_dir
+
+DATA_DIR = get_data_dir()
 KB_FILE = os.path.join(DATA_DIR, "knowledge_base.json")
 
 

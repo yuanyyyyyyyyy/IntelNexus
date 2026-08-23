@@ -19,9 +19,9 @@ logger = get_logger(__name__)
 
 
 # 用户覆盖文件位于主项目 data 目录（主项目与子项目共享同一 data 卷）
-WATCH_CATEGORIES_FILE = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "data", "watch_categories.json"
-)
+from intelnexus.config.paths import get_data_dir
+
+WATCH_CATEGORIES_FILE = os.path.join(get_data_dir(), "watch_categories.json")
 
 
 def _default_categories() -> Dict:
@@ -116,4 +116,32 @@ def remove_category(cid: str) -> bool:
     else:
         # 默认类目无法物理删除，标记为禁用
         overrides[cid] = {"enabled": False}
+    return safe_write_json(WATCH_CATEGORIES_FILE, overrides)
+
+
+def get_disabled_default_ids() -> List[str]:
+    """列出被禁用的默认关注点 ID（供 UI 提供"恢复默认"入口）。
+
+    判定标准：ID 在代码默认 WATCH_CATEGORIES 中，且用户覆盖文件里
+    enabled 显式为 False。
+    """
+    _ensure_file()
+    defaults = _default_categories()
+    overrides = safe_read_json(WATCH_CATEGORIES_FILE) or {}
+    disabled = []
+    for cid in defaults:
+        ov = overrides.get(cid)
+        if isinstance(ov, dict) and ov.get("enabled", True) is False:
+            disabled.append(cid)
+    return disabled
+
+
+def restore_default(cid: str) -> bool:
+    """恢复一个被禁用的默认关注点：移除禁用覆盖，回到代码默认配置。"""
+    if cid not in _default_categories():
+        return False
+    _ensure_file()
+    overrides = safe_read_json(WATCH_CATEGORIES_FILE) or {}
+    if cid in overrides:
+        del overrides[cid]
     return safe_write_json(WATCH_CATEGORIES_FILE, overrides)
