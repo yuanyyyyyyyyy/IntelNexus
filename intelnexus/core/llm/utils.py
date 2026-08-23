@@ -3,8 +3,6 @@ from urllib.parse import urljoin
 from langchain_openai import ChatOpenAI
 from langchain_ollama import ChatOllama
 from typing import Callable, Optional, List
-from langchain_anthropic import ChatAnthropic
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.callbacks.base import BaseCallbackHandler
 from intelnexus.core.settings import get as get_config
 
@@ -55,6 +53,32 @@ def _get_config_values():
 
 def _normalize_model_name(name: str) -> str:
     return name.strip().lower()
+
+
+def _lazy_chat_class(class_name: str, install_hint: str):
+    """按名懒加载可选的 LangChain 聊天模型类。
+
+    anthropic/google-genai SDK 属可选扩展（requirements-extras.txt），
+    未安装时返回一个实例化即报错的占位类，错误信息含安装指引，
+    避免「装了核心包但选了 Anthropic/Google 类型就 ImportError 崩溃」。
+    """
+    import importlib
+
+    module_map = {
+        "ChatAnthropic": ("langchain_anthropic", "anthropic"),
+        "ChatGoogleGenerativeAI": ("langchain_google_genai", "google-genai"),
+    }
+    try:
+        module_name, _ = module_map[class_name]
+        module = importlib.import_module(module_name)
+        return getattr(module, class_name)
+    except (ImportError, KeyError):
+        class _MissingOptionalSDK:
+            def __init__(self, *args, **kwargs):
+                raise RuntimeError(
+                    f"模型类型需要可选依赖 {module_map.get(class_name, ('?','?'))[0]}，请先安装：{install_hint}"
+                )
+        return _MissingOptionalSDK
 
 
 def _get_ollama_base_url() -> Optional[str]:
@@ -228,7 +252,9 @@ def resolve_model_config(model_choice: str):
                         }
                     elif model_type == "anthropic":
                         return {
-                            "class": ChatAnthropic,
+                            # 懒加载：langchain-anthropic 属可选扩展依赖，缺失时给出可操作提示
+                            "class": _lazy_chat_class("ChatAnthropic",
+                                "pip install langchain-anthropic (或 requirements-extras.txt)"),
                             "constructor_params": {
                                 "model": config_params.get("model_name", custom_model_name),
                                 "api_key": config_params.get("api_key"),
@@ -236,7 +262,8 @@ def resolve_model_config(model_choice: str):
                         }
                     elif model_type == "google":
                         return {
-                            "class": ChatGoogleGenerativeAI,
+                            "class": _lazy_chat_class("ChatGoogleGenerativeAI",
+                                "pip install langchain-google-genai (或 requirements-extras.txt)"),
                             "constructor_params": {
                                 "model": config_params.get("model_name", custom_model_name),
                                 "google_api_key": config_params.get("api_key"),
@@ -246,7 +273,8 @@ def resolve_model_config(model_choice: str):
                         base_url = config_params.get("base_url", "")
                         if "/anthropic" in (base_url or "").lower():
                             return {
-                                "class": ChatAnthropic,
+                                "class": _lazy_chat_class("ChatAnthropic",
+                                    "pip install langchain-anthropic (或 requirements-extras.txt)"),
                                 "constructor_params": {
                                     "model": config_params.get("model_name", custom_model_name),
                                     "anthropic_api_key": config_params.get("api_key"),
