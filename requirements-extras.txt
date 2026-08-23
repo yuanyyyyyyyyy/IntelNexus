@@ -1,0 +1,16 @@
+# IntelNexus 可选扩展依赖
+# 安装方式: pip install -r requirements-extras.txt
+# 不安装也能正常运行全部核心功能；缺失时相关功能自动降级：
+#   - langchain-anthropic / langchain-google-genai : Anthropic 与 Gemini 云端模型接入
+#     （未安装时侧边栏添加模型请选 OpenAI 兼容类型）
+#   - sentence-transformers : 语义可信度评分增强（国内需 HuggingFace 镜像，
+#     默认 DISABLE_SENTENCE_TRANSFORMER=true 已禁用，不装等效）
+#   - spacy + 语言模型 : 知识图谱的实体抽取增强（未安装时用规则分词降级）
+#     spacy 模型需额外执行:
+#       python -m spacy download zh_core_web_sm
+#       python -m spacy download en_core_web_sm
+
+langchain-anthropic>=0.1.0
+langchain-google-genai>=0.0.5
+sentence-transformers>=2.2.0
+spacy>=3.6.0

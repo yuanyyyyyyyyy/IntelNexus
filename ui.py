@@ -121,6 +121,11 @@ render_morandi_theme_css()
 # --- Check for onboarding ---
 onboarding_active = render_onboarding()
 
+# --- First-run model setup hint (no LLM configured yet) ---
+if not onboarding_active:
+    from intelnexus.ui.model_setup_wizard import render_model_setup_hint
+    render_model_setup_hint()
+
 # --- Inject icon CSS ---
 from intelnexus.ui.icons import render_icon_css
 render_icon_css()

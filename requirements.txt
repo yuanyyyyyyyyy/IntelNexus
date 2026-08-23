@@ -1,7 +1,8 @@
-# IntelNexus 核心依赖
+# IntelNexus 核心依赖（必装）
 # 安装方式: pip install -r requirements.txt
+# 可选功能（Anthropic/Gemini 模型、语义分析、知识图谱 NLP）见 requirements-extras.txt
 
-# HTTP请求
+# HTTP请求与解析
 requests>=2.31.0
 beautifulsoup4>=4.12.0
 lxml>=4.9.0
@@ -12,23 +13,18 @@ streamlit>=1.28.0
 # 环境配置
 python-dotenv>=1.0.0
 
-# LLM框架
+# LLM框架（核心：OpenAI兼容API覆盖 DeepSeek/通义/智谱/Moonshot 等；Ollama 覆盖本地模型）
 langchain>=0.1.0
 langchain-core>=0.1.0
 langchain-openai>=0.0.5
 langchain-ollama>=0.0.1
-langchain-anthropic>=0.1.0
-langchain-community>=0.0.10
-langchain-google-genai>=0.0.5
 
 # 报告导出
 fpdf2>=2.7.0
 python-docx>=1.1.0
 openpyxl>=3.1.0
 
-# 可信度评估与知识图谱
-sentence-transformers>=2.2.0
-spacy>=3.6.0
+# 知识图谱可视化（轻量纯Python）
 networkx>=3.1
 pyvis>=0.3.1
 numpy>=1.24.0
@@ -36,9 +32,5 @@ numpy>=1.24.0
 # CLI框架
 click>=8.0.0
 
-# AI简报模块
+# AI简报模块（定时调度）
 apscheduler>=3.10.0
-
-# 额外依赖
-reportlab>=4.0
-portalocker>=2.8.0
