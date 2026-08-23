@@ -31,6 +31,48 @@ def _watch_category_options() -> dict:
         return {}
 
 
+def _render_scheduler_status_banner() -> None:
+    """订阅管理面板顶部显示定时推送真实状态。
+
+    状态判定（按优先级）：
+    - 调度器未运行（--no-scheduler 或 CLI 模式）→ info 提示
+    - 运行中但无任务（无启用的订阅者）→ warning
+    - 运行中且有任务 → success + 下次推送时间；SMTP 未配置时附加警告
+    """
+    try:
+        from intelnexus.briefing.scheduler_registry import get_scheduler
+        sched = get_scheduler()
+    except ImportError:
+        sched = None
+
+    if sched is None:
+        st.info(get_text("sched_off"))
+        return
+
+    jobs = []
+    try:
+        jobs = [j for j in sched.scheduler.get_jobs() if j.next_run_time is not None]
+    except Exception:
+        pass
+
+    if not jobs:
+        st.warning(get_text("sched_no_jobs"))
+        return
+
+    next_runs = sorted(j.next_run_time for j in jobs)
+    nxt = next_runs[0].strftime("%m-%d %H:%M")
+    st.success(get_text("sched_on").format(n=nxt, count=len(jobs)))
+
+    # 任务在跑但 SMTP 缺失：推送注定失败，必须显式提醒
+    try:
+        from intelnexus.config.email_settings import get_email_settings
+        cfg = get_email_settings() or {}
+        if not (cfg.get("smtp_server") and cfg.get("username")):
+            st.warning(get_text("sched_smtp_missing"))
+    except Exception:
+        pass
+
+
 def _delete_with_confirm(key: str, label: str = None, help: str = None,
                          use_container_width: bool = False) -> bool:
     """两段式删除确认（无 fragment 的轻量实现）。
@@ -619,6 +661,10 @@ def render_subscriptions_panel():
     from intelnexus.config.email_settings import (
         get_email_settings, save_email_settings, test_email_settings
     )
+
+    # 调度器状态横幅：让「定时推送是否真的在跑」首屏可见
+    # （修复：调度器随 UI 启动，但 SMTP 未配/无订阅任务时静默，用户误以为推送在工作）
+    _render_scheduler_status_banner()
 
     with st.expander(get_text("email_settings"), expanded=False):
         stored_cfg = get_email_settings()
