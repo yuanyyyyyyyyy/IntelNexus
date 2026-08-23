@@ -165,6 +165,8 @@ class NewsSearch:
             if source.get("requires_proxy") and not get_http_proxies():
                 logger.info(f"跳过需代理源 {source['name']}（未配置代理）")
                 continue
+            # 计数器在 try 外初始化：异常路径下日志语句仍可安全访问
+            source_results = 0
             try:
                 if "{query}" in source["url"]:
                     url = source["url"].format(query=quote(query))
@@ -174,7 +176,6 @@ class NewsSearch:
                 headers = {"User-Agent": random.choice(USER_AGENTS)}
                 response = self._fetch_rss_with_retry(url, headers, get_http_proxies_for(source.get("requires_proxy")))
 
-                source_results = 0
                 source_limit = 5 if source["name"] == "Solidot" else max_results
                 if response.status_code == 200:
                     try:

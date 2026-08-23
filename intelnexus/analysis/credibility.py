@@ -197,6 +197,11 @@ class SourceScorer:
 
         # Fallback: score by source type (case-insensitive partial match)
         source_lower = source_name.lower()
+        # 聚合器精确名优先（修复：'Bing' 曾被 'Bing News' 的子串包含规则
+        # 误判为新闻源 0.7，聚合器按设计应为 0.5）
+        for agg in self.AGGREGATOR_SOURCES:
+            if source_lower == agg.lower():
+                return 0.5
         for ns in self.NEWS_SOURCES:
             if ns.lower() in source_lower or source_lower in ns.lower():
                 return 0.7
