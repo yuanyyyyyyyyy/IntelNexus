@@ -292,6 +292,13 @@ PROTECTION_PROMPT = """根据今日安全动态，生成"防护建议与厂商�
 """
 
 
+class _SafeFormatDict(dict):
+    """format_map 用的安全字典：缺失键返回空串而非抛 KeyError。"""
+
+    def __missing__(self, key):
+        return ""
+
+
 def get_prompt(prompt_name: str, **kwargs) -> str:
     """
     获取并格式化提示词
@@ -319,7 +326,9 @@ def get_prompt(prompt_name: str, **kwargs) -> str:
     kb_context = kwargs.pop("kb_context", "")
     prompt = prompts.get(prompt_name, "")
     if prompt and kwargs:
-        prompt = prompt.format(**kwargs)
+        # 缺失占位符回退为空串：个别调用方未传 credibility_summary 等可选
+        # 字段时降级而不是让整个简报生成崩溃（KeyError 曾致多个板块失败）
+        prompt = prompt.format_map(_SafeFormatDict(kwargs))
     if prompt and kb_context:
         prompt += (
             "\n\n=== 用户历史知识库收藏（关联参考） ===\n"

@@ -23,7 +23,9 @@ class CNVDSource(BaseSearchSource):
     BASE_URL = "https://www.cvd.org.cn"
 
     def __init__(self, name: str = "CNVD", category: str = CATEGORY_THREAT_INTEL,
-                 enabled: bool = True, requires_proxy: bool = True):
+                 enabled: bool = True, requires_proxy: bool = False):
+        # requires_proxy=False：CNVD 是国内源可直连，默认走代理反而会被
+        # 「未配置代理→跳过」逻辑排除（与文件头注释"国内可直连"一致）
         super().__init__(name=name, category=category, enabled=enabled,
                          requires_proxy=requires_proxy)
 

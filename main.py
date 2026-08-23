@@ -75,7 +75,7 @@ from intelnexus.core.search.modes import SEARCH_MODES_LABELS
 
 import config as app_config
 
-from intelnexus.core.llm.core import get_llm, expand_query, generate_summary
+from intelnexus.core.llm.core import get_llm, expand_query, expand_query_for_search, generate_summary
 from intelnexus.core.search.registry import get_registry
 
 logger = get_logger(__name__)
@@ -141,11 +141,14 @@ def _register_search_commands():
             click.echo(f"Error: {e}")
             return
 
-        click.echo("[1/4] Refining query...")
-        refined_query = expand_query(query)
-        click.echo(f"    Refined: {' | '.join(refined_query)}")
+        click.echo(f"[1/4] Refining query...")
+        refined_variants = expand_query(query)
+        click.echo(f"    Refined: {' | '.join(refined_variants)}")
 
         click.echo(f"[2/4] Searching {mode}...")
+        # expand_query 返回多语言变体列表；搜索串取首个最贴近原意的变体
+        # （修复：曾直接把 list 传入 execute_search，缓存键 unhashable 导致 CLI 搜索必崩）
+        refined_query = expand_query_for_search(refined_variants)
         search_results = execute_search(mode, refined_query, threads)
         click.echo(f"    Found {len(search_results)} results")
 
