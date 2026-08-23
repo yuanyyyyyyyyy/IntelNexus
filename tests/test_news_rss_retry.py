@@ -24,13 +24,15 @@ def test_fetch_rss_with_retry_succeeds_after_two_failures():
     ]
     good = _make_response()
 
-    with patch.object(requests, "get", side_effect=[*bad, good]) as mock_get:
+    mock_session = MagicMock()
+    mock_session.get.side_effect = [*bad, good]
+    with patch("intelnexus.core.search.news.get_session", return_value=mock_session):
         resp = searcher._fetch_rss_with_retry("https://36kr.com/feed", {}, None)
 
     assert resp is good
-    assert mock_get.call_count == 3
+    assert mock_session.get.call_count == 3
     # 超时阈值应为统一的 10s
-    _, kwargs = mock_get.call_args_list[0]
+    _, kwargs = mock_session.get.call_args_list[0]
     assert kwargs["timeout"] == RSS_FETCH_TIMEOUT
 
 
@@ -39,7 +41,9 @@ def test_fetch_rss_with_retry_exhausted_raises():
     searcher = NewsSearch()
     err = requests.exceptions.ConnectTimeout("connect timeout")
 
-    with patch.object(requests, "get", side_effect=err):
+    mock_session = MagicMock()
+    mock_session.get.side_effect = err
+    with patch("intelnexus.core.search.news.get_session", return_value=mock_session):
         with pytest.raises(requests.exceptions.RequestException):
             searcher._fetch_rss_with_retry("https://36kr.com/feed", {}, None, max_retries=2)
 

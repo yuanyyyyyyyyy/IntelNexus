@@ -6,20 +6,24 @@
 """
 
 from unittest.mock import patch
+from datetime import datetime, timedelta
 
 # 模拟采集结果（覆盖 AI 动态 / 网络安全 / CVE 三个板块的类目）
+# 日期必须动态生成：analyzer 有 max_days 时间窗过滤，硬编码日期会随
+# 时间流逝掉出窗口导致数据被静默丢弃（曾致「未加载LLM」断言失败）
+_RECENT = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
 MOCK_COLLECTED = {
     "ai_gov_usage": [
         {"title": "Gov adopts AI", "description": "agency deploys assistant",
-         "source": "Gov", "published_at": "2026-07-21", "url": "http://gov/x"},
+         "source": "Gov", "published_at": _RECENT, "url": "http://gov/x"},
     ],
     "ai_china_narrative": [
         {"title": "China narrative", "description": "official narrative",
-         "source": "Xinhua", "published_at": "2026-07-21"},
+         "source": "Xinhua", "published_at": _RECENT},
     ],
     "cyber_vuln": [
         {"title": "CVE-2026-0001", "description": "rce in widget",
-         "source": "NVD", "published_at": "2026-07-21"},
+         "source": "NVD", "published_at": _RECENT},
     ],
 }
 
@@ -71,7 +75,7 @@ class TestBriefingPipeline:
     @patch("intelnexus.config.subscriptions.get_active_subscribers", return_value=[])
     @patch("intelnexus.config.briefing_history.get_briefing_history")
     @patch("intelnexus.core.llm.core.get_llm", return_value=None)
-    @patch("ai_briefing.pipeline.AIBriefingCollector")
+    @patch("intelnexus.briefing.pipeline.AIBriefingCollector")
     def test_pipeline_runs_and_reports(self, mock_collector, mock_get_llm,
                                        mock_history, mock_subs):
         """无 LLM、无订阅者时仍可生成简报并返回统计。"""
@@ -97,12 +101,12 @@ class TestBriefingPipeline:
         assert 0.0 <= min(percents) <= max(percents) <= 1.0
         assert events[-1][0] == "push_skipped"
 
-    @patch("ai_briefing.pipeline.AIBriefingNotifier")
+    @patch("intelnexus.briefing.pipeline.AIBriefingNotifier")
     @patch("intelnexus.config.subscriptions.get_active_subscribers",
            return_value=[{"name": "sub1", "email": "a@b.c"}])
     @patch("intelnexus.config.briefing_history.get_briefing_history")
     @patch("intelnexus.core.llm.core.get_llm", return_value=None)
-    @patch("ai_briefing.pipeline.AIBriefingCollector")
+    @patch("intelnexus.briefing.pipeline.AIBriefingCollector")
     def test_pipeline_push_count(self, mock_collector, mock_get_llm,
                                  mock_history, mock_subs, mock_notifier):
         """开启推送且有一个订阅者时，pushed 应计为 1。"""
@@ -118,12 +122,12 @@ class TestBriefingPipeline:
         assert result["pushed"] == 1
         mock_notifier.return_value.notify.assert_called_once()
 
-    @patch("ai_briefing.pipeline.AIBriefingNotifier")
+    @patch("intelnexus.briefing.pipeline.AIBriefingNotifier")
     @patch("intelnexus.config.subscriptions.get_active_subscribers",
            return_value=[{"name": "sub1", "email": "a@b.c"}])
     @patch("intelnexus.config.briefing_history.get_briefing_history")
     @patch("intelnexus.core.llm.core.get_llm", return_value=None)
-    @patch("ai_briefing.pipeline.AIBriefingCollector")
+    @patch("intelnexus.briefing.pipeline.AIBriefingCollector")
     def test_pipeline_push_isolation(self, mock_collector, mock_get_llm,
                                      mock_history, mock_subs, mock_notifier):
         """单个订阅者推送异常不应中断流水线，pushed 仍为 0。"""

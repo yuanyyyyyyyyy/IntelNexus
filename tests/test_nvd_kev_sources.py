@@ -1,4 +1,5 @@
-"""NVD 与 CISA KEV 搜索源测试。"""
+"""NVD 与 CISA KEV 搜索源测试（现行契约：经共享 Session，输出统一 url 键）。"""
+import time
 import pytest
 from unittest.mock import patch, MagicMock
 
@@ -21,22 +22,29 @@ class TestNVDSource:
             ]
         }
         mock_resp.raise_for_status = MagicMock()
-        with patch("intelnexus.core.search.sources.nvd_source.requests.get", return_value=mock_resp):
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        with patch("intelnexus.core.search.sources.nvd_source.get_session",
+                   return_value=mock_session):
             src = NVDSearchSource()
             results = src.search("test query", max_results=5)
         assert len(results) == 1
         r = results[0]
         assert r["title"] == "CVE-2025-12345 (CVSS 9.8)"
-        assert "nvd.nist.gov" in r["link"]
+        assert "nvd.nist.gov" in r["url"]
         assert r["source"] == "NVD"
-        assert r["category"] == "web"
+        # BaseSearchSource 默认类别为 web
+        assert r["category"] == src.category
 
     def test_empty_response(self):
         from intelnexus.core.search.sources.nvd_source import NVDSearchSource
         mock_resp = MagicMock()
         mock_resp.json.return_value = {"vulnerabilities": []}
         mock_resp.raise_for_status = MagicMock()
-        with patch("intelnexus.core.search.sources.nvd_source.requests.get", return_value=mock_resp):
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        with patch("intelnexus.core.search.sources.nvd_source.get_session",
+                   return_value=mock_session):
             src = NVDSearchSource()
             results = src.search("nothing")
         assert results == []
@@ -52,8 +60,9 @@ class TestCISAKEVSource:
              "shortDescription": "SQL injection", "dueDate": "2025-11-01", "requiredAction": "Update"},
         ]
         src = CISAKEVSource()
+        # 现行缓存契约：_cache 为整表列表，_cache_time 为时间戳（需在 TTL 内）
         src._cache = vulns
-        src._cache_time = 999999999999
+        src._cache_time = time.time()
         results = src.search("VendorA")
         assert len(results) == 1
         assert "CVE-2025-0001" in results[0]["title"]

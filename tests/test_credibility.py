@@ -177,8 +177,8 @@ class TestConflictDetector:
         from intelnexus.analysis.credibility import ConflictDetector
         detector = ConflictDetector()
         results = [
-            {"title": "t1", "link": "u1", "source": "S1"},
-            {"title": "t2", "link": "u2", "source": "S2"},
+            {"title": "Investment forecast update", "link": "u1", "source": "S1"},
+            {"title": "Investment forecast report", "link": "u2", "source": "S2"},
         ]
         scraped = {
             "u1": "Investment was 100 billion dollars",
@@ -194,8 +194,8 @@ class TestConflictDetector:
         from intelnexus.analysis.credibility import ConflictDetector
         detector = ConflictDetector()
         results = [
-            {"title": "t1", "link": "u1", "source": "S1"},
-            {"title": "t2", "link": "u2", "source": "S2"},
+            {"title": "Market timeline outlook", "link": "u1", "source": "S1"},
+            {"title": "Market timeline history", "link": "u2", "source": "S2"},
         ]
         scraped = {
             "u1": "The event happened in 2020",
@@ -211,8 +211,8 @@ class TestConflictDetector:
         from intelnexus.analysis.credibility import ConflictDetector
         detector = ConflictDetector()
         results = [
-            {"title": "t1", "link": "u1", "source": "S1"},
-            {"title": "t2", "link": "u2", "source": "S2"},
+            {"title": "Policy impact assessment today", "link": "u1", "source": "S1"},
+            {"title": "Policy impact assessment review", "link": "u2", "source": "S2"},
         ]
         scraped = {
             "u1": "This is a positive breakthrough with great success and growth",

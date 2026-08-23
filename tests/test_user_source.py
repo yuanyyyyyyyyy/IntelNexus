@@ -1,4 +1,7 @@
-"""UserSource：rss / web_engine / onion 三种抓取方式与代理收口。"""
+"""UserSource：rss / web_engine / onion 三种抓取方式与代理收口。
+
+现行契约：HTTP 经 get_session(proxies)；输出统一 url 键。
+"""
 from unittest.mock import MagicMock, patch
 
 from intelnexus.core.search.sources.user_source import UserSource
@@ -26,20 +29,26 @@ ONION_HTML = """<html><body>
 </body></html>"""
 
 
+def _session_returning(resp):
+    s = MagicMock()
+    s.get.return_value = resp
+    return s
+
+
 def test_user_source_rss():
     cfg = {"id": "1", "name": "MyRSS", "url": "http://rss.com/feed?q={query}",
            "fetch_type": "rss", "category": "news", "enabled": True}
     src = UserSource(cfg)
     assert src.category == "news"
     assert src.fetch_type == "rss"
-    with patch("intelnexus.core.search.sources.user_source.requests.get",
-               return_value=_resp(RSS_XML)) as mg:
+    with patch("intelnexus.core.search.sources.user_source.get_session",
+               return_value=_session_returning(_resp(RSS_XML))) as mg:
         out = src.search("query", max_results=10)
-    # 断言代理收口：requires_proxy=False 时不传代理
-    _, kwargs = mg.call_args
-    assert kwargs.get("proxies") is None
+    # 断言代理收口：requires_proxy=False 时以 None 调用 get_session（强制直连）
+    args, _ = mg.call_args
+    assert args[0] is None
     assert len(out) == 1
-    assert out[0]["link"] == "http://rss.com/1"
+    assert out[0]["url"] == "http://rss.com/1"
     assert out[0]["source"] == "MyRSS"
 
 
@@ -47,11 +56,11 @@ def test_user_source_web_engine():
     cfg = {"id": "2", "name": "MyEngine", "url": "http://engine.com/s?q={query}",
            "fetch_type": "web_engine", "category": "web", "enabled": True}
     src = UserSource(cfg)
-    with patch("intelnexus.core.search.sources.user_source.requests.get",
-               return_value=_resp(WEB_HTML)):
+    with patch("intelnexus.core.search.sources.user_source.get_session",
+               return_value=_session_returning(_resp(WEB_HTML))):
         out = src.search("query", max_results=10)
     assert len(out) == 2
-    assert out[0]["link"] == "http://result.com/a"
+    assert out[0]["url"] == "http://result.com/a"
 
 
 def test_user_source_onion_uses_tor_proxy():
@@ -69,7 +78,7 @@ def test_user_source_onion_uses_tor_proxy():
     # 断言走 Tor SOCKS 代理（通过 session.proxies 设置）
     assert "socks5h" in str(session_mock.proxies)
     assert len(out) == 1
-    assert ".onion" in out[0]["link"]
+    assert ".onion" in out[0]["url"]
 
 
 def test_user_source_blocks_noise():
@@ -79,6 +88,7 @@ def test_user_source_blocks_noise():
     noise = """<rss><channel>
     <item><title>Wiki</title><link>https://en.wikipedia.org/wiki/X</link><description>d</description></item>
     </channel></rss>"""
-    with patch("intelnexus.core.search.sources.user_source.requests.get", return_value=_resp(noise)):
+    with patch("intelnexus.core.search.sources.user_source.get_session",
+               return_value=_session_returning(_resp(noise))):
         out = src.search("query", max_results=10)
     assert out == []  # 域名黑名单命中被过滤
