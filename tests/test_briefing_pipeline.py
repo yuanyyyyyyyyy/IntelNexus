@@ -68,9 +68,9 @@ class TestBriefingAnalyzer:
 class TestBriefingPipeline:
     """pipeline.run_briefing_pipeline 的单元行为（外部依赖全 mock）。"""
 
-    @patch("src.config.subscriptions.get_active_subscribers", return_value=[])
-    @patch("src.config.briefing_history.get_briefing_history")
-    @patch("shared.llm.core.get_llm", return_value=None)
+    @patch("intelnexus.config.subscriptions.get_active_subscribers", return_value=[])
+    @patch("intelnexus.config.briefing_history.get_briefing_history")
+    @patch("intelnexus.core.llm.core.get_llm", return_value=None)
     @patch("ai_briefing.pipeline.AIBriefingCollector")
     def test_pipeline_runs_and_reports(self, mock_collector, mock_get_llm,
                                        mock_history, mock_subs):
@@ -98,10 +98,10 @@ class TestBriefingPipeline:
         assert events[-1][0] == "push_skipped"
 
     @patch("ai_briefing.pipeline.AIBriefingNotifier")
-    @patch("src.config.subscriptions.get_active_subscribers",
+    @patch("intelnexus.config.subscriptions.get_active_subscribers",
            return_value=[{"name": "sub1", "email": "a@b.c"}])
-    @patch("src.config.briefing_history.get_briefing_history")
-    @patch("shared.llm.core.get_llm", return_value=None)
+    @patch("intelnexus.config.briefing_history.get_briefing_history")
+    @patch("intelnexus.core.llm.core.get_llm", return_value=None)
     @patch("ai_briefing.pipeline.AIBriefingCollector")
     def test_pipeline_push_count(self, mock_collector, mock_get_llm,
                                  mock_history, mock_subs, mock_notifier):
@@ -119,10 +119,10 @@ class TestBriefingPipeline:
         mock_notifier.return_value.notify.assert_called_once()
 
     @patch("ai_briefing.pipeline.AIBriefingNotifier")
-    @patch("src.config.subscriptions.get_active_subscribers",
+    @patch("intelnexus.config.subscriptions.get_active_subscribers",
            return_value=[{"name": "sub1", "email": "a@b.c"}])
-    @patch("src.config.briefing_history.get_briefing_history")
-    @patch("shared.llm.core.get_llm", return_value=None)
+    @patch("intelnexus.config.briefing_history.get_briefing_history")
+    @patch("intelnexus.core.llm.core.get_llm", return_value=None)
     @patch("ai_briefing.pipeline.AIBriefingCollector")
     def test_pipeline_push_isolation(self, mock_collector, mock_get_llm,
                                      mock_history, mock_subs, mock_notifier):

@@ -32,7 +32,7 @@ def test_user_source_rss():
     src = UserSource(cfg)
     assert src.category == "news"
     assert src.fetch_type == "rss"
-    with patch("shared.search.sources.user_source.requests.get",
+    with patch("intelnexus.core.search.sources.user_source.requests.get",
                return_value=_resp(RSS_XML)) as mg:
         out = src.search("query", max_results=10)
     # 断言代理收口：requires_proxy=False 时不传代理
@@ -47,7 +47,7 @@ def test_user_source_web_engine():
     cfg = {"id": "2", "name": "MyEngine", "url": "http://engine.com/s?q={query}",
            "fetch_type": "web_engine", "category": "web", "enabled": True}
     src = UserSource(cfg)
-    with patch("shared.search.sources.user_source.requests.get",
+    with patch("intelnexus.core.search.sources.user_source.requests.get",
                return_value=_resp(WEB_HTML)):
         out = src.search("query", max_results=10)
     assert len(out) == 2
@@ -62,9 +62,9 @@ def test_user_source_onion_uses_tor_proxy():
     assert src.requires_proxy is True
     session_mock = MagicMock()
     session_mock.get.return_value = _resp(ONION_HTML)
-    with patch("shared.search.sources.user_source.requests.Session",
+    with patch("intelnexus.core.search.sources.user_source.requests.Session",
                return_value=session_mock), \
-         patch("shared.search.get_http_proxies", return_value={"http": "socks5h://127.0.0.1:9150"}):
+         patch("intelnexus.core.search.get_http_proxies", return_value={"http": "socks5h://127.0.0.1:9150"}):
         out = src.search("query", max_results=10)
     # 断言走 Tor SOCKS 代理（通过 session.proxies 设置）
     assert "socks5h" in str(session_mock.proxies)
@@ -79,6 +79,6 @@ def test_user_source_blocks_noise():
     noise = """<rss><channel>
     <item><title>Wiki</title><link>https://en.wikipedia.org/wiki/X</link><description>d</description></item>
     </channel></rss>"""
-    with patch("shared.search.sources.user_source.requests.get", return_value=_resp(noise)):
+    with patch("intelnexus.core.search.sources.user_source.requests.get", return_value=_resp(noise)):
         out = src.search("query", max_results=10)
     assert out == []  # 域名黑名单命中被过滤

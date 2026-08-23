@@ -88,8 +88,8 @@ class TestQueryRefinementPipeline:
 class TestExecuteSearch:
     """Test the parallel multi-source search function."""
 
-    @patch("shared.search.sources.news_source.get_news_results", return_value=MOCK_NEWS_RESULTS)
-    @patch("shared.search.sources.web_source.get_web_results", return_value=MOCK_WEB_RESULTS)
+    @patch("intelnexus.core.search.sources.news_source.get_news_results", return_value=MOCK_NEWS_RESULTS)
+    @patch("intelnexus.core.search.sources.web_source.get_web_results", return_value=MOCK_WEB_RESULTS)
     def test_search_all_mode(self, mock_web, mock_news):
         """Search mode 'all' should call both web and news."""
         from main import execute_search
@@ -99,7 +99,7 @@ class TestExecuteSearch:
         assert mock_web.called
         assert mock_news.called
 
-    @patch("shared.search.sources.web_source.get_web_results", return_value=MOCK_WEB_RESULTS)
+    @patch("intelnexus.core.search.sources.web_source.get_web_results", return_value=MOCK_WEB_RESULTS)
     def test_search_web_only(self, mock_web):
         """Search mode 'web' should only call web search."""
         from main import execute_search
@@ -107,7 +107,7 @@ class TestExecuteSearch:
         results = execute_search("web", "AI regulation", 2)
         assert mock_web.called
 
-    @patch("shared.search.sources.news_source.get_news_results", return_value=MOCK_NEWS_RESULTS)
+    @patch("intelnexus.core.search.sources.news_source.get_news_results", return_value=MOCK_NEWS_RESULTS)
     def test_search_news_only(self, mock_news):
         """Search mode 'news' should only call news search."""
         from main import execute_search
@@ -125,8 +125,8 @@ class TestCLISearchFlow:
 
     @patch("main.generate_summary", return_value=MOCK_SUMMARY)
     @patch("main.scrape_multiple", return_value=MOCK_SCRAPED)
-    @patch("shared.search.sources.news_source.get_news_results", return_value=MOCK_NEWS_RESULTS)
-    @patch("shared.search.sources.web_source.get_web_results", return_value=MOCK_WEB_RESULTS)
+    @patch("intelnexus.core.search.sources.news_source.get_news_results", return_value=MOCK_NEWS_RESULTS)
+    @patch("intelnexus.core.search.sources.web_source.get_web_results", return_value=MOCK_WEB_RESULTS)
     @patch("main.get_llm")
     def test_cli_search_produces_output_file(
         self, mock_llm, mock_web, mock_news, mock_scrape, mock_summary, tmp_path
@@ -151,8 +151,8 @@ class TestCLISearchFlow:
 
     @patch("main.generate_summary", return_value=MOCK_SUMMARY)
     @patch("main.scrape_multiple", return_value=MOCK_SCRAPED)
-    @patch("shared.search.sources.news_source.get_news_results", return_value=MOCK_NEWS_RESULTS)
-    @patch("shared.search.sources.web_source.get_web_results", return_value=MOCK_WEB_RESULTS)
+    @patch("intelnexus.core.search.sources.news_source.get_news_results", return_value=MOCK_NEWS_RESULTS)
+    @patch("intelnexus.core.search.sources.web_source.get_web_results", return_value=MOCK_WEB_RESULTS)
     @patch("main.get_llm")
     def test_cli_search_expand_query_output(
         self, mock_llm, mock_web, mock_news, mock_scrape, mock_summary, tmp_path
@@ -194,7 +194,7 @@ class TestScrapeToCredibilityPipeline:
                     result.append(vec)
                 return np.array(result)
 
-        with patch("src.analysis.credibility.load_sentence_model", return_value=MockModel()):
+        with patch("intelnexus.analysis.credibility.load_sentence_model", return_value=MockModel()):
             from intelnexus.analysis.credibility import SourceScorer
             scorer = SourceScorer()
             results = scorer.evaluate(sample_search_results, sample_scraped_content)
@@ -215,7 +215,7 @@ class TestScrapeToCredibilityPipeline:
                     result.append(vec)
                 return np.array(result)
 
-        with patch("src.analysis.evidence_tracer.load_sentence_model", return_value=MockModel()):
+        with patch("intelnexus.analysis.evidence_tracer.load_sentence_model", return_value=MockModel()):
             from intelnexus.analysis.evidence_tracer import EvidenceTracer
             tracer = EvidenceTracer()
             result = tracer.trace(sample_report, sample_scraped_content)
@@ -248,8 +248,8 @@ class TestGenerateSummary:
         mock_prompt_instance = MagicMock()
         mock_prompt_instance.__or__ = MagicMock(return_value=mock_intermediate)
 
-        with patch("shared.llm.core.ChatPromptTemplate", return_value=mock_prompt_instance):
-            with patch("shared.llm.core.StrOutputParser"):
+        with patch("intelnexus.core.llm.core.ChatPromptTemplate", return_value=mock_prompt_instance):
+            with patch("intelnexus.core.llm.core.StrOutputParser"):
                 result = generate_summary(mock_llm, "AI regulation", MOCK_SCRAPED, "all")
                 assert isinstance(result, str)
 
@@ -268,8 +268,8 @@ class TestGenerateSummary:
         mock_prompt_instance = MagicMock()
         mock_prompt_instance.__or__ = MagicMock(return_value=mock_intermediate)
 
-        with patch("shared.llm.core.ChatPromptTemplate", return_value=mock_prompt_instance):
-            with patch("shared.llm.core.StrOutputParser"):
+        with patch("intelnexus.core.llm.core.ChatPromptTemplate", return_value=mock_prompt_instance):
+            with patch("intelnexus.core.llm.core.StrOutputParser"):
                 result = generate_summary(mock_llm, "test", MOCK_SCRAPED, "all")
                 assert isinstance(result, str)
                 assert "超时" in result or "错误" in result or "error" in result.lower()
@@ -284,8 +284,8 @@ class TestFullPipelineIntegration:
 
     @patch("main.generate_summary", return_value=MOCK_SUMMARY)
     @patch("main.scrape_multiple", return_value=MOCK_SCRAPED)
-    @patch("shared.search.sources.news_source.get_news_results", return_value=MOCK_NEWS_RESULTS)
-    @patch("shared.search.sources.web_source.get_web_results", return_value=MOCK_WEB_RESULTS)
+    @patch("intelnexus.core.search.sources.news_source.get_news_results", return_value=MOCK_NEWS_RESULTS)
+    @patch("intelnexus.core.search.sources.web_source.get_web_results", return_value=MOCK_WEB_RESULTS)
     @patch("main.get_llm")
     def test_full_flow_produces_report(
         self, mock_llm, mock_web, mock_news, mock_scrape, mock_summary, tmp_path
@@ -311,8 +311,8 @@ class TestFullPipelineIntegration:
 
     @patch("main.generate_summary", return_value=MOCK_SUMMARY)
     @patch("main.scrape_multiple", return_value=MOCK_SCRAPED)
-    @patch("shared.search.sources.news_source.get_news_results", return_value=MOCK_NEWS_RESULTS)
-    @patch("shared.search.sources.web_source.get_web_results", return_value=MOCK_WEB_RESULTS)
+    @patch("intelnexus.core.search.sources.news_source.get_news_results", return_value=MOCK_NEWS_RESULTS)
+    @patch("intelnexus.core.search.sources.web_source.get_web_results", return_value=MOCK_WEB_RESULTS)
     @patch("main.get_llm")
     def test_full_flow_data_types(
         self, mock_llm, mock_web, mock_news, mock_scrape, mock_summary, tmp_path
