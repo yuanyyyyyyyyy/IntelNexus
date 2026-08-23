@@ -144,7 +144,11 @@ def _fetch_engine(engine_name: str, query: str, page: int = 0):
             except Exception:
                 continue
     except Exception as e:
-        logger.warning(f"{engine_name} search error: {e}")
+        # Yahoo/DuckDuckGo/Yandex 在中国经常被墙，降级为 DEBUG 避免日志噪音
+        if engine_name in ("Yahoo", "DuckDuckGo", "Yandex"):
+            logger.debug(f"{engine_name} search error (expected in CN): {type(e).__name__}")
+        else:
+            logger.warning(f"{engine_name} search error: {e}")
     return results
 
 

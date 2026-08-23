@@ -49,6 +49,10 @@ class NewsSearch:
     # 类级速率限制：记录上次 NewsAPI 限频时间，避免重复请求
     _newsapi_last_rate_limit = 0.0
     _newsapi_cooldown_seconds = 300  # 5分钟冷却期
+    # 每日请求计数器（开发者账户限制 100次/24h，预留余量）
+    _newsapi_daily_count = 0
+    _newsapi_daily_limit = 80
+    _newsapi_daily_reset_time = 0.0  # 上次重置时间戳
 
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key
@@ -66,9 +70,21 @@ class NewsSearch:
         if not self.news_client:
             return results
 
-        # 速率限制：如果刚被限频，跳过请求
-        import time
         now = time.time()
+
+        # 每日计数器重置（每24小时）
+        if now - NewsSearch._newsapi_daily_reset_time > 86400:
+            if NewsSearch._newsapi_daily_count > 0:
+                logger.info(f"NewsAPI 每日计数器重置（昨日请求 {NewsSearch._newsapi_daily_count} 次）")
+            NewsSearch._newsapi_daily_count = 0
+            NewsSearch._newsapi_daily_reset_time = now
+
+        # 每日限额检查
+        if NewsSearch._newsapi_daily_count >= NewsSearch._newsapi_daily_limit:
+            logger.info(f"NewsAPI 已达每日限额 ({NewsSearch._newsapi_daily_limit})，跳过本次请求")
+            return results
+
+        # 速率限制：如果刚被限频，跳过请求
         if now - self._newsapi_last_rate_limit < self._newsapi_cooldown_seconds:
             remaining = int(self._newsapi_cooldown_seconds - (now - self._newsapi_last_rate_limit))
             logger.info(f"NewsAPI 冷却中（剩余 {remaining}s），跳过本次请求")
@@ -83,6 +99,7 @@ class NewsSearch:
             )
 
             if response.get("status") == "ok":
+                NewsSearch._newsapi_daily_count += 1
                 for article in response.get("articles", []):
                     results.append({
                         "title": article.get("title", ""),
@@ -96,12 +113,14 @@ class NewsSearch:
                     })
             elif response.get("code") == "rateLimited":
                 NewsSearch._newsapi_last_rate_limit = now
-                logger.warning(f"NewsAPI 限频，进入 {self._newsapi_cooldown_seconds}s 冷却期")
+                NewsSearch._newsapi_daily_count += 1  # 限频请求也计入配额
+                logger.warning(f"NewsAPI 限频，进入 {self._newsapi_cooldown_seconds}s 冷却期 (今日已用 {NewsSearch._newsapi_daily_count}/{NewsSearch._newsapi_daily_limit})")
         except Exception as e:
             err_str = str(e).lower()
             if "rate" in err_str or "429" in err_str:
                 NewsSearch._newsapi_last_rate_limit = now
-                logger.warning(f"NewsAPI 限频异常，进入 {self._newsapi_cooldown_seconds}s 冷却期: {e}")
+                NewsSearch._newsapi_daily_count += 1
+                logger.warning(f"NewsAPI 限频异常，进入 {self._newsapi_cooldown_seconds}s 冷却期 (今日已用 {NewsSearch._newsapi_daily_count}/{NewsSearch._newsapi_daily_limit}): {e}")
             else:
                 logger.warning(f"NewsAPI search error: {e}")
 
