@@ -93,33 +93,31 @@ python main.py ui          # Web界面 -> http://localhost:8501
 python main.py search -q "关键词" -m qwen2.5:7b  # CLI模式
 ```
 
-### 推荐：使用 conda base 一键启动（无需手动激活）
+### 推荐：双击脚本一键启动（Windows，已入库）
 
-> **本地脚本说明**：`run.bat` 与 `setup.bat` 为 **Windows 平台本地专属启动脚本**（自动定位本机 Anaconda/Miniconda 并激活 `base` 环境），**不纳入 Git 仓库**（已在 `.gitignore` 中忽略）。仓库克隆后这两个文件不会存在，但你可以从本机复制或在本地自行创建；以下也提供了等价的纯命令行步骤。
-
-项目提供一个 Windows 脚本完成初始化与启动，无需手动激活环境（脚本仅存在于本地）：
+项目提供通用 Windows 脚本（自动创建隔离的 `.venv` 虚拟环境，不污染系统 Python）：
 
 ```bash
-setup.bat              # 一键初始化：激活 conda base -> 安装 requirements.txt 依赖 -> 下载 spaCy 中英文模型（只需一次）
-setup.bat --no-models  # 离线/已下载模型时，仅安装依赖、跳过 spaCy 模型下载
-run.bat ui             # 之后每次启动：双击 run.bat（或 run.bat ui）启动 Web 界面
-run.bat search -q "关键词"
+setup.bat              # 一键初始化：创建 .venv -> 安装核心依赖 -> 生成 .env 模板（只需一次）
+run.bat                # 之后每次启动：双击即可启动 Web 界面
+run.bat search -q "关键词"   # CLI模式
 ```
 
-`setup.bat` 会先激活本机 Anaconda/Miniconda 的 `base` 环境（若未安装 conda 则使用系统 `python`），升级 pip 并安装 `requirements.txt` 全部依赖，再下载 spaCy 模型。
+`setup.bat` 自动探测系统 Python（3.10+），在项目目录创建独立 `.venv` 并安装 `requirements.txt` 核心依赖；可选扩展（Anthropic/Gemini SDK、语义分析、NLP）见 `requirements-extras.txt`，缺失时相关功能自动降级。国内网络安装慢可按脚本提示使用清华镜像。
 
-`run.bat` 自动定位本机 Anaconda/Miniconda 并激活 `base` 环境（缺失则回退系统 `python`），启动前会自检核心依赖（streamlit / click / intelnexus），若未安装会提示先运行 `setup.bat`，避免直接崩溃。
+`run.bat` 优先使用 `.venv`，缺失时回退系统 Python；启动前自检核心依赖，未安装会提示先运行 `setup.bat`。
 
-**纯命令行等价操作**（适用于非 Windows 或没有脚本时）：
+**纯命令行等价操作**（适用于非 Windows）：
 
 ```bash
-conda activate base                       # 或：source activate base
-pip install -r requirements.txt           # 安装依赖
-python -m spacy download en_core_web_sm zh_core_web_sm   # 下载 spaCy 模型（可选）
-python main.py ui                          # 启动 Web 界面
+python -m venv .venv                    # 创建虚拟环境（可选但推荐）
+.venv\Scripts\activate                  # Windows 激活 / source .venv/bin/activate (Linux/macOS)
+pip install -r requirements.txt         # 安装核心依赖
+copy .env.example .env                  # 生成环境配置模板（全可留空）
+python main.py ui                       # 启动 Web 界面
 ```
 
-> 注意：spaCy 模型需从 GitHub 下载，若网络受限可使用 `setup.bat --no-models` 跳过（有脚本时），并手动离线安装已下载好的 `zh_core_web_sm` wheel。
+**分发给别人**：运行 `make_release.bat` 生成干净的分发 zip——自动排除你的 `.env`（密钥）、`data/`（订阅者隐私与历史简报）、`.venv`、`.git`，并在打包前扫描密钥泄露。
 
 ---
 
