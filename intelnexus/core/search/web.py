@@ -12,15 +12,9 @@ from intelnexus.core.search import USER_AGENTS, get_http_proxies, is_blocked_dom
 
 logger = get_logger(__name__)
 
-# 词典/翻译/百科类域名黑名单（避免搜索"critical"等词汇时返回词典条目）
-BLOCKED_DOMAINS_WEB = [
-    "dictionary.cambridge.org", "iciba.com", "baike.baidu.com",
-    "zdic.net", "dict.cn", "youdao.com", "deepmind.com",
-    "en.wikipedia.org", "zh.wikipedia.org", "wikiwand.com",
-    "merriam-webster.com", "oxfordlearnersdictionaries.com",
-    "collinsdictionary.com", "macmillandictionary.com",
-    "铭版", "知乎", "百度百科", "快懂百科", "萌娘百科",
-]
+# 词典/翻译/百科类域名黑名单：已并入 core.search 顶层单源 BLOCKED_DOMAINS，
+# 此处保留兼容别名（原局部名单中的中文死规则与 deepmind.com 已剔除）
+from intelnexus.core.search import BLOCKED_DOMAINS as BLOCKED_DOMAINS_WEB  # noqa: F401
 
 ENGINE_CONFIGS = {
     "Bing": {

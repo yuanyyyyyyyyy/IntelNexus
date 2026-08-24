@@ -21,7 +21,8 @@ logger = get_logger(__name__)
 
 DEGRADE_THRESHOLD = 3
 DOWN_THRESHOLD = 6
-_health_lock = threading.Lock()
+# RLock：update_health 的「读-改-写」需全程持锁，内部再调 save_health 时可重入
+_health_lock = threading.RLock()
 
 # 与 intelnexus.config.paths.get_data_dir() 同一锚点（本地计算以避免跨包导入）
 HEALTH_FILE = os.path.abspath(os.path.join(
@@ -133,10 +134,15 @@ def get_all_health() -> List[SourceHealth]:
 
 def update_health(source_name: str, result_count: int, latency_ms: float,
                   error: Optional[str] = None):
-    """统一更新入口：成功时 result_count > 0，失败时 error 非 None。"""
-    health = get_health(source_name)
-    if error is not None:
-        health.record_failure(error)
-    else:
-        health.record_success(latency_ms)
-    save_health(health)
+    """统一更新入口：成功时 result_count > 0，失败时 error 非 None。
+
+    读-改-写全程持锁（RLock 允许内部 save_health 重入），
+    否则并发源线程会互相覆盖计数。
+    """
+    with _health_lock:
+        health = get_health(source_name)
+        if error is not None:
+            health.record_failure(error)
+        else:
+            health.record_success(latency_ms)
+        save_health(health)

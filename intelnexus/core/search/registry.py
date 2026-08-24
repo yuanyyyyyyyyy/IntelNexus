@@ -11,8 +11,10 @@ collect() 出口统一收口：
 黑名单 / 相关性过滤保留在各源内部（web/news/user 已做，darkweb 走用户源 onion 时也做），
 避免在 registry 重复过滤改变结果集语义。
 """
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 from typing import Dict, List, Optional
 
 from intelnexus.core.logger import get_logger
@@ -283,57 +285,75 @@ class SearchSourceRegistry:
                 logger.warning(f"源 {src.name} 检索异常: {e}")
                 return []
 
-        with ThreadPoolExecutor(max_workers=max(1, min(threads, len(sources) or 1))) as executor:
-            future_map = {
-                executor.submit(_timed_search, src, query, max_results): src
-                for src in sources
-            }
-            try:
-                for f in as_completed(future_map, timeout=global_timeout):
+        executor = ThreadPoolExecutor(max_workers=max(1, min(threads, len(sources) or 1)))
+        future_map = {
+            executor.submit(_timed_search, src, query, max_results): src
+            for src in sources
+        }
+        try:
+            for f in as_completed(future_map, timeout=global_timeout):
+                try:
+                    raw.extend(f.result() or [])
+                except Exception as e:
+                    logger.warning(f"源检索异常: {e}")
+
+                # 检查全局超时
+                if time.time() - t0 > global_timeout:
+                    logger.info(f"全局超时，停止收集剩余结果")
+                    break
+        except FuturesTimeoutError:
+            logger.info(f"全局超时 ({global_timeout}s)，收集已完成的结果")
+            # 收集已完成的 futures
+            for f in future_map:
+                if f.done():
                     try:
                         raw.extend(f.result() or [])
-                    except Exception as e:
-                        logger.warning(f"源检索异常: {e}")
+                    except Exception:
+                        pass
+        finally:
+            # 不等待仍在跑的慢线程：with-block 的隐式 shutdown(wait=True) 会把
+            # 全局超时形同虚设（调用方墙钟时间被最慢单源拖满）。
+            # cancel_futures 撤销尚未启动的任务；运行中的任务由各自请求超时兜底。
+            executor.shutdown(wait=False, cancel_futures=True)
 
-                    # 检查全局超时
-                    if time.time() - t0 > global_timeout:
-                        logger.info(f"全局超时，停止收集剩余结果")
-                        break
-            except TimeoutError:
-                logger.info(f"全局超时 ({global_timeout}s)，收集已完成的结果")
-                # 收集已完成的 futures
-                for f in future_map:
-                    if f.done():
-                        try:
-                            raw.extend(f.result() or [])
-                        except Exception:
-                            pass
-
-        # 出口统一收口：跨源去重（按 url 归一化 + 标题相似度）
+        # 出口统一收口：跨源去重（URL 精确去重 + 归一化标题键 + 受控模糊比对）
         seen_urls = set()
-        seen_titles = set()
+        seen_title_keys = set()
+        seen_titles: List[str] = []
         unique: List[Dict] = []
+
+        def _title_key(t: str) -> str:
+            """标题归一化键：小写、去空白与常见标点，供精确重复判定。"""
+            return re.sub(r"[\s\W_]+", "", t.lower())
+
         for r in raw:
             url = (r.get("url") or r.get("link") or "").rstrip("/")
-            title = (r.get("title") or "").strip().lower()
+            title = (r.get("title") or "").strip()
 
             # URL去重
             if not url or url in seen_urls:
                 continue
 
-            # 标题相似度去重（Levenshtein距离 > 0.8 视为重复）
-            if title and len(title) > 10:
-                is_duplicate = False
+            tkey = _title_key(title)
+            # 1) 归一化标题精确重复（O(1)）
+            if title and len(tkey) >= 8 and tkey in seen_title_keys:
+                continue
+            # 2) 长度相近的标题才做字符集相似度比对（控制 O(n²) 规模；
+            #    阈值 0.92 收紧——旧值 0.8 对中文短标题误杀率过高）
+            is_duplicate = False
+            if title and len(tkey) >= 8:
                 for seen_title in seen_titles:
-                    if _title_similarity(title, seen_title) > 0.8:
+                    if abs(len(seen_title) - len(title)) <= max(6, len(title) // 5) \
+                            and _title_similarity(_title_key(seen_title), tkey) > 0.92:
                         is_duplicate = True
                         break
                 if is_duplicate:
                     continue
 
             seen_urls.add(url)
-            if title and len(title) > 10:
-                seen_titles.add(title)
+            if title and len(tkey) >= 8:
+                seen_title_keys.add(tkey)
+                seen_titles.append(title)
 
             # 兜底归一化
             norm = r if isinstance(r, dict) else {}
@@ -348,15 +368,43 @@ class SearchSourceRegistry:
             norm.setdefault("_source_weight", 1.0)
             unique.append(norm)
 
-        # 按 权重 × 时效性 排序
-        unique.sort(key=lambda x: x.get("_source_weight", 1.0), reverse=True)
+        # 按 权重 × 时效性 排序（兑现注释承诺）：主键源权重降序，次键发布时间新者在前。
+        # 次键专用映射（区别于相关性过滤用的 get_freshness_score）：
+        # 无日期/解析失败给中间值 0.5——多数网页结果不带日期，不应被压到已知旧文之下。
+        def _recency_rank(item: Dict) -> float:
+            pub = str(item.get("published_at") or "").strip()
+            if not pub or pub.lower().startswith("unknown"):
+                return 0.5
+            try:
+                from datetime import datetime, timedelta
+                if "T" in pub:
+                    dt = datetime.fromisoformat(pub.replace("Z", "+00:00"))
+                else:
+                    dt = datetime.strptime(pub[:10], "%Y-%m-%d")
+                if dt.tzinfo is not None:
+                    dt = dt.replace(tzinfo=None)
+                delta = datetime.now() - dt
+                if delta <= timedelta(days=1):
+                    return 1.0
+                if delta <= timedelta(days=7):
+                    return 0.8
+                if delta <= timedelta(days=30):
+                    return 0.6
+                return 0.0
+            except Exception:
+                return 0.5
+
+        unique.sort(
+            key=lambda x: (x.get("_source_weight", 1.0), _recency_rank(x)),
+            reverse=True,
+        )
 
         return unique
 
 
 def _title_similarity(title1: str, title2: str) -> float:
     """
-    计算两个标题的相似度（简化版Levenshtein距离）。
+    计算两个标题的相似度（字符集合重叠率，Jaccard 系数）。
 
     Args:
         title1: 标题1

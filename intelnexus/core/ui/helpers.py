@@ -1,11 +1,12 @@
 import socket
 import streamlit as st
 
+# 从唯一事实源派生（旧版此处硬编码四键拷贝，导致 threat 模式在 UI 不可达）。
+# 结构兼容既有调用方：{mode: [i18n_key, 中文名]}
+from intelnexus.core.search.modes import SEARCH_MODES as _CORE_SEARCH_MODES
+
 SEARCH_MODES = {
-    "all": ["mode_all", "全部来源"],
-    "web": ["mode_web", "网页搜索"],
-    "news": ["mode_news", "新闻资讯"],
-    "darkweb": ["mode_darkweb", "暗网搜索"],
+    mode: list(values[:2]) for mode, values in _CORE_SEARCH_MODES.items()
 }
 
 DEFAULT_TOR_PORT = 9150
