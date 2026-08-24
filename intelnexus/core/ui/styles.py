@@ -32,8 +32,33 @@ def render_light_theme_css():
 def render_morandi_theme_css():
     st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Text:wght@300;400;500;600&display=swap');
+    /* 图标兜底（修复：Material Icons 连字字体被墙时，折叠面板图标
+       显示为原始英文文本 keyboard_arrow_right 叠在中文标题上）。
+       隐藏连字文本，用纯 CSS 画一个旋转箭头，零字体依赖。 */
+    span[data-testid="stIconMaterial"] {
+        font-size: 0 !important;
+        width: 16px !important;
+        height: 16px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        position: relative !important;
+    }
+    span[data-testid="stIconMaterial"]::before {
+        content: "";
+        width: 7px !important;
+        height: 7px !important;
+        border-right: 2px solid #8A8A8A !important;
+        border-bottom: 2px solid #8A8A8A !important;
+        transform: rotate(45deg) !important;
+        transition: transform 0.15s ease !important;
+        display: block !important;
+    }
+    [data-testid="stExpander"][open] span[data-testid="stIconMaterial"]::before {
+        transform: rotate(225deg) !important;
+    }
 
+    /* 字体栈去掉被墙的 Google Fonts @import（曾拖慢 CSS 应用且加载失败） */
     :root {
         --morandi-bg: #E8E4DF;
         --morandi-sidebar: #DCD8D3;
