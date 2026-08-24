@@ -1,5 +1,6 @@
 import os
 import html
+import re
 import time
 import streamlit as st
 from datetime import datetime
@@ -9,7 +10,7 @@ from intelnexus.core.logger import get_logger
 from intelnexus.core.search.registry import SearchSourceRegistry, get_registry
 from intelnexus.core.search.scraper import scrape_multiple
 from intelnexus.core.llm.core import get_llm, expand_query, expand_query_for_search, generate_summary
-from intelnexus.core.llm.utils import BufferedStreamingHandler, check_ollama_model_available, is_vision_model
+from intelnexus.core.llm.utils import BufferedStreamingHandler, check_ollama_model_available, is_vision_model, is_ollama_local_model
 from intelnexus.analysis.credibility import SourceScorer, ConsistencyAnalyzer, ConflictDetector
 from intelnexus.analysis.intelligence_graph import get_entity_extractor, IntelligenceGraph
 from intelnexus.analysis.evidence_tracer import EvidenceTracer
@@ -29,6 +30,21 @@ logger = get_logger(__name__)
 
 # 预检 / 网络相关超时（秒），避免 Ollama 未启动时长时间无响应
 _PREFLIGHT_TIMEOUT = 3.0
+
+# TL;DR 速览卡提取：与 core.llm.core._build_system_prompt 的报告模板对应
+_TLDR_PATTERN = re.compile(
+    r"##\s*TL;DR\s*情报速览\s*\n(.*?)(?=\n---|\n## |\Z)", re.DOTALL)
+
+
+def _extract_tldr_card(report: str) -> str:
+    """从报告中提取「## TL;DR 情报速览」卡片段落。
+
+    无速览段或输入为空时返回空串。供管线第 9 阶段渲染速览卡使用。
+    """
+    if not report:
+        return ""
+    m = _TLDR_PATTERN.search(report)
+    return m.group(1).strip() if m else ""
 
 
 @st.cache_data(ttl=200, show_spinner=False)
@@ -85,12 +101,15 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
         with preflight_placeholder.status(get_text("checking_model"), expanded=True) as pre_st:
             if is_vision_model(model):
                 st.warning(get_text("vision_model_warning").format(model=model))
-            available, msg = check_ollama_model_available(model, timeout=_PREFLIGHT_TIMEOUT)
-            if not available:
-                pre_st.update(label=get_text("preflight_failed"), state="error")
-                status_slot.error(msg)
-                st.session_state.search_completed = False
-                return
+            # 仅本地 Ollama 直连模型才做 Ollama 预检；云端自定义模型（如
+            # DeepSeek API）跳过，否则会误报「无法连接 Ollama 服务」
+            if is_ollama_local_model(model):
+                available, msg = check_ollama_model_available(model, timeout=_PREFLIGHT_TIMEOUT)
+                if not available:
+                    pre_st.update(label=get_text("preflight_failed"), state="error")
+                    status_slot.error(msg)
+                    st.session_state.search_completed = False
+                    return
             pre_st.update(label=get_text("preflight_ok"), state="complete")
     except Exception as e:
         logger.error(f"模型预检失败 [{type(e).__name__}]: {e}", exc_info=True)
@@ -235,10 +254,14 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
                 st.session_state.streamed_summary = cached_payload.get("streamed_summary", "")
                 st.session_state.evidence_data = cached_payload.get("evidence_data")
                 logger.info("命中查询缓存，已恢复报告全文与证据链产物")
-            else:
-                # 旧缓存文件无新增字段：以当前查询的抓取内容补跑报告与证据链，
-                # 复用现有异常边界，避免跨查询残留串味
-                logger.info("命中查询缓存但缺少报告/证据链字段，触发补跑降级")
+            # 缓存的报告为空（旧版时序缺陷：阶段5先写缓存、报告尚未生成）
+            # 或缓存根本没有报告字段：都触发补跑，避免用户看到空白报告。
+            if not st.session_state.get("streamed_summary"):
+                if cached_payload.get("streamed_summary", "") == "" and (
+                        "streamed_summary" in cached_payload or "evidence_data" in cached_payload):
+                    logger.warning("缓存中的报告为空（疑似旧版写入时序缺陷产物），触发补跑降级")
+                else:
+                    logger.info("命中查询缓存但缺少报告/证据链字段，触发补跑降级")
                 try:
                     st.session_state.streamed_summary = generate_summary(
                         llm, query, st.session_state.scraped, search_mode,
@@ -256,8 +279,11 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
                     logger.error(f"缓存补跑报告/证据链失败: {e}", exc_info=True)
                     st.session_state.streamed_summary = ""
                     st.session_state.evidence_data = None
-            st.session_state.cache_restored = True
-            st.success("命中查询缓存，跳过重复检索与抓取")
+            st.session_state.cache_restored = bool(st.session_state.get("streamed_summary"))
+            if cache_restored:
+                st.success("命中查询缓存，已恢复上次报告")
+            else:
+                st.success("命中查询缓存，跳过重复检索与抓取（报告将重新生成）")
         except Exception as e:
             logger.error(f"恢复缓存失败 [{type(e).__name__}]: {e}", exc_info=True)
             status_slot.warning(f"缓存数据不完整，将重新分析：{e}")
@@ -423,6 +449,8 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
                 kg_context = _kg_out["kg_context"]
 
                 # 缓存搜索结果 + 抓取内容 + 可信度/KG 中间产物，供后续相同查询直接复用
+                # 注意：此刻报告尚未生成，streamed_summary 为空——报告完成后会二次回写，
+                # 避免把「空报告」固化进缓存（旧版时序缺陷曾导致缓存命中后白屏）。
                 set_result(result_key, {
                     "results": st.session_state.results,
                     "scraped": st.session_state.scraped,
@@ -495,6 +523,29 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
             logger.error(f"证据链追踪失败: {e}")
             st.session_state.evidence_data = None
 
+    # 报告与证据链就绪后二次回写查询级缓存：把阶段5写入的「空报告」占位
+    # 替换为完整产物。TTL 内重复同查询时可直接恢复全文（P0 时序缺陷修复）。
+    if result_key and st.session_state.get("streamed_summary") \
+            and cached_payload is not None:
+        try:
+            set_result(result_key, {
+                "results": st.session_state.results,
+                "scraped": st.session_state.scraped,
+                "credibility_data": st.session_state.get("credibility_data"),
+                "conflicts": st.session_state.get("conflicts", []),
+                "kg_entities": st.session_state.get("kg_entities", []),
+                "kg_relations": st.session_state.get("kg_relations", []),
+                "kg_html_path": st.session_state.get("kg_html_path", ""),
+                "kg_context": st.session_state.get("kg_context", ""),
+                "credibility_context": credibility_context,
+                "conflicts_context": conflicts_context,
+                "kb_context": kb_context,
+                "streamed_summary": st.session_state.streamed_summary,
+                "evidence_data": st.session_state.get("evidence_data"),
+            })
+        except Exception as e:
+            logger.warning(f"回写报告到查询缓存失败: {e}")
+
     # 8) 证据角标注入（在证据链追踪完成后）
     try:
         if st.session_state.get("evidence_data") and st.session_state.get("streamed_summary"):
@@ -543,7 +594,8 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
             summary_slot.markdown(
                 f'<div class="tldr-card" style="background:#e8f4fd;border-radius:8px;'
                 f'padding:16px;margin-bottom:16px;border-left:4px solid #1a73e8;">'
-                f'{_tldr}</div>',
+                # LLM 输出先转义再进 HTML 卡片，换行转 <br> 保留排版
+                f'{html.escape(_tldr).replace(chr(10), "<br>")}</div>',
                 unsafe_allow_html=True
             )
     except Exception as e:
