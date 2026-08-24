@@ -34,6 +34,7 @@ from config import (
     GOOGLE_API_KEY,
 )
 from intelnexus.ui.sidebar import render_sidebar
+from intelnexus.ui.icons import icon
 from intelnexus.ui.search_pipeline import run_search_pipeline
 from intelnexus.ui.results import render_results_panels
 from intelnexus.ui.download import render_download_section
