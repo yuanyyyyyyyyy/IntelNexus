@@ -167,6 +167,27 @@ def check_ollama_model_available(model: str, timeout: float = 3.0) -> tuple[bool
     return True, ""
 
 
+def is_ollama_local_model(model: str) -> bool:
+    """判断模型是否为本地 Ollama 直连模型。
+
+    只有这类模型才应做 Ollama 服务预检；云端自定义模型（openai/deepseek/
+    anthropic/google 等）连接问题应在实际调用阶段报错，而非误报「Ollama 未启动」。
+    匹配两类：① fetch_ollama_models() 发现的本机模型；② 自定义模型中 type=ollama。
+    """
+    name = _normalize_model_name(model)
+    for m in fetch_ollama_models():
+        if _normalize_model_name(m) == name:
+            return True
+    try:
+        from intelnexus.core.llm.models import get_custom_models
+        for cm in get_custom_models():
+            if _normalize_model_name(cm.get("name", "")) == name:
+                return str(cm.get("type", "")).lower() == "ollama"
+    except Exception:
+        pass
+    return False
+
+
 def get_model_choices() -> List[str]:
     """
     只返回本地 Ollama 模型与用户添加的自定义模型，不暴露任何云端预设。
