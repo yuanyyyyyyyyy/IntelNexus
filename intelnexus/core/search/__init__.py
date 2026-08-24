@@ -87,6 +87,11 @@ def get_session(proxies: Optional[dict] = None):
         session.mount("https://", adapter)
         if proxies:
             session.proxies = proxies
+        else:
+            # 直连会话必须屏蔽环境代理：requests 的 trust_env 默认为 True，
+            # 即使不显式设置 proxies 也会读取 HTTP_PROXY/HTTPS_PROXY 环境变量，
+            # 导致「国内源强制直连」被环境里的幽灵代理（尤其已失效的）击穿。
+            session.trust_env = False
         _session_cache[key] = session
         return session
 
@@ -130,6 +135,12 @@ BLOCKED_DOMAINS = [
     "wikipedia.org", "zh.wikipedia.org",
     # 电竞 / 游戏（与 AI/网安简报无关，曾污染 TOP3）
     "5eplay.com", "csgo", "dota2", "lol.qq.com", "gamersky.com", "3dmgame.com",
+    # 词典 / 翻译类（原 web.py 局部名单 BLOCKED_DOMAINS_WEB 并入单源；
+    # 中文死规则（"知乎"等永不匹配 netloc）已剔除，deepmind.com 误屏蔽已移除）
+    "dictionary.cambridge.org", "zdic.net", "dict.cn", "youdao.com",
+    "wikiwand.com",
+    "merriam-webster.com", "oxfordlearnersdictionaries.com",
+    "collinsdictionary.com", "macmillandictionary.com",
 ]
 
 _STOPWORDS = {

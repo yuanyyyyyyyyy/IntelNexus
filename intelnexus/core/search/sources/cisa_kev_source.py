@@ -6,6 +6,7 @@ CISA KEV (Known Exploited Vulnerabilities) 搜索源适配器
 - 整表缓存（约 1000 条），TTL 1 小时
 """
 import os
+import re
 import time
 from typing import Dict, List
 
@@ -13,7 +14,7 @@ import requests
 
 from intelnexus.core.logger import get_logger
 from intelnexus.core.search import get_http_proxies
-from intelnexus.core.search.source import BaseSearchSource, CATEGORY_WEB
+from intelnexus.core.search.source import BaseSearchSource, CATEGORY_THREAT_INTEL
 
 logger = get_logger(__name__)
 
@@ -24,7 +25,7 @@ CACHE_TTL = 3600  # 1 小时
 class CISAKEVSource(BaseSearchSource):
     """CISA Known Exploited Vulnerabilities Catalog 适配器。"""
 
-    def __init__(self, name: str = "CISA_KEV", category: str = CATEGORY_WEB,
+    def __init__(self, name: str = "CISA_KEV", category: str = CATEGORY_THREAT_INTEL,
                  enabled: bool = True, requires_proxy: bool = False):
         super().__init__(name=name, category=category, enabled=enabled,
                          requires_proxy=requires_proxy)
@@ -41,8 +42,10 @@ class CISAKEVSource(BaseSearchSource):
             if not vulns:
                 return []
 
-            query_lower = query.lower()
             results = []
+            # 多词 AND 匹配：查询按空白拆 token，每个 token 都须命中。
+            # （旧实现整串子串匹配，"Oracle WebLogic" 这类多词查询恒空）
+            query_tokens = [t for t in re.split(r"\s+", query.lower()) if t]
 
             for v in vulns:
                 cve_id = v.get("cveID", "")
@@ -52,7 +55,7 @@ class CISAKEVSource(BaseSearchSource):
 
                 # 关键词匹配
                 searchable = f"{cve_id} {vendor} {product} {desc}".lower()
-                if query_lower not in searchable:
+                if not all(tok in searchable for tok in query_tokens):
                     continue
 
                 due_date = v.get("dueDate", "")

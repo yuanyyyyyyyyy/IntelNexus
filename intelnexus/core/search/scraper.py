@@ -1,4 +1,6 @@
 import random
+import ipaddress
+from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from intelnexus.core.settings.cache import get_cached, set_cached
@@ -8,12 +10,51 @@ from intelnexus.core.search import USER_AGENTS, get_http_proxies, get_session, g
 
 logger = get_logger(__name__)
 
+
+def is_safe_scrape_target(url: str) -> bool:
+    """抓取目标防护（SSRF 第一层）：仅允许 http(s)，拒绝内网/环回地址。
+
+    与 sources.py 的用户源校验独立——搜索结果 URL 同样可能指向内网
+    （恶意页面投放 http://169.254.169.254/ 类地址诱导抓取）。
+    DNS 解析后的 Rebinding 防护超出本层职责，此处只做语法与字面 IP 判定。
+    """
+    if not url or not isinstance(url, str):
+        return False
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            return False
+        host = (parsed.hostname or "").lower().strip(".")
+        if not host:
+            return False
+        # 字面量 IPv4/IPv6 直接判定；域名做常见内网名后缀拦截
+        if ":" in host:  # IPv6 字面量
+            return not ipaddress.ip_address(host.strip("[]")).is_private \
+                and not ipaddress.ip_address(host.strip("[]")).is_loopback
+        try:
+            ip = ipaddress.ip_address(host)
+            return not ip.is_private and not ip.is_loopback and not ip.is_link_local
+        except ValueError:
+            pass
+        if host == "localhost" or host.endswith((".local", ".localhost", ".internal")):
+            return False
+        return True
+    except Exception:
+        return False
+
+
 def scrape_single(url_data, rotate=False, rotate_interval=5, control_port=9051, control_password=None):
     """
     Scrapes a single URL using a robust Tor session.
     Returns a tuple (url, scraped_text).
     """
-    url = url_data['link']
+    # 兼容 link/url 双键：registry 归一化输出 url 键，darkweb 等旧路径输出 link 键
+    url = url_data.get('link') or url_data.get('url') or ''
+    if not url:
+        return '', ''
+    if not is_safe_scrape_target(url):
+        logger.warning(f"跳过不安全抓取目标: {url[:120]}")
+        return url, ''
 
     cached = get_cached(url)
     if cached is not None:

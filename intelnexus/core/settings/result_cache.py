@@ -20,7 +20,11 @@ _RESULT_CACHE_DIR = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "result_cache")
 _RESULT_TTL = int(os.getenv("INTELNEXUS_RESULT_CACHE_TTL", "3600"))
 
-# 进程内加速层
+# 内存加速层的独立 TTL（秒）：与文件层解耦，防止长驻进程读到陈旧结果。
+# 取 min(文件层TTL, 10分钟)，既快又不会明显滞后于文件层过期。
+_LOCAL_TTL_SECONDS = min(_RESULT_TTL, 600)
+
+# 进程内加速层（payload 附带 _cached_at_monotonic 内部时间戳）
 _local_cache: Dict[str, Dict[str, Any]] = {}
 _local_lock = threading.Lock()
 
@@ -40,10 +44,18 @@ def _path(key: str) -> str:
 
 def get_result(key: str, ttl: int = _RESULT_TTL) -> Optional[Dict[str, Any]]:
     """读取查询级整段结果缓存，过期返回 None。"""
+    now = time.time()
     with _local_lock:
         cached = _local_cache.get(key)
         if cached is not None:
-            # 进程内层不校验 TTL（由调用方控制 key 稳定性），直接返回
+            # 内存层同样校验 TTL：进程长驻时避免读到已过期的旧查询产物
+            if now - cached.get("_cached_at_monotonic", now) > _LOCAL_TTL_SECONDS:
+                _local_cache.pop(key, None)
+                return None
+            # 剥离内部时间戳，保证调用方拿到的与写入的 payload 一致
+            if "_cached_at_monotonic" in cached:
+                return {k: v for k, v in cached.items()
+                        if k != "_cached_at_monotonic"}
             return cached
 
     _ensure_dir()
@@ -69,8 +81,11 @@ def get_result(key: str, ttl: int = _RESULT_TTL) -> Optional[Dict[str, Any]]:
 
 def set_result(key: str, payload: Dict[str, Any], ttl: int = _RESULT_TTL) -> None:
     """写入整段结果缓存（文件 + 进程内）。"""
+    import copy as _copy
+    cached_payload = _copy.deepcopy(payload)
+    cached_payload["_cached_at_monotonic"] = time.time()
     with _local_lock:
-        _local_cache[key] = payload
+        _local_cache[key] = cached_payload
     _ensure_dir()
     path = _path(key)
     entry = {
@@ -93,6 +108,16 @@ def set_result(key: str, payload: Dict[str, Any], ttl: int = _RESULT_TTL) -> Non
 
 def build_key(mode: str, refined_query: str, model: str, threads: int,
               advanced_mode: bool = False, tor_port: int = 0,
-              include_ts: bool = False) -> str:
-    """根据流水线维度构造稳定的缓存 key（可选排除随时间变化的维度）。"""
-    return _make_key(mode, refined_query, model, threads, advanced_mode, tor_port)
+              include_ts: bool = False,
+              ui_sites=None) -> str:
+    """根据流水线维度构造稳定的缓存 key（可选排除随时间变化的维度）。
+
+    ui_sites（自定义 onion 站点列表）参与检索结果，必须进 key，
+    否则换站点列表会命中旧缓存、返回与当前配置不符的结果。
+    """
+    sites = tuple(sorted(
+        (str(s.get("name", "")), str(s.get("url", "")))
+        for s in (ui_sites or []) if isinstance(s, dict)
+    ))
+    return _make_key(mode, refined_query, model, threads, advanced_mode,
+                     tor_port, sites)

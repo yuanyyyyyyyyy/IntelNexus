@@ -174,6 +174,42 @@ def _render_source_health():
                         st.rerun()
 
 
+def _render_search_service_settings():
+    """第三方搜索服务设置（NewsAPI key：文件 > env，保存后立即生效）"""
+    with st.expander(get_text("search_service_settings"), expanded=False):
+        try:
+            from intelnexus.config.search_settings import (
+                get_search_settings, save_search_settings)
+            current = get_search_settings().get("news_api_key", "")
+        except Exception as e:
+            logger.warning(f"搜索设置模块不可用: {e}")
+            return
+
+        masked = (current[:4] + "****" + current[-4:]) if len(current) > 8 else current
+        st.caption(get_text("newsapi_key_hint").format(masked=masked or "未配置"))
+
+        new_key = st.text_input(
+            get_text("newsapi_key"),
+            value="",
+            type="password",
+            key="newsapi_key_input",
+            placeholder=get_text("newsapi_key_placeholder"),
+        )
+        col_save, col_clear = st.columns([1, 1])
+        with col_save:
+            if st.button(get_text("save_changes"), key="newsapi_save_btn"):
+                if new_key.strip() and save_search_settings({"news_api_key": new_key.strip()}):
+                    st.success(get_text("newsapi_saved"))
+                    st.rerun()
+                else:
+                    st.error(get_text("fill_fields"))
+        with col_clear:
+            if current and st.button(get_text("newsapi_clear"), key="newsapi_clear_btn"):
+                if save_search_settings({"news_api_key": ""}):
+                    st.success(get_text("newsapi_cleared"))
+                    st.rerun()
+
+
 def _render_model_settings():
     """模型选择（核心设置）"""
     st.markdown('<div class="sb-section"><span class="sb-section__label">Model</span></div>', unsafe_allow_html=True)
@@ -442,6 +478,9 @@ def render_sidebar():
 
         # Source Health Panel
         _render_source_health()
+
+        # Search service settings (NewsAPI key)
+        _render_search_service_settings()
 
         # Core: Model Settings
         model = _render_model_settings()

@@ -53,7 +53,8 @@ _ROOT = os.path.dirname(os.path.abspath(__file__))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from config import NEWS_API_KEY
+# 动态解析：data/search_settings.json(UI 显式保存) > 环境变量(.env 兜底)
+from intelnexus.config.search_settings import get_news_api_key as NEWS_API_KEY
 
 # Inject config into shared library
 from intelnexus.core.settings import set as set_config
@@ -62,7 +63,7 @@ set_config({
     "OPENROUTER_BASE_URL": os.getenv("OPENROUTER_BASE_URL", ""),
     "OPENROUTER_API_KEY": os.getenv("OPENROUTER_API_KEY", ""),
     "GOOGLE_API_KEY": os.getenv("GOOGLE_API_KEY", ""),
-    "NEWS_API_KEY": NEWS_API_KEY,
+    "NEWS_API_KEY": NEWS_API_KEY(),
 })
 
 import click
@@ -101,7 +102,7 @@ def execute_search(mode, query, max_workers):
         return cached
 
     registry = get_registry(
-        news_api_key=NEWS_API_KEY,
+        news_api_key=NEWS_API_KEY(),
         darkweb_advanced=app_config.ENABLE_DARKWEB,
         tor_port=app_config.TOR_PROXY_PORT,
         web_threads=max_workers,
@@ -125,7 +126,7 @@ def _register_search_commands():
     @intelnexus.command()
     @click.option("--model", "-m", default="qwen2.5:7b", show_default=True, help="Select LLM model (local or cloud)")
     @click.option("--query", "-q", required=True, type=str, help="Search query")
-    @click.option("--mode", "-s", default="all", type=click.Choice(["web", "news", "darkweb", "all"]), help="Search mode")
+    @click.option("--mode", "-s", default="all", type=click.Choice(["web", "news", "darkweb", "threat", "all"]), help="Search mode")
     @click.option("--threads", "-t", default=5, show_default=True, type=int, help="Number of threads")
     @click.option("--output", "-o", type=str, help="Output filename")
     @click.option("--no-credibility", is_flag=True, help="Disable credibility assessment & knowledge graph")

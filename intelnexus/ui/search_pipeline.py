@@ -21,7 +21,9 @@ from intelnexus.knowledge.retrieval import retrieve_relevant, build_kb_context
 from intelnexus.core.ui.helpers import DEFAULT_TOR_PORT
 from intelnexus.ui.icons import icon
 from intelnexus.ui.i18n import get_text
-from config import NEWS_API_KEY
+# 动态解析：data/search_settings.json(UI 显式保存) > 环境变量(.env 兜底)
+# 别名保持与旧 config.NEWS_API_KEY 相同的调用形态；使用时以 NEWS_API_KEY() 取值
+from intelnexus.config.search_settings import get_news_api_key as NEWS_API_KEY
 
 logger = get_logger(__name__)
 
@@ -37,7 +39,7 @@ def cached_search(mode, refined_query, threads, advanced_mode=False, tor_port=DE
     避免每次检索都重建注册表并重新读取用户源磁盘文件。
     """
     registry = get_registry(
-        news_api_key=NEWS_API_KEY,
+        news_api_key=NEWS_API_KEY(),
         darkweb_advanced=advanced_mode,
         tor_port=tor_port,
         ui_sites=ui_sites or [],
@@ -60,10 +62,7 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
     - 检索无结果时提前提示，并继续展示已拿到的原始结果，不再整体挂起。
     - 报告生成独立异常边界：即便报告失败，前面的搜索结果仍可渲染。
     """
-    print(f">>> run_search_pipeline CALLED query={query!r} model={model!r}", flush=True)
     st.session_state.query_cache = query
-    st.session_state.search_mode_cache = search_mode
-    st.session_state.threads_cache = threads
     st.session_state.model_cache = model
 
     for k in ["refined", "results", "filtered", "scraped", "streamed_summary",
@@ -91,14 +90,12 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
                 pre_st.update(label=get_text("preflight_failed"), state="error")
                 status_slot.error(msg)
                 st.session_state.search_completed = False
-                st.session_state.status_slot = "error"
                 return
             pre_st.update(label=get_text("preflight_ok"), state="complete")
     except Exception as e:
         logger.error(f"模型预检失败 [{type(e).__name__}]: {e}", exc_info=True)
         status_slot.error(f"{get_text('search_failed')}: 模型预检失败 — {type(e).__name__}: {e}")
         st.session_state.search_completed = False
-        st.session_state.status_slot = "error"
         return
 
     # 2) 加载模型（含预热重模型） + 查询优化
@@ -119,7 +116,6 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
         logger.error(f"模型加载/查询优化失败 [{type(e).__name__}]: {e}", exc_info=True)
         status_slot.error(f"{get_text('search_failed')}: {type(e).__name__} — {e}")
         st.session_state.search_completed = False
-        st.session_state.status_slot = "error"
         return
 
     st.markdown(f"""
@@ -142,7 +138,6 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
         logger.error(f"检索失败 [{type(e).__name__}]: {e}", exc_info=True)
         status_slot.error(f"{get_text('search_failed')}: {type(e).__name__} — {e}")
         st.session_state.search_completed = False
-        st.session_state.status_slot = "error"
         return
 
     source_counts = {}
@@ -170,7 +165,6 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
         status_slot.warning(get_text("no_results"))
         st.session_state.filtered = []
         st.session_state.search_completed = True
-        st.session_state.status_slot = "no_results"
         st.session_state.report_timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         return
 
@@ -195,7 +189,8 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
         result_key = build_key(
             search_mode, search_query, model, threads,
             st.session_state.get("advanced_mode", False),
-            st.session_state.get("tor_port", DEFAULT_TOR_PORT))
+            st.session_state.get("tor_port", DEFAULT_TOR_PORT),
+            ui_sites=st.session_state.get("custom_onion_sites", []))
         cached_payload = get_result(result_key)
     except Exception as e:
         logger.error(f"读取查询缓存失败 [{type(e).__name__}]: {e}", exc_info=True)
@@ -281,7 +276,6 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
             logger.error(f"抓取失败 [{type(e).__name__}]: {e}", exc_info=True)
             status_slot.error(f"{get_text('search_failed')}: {type(e).__name__} — {e}")
             st.session_state.search_completed = False
-            st.session_state.status_slot = "error"
             return
 
         # 5) 可信度评估 + 知识图谱构建（并行，独立错误边界，失败不阻断）
@@ -556,7 +550,6 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
         logger.warning(f"TL;DR 速览卡提取失败: {e}")
 
     st.session_state.search_completed = True
-    st.session_state.status_slot = "complete"
     st.session_state.export_format_choice = "md"
 
     status_slot.success(get_text("complete"))

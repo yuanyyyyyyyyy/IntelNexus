@@ -13,7 +13,8 @@ from intelnexus.config.sources import get_enabled_sources, get_sources_by_catego
 from intelnexus.config.briefing_drafts import consume_drafts
 from intelnexus.core.logger import get_logger
 from intelnexus.topics.store import topic_to_category_map
-from config import NEWS_API_KEY, ENABLE_DARKWEB, TOR_PROXY_PORT
+from intelnexus.config.search_settings import get_news_api_key as NEWS_API_KEY
+from config import ENABLE_DARKWEB, TOR_PROXY_PORT
 
 
 def _resolve_categories() -> dict:
@@ -31,36 +32,11 @@ logger = get_logger(__name__)
 
 class AIBriefingCollector:
     """AI简报数据采集器"""
-    
+
     def __init__(self):
         """初始化采集器"""
-        self._web_search = None
-        self._news_search = None
         self._scrape = None
-        self._darkweb_search = None
-    
-    def _get_web_search(self):
-        """延迟加载web_search模块"""
-        if self._web_search is None:
-            try:
-                from intelnexus.core.search.web import get_web_results
-                self._web_search = get_web_results
-            except ImportError:
-                logger.warning("web_search module not available")
-                self._web_search = lambda q, max_r=10: []
-        return self._web_search
-    
-    def _get_news_search(self):
-        """延迟加载news_search模块"""
-        if self._news_search is None:
-            try:
-                from intelnexus.core.search.news import get_news_results
-                self._news_search = get_news_results
-            except ImportError:
-                logger.warning("news_search module not available")
-                self._news_search = lambda q, max_r=10, api_key=None: []
-        return self._news_search
-    
+
     def _get_scrape(self):
         """延迟加载scrape模块"""
         if self._scrape is None:
@@ -72,20 +48,6 @@ class AIBriefingCollector:
                 self._scrape = lambda urls, max_workers=5: {}
         return self._scrape
 
-    def _get_darkweb_search(self):
-        """延迟加载暗网搜索模块（仅在 ENABLE_DARKWEB 为真时生效）"""
-        if self._darkweb_search is None:
-            try:
-                from intelnexus.search_app.darkweb import get_darkweb_results
-                # get_darkweb_results 内部已检查 ENABLE_DARKWEB 主开关
-                self._darkweb_search = lambda q, max_r=10: get_darkweb_results(
-                    q, max_workers=max_r, advanced_mode=False,
-                    tor_port=9150, ui_sites=None)
-            except ImportError:
-                logger.warning("darkweb module not available")
-                self._darkweb_search = lambda q, max_r=10: []
-        return self._darkweb_search
-    
     def collect_for_category(self, category: str, max_results: int = 20) -> List[Dict]:
         """
         为单个关注点采集数据
@@ -197,7 +159,7 @@ class AIBriefingCollector:
         results = []
         try:
             registry = get_registry(
-                news_api_key=NEWS_API_KEY,
+                news_api_key=NEWS_API_KEY(),
                 darkweb_advanced=False,
                 tor_port=TOR_PROXY_PORT
             )

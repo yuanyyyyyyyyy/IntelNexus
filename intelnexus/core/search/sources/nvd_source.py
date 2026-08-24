@@ -10,7 +10,7 @@ import time
 from typing import Dict, List, Optional
 
 from intelnexus.core.logger import get_logger
-from intelnexus.core.search.source import BaseSearchSource, CATEGORY_WEB
+from intelnexus.core.search.source import BaseSearchSource, CATEGORY_THREAT_INTEL
 from intelnexus.core.search import get_session, get_http_proxies
 
 logger = get_logger(__name__)
@@ -22,14 +22,27 @@ class NVDSearchSource(BaseSearchSource):
     """NVD (National Vulnerability Database) API 适配器。"""
 
     BASE_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0"
+    #: NVD 官方限速：无 key 约 5~6s/请求，有 key 约 0.6s/请求（留余量）
+    NO_KEY_MIN_INTERVAL = 6.0
+    WITH_KEY_MIN_INTERVAL = 0.7
 
-    def __init__(self, name: str = "NVD", category: str = CATEGORY_WEB,
+    def __init__(self, name: str = "NVD", category: str = CATEGORY_THREAT_INTEL,
                  enabled: bool = True, requires_proxy: bool = False):
         super().__init__(name=name, category=category, enabled=enabled,
                          requires_proxy=requires_proxy)
         self._api_key = os.getenv("NVD_API_KEY", "")
         self._cache = {}
         self._cache_time = {}
+        self._last_request_ts = 0.0
+
+    def _throttle(self):
+        """实例级限速：按是否持有 API key 强制最小请求间隔，避免 403/429。"""
+        interval = self.NO_KEY_MIN_INTERVAL if not self._api_key \
+            else self.WITH_KEY_MIN_INTERVAL
+        elapsed = time.time() - self._last_request_ts
+        if self._last_request_ts > 0 and elapsed < interval:
+            time.sleep(interval - elapsed)
+        self._last_request_ts = time.time()
 
     def search(self, query, max_results: int = 20) -> List[Dict]:
         cache_key = f"{query}:{max_results}"
@@ -48,6 +61,7 @@ class NVDSearchSource(BaseSearchSource):
                 "keywordSearch": query,
                 "resultsPerPage": min(max_results, 40),
             }
+            self._throttle()
             session = get_session(proxies)
             resp = session.get(
                 self.BASE_URL, params=params, headers=headers or None,
