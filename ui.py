@@ -165,7 +165,8 @@ if not onboarding_active:
         # 用 st.form 包裹输入框与提交按钮：表单提交时所有 widget 值会先同步到
         # session_state，再触发 rerun，从而彻底解决"点按钮时输入框值未提交"的问题。
         with st.form(key="search_form", clear_on_submit=False):
-            col_search_input, col_search_btn = st.columns([10, 1])
+            # [6,1]：按钮占 ~14% 宽，「情报搜索」四字不再挤压换行（旧 [10,1] 仅 ~9%）
+            col_search_input, col_search_btn = st.columns([6, 1])
             with col_search_input:
                 query = st.text_input(
                     "query",
@@ -183,8 +184,8 @@ if not onboarding_active:
         live_query = st.session_state.get("query_input", query or "").strip()
         effective_query = live_query or (query or "").strip()
 
-        logger.info(
-            f"[DEBUG] run_button={run_button!r}, query={query!r}, "
+        logger.debug(
+            f"run_button={run_button!r}, query={query!r}, "
             f"live_query={live_query!r}, pending_query={pending_query!r}, model={model!r}"
         )
 
