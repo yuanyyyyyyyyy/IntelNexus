@@ -61,7 +61,7 @@ test_*.py
 !tests/test_*.py
 
 # Streamlit
-.streamlit/
+.streamlit/secrets.toml
 
 # AI tooling / IDE caches
 .codebuddy/
