@@ -1,0 +1,19 @@
+[server]
+runOnSave = false
+
+# Material Icons 连字字体（fonts.gstatic.com）在国内被墙，失败时折叠面板
+# 图标显示为原始英文文本（keyboard_arrow_right）叠在中文标题上。
+# minimal 工具栏顺带移除对本地部署无意义的 Deploy 按钮。
+[client]
+toolbarMode = "minimal"
+
+[theme]
+# 主题基调必须与 intelnexus/core/ui/styles.py 的莫兰迪浅色设计一致。
+# 曾误设 base="dark" + 纯黑背景：Streamlit 原生部件（按钮/输入框/下拉）
+# 按暗色渲染，浮在自定义浅色页面上形成"黑块"，且深色占位文字与
+# 浅色自定义样式叠加产生文字重影。
+base = "light"
+primaryColor = "#7B9CB5"
+backgroundColor = "#E8E4DF"
+secondaryBackgroundColor = "#F5F2EE"
+textColor = "#5C5C5C"
