@@ -1398,6 +1398,33 @@ def render_workbench_css():
         background: #FEF3C7;
         color: #D97706;
     }
+
+    /* 条目操作行：紧凑小按钮 + 右对齐 URL */
+    .bf-entry-row + div[data-testid="stHorizontalBlock"] {
+        margin-top: -4px;
+        align-items: center;
+    }
+    .bf-entry-row + div[data-testid="stHorizontalBlock"] button {
+        font-size: 11px !important;
+        padding: 2px 8px !important;
+        min-height: 0 !important;
+        border-radius: 6px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+    .bf-entry-url {
+        font-size: 10.5px;
+        color: var(--wb-text-secondary);
+        opacity: 0.75;
+        display: inline-block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        direction: rtl;
+        text-align: left;
+    }
 </style>
 """, unsafe_allow_html=True)
 

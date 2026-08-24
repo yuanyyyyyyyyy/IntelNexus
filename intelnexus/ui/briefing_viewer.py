@@ -331,81 +331,85 @@ def render_briefing_entries():
             unsafe_allow_html=True,
         )
 
-        col_feedback, col_btn, col_url = st.columns([1, 1, 5])
-        
-        with col_feedback:
-            # 反馈按钮（按分类记录）
-            entry_url = url or ""
-            category = entry.get("category", "unknown")
-            if entry_url:
-                c1, c2, c3 = st.columns(3)
-                with c1:
-                    if st.button(
-                        get_text("feedback_up"),
-                        key=f"up_{category}_{filename}_{i}",
-                        help=get_text("feedback_hint"),
-                    ):
-                        from intelnexus.config.feedback import save_briefing_feedback, track_feedback
-                        _operator = _get_current_operator_id()
-                        save_briefing_feedback(category, entry_url, "up", subscriber_id=_operator)
-                        track_feedback(entry_url, "up", "briefing", subscriber_id=_operator)
-                        st.toast(get_text("feedback_marked"))
-                        st.rerun()
-                with c2:
-                    if st.button(
-                        get_text("feedback_down"),
-                        key=f"down_{category}_{filename}_{i}",
-                        help=get_text("feedback_hint"),
-                    ):
-                        from intelnexus.config.feedback import save_briefing_feedback, track_feedback
-                        _operator = _get_current_operator_id()
-                        save_briefing_feedback(category, entry_url, "down", subscriber_id=_operator)
-                        track_feedback(entry_url, "down", "briefing", subscriber_id=_operator)
-                        st.toast(get_text("feedback_marked"))
-                        st.rerun()
-                with c3:
-                    # 收藏到知识库
-                    from intelnexus.config.knowledge_base import get_items, add_item
-                    existing_kb = get_items(url=entry_url, item_type="briefing_entry")
-                    if existing_kb:
-                        st.caption(get_text('kb_saved'))
-                    else:
-                        if st.button(get_text("kb_save"), key=f"kb_{category}_{filename}_{i}",
-                                     help=get_text("kb_save")):
-                            add_item(
-                                item_type="briefing_entry",
-                                title=title,
-                                url=entry_url,
-                                content=entry.get("description", ""),
-                                source=source,
-                                category=category,
-                                tags=[],
-                                metadata={
-                                    "briefing_id": filename,
-                                    "credibility_score": score
-                                }
-                            )
-                            st.toast("已收藏到知识库")
-                            st.rerun()
-        
-        with col_btn:
-            btn_label = get_text('investigate_like_this')
-            if has_conflict and conflict_sev >= 0.7:
-                btn_label = f"! {btn_label}"
-            if st.button(
-                btn_label,
-                key=f"forensic_{filename}_{i}",
-                use_container_width=True,
-                help=get_text("investigate_help"),
-            ):
+        # ---- 操作行：单行 flex 布局（修复：旧版嵌套三列把 4 个按钮挤进
+        #      约 1/21 页宽的小方块里，且 URL 独占一列造成大片空白）----
+        entry_url = url or ""
+        category = entry.get("category", "unknown")
+        btn_prefix = "! " if (has_conflict and conflict_sev >= 0.7) else ""
+        kb_saved = False
+        if entry_url:
+            try:
+                from intelnexus.config.knowledge_base import get_items
+                kb_saved = bool(get_items(url=entry_url, item_type="briefing_entry"))
+            except Exception:
+                kb_saved = False
+
+        act_cols = st.columns([1.1, 1.1, 1.6, 2.2, 4])
+        with act_cols[0]:
+            if st.button(get_text("feedback_up"),
+                         key=f"up_{category}_{filename}_{i}",
+                         help=get_text("feedback_hint"),
+                         use_container_width=True):
+                from intelnexus.config.feedback import save_briefing_feedback, track_feedback
+                _operator = _get_current_operator_id()
+                save_briefing_feedback(category, entry_url, "up", subscriber_id=_operator)
+                track_feedback(entry_url, "up", "briefing", subscriber_id=_operator)
+                st.toast(get_text("feedback_marked"))
+                st.rerun()
+        with act_cols[1]:
+            if st.button(get_text("feedback_down"),
+                         key=f"down_{category}_{filename}_{i}",
+                         help=get_text("feedback_hint"),
+                         use_container_width=True):
+                from intelnexus.config.feedback import save_briefing_feedback, track_feedback
+                _operator = _get_current_operator_id()
+                save_briefing_feedback(category, entry_url, "down", subscriber_id=_operator)
+                track_feedback(entry_url, "down", "briefing", subscriber_id=_operator)
+                st.toast(get_text("feedback_marked"))
+                st.rerun()
+        with act_cols[2]:
+            if not entry_url:
+                st.caption(" ")
+            elif kb_saved:
+                st.caption(get_text("kb_saved"))
+            else:
+                if st.button(get_text("kb_save"),
+                             key=f"kb_{category}_{filename}_{i}",
+                             help=get_text("kb_save"),
+                             use_container_width=True):
+                    from intelnexus.config.knowledge_base import add_item
+                    add_item(
+                        item_type="briefing_entry",
+                        title=title,
+                        url=entry_url,
+                        content=entry.get("description", ""),
+                        source=source,
+                        category=category,
+                        tags=[],
+                        metadata={
+                            "briefing_id": filename,
+                            "credibility_score": score
+                        }
+                    )
+                    st.toast(get_text("kb_saved_toast"))
+                    st.rerun()
+        with act_cols[3]:
+            if st.button(f"{btn_prefix}{get_text('investigate_like_this')}",
+                         key=f"forensic_{filename}_{i}",
+                         type="primary",
+                         use_container_width=True,
+                         help=get_text("investigate_help")):
                 query = raw_title if raw_title else (url or "unknown")
                 st.session_state.pending_forensic_query = query
                 st.session_state.pending_forensic_mode = "all"
                 st.session_state.switch_to_search = True
                 st.rerun()
-        with col_url:
+        with act_cols[4]:
             if url:
-                st.caption(url[:100])
+                st.markdown(
+                    f'<span class="bf-entry-url">{html.escape(url[:90])}</span>',
+                    unsafe_allow_html=True,
+                )
 
     st.markdown('</div>', unsafe_allow_html=True)
 
