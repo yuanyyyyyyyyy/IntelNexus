@@ -137,6 +137,26 @@ class AIBriefingCollector:
                     logger.error(f"Error collecting {cat_id}: {e}")
                     results[cat_id] = []
 
+        # 跨类目全局去重（修复：_deduplicate_results 仅在类目内生效，
+        # 同一新闻命中多个关注点时会重复出现——实测 360 条中 72 条为跨类目重复）
+        seen_urls = set()
+        dup_count = 0
+        for cat_id, items in results.items():
+            unique_items = []
+            for item in items:
+                u = (item.get("url") or "").rstrip("/")
+                if not u:
+                    unique_items.append(item)
+                    continue
+                if u in seen_urls:
+                    dup_count += 1
+                    continue
+                seen_urls.add(u)
+                unique_items.append(item)
+            results[cat_id] = unique_items
+        if dup_count:
+            logger.info(f"Cross-category dedup removed {dup_count} duplicate entries")
+
         return results
     
     def _search_by_keywords(self, queries: List[str], max_results: int = 10) -> List[Dict]:

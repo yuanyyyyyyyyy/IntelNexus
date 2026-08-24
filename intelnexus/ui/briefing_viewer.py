@@ -63,6 +63,21 @@ def _render_scheduler_status_banner() -> None:
     nxt = next_runs[0].strftime("%m-%d %H:%M")
     st.success(get_text("sched_on").format(n=nxt, count=len(jobs)))
 
+    # 任务在跑但 LLM 不可用：定时简报将以降级模板文案推送，必须显式提醒
+    try:
+        from intelnexus.briefing.scheduler_registry import get_model_status
+        model_status = get_model_status()
+        if model_status.get("degraded"):
+            reason = model_status.get("reason") or ""
+            hint = get_text("sched_llm_degraded")
+            if reason:
+                hint += f"（{reason}）"
+            st.warning(hint)
+        elif model_status.get("model"):
+            st.caption(get_text("sched_llm_ok").format(model=model_status["model"]))
+    except Exception:
+        pass
+
     # 任务在跑但 SMTP 缺失：推送注定失败，必须显式提醒
     try:
         from intelnexus.config.email_settings import get_email_settings
@@ -188,11 +203,49 @@ def render_briefing_entries():
     if not entries:
         return
 
+    # URL 去重兜底（修复：历史简报数据含跨类目重复，360 条实测仅 288 个唯一 URL；
+    # 采集端已加全局去重，这里保证旧文件渲染时同样干净）
+    seen_urls = set()
+    unique_entries = []
+    for e in entries:
+        u = (e.get("url") or "").rstrip("/")
+        if not u:
+            unique_entries.append(e)
+            continue
+        if u in seen_urls:
+            continue
+        seen_urls.add(u)
+        unique_entries.append(e)
+    entries = unique_entries
+
     st.markdown(
         '<div class="bf-output">'
         f'<div class="bf-output__header">{get_text("briefing_entries_title")} ({len(entries)})</div>',
         unsafe_allow_html=True,
     )
+
+    # 类目筛选（默认「全部」；360+ 条一次性全渲会拖垮页面——每条约产生 8 个部件）
+    _cat_counts = {}
+    for e in entries:
+        c = e.get("category", "unknown")
+        _cat_counts[c] = _cat_counts.get(c, 0) + 1
+    _cat_display = {cid: f"{cid} ({n})" for cid, n in _cat_counts.items()}
+    try:
+        from intelnexus.config.watch_categories import get_all_categories
+        _names = {cid: cfg.get("name", cid) for cid, cfg in get_all_categories().items()}
+        _cat_display = {cid: f"{_names.get(cid, cid)} ({n})" for cid, n in _cat_counts.items()}
+    except ImportError:
+        pass
+
+    sel_cat = st.selectbox(
+        get_text("briefing_filter_category"),
+        ["__all__"] + list(_cat_counts.keys()),
+        format_func=lambda c: get_text("briefing_filter_all") if c == "__all__"
+        else _cat_display.get(c, c),
+        key=f"bf_entries_cat_{filename}",
+    )
+    if sel_cat != "__all__":
+        entries = [e for e in entries if e.get("category") == sel_cat]
 
     # 按严重度排序：有冲突的优先，按冲突严重度降序
     sorted_entries = sorted(
@@ -200,6 +253,18 @@ def render_briefing_entries():
         key=lambda e: (e.get("has_conflict", False), e.get("has_conflict", False) and e.get("conflict_severity", 0.0)),
         reverse=True,
     )
+
+    # 分批加载：默认只渲染前 N 条，避免一次生成数千个 Streamlit 部件
+    PAGE_SIZE = 30
+    total_after_filter = len(sorted_entries)
+    shown = st.session_state.get(f"bf_entries_shown_{filename}", PAGE_SIZE)
+    page_entries = sorted_entries[:shown]
+    if total_after_filter > shown:
+        st.caption(get_text("briefing_showing").format(shown=len(page_entries), total=total_after_filter))
+        if st.button(get_text("briefing_load_more"), key=f"bf_more_{filename}",
+                     use_container_width=True):
+            st.session_state[f"bf_entries_shown_{filename}"] = shown + PAGE_SIZE
+            st.rerun()
 
     # 反馈身份选择器：把反馈/点击归到具体订阅者（分析统计与个性化推送依赖真实身份数据）
     try:
@@ -228,7 +293,7 @@ def render_briefing_entries():
         key="bf_feedback_identity",
     )
 
-    for i, entry in enumerate(sorted_entries):
+    for i, entry in enumerate(page_entries):
         raw_title = str(entry.get("title", "") or "")
         # 外部源标题/来源属不可信输入，进入 unsafe_allow_html 前必须转义（防存储型 XSS）
         title = html.escape(raw_title) or get_text("untitled")
