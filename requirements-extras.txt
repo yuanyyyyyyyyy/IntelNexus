@@ -14,3 +14,6 @@ langchain-anthropic>=0.1.0
 langchain-google-genai>=0.0.5
 sentence-transformers>=2.2.0
 spacy>=3.6.0
+
+# 搜索结果图表可视化（懒加载，未安装时相关图表面板降级）
+matplotlib>=3.7.0
