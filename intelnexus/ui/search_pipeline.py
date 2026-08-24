@@ -141,7 +141,6 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
     <div class="result-card">
         <div class="section-header">{get_text("refined_query")}</div>
         <div class="result-title">{get_text("original_query")} {html.escape(query)}</div>
-        <div class="result-title" style="color: var(--morandi-blue);">{get_text("multilingual_query")} {html.escape(search_query)}</div>
     </div>
     """, unsafe_allow_html=True)
 

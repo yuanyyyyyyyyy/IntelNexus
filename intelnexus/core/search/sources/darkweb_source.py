@@ -33,9 +33,13 @@ class DarkWebSource(BaseSearchSource):
         self.ui_sites = ui_sites or []
 
     def search(self, query, max_results: int = 20) -> List[Dict]:
-        # 主开关关闭时直接返回空，与旧行为一致
+        # 主开关关闭时直接返回空，与旧行为一致。
+        # 警告作用域（F3 修复）：仅在 advanced 模式（用户明确想用 Tor）且一次性
+        # 提示，不再对每次普通搜索刷「Tor 未连接」——多数用户根本没打算用暗网。
         if not darkweb_available():
-            logger.warning("暗网搜索已启用但 Tor 未连接或 Ahmia 不可用")
+            if self.advanced_mode and not getattr(self, "_warned_unavailable", False):
+                logger.info("暗网高级模式已启用但 Tor/Ahmia 不可用，本次跳过暗网源")
+                self._warned_unavailable = True
             return []
         try:
             raw = get_darkweb_results(
