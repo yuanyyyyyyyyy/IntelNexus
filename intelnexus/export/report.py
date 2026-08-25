@@ -131,6 +131,29 @@ def _clean_content(content: str) -> str:
     return content
 
 
+
+
+# --------------------------------------------------------------------------
+# Markdown 表格解析（关键数据等板块在三种导出中渲染为真实表格）
+# --------------------------------------------------------------------------
+def _parse_md_tables(lines: List[str]) -> List[dict]:
+    """把连续的 markdown 表格行解析为 [{header: [...], rows: [[...]]}]。"""
+    tables = []
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+        if line.startswith("|") and i + 1 < len(lines) and re.match(r"^\|[\s:\-|]+\|$", lines[i + 1].strip()):
+            header = [c.strip() for c in line.strip("|").split("|")]
+            i += 2  # 跳过分隔行
+            rows = []
+            while i < len(lines) and lines[i].strip().startswith("|"):
+                rows.append([c.strip() for c in lines[i].strip().strip("|").split("|")])
+                i += 1
+            tables.append({"header": header, "rows": rows})
+        else:
+            i += 1
+    return tables
+
 def _register_chinese_font():
     """Register Chinese font for PDF rendering."""
     if not REPORTLAB_AVAILABLE:
@@ -211,29 +234,58 @@ def _build_pdf_styles(font_name):
 
 def _content_to_pdf_story(content, styles):
     """Convert cleaned content to a list of PDF flowable elements.
-    
+
     每行先做 XML 转义再进 Paragraph：LLM 报告可能含 <script>、未闭合标签、
     裸 & 等字符，paraparser 会当作 XML 解析导致 "unclosed tags" 崩溃。
+    markdown 表格块（如「五、关键数据」）渲染为真正的 reportlab Table。
     """
     from xml.sax.saxutils import escape as _xml_escape
     story = []
-    lines = content.split('\n')
-    for line in lines:
-        line = line.strip()
-        if not line:
-            story.append(Spacer(1, 5))
+    lines = content.split("\n")
+
+    i = 0
+    while i < len(lines):
+        stripped = lines[i].strip()
+
+        # 表格块：header 行 + 分隔行 + 数据行 -> reportlab Table
+        if (stripped.startswith("|") and i + 1 < len(lines)
+                and re.match(r"^\|[\s:\-|]+\|$", lines[i + 1].strip())):
+            header = [c.strip() for c in stripped.strip("|").split("|")]
+            i += 2
+            rows = []
+            while i < len(lines) and lines[i].strip().startswith("|"):
+                rows.append([c.strip() for c in lines[i].strip().strip("|").split("|")])
+                i += 1
+            table_data = [[_xml_escape(c) for c in header]]
+            for row in rows:
+                table_data.append([_xml_escape(c) for c in row])
+            tbl = Table(table_data)
+            tbl.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#D9E1F2")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#1F4E88")),
+                ("FONTNAME", (0, 0), (-1, -1), styles["normal"].fontName),
+                ("FONTSIZE", (0, 0), (-1, -1), 9),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]))
+            story.append(Spacer(1, 4))
+            story.append(tbl)
+            story.append(Spacer(1, 6))
             continue
-        if line.startswith('# '):
-            clean_title = _xml_escape(re.sub(r'^#+\s+', '', line))
-            story.append(Paragraph(clean_title, styles["title"]))
-        elif line.startswith('## '):
-            clean_title = re.sub(r'^#+\s+', '', line)
-            story.append(Paragraph(_xml_escape(clean_title), styles["heading"]))
-        elif line.startswith('### '):
-            clean_title = re.sub(r'^#+\s+', '', line)
-            story.append(Paragraph(_xml_escape(clean_title), styles["sub_heading"]))
-        elif line:
-            story.append(Paragraph(_xml_escape(line), styles["normal"]))
+
+        if not stripped:
+            story.append(Spacer(1, 5))
+        elif stripped.startswith("### "):
+            story.append(Paragraph(_xml_escape(re.sub(r"^#+\s+", "", stripped)), styles["sub_heading"]))
+        elif stripped.startswith("## "):
+            story.append(Paragraph(_xml_escape(re.sub(r"^#+\s+", "", stripped)), styles["heading"]))
+        elif stripped.startswith("# "):
+            story.append(Paragraph(_xml_escape(re.sub(r"^#+\s+", "", stripped)), styles["title"]))
+        else:
+            body = _xml_escape(stripped)
+            body = re.sub(r"\*\*(.+?)\*\*", r"<b></b>", body)
+            story.append(Paragraph(body, styles["normal"]))
+        i += 1
     return story
 
 
@@ -424,7 +476,36 @@ def export_word(content: str, query: str, output_path: str) -> str:
     
     # 处理markdown格式的内容 - 正确渲染markdown格式
     lines = content.split('\n')
+    # markdown 表格块 -> 真实 Word 表格（关键数据板块）
+    _md_tables = _parse_md_tables(lines)
+    _tbl_iter = iter(_md_tables)
+    _skip_pipe = False
     for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("|") and not _skip_pipe:
+            # 表格块开始：渲染真实 Word 表格并跳过全部管道行
+            try:
+                _t = next(_tbl_iter)
+            except StopIteration:
+                _skip_pipe = True
+                continue
+            _cols = len(_t["header"])
+            _tbl = doc.add_table(rows=1 + len(_t["rows"]), cols=_cols)
+            _tbl.style = 'Light Grid Accent 1'
+            for _ci, _cv in enumerate(_t["header"]):
+                _cell_p = _tbl.rows[0].cells[_ci].paragraphs[0]
+                _run = _cell_p.add_run(_cv)
+                _run.font.bold = True
+            for _ri, _row in enumerate(_t["rows"], start=1):
+                for _ci, _cv in enumerate(_row[:_cols]):
+                    _tbl.rows[_ri].cells[_ci].text = _cv
+            doc.add_paragraph()
+            _skip_pipe = True
+            continue
+        if stripped.startswith("|") and _skip_pipe:
+            # 同一表格块的剩余管道行：跳过（表格已整体渲染）
+            continue
+        _skip_pipe = False
         if not line.strip():
             doc.add_paragraph()
             continue
@@ -574,6 +655,19 @@ def export_excel(content: str, query: str, output_path: str) -> str:
     
     # 清理内容中的markdown标题标记
     clean_content = _clean_markdown_for_word(content)
+    # markdown 表格 -> 每行数据变为「表头: 值」拼接的可读文本（Excel 无表格对象）
+    try:
+        _xl_lines = clean_content.split(chr(10))
+        for _t in _parse_md_tables(_xl_lines):
+            _rendered = [
+                chr(0xFF1B).join(f"{h}: {v}" for h, v in zip(_t['header'], row))
+                for row in _t['rows']
+            ]
+            _first = next(i for i, l in enumerate(_xl_lines) if l.strip().startswith('|'))
+            _block = chr(10).join(_xl_lines[_first:_first + 2 + len(_t['rows'])])
+            clean_content = clean_content.replace(_block, chr(10).join(_rendered))
+    except Exception as e:
+        logger.debug(f'excel table flatten skipped: {e}')
     
     # 按段落添加内容
     paragraphs = clean_content.split('\n\n')
