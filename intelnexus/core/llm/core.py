@@ -132,13 +132,13 @@ def expand_query_for_search(query_variants):
 
 def _get_mode_description(search_mode):
     """Return a description string for the given search mode."""
-    mode_descriptions = {
-        "all": "综合所有来源：网页、新闻、暗网",
-        "web": "主要来源：网页搜索结果",
-        "news": "主要来源：新闻资讯",
-        "darkweb": "主要来源：暗网资源（.onion网站）",
-    }
-    return mode_descriptions.get(search_mode, mode_descriptions["all"])
+    # 单一事实源：与 core.search.modes.MODE_DESCRIPTIONS 保持一致（此前本地副本漂移，
+    # 缺 threat 条目导致威胁情报模式下 LLM 被告知"综合所有来源：网页、新闻、暗网"）
+    try:
+        from intelnexus.core.search.modes import MODE_DESCRIPTIONS
+        return MODE_DESCRIPTIONS.get(search_mode, MODE_DESCRIPTIONS["all"])
+    except ImportError:
+        return "综合所有可用来源"
 
 
 # ---------------------------------------------------------------------------
