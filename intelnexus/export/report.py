@@ -210,7 +210,12 @@ def _build_pdf_styles(font_name):
 
 
 def _content_to_pdf_story(content, styles):
-    """Convert cleaned content to a list of PDF flowable elements."""
+    """Convert cleaned content to a list of PDF flowable elements.
+    
+    每行先做 XML 转义再进 Paragraph：LLM 报告可能含 <script>、未闭合标签、
+    裸 & 等字符，paraparser 会当作 XML 解析导致 "unclosed tags" 崩溃。
+    """
+    from xml.sax.saxutils import escape as _xml_escape
     story = []
     lines = content.split('\n')
     for line in lines:
@@ -219,16 +224,16 @@ def _content_to_pdf_story(content, styles):
             story.append(Spacer(1, 5))
             continue
         if line.startswith('# '):
-            clean_title = re.sub(r'^#+\s+', '', line)
+            clean_title = _xml_escape(re.sub(r'^#+\s+', '', line))
             story.append(Paragraph(clean_title, styles["title"]))
         elif line.startswith('## '):
             clean_title = re.sub(r'^#+\s+', '', line)
-            story.append(Paragraph(clean_title, styles["heading"]))
+            story.append(Paragraph(_xml_escape(clean_title), styles["heading"]))
         elif line.startswith('### '):
             clean_title = re.sub(r'^#+\s+', '', line)
-            story.append(Paragraph(clean_title, styles["sub_heading"]))
+            story.append(Paragraph(_xml_escape(clean_title), styles["sub_heading"]))
         elif line:
-            story.append(Paragraph(line, styles["normal"]))
+            story.append(Paragraph(_xml_escape(line), styles["normal"]))
     return story
 
 
@@ -366,10 +371,21 @@ def export_word(content: str, query: str, output_path: str) -> str:
     
     doc = Document()
     
-    # 设置默认字体为支持中文的字体
+    # 设置默认字体：中英文都指定（w:eastAsia 缺失时 Word 用默认东亚字体渲染，
+    # 部分环境显示为乱码/豆腐块）。微软雅黑优先，兼容无此字体的环境。
     style = doc.styles['Normal']
     style.font.name = 'Calibri'
     style.font.size = Pt(11)
+    try:
+        from docx.oxml.ns import qn
+        style.element.rPr.rFonts.set(qn('w:eastAsia'), '微软雅黑')
+        for hname, hsize in (('Heading 1', 16), ('Heading 2', 14), ('Heading 3', 12)):
+            hs = doc.styles[hname]
+            hs.font.name = 'Calibri'
+            if hs.element.rPr is not None and hs.element.rPr.rFonts is not None:
+                hs.element.rPr.rFonts.set(qn('w:eastAsia'), '微软雅黑')
+    except Exception as e:
+        logger.debug(f"Word east-asian font setup skipped: {e}")
     
     # 标题
     title = doc.add_heading('IntelNexus 智能情报分析报告', 0)
