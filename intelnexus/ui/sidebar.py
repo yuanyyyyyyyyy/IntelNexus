@@ -50,6 +50,8 @@ def _render_search_mode():
             )
             if search_mode == "darkweb":
                 tor_port_used = _render_darkweb_settings()
+                if not darkweb_available():
+                    st.error(get_text("darkweb_tor_offline_hint"))
     elif not darkweb_available():
         st.caption(get_text("smart_hint_no_tor"))
     return search_mode
