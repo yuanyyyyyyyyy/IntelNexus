@@ -61,7 +61,12 @@ def cached_search(mode, refined_query, threads, advanced_mode=False, tor_port=DE
         ui_sites=ui_sites or [],
         web_threads=threads,
     )
-    return registry.collect(mode, refined_query, max_results=25, threads=threads)
+    results = registry.collect(mode, refined_query, max_results=25, threads=threads)
+    # F10：记录本次真实检索完成时刻；cache_data 命中时本行不执行，
+    # last_search_completed_at 保持旧值，UI 以此判定缓存命中。
+    import time as _time
+    globals()["last_search_completed_at"] = _time.time()
+    return results
 
 
 @st.cache_data(ttl=200, show_spinner=False)
@@ -78,6 +83,8 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
     - 检索无结果时提前提示，并继续展示已拿到的原始结果，不再整体挂起。
     - 报告生成独立异常边界：即便报告失败，前面的搜索结果仍可渲染。
     """
+    import time as _time_mod
+    _search_started_at = _time_mod.time()  # F10：缓存命中判定基准（真实检索会更新到更晚）
     st.session_state.query_cache = query
     st.session_state.model_cache = model
 
@@ -151,6 +158,13 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
             tor_port = st.session_state.get("tor_port", DEFAULT_TOR_PORT)
             ui_sites = st.session_state.get("custom_onion_sites", [])
             st.session_state.results = cached_search(search_mode, search_query, threads, advanced_mode, tor_port, ui_sites)
+            # F6：从注册表单例取回本次各源成败/跳过统计，供下方透明度条展示。
+            # st.cache_data 命中时（200s 内同参）不会执行到这里的新检索，统计保留上次的。
+            try:
+                from intelnexus.core.search.registry import get_registry as _get_reg
+                st.session_state.source_stats = _get_reg().last_search_stats
+            except Exception as e:
+                logger.debug(f"读取源级统计失败: {e}")
             search_st.update(label=get_text("search_done").format(count=len(st.session_state.results)), state="complete")
     except Exception as e:
         logger.error(f"检索失败 [{type(e).__name__}]: {e}", exc_info=True)
@@ -178,6 +192,30 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
     </div>
     """, unsafe_allow_html=True)
 
+    # F6 源完整性透明度条：N 源成功 / M 跳过，跳过原因内联展示
+    _stats = st.session_state.get("source_stats") or {}
+    if _stats:
+        ok_sources = [n for n, s in _stats.items() if s.get("status") == "ok"]
+        skipped = [(n, s.get("status")) for n, s in _stats.items()
+                   if s.get("status") != "ok"]
+        if skipped:
+            reason_map = {"timeout": get_text("src_skip_timeout"),
+                          "no_proxy": get_text("src_skip_no_proxy"),
+                          "error": get_text("src_skip_error"),
+                          "skipped": get_text("src_skip_skipped")}
+            detail = ", ".join(f"{n} ({reason_map.get(s, s)})"
+                               for n, s in skipped)
+            st.info(get_text("source_integrity").format(
+                ok=len(ok_sources), skip=len(skipped)) +
+                f"　<sub>{html.escape(detail[:200])}</sub>")
+        else:
+            st.success(get_text("all_sources_ok").format(ok=len(ok_sources)))
+
+    # F10 缓存命中提示：st.cache_data 200s 内同参数搜索直接复用（绕过新检索）
+    _ran_at = globals().get("last_search_completed_at", 0)
+    if _ran_at < _search_started_at:
+        st.caption(get_text("cache_hit_note"))
+
     # 无结果：提前提示，但仍保留 results 空列表，下面结果区会显示“无结果”而不是整页空白
     if results_count == 0:
         status_slot.warning(get_text("no_results"))
@@ -199,6 +237,20 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
     else:
         # 降级：沿用原有 top-20 行为，不阻断搜索
         st.session_state.filtered = st.session_state.results[:20]
+
+    # F8 弱相关折叠展示：兑现 relevance.py「保留可追溯」的设计承诺。
+    # 弱相关条目不进报告主干，但折叠面板里可见可取证。
+    _weak = [r for r in st.session_state.get("results", [])
+             if r.get("weak_related", False)]
+    if _weak:
+        with st.expander(get_text("weak_related_expander").format(n=len(_weak))):
+            for wr in _weak[:15]:
+                _wscore = wr.get("relevance_score", 0.0)
+                st.markdown(
+                    f"- [{_wscore:.2f}] {html.escape(str(wr.get('title', ''))[:70])} "
+                    f"({html.escape(str(wr.get('source', '')))})")
+            if len(_weak) > 15:
+                st.caption(get_text("weak_related_more").format(rest=len(_weak) - 15))
 
     # 查询级结果缓存：同一 (mode, query, model, threads, ...) 命中时，
     # 直接复用上次的搜索结果 + 抓取内容，跳过最耗时的 IO 阶段

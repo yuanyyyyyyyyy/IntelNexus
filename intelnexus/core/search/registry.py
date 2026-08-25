@@ -254,16 +254,24 @@ class SearchSourceRegistry:
         raw: List[Dict] = []
         t0 = time.time()
 
+        # F6 源级统计：本次检索各源的成败/跳过情况，供 UI 透明度条展示
+        source_stats: Dict[str, Dict] = {}
+
+        def _mark(name, status, count=0):
+            source_stats[name] = {"status": status, "count": count}
+
         def _timed_search(src, q, mr):
             # 检查全局超时
             if time.time() - t0 > global_timeout:
                 logger.info(f"全局超时，跳过源 {src.name}")
+                _mark(src.name, "timeout")
                 return []
 
             # 检查代理要求
             from intelnexus.core.search import get_http_proxies
             if src.requires_proxy and not get_http_proxies():
                 logger.info(f"跳过需代理源 {src.name}（未配置代理）")
+                _mark(src.name, "no_proxy")
                 return []
 
             t_start = time.time()
@@ -273,6 +281,7 @@ class SearchSourceRegistry:
                 results = src.search(q, min(mr, 30))  # 限制单源结果数
                 elapsed = (time.time() - t_start) * 1000
                 update_health(src.name, len(results or []), elapsed)
+                _mark(src.name, "ok", len(results or []))
                 # 为每个结果添加源名称和权重
                 source_weight = self._source_weights.get(src.name, 1.0)
                 for r in (results or []):
@@ -283,6 +292,7 @@ class SearchSourceRegistry:
             except Exception as e:
                 update_health(src.name, 0, 0, error=str(e))
                 logger.warning(f"源 {src.name} 检索异常: {e}")
+                _mark(src.name, "error")
                 return []
 
         executor = ThreadPoolExecutor(max_workers=max(1, min(threads, len(sources) or 1)))
@@ -315,6 +325,12 @@ class SearchSourceRegistry:
             # 全局超时形同虚设（调用方墙钟时间被最慢单源拖满）。
             # cancel_futures 撤销尚未启动的任务；运行中的任务由各自请求超时兜底。
             executor.shutdown(wait=False, cancel_futures=True)
+
+        # F6：未被收集到的源（撤销/超时未完成）标记 skipped，避免统计缺口
+        for src in sources:
+            if src.name not in source_stats:
+                source_stats[src.name] = {"status": "skipped", "count": 0}
+        self.last_search_stats = source_stats
 
         # 出口统一收口：跨源去重（URL 精确去重 + 归一化标题键 + 受控模糊比对）
         seen_urls = set()
