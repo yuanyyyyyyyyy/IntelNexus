@@ -85,3 +85,6 @@ intelnexus/data/result_cache/
 
 # zcode
 .zcode/
+
+# 语义模型本地缓存（~470MB，运行时从 ModelScope 自动下载，勿入库）
+data/models/
