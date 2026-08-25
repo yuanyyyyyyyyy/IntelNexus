@@ -16,6 +16,13 @@ from intelnexus.search_app.darkweb import is_available as darkweb_available
 logger = get_logger(__name__)
 
 
+
+
+def _smart_label() -> str:
+    """智能路由选项标签：SVG 图标替代 emoji，与侧边栏图标体系统一。"""
+    from intelnexus.ui.icons import icon
+    return icon('search', 'sm', 'sage') + ' <strong>' + get_text('mode_smart') + '</strong>'
+
 def _render_search_mode():
     """搜索模式选择 + 暗网设置"""
     st.markdown('<div class="sb-section"><span class="sb-section__label">Search Mode</span></div>', unsafe_allow_html=True)
@@ -32,7 +39,7 @@ def _render_search_mode():
     top = st.radio(
         "mode_top",
         [SMART_MODE_KEY, "manual"],
-        format_func=lambda x: ("🎯 " + get_text("mode_smart")) if x == SMART_MODE_KEY else get_text("mode_manual"),
+        format_func=lambda x: (_smart_label() if x == SMART_MODE_KEY else get_text("mode_manual")),
         label_visibility="collapsed",
         index=0,
     )
