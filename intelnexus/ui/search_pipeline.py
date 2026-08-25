@@ -77,12 +77,19 @@ def cached_scrape(filtered, threads):
 def run_search_pipeline(query, search_mode, model, threads, status_slot):
     """执行完整搜索流程。
 
+    智能路由：sidebar 返回的 "smart" 在此按查询主题解析为具体模式，
+    下游缓存键与 LLM 模式描述均使用解析后的真实模式。
+
     重构要点：
     - 开头先做 Ollama 模型可用性预检，模型不可用时立即给出中文提示，避免进入耗时阶段。
     - 使用 ``st.status`` 分阶段展示进度，每段独立 ``try/except``，任一阶段失败仍保留已完成中间产物。
     - 检索无结果时提前提示，并继续展示已拿到的原始结果，不再整体挂起。
     - 报告生成独立异常边界：即便报告失败，前面的搜索结果仍可渲染。
     """
+    # 方案一智能路由：smart -> 按查询分类解析为 threat / smart_general / all
+    from intelnexus.core.search.modes import SMART_MODE_KEY, resolve_mode
+    if search_mode == SMART_MODE_KEY:
+        search_mode = resolve_mode(query)
     import time as _time_mod
     _search_started_at = _time_mod.time()  # F10：缓存命中判定基准（真实检索会更新到更晚）
     st.session_state.query_cache = query
