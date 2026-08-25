@@ -1,4 +1,7 @@
 [server]
+# 关闭文件监视器：transformers 的视觉模块会触发满屏 torchvision 导入噪音，
+# 且本地部署不需要 runOnSave 热重载（本就是 false）
+fileWatcherType = "none"
 runOnSave = false
 
 # Material Icons 连字字体（fonts.gstatic.com）在国内被墙，失败时折叠面板
