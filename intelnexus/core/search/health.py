@@ -134,7 +134,11 @@ def get_all_health() -> List[SourceHealth]:
 
 def update_health(source_name: str, result_count: int, latency_ms: float,
                   error: Optional[str] = None):
-    """统一更新入口：成功时 result_count > 0，失败时 error 非 None。
+    """统一更新入口：error 非 None 记失败；否则按是否返回结果分级。
+
+    修复：result_count == 0 且无 error（源连通但本次查询无结果，如暗网开关开、
+    Tor 未连时返回空列表）不再计入 success——旧语义让 DarkWeb 在 Tor 未连接
+    时也能刷出 200+ 次"100% 成功"，健康面板失真。
 
     读-改-写全程持锁（RLock 允许内部 save_health 重入），
     否则并发源线程会互相覆盖计数。
@@ -143,6 +147,30 @@ def update_health(source_name: str, result_count: int, latency_ms: float,
         health = get_health(source_name)
         if error is not None:
             health.record_failure(error)
-        else:
+        elif result_count > 0:
             health.record_success(latency_ms)
+        else:
+            # 连通但零结果：不计成功也不计失败，仅滑动更新延迟观测
+            if latency_ms > 0 and health.avg_latency_ms > 0:
+                health.avg_latency_ms = health.avg_latency_ms * 0.7 + latency_ms * 0.3
         save_health(health)
+
+
+def purge_stale_entries(active_source_names) -> int:
+    """清理健康表中不属于任何当前注册源的残留条目。
+
+    测试运行（src0/verify_src*/OkSrc 等）和已删除用户源会在持久化表里留下
+    永久条目，UI 数据源状态面板会把它们当真实源展示——失真。
+    返回清除的条目数。
+    """
+    with _health_lock:
+        data = _load_health_data()
+        sources = data.get("sources", {})
+        active = set(active_source_names)
+        stale = [n for n in sources if n not in active]
+        for n in stale:
+            sources.pop(n, None)
+        if stale:
+            data["sources"] = sources
+            safe_write_json(HEALTH_FILE, data)
+        return len(stale)
