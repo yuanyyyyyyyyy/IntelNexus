@@ -37,6 +37,16 @@ ENABLE_ARXIV = os.getenv("ENABLE_ARXIV", "false").lower() == "true"
 # HuggingFace在中国被墙，暂时禁用
 ENABLE_HUGGINGFACE = os.getenv("ENABLE_HUGGINGFACE", "false").lower() == "true"
 
+# 搜索源开关覆盖钩子：UI「搜索服务设置」面板保存的开关（data/search_settings.json）
+# 优先于上面的环境变量默认值。导入失败（循环依赖防护）时保持 env 值不变。
+try:
+    from intelnexus.config.search_settings import get_source_toggles as _gst
+    _toggles = _gst()
+    for _k, _v in _toggles.items():
+        globals()[_k] = bool(_v)
+except Exception:
+    pass
+
 # ========== 代理配置（仅在使用时生效；为空则不走代理） ==========
 HTTP_PROXY = os.getenv("HTTP_PROXY") or os.getenv("http_proxy")
 HTTPS_PROXY = os.getenv("HTTPS_PROXY") or os.getenv("https_proxy")

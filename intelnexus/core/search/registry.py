@@ -76,6 +76,12 @@ def get_registry(news_api_key: Optional[str] = None,
     return cached
 
 
+def reset_registry_cache() -> None:
+    """清空注册表单例缓存（源开关变更后调用，使下次 get_registry 重建）。"""
+    with _get_registry_lock():
+        _registry_cache.clear()
+
+
 class SearchSourceRegistry:
     def __init__(self, news_api_key: Optional[str] = None,
                  darkweb_advanced: bool = False, tor_port: int = 9150,
