@@ -410,6 +410,21 @@ class SearchSourceRegistry:
             except Exception:
                 return 0.5
 
+        # F9：中文查询时对英文专属源降权（延后位次而非砍源——保留长尾价值，
+        # 但不让 HN/arxiv/exploitdb 等结构性噪声顶在中文地缘/民生查询前排）。
+        # 判定：查询含 CJK 字符即视为中文语境；语义相关性排序（若可用）会
+        # 进一步精排，这里只做廉价的先验调整。
+        def _is_cjk_query(q) -> bool:
+            return any("\u4e00" <= ch <= "\u9fff" for ch in str(q or ""))
+
+        if _is_cjk_query(query):
+            en_only = {"HackerNewsSource", "ArxivSource", "ExploitDBSource",
+                       "HuggingFaceSource", "TechCommunitySource"}
+            for item in unique:
+                if item.get("_source_name") in en_only:
+                    item["_source_weight"] = min(
+                        float(item.get("_source_weight", 1.0)), 0.7)
+
         unique.sort(
             key=lambda x: (x.get("_source_weight", 1.0), _recency_rank(x)),
             reverse=True,
