@@ -30,6 +30,9 @@ class BriefingHistory:
         """确保目录存在"""
         os.makedirs(self.briefings_dir, exist_ok=True)
     
+    # 历史索引上限：超出后最老条目被挤出索引（.md 文件保留在磁盘，仅不可见）
+    _MAX_HISTORY_ENTRIES = 100
+
     def save_briefing(
         self,
         markdown_content: str,
@@ -76,10 +79,15 @@ class BriefingHistory:
             "content_length": len(markdown_content)
         }
         
-        history = self.get_briefings(limit=100)
-        if len(history) >= 100:
-            logger.warning(f"Briefing history has {len(history)} entries, oldest will be dropped")
+        # 读全量索引做截断判断（limit=1 会把 100 条之外的旧条目永久挤出）
+        history = self.get_briefings(limit=self._MAX_HISTORY_ENTRIES + 500)
+        if len(history) >= self._MAX_HISTORY_ENTRIES:
+            logger.warning(
+                f"Briefing history has {len(history)} entries (max {self._MAX_HISTORY_ENTRIES}), "
+                f"oldest {len(history) - self._MAX_HISTORY_ENTRIES + 1} will be dropped from the index"
+            )
         history.insert(0, entry)
+        history = history[:self._MAX_HISTORY_ENTRIES]
         safe_write_json(self.history_file, history)
         
         logger.info(f"Briefing saved: {filename}")
@@ -121,6 +129,23 @@ class BriefingHistory:
             safe_write_json(self.history_file, history)
             return True
         return False
+
+    def update_entry(self, filename: str, fields: dict) -> bool:
+        """按文件名更新历史索引条目的元数据字段（如 subscribers_count/source）。
+
+        仅合并已知键；条目不存在时返回 False。
+        """
+        history = self.get_briefings(limit=self._MAX_HISTORY_ENTRIES + 500)
+        found = False
+        for entry in history:
+            if entry.get("filename") == filename:
+                entry.update(fields)
+                found = True
+                break
+        if not found:
+            logger.warning(f"update_entry: entry not found: {filename}")
+            return False
+        return safe_write_json(self.history_file, history)
 
     # ---- 条目数据存取（反向飞轮：简报条目 → 一键取证） ----
 

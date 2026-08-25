@@ -43,14 +43,29 @@ def _extract_urls(markdown: str) -> Set[str]:
 
 
 def _prev_briefing_markdown() -> str:
-    """取上一期简报 Markdown（最近一期，排除当前正在生成的）。"""
+    """取上一期简报 Markdown（最近一期，排除当前正在生成的）。
+
+    历史索引条目只存元数据（filename/content_length 等），正文在
+    briefings/*.md 文件里——必须按 filename 回读。旧实现读
+    entry["content"]（不存在），导致增量对比恒为「暂无上一期存档」。
+    """
     try:
         from intelnexus.config.briefing_history import get_briefing_history
-        history = get_briefing_history().get_briefings(limit=5)
+        history_mgr = get_briefing_history()
+        history = history_mgr.get_briefings(limit=5)
         if not history:
             return ""
-        # 最新一条即上一期（当前期尚未写入）
-        return history[0].get("content", "") or ""
+        # 最新一条即上一期（当前期尚未写入）。依次回读正文，
+        # 跳过 .md 已被删除的条目；兼容旧版索引内嵌 content 的格式。
+        for entry in history:
+            content = entry.get("content") or ""
+            if not content:
+                filename = entry.get("filename")
+                if filename:
+                    content = history_mgr.load_briefing(filename) or ""
+            if content:
+                return content
+        return ""
     except Exception as e:
         logger.warning(f"读取上一期简报失败: {e}")
         return ""
