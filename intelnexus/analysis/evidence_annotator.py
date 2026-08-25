@@ -100,6 +100,13 @@ def annotate_report(report: str, evidence_data: dict) -> str:
         # 找 anchor 首次出现；角标插到所在句子的末尾（而非 anchor 尾部），
         # 并拒绝注入 URL/链接内部
         pos = annotated.find(anchor) if anchor in annotated else -1
+        # 表格行内不注入角标：句尾插入会把 <sup> 推到下一管道行行首，
+        # 撕裂 markdown 表格结构（导出 PDF/Word 时整表错乱）
+        if pos >= 0:
+            line_start = annotated.rfind("\n", 0, pos) + 1
+            if annotated[line_start:pos].lstrip().startswith("|") or "|" in annotated[pos:annotated.find("\n", pos)]:
+                logger.debug("anchor inside table row, skipped: %s", anchor[:40])
+                continue
         if pos >= 0 and not _is_inside_url(annotated, pos):
             insert_at = _find_sentence_end(annotated, pos + len(anchor))
             annotated = annotated[:insert_at] + footnote + annotated[insert_at:]
