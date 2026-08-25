@@ -18,7 +18,7 @@ SEARCH_MODES: Dict[str, Tuple[str, str, List[str]]] = {
     "darkweb": ("mode_darkweb", "暗网搜索", ["darkweb"]),
     "threat": ("mode_threat", "威胁情报", ["threat_intel", "exploit"]),
     # 内部模式：智能路由的通用分支（不进侧边栏 radio，仅 resolve_mode 返回）
-    "smart_general": ("mode_all", "智能通用", ["web", "news", "community"]),
+    "smart_general": ("mode_smart_general", "智能通用", ["web", "news", "community"]),
 }
 
 # 人类可读描述（供 LLM 系统提示词与 CLI 回显使用）

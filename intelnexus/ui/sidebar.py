@@ -22,9 +22,10 @@ def _render_search_mode():
 
     # 方案一（智能路由）：「智能」置顶为默认——按查询主题自动路由，
     # 手动 5 模式收进高级折叠区供精确控制；暗网仅在 Tor 存活时出现在手动列表。
-    from intelnexus.core.search.modes import SMART_MODE_KEY
+    from intelnexus.core.search.modes import SMART_MODE_KEY, SMART_GENERAL_KEY
 
-    manual_modes = list(SEARCH_MODES.keys())
+    # 手动列表只暴露用户可选的 5 模式；smart/smart_general 是路由内部值
+    manual_modes = [m for m in SEARCH_MODES.keys() if m != SMART_GENERAL_KEY]
     if not darkweb_available():
         manual_modes.remove("darkweb")  # Tor 未运行时隐藏死选项
 
