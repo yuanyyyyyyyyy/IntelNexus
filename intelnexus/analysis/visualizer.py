@@ -162,10 +162,14 @@ def inject_visuals(report: str, charts: Dict[str, str]) -> str:
 
     images_html = "\n".join(img_tags)
 
-    # 在 "## 五、关键数据" 段落末尾插入
-    pattern = r'(## 五、关键数据\s*\n)'
-    replacement = f'\\1\n{images_html}\n'
-    result = re.sub(pattern, replacement, report, count=1)
+    # 图表语义上是「证据置信度统计」，注入到证据参考节之前（而非关键数据——
+    # 该节应放硬数据表格，统计图放那里名不副实且打断阅读）
+    pattern = r'(## 证据参考)'
+    transition = ('<p style="color:#8a8a8a;font-size:12px;margin:4px 0;">'
+                  "下图为本报告证据链的置信度分布统计：</p>")
+    def _repl(m):
+        return transition + "\n" + images_html + "\n" + m.group(1)
+    result = re.sub(pattern, _repl, report, count=1)
 
     # 如果没找到该章节，追加到文末
     if result == report:
