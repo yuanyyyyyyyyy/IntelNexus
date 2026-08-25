@@ -98,6 +98,12 @@ def _clean_markdown_for_word(text: str) -> str:
     text = re.sub(r'```[\s\S]*?```', '', text)
     # 处理链接
     text = re.sub(r'\[([^\]]+)\]\(([^\)]+)\)', r'\1 (\2)', text)
+    # 剥离证据角标与 HTML 残留：<sup>[N]</sup>、<p ...>...</p>、<img ...>、<b>/<br>
+    text = re.sub(r'<sup>\[\d+\]</sup>', '', text)
+    text = re.sub(r'</?sup>', '', text)
+    text = re.sub(r'<img[^>]*>', '', text)
+    text = re.sub(r'<p[^>]*>|</p>', '', text)
+    text = re.sub(r'<br\s*/?>', chr(10), text)
     return text
 
 
@@ -240,6 +246,11 @@ def _content_to_pdf_story(content, styles):
     markdown 表格块（如「五、关键数据」）渲染为真正的 reportlab Table。
     """
     from xml.sax.saxutils import escape as _xml_escape
+    # 剥离导出中无意义的 HTML 残留（角标/图表/过渡段落），否则被 escape 成字面量刷屏
+    content = re.sub(r"<sup>\[\d+\]</sup>", "", content)
+    content = re.sub(r"</?sup>", "", content)
+    content = re.sub(r"<img[^>]*>", "", content)
+    content = re.sub(r"<p[^>]*>|</p>", "", content)
     story = []
     lines = content.split("\n")
 
