@@ -209,6 +209,41 @@ def _render_search_service_settings():
                     st.success(get_text("newsapi_cleared"))
                     st.rerun()
 
+        # ---- 搜索源开关（F: 源太少问题的 UI 入口）----
+        st.markdown("---")
+        try:
+            from intelnexus.config.search_settings import (
+                get_source_toggles, save_source_toggles)
+            import config as _app_cfg
+            toggles = get_source_toggles()
+            st.caption(get_text("source_toggles_hint"))
+            labels = {
+                "ENABLE_NVD": "NVD 漏洞库", 
+                "ENABLE_CISA_KEV": "CISA KEV 已知被利用漏洞", 
+                "ENABLE_CNVD": "CNVD 国内漏洞库", 
+                "ENABLE_ARXIV": "arXiv 论文", 
+                "ENABLE_HUGGINGFACE": "HuggingFace", 
+                "ENABLE_EXPLOITDB": "Exploit-DB 利用代码", 
+                "ENABLE_OTX": "AlienVault OTX", 
+                "ENABLE_DARKWEB": "暗网 (Tor)", 
+                "ENABLE_HN": "Hacker News",
+            }
+            new_toggles = {}
+            for key, label in labels.items():
+                new_toggles[key] = st.checkbox(
+                    label, value=bool(toggles.get(key, False)),
+                    key=f"src_toggle_{key}")
+            if st.button(get_text("source_toggles_save"), key="src_toggles_save_btn"):
+                if save_source_toggles(new_toggles):
+                    for k, v in new_toggles.items():
+                        setattr(_app_cfg, k, v)
+                    from intelnexus.core.search.registry import reset_registry_cache
+                    reset_registry_cache()
+                    st.success(get_text("source_toggles_saved"))
+                    st.rerun()
+        except Exception as e:
+            logger.warning(f"源开关面板不可用: {e}")
+
 
 def _render_model_settings():
     """模型选择（核心设置）"""

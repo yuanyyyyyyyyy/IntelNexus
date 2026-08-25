@@ -89,3 +89,59 @@ def get_news_api_key() -> str:
     行为与历史「config.NEWS_API_KEY 为空」完全一致。
     """
     return get_search_settings()["news_api_key"]
+
+
+# ============================================================================
+# 搜索源开关（source toggles）
+# ============================================================================
+# 键 = config.py 的 ENABLE_* 环境变量名；值为 bool。
+# 合并优先级与上方一致：config.py 默认值 <- 环境变量 <- 本文件保存值。
+_SOURCE_TOGGLE_DEFAULTS: Dict = {
+    "ENABLE_NVD": False,
+    "ENABLE_CISA_KEV": False,
+    "ENABLE_CNVD": False,
+    "ENABLE_ARXIV": False,
+    "ENABLE_HUGGINGFACE": False,
+    "ENABLE_EXPLOITDB": False,
+    "ENABLE_OTX": False,
+    "ENABLE_DARKWEB": False,
+    "ENABLE_HN": True,
+}
+
+
+def get_source_toggles() -> Dict:
+    """返回合并后的源开关 {ENV_NAME: bool}。"""
+    merged = dict(_SOURCE_TOGGLE_DEFAULTS)
+
+    # 1) 环境变量兜底
+    for key in merged:
+        val = os.getenv(key)
+        if val is not None and val != "":
+            merged[key] = str(val).strip().lower() == "true"
+
+    # 2) 文件保存值最权威
+    stored = safe_read_json(SEARCH_SETTINGS_FILE)
+    if isinstance(stored, dict):
+        toggles = stored.get("source_toggles")
+        if isinstance(toggles, dict):
+            for key in merged:
+                if key in toggles:
+                    merged[key] = bool(toggles[key])
+
+    return merged
+
+
+def save_source_toggles(toggles: Dict) -> bool:
+    """保存源开关到配置文件（仅写入与默认值不同的项，保持文件精简）。"""
+    data = safe_read_json(SEARCH_SETTINGS_FILE)
+    if not isinstance(data, dict):
+        data = {}
+    clean = {}
+    for key, default in _SOURCE_TOGGLE_DEFAULTS.items():
+        if key in toggles:
+            v = bool(toggles[key])
+            if v != default:
+                clean[key] = v
+    # 全部等于默认值时写空 dict，显式表达「用户确认过默认」
+    data["source_toggles"] = clean
+    return safe_write_json(SEARCH_SETTINGS_FILE, data)
