@@ -141,14 +141,57 @@ def _get_mode_description(search_mode):
     return mode_descriptions.get(search_mode, mode_descriptions["all"])
 
 
+# ---------------------------------------------------------------------------
+# 查询主题分类（方案 A：模板分层）
+# 安全情报类查询沿用完整四维分析；非安全类（实体/城市/产品/人物等）
+# 自动替换为自适应维度，避免"技术维度硬凑 VR 景区"式的模板错配。
+_SECURITY_HINTS = (
+    "漏洞", "攻击", "勒索", "恶意", "木马", "病毒", "钓鱼", "入侵", "渗透",
+    "exploit", "ransomware", "malware", "apt", "cve", "0day", "zero-day",
+    "数据泄露", "泄密", "暗网", "hacked", "breach", "botnet", "ddos",
+    "网络攻击", "安全事件", "威胁情报", "后门", "挂马", "webshell",
+)
+
+
+def classify_query_topic(query: str) -> str:
+    """返回 'security' 或 'general'。规则匹配，零 LLM 开销。"""
+    if not query:
+        return "general"
+    q = query.lower()
+    return "security" if any(h in q for h in _SECURITY_HINTS) else "general"
+
+
+_ADAPTIVE_DIMENSIONS = """
+### 4.1 发展现状与格局
+[该主体的当前状态、规模数据、行业地位、近期变化]
+
+### 4.2 优势与挑战
+[核心优势/竞争力；面临的问题、短板或争议]
+
+### 4.3 相关方视角
+[政府/监管态度、行业影响、公众关注点（仅当搜索结果有支撑时展开）]
+
+### 4.5 发展趋势
+[短期、中期、长期预测]
+"""
+
+
 def _build_system_prompt(query, search_mode):
     """Build the system prompt for the LLM."""
     mode_desc = _get_mode_description(search_mode)
+    topic_kind = classify_query_topic(query)
+    if topic_kind == "general":
+        dimensions_block = _ADAPTIVE_DIMENSIONS
+        dim_note = ("注意：本次查询不是安全事件类主题，「多角度分析」章节请使用下方自适应维度骨架，"
+                    "不要输出技术/商业/社会/政策四个固定小节；若搜索结果对某维度无支撑，直接省略该小节。")
+    else:
+        dimensions_block = None
+        dim_note = ""
     return f"""
 你是一位高级网络情报分析师。基于以下搜索结果，请生成一份结构清晰、内容全面的情报分析报告。
 
 查询主题：{query}
-数据来源：{mode_desc}
+数据来源：{mode_desc}{(chr(10) + dim_note) if dim_note else ''}
 
 重要要求：
 1. 报告要全面详细，涵盖所有搜索结果中的关键信息
@@ -214,7 +257,7 @@ def _build_system_prompt(query, search_mode):
 
 ## 四、多角度分析
 
-### 4.1 技术维度
+{dimensions_block if dimensions_block else """### 4.1 技术维度
 [技术原理、现状、趋势、挑战]
 
 ### 4.2 商业维度
@@ -227,7 +270,7 @@ def _build_system_prompt(query, search_mode):
 [法规、监管、合规]
 
 ### 4.5 发展趋势
-[短期、中期、长期预测]
+[短期、中期、长期预测]"""}
 
 
 ## 五、关键数据
