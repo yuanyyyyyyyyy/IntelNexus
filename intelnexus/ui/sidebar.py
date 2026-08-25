@@ -51,19 +51,6 @@ def _render_search_mode():
                 tor_port_used = _render_darkweb_settings()
     elif not darkweb_available():
         st.caption(get_text("smart_hint_no_tor"))
-    if top == "manual":
-        with st.expander(get_text("mode_manual"), expanded=True):
-            search_mode = st.radio(
-                "mode",
-                manual_modes,
-                format_func=lambda x: get_text(SEARCH_MODES[x][0]),
-                label_visibility="collapsed",
-                index=0,
-            )
-            if search_mode == "darkweb":
-                _render_darkweb_settings()
-    elif not darkweb_available():
-        st.caption(get_text("smart_hint_no_tor"))
     return search_mode
 
 def _render_darkweb_settings():
