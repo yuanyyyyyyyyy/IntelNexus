@@ -17,6 +17,30 @@ logger = get_logger(__name__)
 
 _lock = threading.Lock()
 _scheduler = None  # AIBriefingScheduler | None
+_model_status = {"model": None, "degraded": False, "reason": ""}
+
+
+def set_model_status(model, degraded: bool, reason: str = "") -> None:
+    """记录定时链路的 LLM 解析结果，供 UI 状态横幅展示。
+
+    Args:
+        model: 解析到的模型名（如 "qwen2.5:7b"）；None 表示无可用模型
+        degraded: True 时定时简报将以降级模式生成（无 LLM）
+        reason: 降级原因（人读文本，可直接展示）
+    """
+    global _model_status
+    with _lock:
+        _model_status = {"model": model, "degraded": bool(degraded), "reason": reason or ""}
+    if degraded:
+        logger.warning("Scheduler LLM degraded: model=%r reason=%s", model, reason)
+    else:
+        logger.info("Scheduler LLM resolved: %r", model)
+
+
+def get_model_status() -> dict:
+    """返回最近一次解析的模型状态；调度器未启动时 degraded=False、model=None。"""
+    with _lock:
+        return dict(_model_status)
 
 
 def register_scheduler(scheduler) -> None:

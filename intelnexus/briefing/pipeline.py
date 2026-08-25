@@ -41,21 +41,27 @@ def run_briefing_pipeline(
     org_name: Optional[str] = None,
     email_config: Optional[dict] = None,
     on_progress: ProgressCallback = _noop_progress,
+    llm_instance=None,
+    collector: Optional[AIBriefingCollector] = None,
 ) -> dict:
     """
     生成一份简报并（可选）推送。
 
     Args:
-        model: LLM 模型名（如 "qwen2.5:7b"），由 UI 选择后传入
+        model: LLM 模型名（如 "qwen2.5:7b"），由 UI 选择后传入；
+            与 llm_instance 二选一——定时调度器传入已解析好的实例时置 None
         categories: 本次采集的分类 ID 列表；None 表示全部 WATCH_CATEGORIES
         push_enabled: 是否推送订阅者
         org_name: 组织名称（覆盖配置）
         email_config: 邮件推送配置（用于 email 渠道）
         on_progress: 进度回调 (stage, message, percent)
+        llm_instance: 调用方已构建的 LLM 实例（定时链路注入），优先于 model
+        collector: 复用调用方的采集器实例（可选）
 
     Returns:
         dict: {
             "md": 简报 markdown,
+            "html": 邮件 HTML 版本（可能为 None）,
             "warnings": [警告文本列表],
             "collected_counts": {cat_id: 条数},
             "pushed": 成功推送人数,
@@ -71,7 +77,7 @@ def run_briefing_pipeline(
 
     # ---- 1. 采集（并行）----
     on_progress("collect_start", "开始采集情报数据...", 0.0)
-    collector = AIBriefingCollector()
+    collector = collector or AIBriefingCollector()
     all_collected = collector.collect_all_categories()
 
     if categories:
@@ -87,10 +93,13 @@ def run_briefing_pipeline(
 
     # ---- 2. 生成 ----
     on_progress("generate_start", "开始生成简报...", 0.4)
-    from intelnexus.core.llm.core import get_llm
     llm = None
-    if model:
+    if llm_instance is not None:
+        # 定时链路：模型解析与状态上报由调度器负责，这里只接收实例
+        llm = llm_instance
+    elif model:
         try:
+            from intelnexus.core.llm.core import get_llm
             llm = get_llm(model)
         except Exception as e:
             logger.warning(f"Failed to load LLM '{model}': {e}; 将以降级模式生成。")
@@ -128,6 +137,7 @@ def run_briefing_pipeline(
     history = get_briefing_history()
     filename = history.save_briefing(
         markdown_content=md,
+        html_content=briefing_html,
         organization_name=org_name or BRIEFING_CONFIG["organization"].get("name", ""),
         categories=list(all_collected.keys()),
     )
@@ -179,6 +189,7 @@ def run_briefing_pipeline(
     elapsed = round(time.time() - start, 1)
     return {
         "md": md,
+        "html": briefing_html,
         "warnings": warnings,
         "collected_counts": collected_counts,
         "pushed": pushed,
