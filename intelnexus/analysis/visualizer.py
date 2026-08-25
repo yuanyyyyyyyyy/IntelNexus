@@ -35,6 +35,18 @@ def generate_threat_chart(evidence_data: dict) -> Optional[str]:
     try:
         import matplotlib
         matplotlib.use("Agg")
+        from matplotlib import font_manager
+        _cjk = None
+        for _font in ("Microsoft YaHei", "SimHei", "DengXian"):
+            try:
+                font_manager.findfont(_font, fallback_to_default=False)
+                _cjk = _font
+                break
+            except Exception:
+                continue
+        if _cjk:
+            matplotlib.rcParams["font.sans-serif"] = [_cjk]
+            matplotlib.rcParams["axes.unicode_minus"] = False
         import matplotlib.pyplot as plt
 
         labels = []
@@ -89,6 +101,18 @@ def generate_timeline_chart(scraped_data: dict) -> Optional[str]:
     try:
         import matplotlib
         matplotlib.use("Agg")
+        from matplotlib import font_manager
+        _cjk = None
+        for _font in ("Microsoft YaHei", "SimHei", "DengXian"):
+            try:
+                font_manager.findfont(_font, fallback_to_default=False)
+                _cjk = _font
+                break
+            except Exception:
+                continue
+        if _cjk:
+            matplotlib.rcParams["font.sans-serif"] = [_cjk]
+            matplotlib.rcParams["axes.unicode_minus"] = False
         import matplotlib.pyplot as plt
         from collections import Counter
 

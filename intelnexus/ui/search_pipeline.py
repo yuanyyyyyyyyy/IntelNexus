@@ -642,11 +642,13 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
     try:
         _tldr = _extract_tldr_card(st.session_state.get("streamed_summary", ""))
         if _tldr:
+            _escaped = html.escape(_tldr)
+            _escaped = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", _escaped)
+            _escaped = re.sub(r"(?m)^- ", "• ", _escaped)
             summary_slot.markdown(
                 f'<div class="tldr-card" style="background:#e8f4fd;border-radius:8px;'
                 f'padding:16px;margin-bottom:16px;border-left:4px solid #1a73e8;">'
-                # LLM 输出先转义再进 HTML 卡片，换行转 <br> 保留排版
-                f'{html.escape(_tldr).replace(chr(10), "<br>")}</div>',
+                f'{_escaped.replace(chr(10), "<br>")}</div>',
                 unsafe_allow_html=True
             )
     except Exception as e:
