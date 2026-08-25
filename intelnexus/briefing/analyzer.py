@@ -6,7 +6,7 @@ AI简报分析生成器
 
 import os
 import re
-from typing import Dict, List
+from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 
 from intelnexus.briefing.config import WATCH_CATEGORIES, BRIEFING_CONFIG
@@ -103,18 +103,16 @@ class AIBriefingAnalyzer:
         self._kb_context: str = ""
 
     def _get_llm(self):
-        """获取LLM实例"""
-        if self._llm is not None:
-            return self._llm
+        """获取LLM实例；未显式注入时返回 None（走可感知的降级路径）。
 
-        try:
-            from intelnexus.core.llm.core import get_llm
-            # 尝试使用默认模型
-            self._llm = get_llm("qwen2.5:7b")
-            return self._llm
-        except Exception as e:
-            logger.warning(f"Could not load LLM: {e}")
-            return None
+        模型解析不属于本类：定时链路由 scheduler._resolve_llm 显式解析并
+        注入（状态上报注册表供横幅展示）；手动链路由 UI/CLI 显式传模型。
+        这里不再做任何自动探测——那会引入隐藏的网络探测与静默的质量
+        切换，且让无 LLM 的降级行为不可预期。
+        """
+        if self._llm is None:
+            logger.info("AIBriefingAnalyzer running without LLM (degraded template mode)")
+        return self._llm
 
     def _format_date(self) -> str:
         """生成中文星期日期（实例方法，委托模块函数）"""
@@ -142,9 +140,58 @@ class AIBriefingAnalyzer:
         return urlunparse(parsed._replace(query=new_query))
 
     @staticmethod
-    def _collect(cats: List[str], collected_data: Dict[str, List[Dict]],
+    def _parse_published_at(pub_str: str) -> Optional[datetime]:
+        """尽力解析条目发布时间；失败返回 None。
+
+        旧实现只走 datetime.fromisoformat——RFC822（Mon, 17 Jun 2026 …）、
+        「Aug 13, 2026」等搜索引擎常见格式全部解析失败后被无条件放行，
+        数月前的旧闻得以「本日动态」身份混入简报。
+        """
+        if not pub_str:
+            return None
+        d = pub_str.strip()
+        # ISO（容忍 Z / +00:00 后缀）
+        try:
+            return datetime.fromisoformat(d.replace("Z", "").replace("+00:00", ""))
+        except (ValueError, TypeError):
+            pass
+        # Mon, 17 Jun 2026 02:21:00 GMT
+        m = re.match(r'(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),?\s+(\d{1,2})\s+(\w{3})\s+(\d{4})', d)
+        if m:
+            try:
+                return datetime.strptime(f"{m.group(1)} {m.group(2)} {m.group(3)}", "%d %b %Y")
+            except ValueError:
+                pass
+        # Aug 13,2026 / Aug 13, 2026
+        m = re.match(r'(\w{3})\s+(\d{1,2}),?\s*(\d{4})', d)
+        if m:
+            try:
+                return datetime.strptime(f"{m.group(1)} {m.group(2)} {m.group(3)}", "%b %d %Y")
+            except ValueError:
+                pass
+        # 2026年8月13日
+        m = re.match(r'(\d{4})年(\d{1,2})月(\d{1,2})日', d)
+        if m:
+            try:
+                return datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+            except ValueError:
+                pass
+        # 前缀式 YYYY-MM-DD（后跟杂讯）
+        m = re.match(r'(\d{4}-\d{1,2}-\d{1,2})', d)
+        if m:
+            try:
+                return datetime.fromisoformat(m.group(1))
+            except ValueError:
+                pass
+        return None
+
+    def _collect(self, cats: List[str], collected_data: Dict[str, List[Dict]],
                  max_days: int = None) -> List[Dict]:
-        """合并若干类目的采集结果，丢弃超过 max_days 天的旧内容"""
+        """合并若干类目的采集结果，丢弃超过 max_days 天的旧内容。
+
+        时间窗策略：发布时间可解析且早于窗口 → 丢弃；无日期或无法解析
+        （收藏草稿、自定义抓取等合法场景）→ 保留。
+        """
         from .config import BRIEFING_CONFIG
         if max_days is None:
             max_days = BRIEFING_CONFIG["search"]["time_window_days"]
@@ -152,14 +199,9 @@ class AIBriefingAnalyzer:
         cutoff = datetime.now() - timedelta(days=max_days)
         for cat in cats:
             for item in collected_data.get(cat, []):
-                pub_str = item.get("published_at", "")
-                if pub_str:
-                    try:
-                        pub_dt = datetime.fromisoformat(pub_str.replace("Z", "+00:00").replace("+00:00", ""))
-                        if pub_dt < cutoff:
-                            continue
-                    except (ValueError, TypeError):
-                        pass  # 日期解析失败时保留条目
+                pub_dt = self._parse_published_at(item.get("published_at", ""))
+                if pub_dt is not None and pub_dt < cutoff:
+                    continue
                 results.append(item)
         return results
 
@@ -225,10 +267,12 @@ class AIBriefingAnalyzer:
             if key == "top3":
                 top3_cve_ids = set(re.findall(r'CVE-\d{4}-\d+', contents["top3"]))
 
-        # 知识图谱链接追加到「重要链接」板块
+        # 知识图谱链接追加到「重要链接」板块（绝对路径：外发/邮件场景下
+        # 相对路径 data\briefings\… 无法打开）
         if kg_path:
+            kg_display = os.path.abspath(kg_path)
             contents["links"] = (contents.get("links", "") or "") + \
-                f"\n\n• [图谱] 本期实体关系图谱：{kg_path}"
+                f"\n\n• [图谱] 本期实体关系图谱：{kg_display}"
 
         # 生成执行摘要（今日要点）
         on_progress("summary", "正在生成执行摘要...", 0.92)
@@ -343,10 +387,21 @@ class AIBriefingAnalyzer:
             if conflict_count else "- **跨源冲突提示**：未检测到明显冲突",
         ]
         if conflicts:
-            lines.append("")
-            lines.append("**冲突要点：**")
-            for c in conflicts[:3]:
-                lines.append(f"- {c.get('description', '')}（严重度 {c.get('severity', 0):.2f}）")
+            # 去重后最多展示 2 条：ConflictDetector 对同类数值差异会产出
+            # 多条一字不差的模板描述（实锤：同一句「million级别」重复 3 次、
+            # 严重度全是 0.99），原样罗列只是噪声。
+            seen_descs = set()
+            unique_conflicts = []
+            for c in conflicts:
+                desc = (c.get("description") or "").strip()
+                if desc and desc not in seen_descs:
+                    seen_descs.add(desc)
+                    unique_conflicts.append(c)
+            if unique_conflicts:
+                lines.append("")
+                lines.append("**冲突要点：**")
+                for c in unique_conflicts[:2]:
+                    lines.append(f"- {c.get('description', '')}（严重度 {c.get('severity', 0):.1f}）")
         lines.append("")
         lines.append("> 本栏基于采集来源的域名权威性、时效性与内容深度自动评分，供研判参考。")
         return "\n".join(lines)
@@ -715,7 +770,43 @@ class AIBriefingAnalyzer:
                                  "你是一位网络安全防护专家，请生成'防护建议与厂商方案'部分。",
                                  label="防护建议与厂商方案")
 
-    def _validate_llm_output(self, result: str, prompt_name: str) -> bool:
+    def _find_unsourced_figures(self, result: str, source_text: str) -> list:
+        """找出输出中来源文本不支持、且未标注【推断】的金额/百分比数据。
+
+        反编造抽查：模型常把脑补的黑市估值/股价涨跌写成事实（实锤案例：
+        「每条记录50-200美元→潜在价值1.875亿至7.5亿美元」「股价下跌逾12%」）。
+        返回疑似编造的数据列表；空列表表示抽查通过。
+
+        规则：
+        - 提取百分比、货币金额（$xx / xx美元 / xx万元|亿）、大数值
+        - 数字在来源文本中出现 → 放行
+        - 所在行含【推断】标注 → 放行
+        - 其余视为无来源数据
+        """
+        if not result or not source_text:
+            return []
+
+        # 归一化来源：去空白，便于「1.875亿」「375万」这类跨格式匹配
+        src = re.sub(r"\s+", "", source_text)
+
+        suspects = []
+        for line in result.split("\n"):
+            stripped = line.strip()
+            if not stripped or "【推断】" in stripped:
+                continue
+            figures = re.findall(
+                r"\d+(?:\.\d+)?(?:%|％|[美欧人民币]元|万元|亿元|亿美元)"
+                r"|\$\s?\d+(?:\.\d+)?(?:\s?(?:million|billion))?",
+                stripped,
+            )
+            for fig in figures:
+                num_part = re.sub(r"[\s$%％]|million|billion", "", fig)
+                num_core = re.sub(r"^(?:[美欧人民币])?|(?:万元|亿元|亿美元|元)$", "", num_part)
+                if num_core and num_core not in src:
+                    suspects.append(fig)
+        return suspects
+
+    def _validate_llm_output(self, result: str, prompt_name: str, source_text: str = "") -> bool:
         """校验LLM输出是否有效，避免模板占位符或垃圾内容"""
         if not result or not result.strip():
             return False
@@ -774,26 +865,38 @@ class AIBriefingAnalyzer:
             return False
 
         # 检测连续纯英文段落（超过3行，排除CVE编号等必要英文）
-        lines_for_english = result.split("\n")
-        english_streak = 0
-        for line in lines_for_english:
-            stripped = line.strip()
-            if not stripped or re.search(r"CVE-\d{4}-\d+", stripped):
-                english_streak = 0
-                continue
-            # 判断是否为纯英文（排除中文字符、数字、标点）
-            if re.match(r"^[a-zA-Z0-9\s\.\,\;\:\-\(\)\[\]\/\\\@\#\$\%\^\&\*\+\=\_\~\`\|\{\}\<\>\?\!]+$", stripped):
-                english_streak += 1
-                if english_streak >= 3:
-                    logger.warning("LLM输出包含连续纯英文段落，判定无效")
-                    return False
-            else:
-                english_streak = 0
+        # protection 板块豁免：该板块天然引用大量英文厂商产品名/英文源，
+        # 此规则误杀率过高——且失败后已有优雅降级兜底，不再倒原始转储。
+        if prompt_name != "protection":
+            english_streak = 0
+            for line in result.split("\n"):
+                stripped = line.strip()
+                if not stripped or re.search(r"CVE-\d{4}-\d+", stripped):
+                    english_streak = 0
+                    continue
+                # 判断是否为纯英文（排除中文字符、数字、标点）
+                if re.match(r"^[a-zA-Z0-9\s\.\,\;\:\-\(\)\[\]\\\/\@\#\$\%\^\&\*\+\=\_\~\`\|\{\}\<\>\?\!]+$", stripped):
+                    english_streak += 1
+                    if english_streak >= 3:
+                        logger.warning("LLM输出包含连续纯英文段落，判定无效")
+                        return False
+                else:
+                    english_streak = 0
 
         # 检测占位符CVE
         if re.search(r"CVE-\d{4}-XXXX", result):
             logger.warning("LLM输出包含占位符CVE，判定无效")
             return False
+
+        # 反编造抽查：深度分析中的金额/百分比必须来自来源文本，
+        # 或所在行显式标注【推断】。防止模型把脑补的估值当事实分发。
+        if prompt_name == "attack_analysis" and source_text:
+            fabricated = self._find_unsourced_figures(result, source_text)
+            if fabricated:
+                logger.warning(
+                    f"攻击事件深度分析包含来源中不存在的数据，判定疑似编造: {fabricated[:3]}"
+                )
+                return False
 
         # 检测重复内容（防止LLM输出循环）
         lines = [l.strip() for l in result.split("\n") if l.strip() and len(l.strip()) > 20]
@@ -906,8 +1009,12 @@ class AIBriefingAnalyzer:
             "policy": self._fallback_subsections(
                 ["国内政策", "国际法规", "行业标准"], results, None),
             "attack_analysis": "本日暂无重大安全事件需要深度分析。",
-            "protection": self._fallback_subsections(
-                ["通用防护建议", "厂商解决方案"], results, None),
+            # protection 不倒原始条目：抓取器原文是英文粘连转储，直接展示
+            # 等于把垃圾发给订阅者。宁可明确告知「本日无可整理内容」。
+            "protection": (
+                "### 通用防护建议\n本日暂无可整理的防护建议；建议参考上方"
+                "漏洞预警表格中的处置措施。\n\n### 厂商解决方案\n本日暂无相关厂商方案。"
+            ),
             "insight": (
                 "1. **关注AI与网络安全动态**\n"
                 "   本日采集到若干公开信息，建议持续跟踪AI技术进展与网络安全威胁。\n\n"
@@ -938,7 +1045,8 @@ class AIBriefingAnalyzer:
         try:
             # 使用配置中的max_results_for_sections参数
             max_results = BRIEFING_CONFIG["search"].get("max_results_for_sections", 15)
-            search_summary = self._format_results_for_prompt(results[:max_results])
+            used_results = results[:max_results]
+            search_summary = self._format_results_for_prompt(used_results)
             prompt = get_prompt(prompt_name, search_results=search_summary,
                                 kb_context=self._kb_context)
 
@@ -952,8 +1060,9 @@ class AIBriefingAnalyzer:
 
             result = chain.invoke({"prompt": prompt})
 
-            # 校验LLM输出
-            if not self._validate_llm_output(result, prompt_name):
+            # 校验LLM输出（attack_analysis 附带来源文本做反编造抽查）
+            source_text = search_summary if prompt_name == "attack_analysis" else ""
+            if not self._validate_llm_output(result, prompt_name, source_text=source_text):
                 logger.warning(f"{label}: LLM输出校验失败，回退到降级模式")
                 self._add_warning(label, "LLM输出校验失败，使用降级内容")
                 return self._get_fallback_content(prompt_name, results)
@@ -999,9 +1108,11 @@ class AIBriefingAnalyzer:
     @staticmethod
     def _clean_source_name(source: str, url: str = "") -> str:
         """清洗来源名称：从URL提取域名或规范化来源名"""
-        # 如果来源是搜索引擎，尝试从URL提取实际来源
-        search_engines = {'Bing', 'Google', 'Yahoo', 'DuckDuckGo', 'Baidu', 'Yandex'}
-        if source in search_engines and url:
+        # 如果来源是搜索引擎，尝试从URL提取实际来源。
+        # 用包含匹配而非精确匹配：实际数据里是「Bing News」「DuckDuckGo」
+        # 等变体，旧实现只认「Bing」导致搜索引擎名直接漏到署名位。
+        search_engine_hints = ('bing', 'google', 'yahoo', 'duckduckgo', 'baidu', 'yandex')
+        if url and any(h in (source or "").lower() for h in search_engine_hints):
             try:
                 from urllib.parse import urlparse
                 parsed = urlparse(url)
@@ -1139,10 +1250,21 @@ class AIBriefingAnalyzer:
                 if t and len(t) > 5:
                     bullets.append(f"- 📊 {t}")
 
-        # 从政策动态提取重要法规
+        # 从政策动态提取重要法规——检测「### 国内政策」子板块下是否有实际
+        # 条目行（旧实现 `"国内政策" in policy` 恒真：子板块标题本身包含
+        # 该子串，导致「今日有国内政策动态」与正文的「本日暂无」自相矛盾）。
         policy = contents.get("policy", "")
         if policy:
-            if "国内政策" in policy:
+            domestic_items = 0
+            in_domestic = False
+            for line in policy.split("\n"):
+                stripped = line.strip()
+                if stripped.startswith("### "):
+                    in_domestic = "国内" in stripped
+                    continue
+                if in_domestic and stripped.startswith("•"):
+                    domestic_items += 1
+            if domestic_items > 0:
                 bullets.append("- 📋 今日有国内AI/网络安全政策动态（详见政策法规板块）")
 
         if not bullets:
