@@ -18,7 +18,9 @@ from intelnexus.core.search import BLOCKED_DOMAINS as BLOCKED_DOMAINS_WEB  # noq
 
 ENGINE_CONFIGS = {
     "Bing": {
-        "url": "https://www.bing.com/search?q={query}&first={offset}",
+        # cn.bing.com：国际版对无 cookie 爬虫请求会把纯 CJK 地名查询误判
+        # 为日文（实测"九江"返回日文"零行列"内容）或随机填充页，中国版端点稳定。
+        "url": "https://cn.bing.com/search?q={query}&first={offset}",
         "offset_fn": lambda page: page * 10 + 1,
         "item_selector": "li.b_algo",
         "title_selector": "h2 a",
