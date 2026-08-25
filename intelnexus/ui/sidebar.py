@@ -481,7 +481,6 @@ def _render_custom_models():
                 st.session_state["_prev_add_model_type"] = model_type
             base_url = st.text_input(
                 get_text("base_url"),
-                value=st.session_state.get("add_model_base_url", default_url),
                 key="add_model_base_url",
             )
 
