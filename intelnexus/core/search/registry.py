@@ -78,7 +78,11 @@ def get_registry(news_api_key: Optional[str] = None,
 
 def reset_registry_cache() -> None:
     """清空注册表单例缓存（源开关变更后调用，使下次 get_registry 重建）。"""
-    with _get_registry_lock():
+    import threading
+    global _registry_cache_lock
+    if _registry_cache_lock is None:
+        _registry_cache_lock = threading.Lock()
+    with _registry_cache_lock:
         _registry_cache.clear()
 
 
