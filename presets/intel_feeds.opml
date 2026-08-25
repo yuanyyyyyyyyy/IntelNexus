@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head><title>IntelNexus Curated Intel Feeds</title></head>
+  <body>
+    <outline text="cyber_vuln" title="cyber_vuln">
+      <outline type="rss" text="FreeBuf 网络安全行业门户" title="FreeBuf 网络安全行业门户" xmlUrl="https://www.freebuf.com/feed"/>
+      <outline type="rss" text="安全客" title="安全客" xmlUrl="https://api.anquanke.com/data/v1/rss"/>
+      <outline type="rss" text="Exploit-DB Updates" title="Exploit-DB Updates" xmlUrl="https://www.exploit-db.com/rss.xml"/>
+      <outline type="rss" text="Dark Reading" title="Dark Reading" xmlUrl="https://www.darkreading.com/rss.xml"/>
+    </outline>
+    <outline text="threat_intel" title="threat_intel">
+      <outline type="rss" text="Krebs on Security" title="Krebs on Security" xmlUrl="https://krebsonsecurity.com/feed/"/>
+      <outline type="rss" text="CISA Alerts" title="CISA Alerts" xmlUrl="https://www.cisa.gov/cybersecurity-advisories/all.xml"/>
+    </outline>
+    <outline text="ai_news" title="ai_news">
+      <outline type="rss" text="机器之心" title="机器之心" xmlUrl="https://www.jiqizhixin.com/rss"/>
+      <outline type="rss" text="量子位" title="量子位" xmlUrl="https://www.qbitai.com/feed"/>
+      <outline type="rss" text="Hacker News Front Page" title="Hacker News Front Page" xmlUrl="https://hnrss.org/frontpage"/>
+    </outline>
+    <outline text="general_tech" title="general_tech">
+      <outline type="rss" text="Solidot 奇客资讯" title="Solidot 奇客资讯" xmlUrl="https://www.solidot.org/index.rss"/>
+      <outline type="rss" text="IT之家" title="IT之家" xmlUrl="https://www.ithome.com/rss/"/>
+      <outline type="rss" text="TechCrunch" title="TechCrunch" xmlUrl="https://techcrunch.com/feed/"/>
+    </outline>
+  </body>
+</opml>

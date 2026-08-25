@@ -11,6 +11,7 @@ Design: Intelligence Workbench (cold-gray industrial)
 
 import html
 
+import os
 import streamlit as st
 from datetime import datetime
 from intelnexus.config.briefing_history import get_briefing_history
@@ -606,6 +607,51 @@ def render_data_sources_panel():
 
     sources = get_all_sources()
     all_sources_list = sources.get("subscription_sources", []) + sources.get("custom_sources", [])
+
+    # 精选情报源一键导入（内置经过验证的 12 个一手 RSS 源，按关注点分组）
+    with st.expander(get_text("preset_import_title")):
+        st.caption(get_text("preset_import_hint"))
+        preset_cats = {
+            "cyber_vuln": "网络安全漏洞",
+            "threat_intel": "威胁情报",
+            "ai_news": "AI 资讯",
+            "general_tech": "综合科技",
+        }
+        sel = st.multiselect(
+            get_text("preset_select"),
+            options=list(preset_cats.keys()),
+            format_func=lambda c: preset_cats.get(c, c),
+            key="bf_preset_cats",
+        )
+        if st.button(get_text("preset_import_btn"), key="bf_preset_btn"):
+            import xml.etree.ElementTree as ET
+            opml_path = os.path.join("presets", "intel_feeds.opml")
+            if not os.path.exists(opml_path):
+                st.error("presets/intel_feeds.opml 不存在")
+            elif not sel:
+                st.warning(get_text("fill_fields"))
+            else:
+                tree = ET.parse(opml_path)
+                added = 0
+                # 构建 (父分组中文标签, outline) 对；分组标签反向映射回关注点 ID
+                _pairs = []
+                for _body in tree.iter("body"):
+                    for _group in list(_body):
+                        _glabel = _group.get("text", "")
+                        for _child in list(_group):
+                            _pairs.append((_glabel, _child))
+                # presets/intel_feeds.opml 的分组名就是关注点 ID（cyber_vuln 等）
+                for _glabel, outline in _pairs:
+                    xml_url = outline.get("xmlUrl")
+                    if not xml_url:
+                        continue
+                    cat_for_feed = _glabel
+                    if cat_for_feed is None or cat_for_feed not in sel:
+                        continue
+                    ok = add_source("rss", outline.get("text", "feed"), xml_url,
+                                    cat_for_feed, fetch_type="rss")
+                    added += 1 if ok else 0
+                st.success(f"已导入 {added} 个精选源")
 
     # OPML 批量导入 RSS（目标人群多已有现成订阅清单）
     with st.expander(get_text("import_opml")):
