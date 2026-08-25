@@ -127,63 +127,66 @@ def get_personalized_categories(subscriber_id: str) -> List[str]:
 
 
 def filter_briefing_by_engagement(briefing_content: str, subscriber_id: str) -> str:
-    """
-    基于参与度过滤简报内容
-    
-    高权重分类的内容优先展示
-    
+    """基于参与度调整简报板块顺序（保守重排）
+
+    仅在能明确映射到订阅者有权重的分类时才移动板块：
+    - 通用板块（无分类映射，如执行摘要/可信度概览/重要链接）保持原位
+    - 命中权重的板块按权重降序插入到第一个通用板块之后
+    - 其余板块维持原有相对顺序
+    这样不会破坏模板的「摘要→正文→附录」结构与分隔线。
+
     Args:
         briefing_content: 简报内容（Markdown格式）
         subscriber_id: 订阅者ID
-        
+
     Returns:
-        str: 过滤后的简报内容
+        str: 重排后的简报内容（异常或无权重数据时原样返回）
     """
     try:
         weights = compute_category_weights(subscriber_id)
         if not weights:
             return briefing_content
-        
-        # 解析简报内容（按## sections分割）
+
+        # 解析为有序 sections [{category, lines}]（按 ## 一级标题切分；
+        # 首个 ## 之前的内容视为头部 preamble，永不移动）
         lines = briefing_content.split('\n')
-        sections = []
-        current_section = []
-        current_category = None
-        
+        preamble: list = []
+        sections: list = []
+        current = None
         for line in lines:
             if line.startswith('## '):
-                # 保存上一个section
-                if current_section:
-                    sections.append({
-                        'category': current_category,
-                        'content': '\n'.join(current_section)
-                    })
-                current_section = [line]
-                # 尝试从标题提取分类
+                if current is not None:
+                    sections.append(current)
                 title = line[3:].strip().lower()
-                current_category = _extract_category_from_title(title)
+                current = {"category": _extract_category_from_title(title), "lines": [line]}
+            elif current is not None:
+                current["lines"].append(line)
             else:
-                current_section.append(line)
-        
-        # 保存最后一个section
-        if current_section:
-            sections.append({
-                'category': current_category,
-                'content': '\n'.join(current_section)
-            })
-        
-        # 按权重排序sections
-        def get_section_weight(section):
-            cat = section.get('category')
-            if cat and cat in weights:
-                return weights[cat]
-            return 0.5  # 默认权重
-        
-        sorted_sections = sorted(sections, key=get_section_weight, reverse=True)
-        
-        # 重新组合内容
-        return '\n\n'.join(s['content'] for s in sorted_sections)
-        
+                preamble.append(line)
+        if current is not None:
+            sections.append(current)
+
+        def get_weight(section):
+            cat = section.get("category")
+            return weights.get(cat, 0.0) if cat else 0.0
+
+        weighted = [s for s in sections if get_weight(s) > 0]
+        unweighted = [s for s in sections if get_weight(s) <= 0]
+
+        # 无任何可重排板块：原样返回
+        if not weighted:
+            return briefing_content
+
+        weighted.sort(key=get_weight, reverse=True)
+
+        # 重排结果插到头部之后、其余板块之前；未加权板块保持原相对顺序
+        reordered = weighted + unweighted
+        out_lines = list(preamble)
+        for s in reordered:
+            out_lines.extend(s["lines"])
+
+        return '\n'.join(out_lines)
+
     except Exception as e:
         logger.warning(f"基于参与度过滤简报失败: {e}")
         return briefing_content
