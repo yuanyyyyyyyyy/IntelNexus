@@ -135,7 +135,12 @@ def _render_search_mode():
 def _render_source_health():
     """数据源健康状态面板"""
     try:
-        from intelnexus.core.search.health import get_all_health, save_health
+        from intelnexus.core.search.health import get_all_health, save_health, purge_stale_entries
+        from intelnexus.core.search.registry import get_registry
+        from intelnexus.config.search_settings import get_news_api_key as NEWS_API_KEY
+        active_names = [s.name for s in get_registry(
+            news_api_key=NEWS_API_KEY()).all_sources()]
+        purge_stale_entries(active_names)  # 清掉测试残留/已删源的僵尸条目
         all_health = get_all_health()
     except Exception:
         return
