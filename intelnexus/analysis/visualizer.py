@@ -14,6 +14,30 @@ from intelnexus.core.logger import get_logger
 logger = get_logger(__name__)
 
 
+
+# ---- theme-aware chart palette (Phase 2) ----
+_THEME_CHART = {
+    # default morandi: light canvas
+    "morandi": {"fig": "#FFFFFF", "fg": "#5C5C5C", "grid": "#E0DCD6"},
+    # hermes teal: dark terminal canvas
+    "hermes-teal": {"fig": "#082828", "fg": "#FFE6CB", "grid": "#174747"},
+    # nous blue: cream canvas
+    "nous-blue": {"fig": "#F4F9FF", "fg": "#10243D", "grid": "#C9DCF7"},
+}
+
+
+def _chart_theme() -> dict:
+    """Read active UI theme palette for chart rendering (falls back to morandi)."""
+    try:
+        import json as _json
+        p = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            "data", "theme_choice.json")
+        with open(p, encoding='utf-8') as f:
+            name = (_json.load(f) or {}).get("theme", "morandi")
+        return _THEME_CHART.get(name, _THEME_CHART['morandi'])
+    except Exception:
+        return _THEME_CHART['morandi']
 def generate_threat_chart(evidence_data: dict) -> Optional[str]:
     """生成威胁等级分布饼图（基于 claim 置信度分级）。
 
@@ -48,6 +72,13 @@ def generate_threat_chart(evidence_data: dict) -> Optional[str]:
             matplotlib.rcParams["font.sans-serif"] = [_cjk]
             matplotlib.rcParams["axes.unicode_minus"] = False
         import matplotlib.pyplot as plt
+        _th = _chart_theme()
+        plt.rcParams["figure.facecolor"] = _th["fig"]
+        plt.rcParams["axes.facecolor"] = _th["fig"]
+        plt.rcParams["text.color"] = _th["fg"]
+        plt.rcParams["axes.labelcolor"] = _th["fg"]
+        plt.rcParams["xtick.color"] = _th["fg"]
+        plt.rcParams["ytick.color"] = _th["fg"]
 
         labels = []
         sizes = []
@@ -114,6 +145,13 @@ def generate_timeline_chart(scraped_data: dict) -> Optional[str]:
             matplotlib.rcParams["font.sans-serif"] = [_cjk]
             matplotlib.rcParams["axes.unicode_minus"] = False
         import matplotlib.pyplot as plt
+        _th = _chart_theme()
+        plt.rcParams["figure.facecolor"] = _th["fig"]
+        plt.rcParams["axes.facecolor"] = _th["fig"]
+        plt.rcParams["text.color"] = _th["fg"]
+        plt.rcParams["axes.labelcolor"] = _th["fg"]
+        plt.rcParams["xtick.color"] = _th["fg"]
+        plt.rcParams["ytick.color"] = _th["fg"]
         from collections import Counter
 
         counts = Counter(dates)
