@@ -22,20 +22,20 @@ ICON_CSS = """
 }
 
 /* Morandi Color Variants */
-.in-icon--gray { stroke: #8B8B8B; }
-.in-icon--blue { stroke: #9AACB8; }
-.in-icon--warm { stroke: #B4A7A0; }
-.in-icon--rose { stroke: #C4A0A0; }
-.in-icon--sage { stroke: #9BA89C; }
-.in-icon--lavender { stroke: #A89BB4; }
-.in-icon--terracotta { stroke: #B89B8C; }
-.in-icon--dark { stroke: #5A5A5A; }
-.in-icon--light { stroke: #C0C0C0; }
+.in-icon--gray { stroke: var(--icon-gray); }
+.in-icon--blue { stroke: var(--icon-blue); }
+.in-icon--warm { stroke: var(--icon-warm); }
+.in-icon--rose { stroke: var(--icon-rose); }
+.in-icon--sage { stroke: var(--icon-sage); }
+.in-icon--lavender { stroke: var(--icon-lavender); }
+.in-icon--terracotta { stroke: var(--icon-terracotta); }
+.in-icon--dark { stroke: var(--icon-dark); }
+.in-icon--light { stroke: var(--icon-light); }
 
 /* Status Colors */
-.in-icon--success { stroke: #9BA89C; }
-.in-icon--warning { stroke: #D4C4A0; }
-.in-icon--error { stroke: #C4A0A0; }
+.in-icon--success { stroke: var(--icon-success); }
+.in-icon--warning { stroke: var(--icon-warning); }
+.in-icon--error { stroke: var(--icon-error); }
 
 /* Size Variants */
 .in-icon--sm { width: 16px; height: 16px; }

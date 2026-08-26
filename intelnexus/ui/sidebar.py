@@ -321,6 +321,13 @@ def _render_advanced_settings():
                                      st.session_state.get("ui_theme", "morandi")))
         if sel_theme != st.session_state.get("ui_theme"):
             st.session_state["ui_theme"] = sel_theme
+            # persist for chart renderer (separate process, reads at generate time)
+            try:
+                import json as _json
+                with open("data/theme_choice.json", "w", encoding="utf-8") as _f:
+                    _json.dump({"theme": sel_theme}, _f)
+            except Exception:
+                pass
             _components.html(
                 f"<script>window.localStorage.setItem('in_theme','{sel_theme}');" + 
                 "document.documentElement.setAttribute('data-theme','" + sel_theme + "');</script>",

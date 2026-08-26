@@ -105,6 +105,19 @@ def render_morandi_theme_css():
         --in-sev-high-fg: #DC2626;
         --in-sev-med-bg: #FEF3C7;
         --in-sev-med-fg: #D97706;
+        /* icon system tokens (icons.py classes reference these) */
+        --icon-gray: #8B8B8B;
+        --icon-blue: #9AACB8;
+        --icon-warm: #B4A7A0;
+        --icon-rose: #C4A0A0;
+        --icon-sage: #9BA89C;
+        --icon-lavender: #A89BB4;
+        --icon-terracotta: #B89B8C;
+        --icon-dark: #5A5A5A;
+        --icon-light: #C0C0C0;
+        --icon-success: #7F9680;
+        --icon-warning: #C9A227;
+        --icon-error: #C94A4A;
         /* workbench tokens - morandi defaults (overridden by teal/nous) */
         --wb-surface: #FFFFFF;
         --wb-card: #FFFFFF;
@@ -124,6 +137,19 @@ def render_morandi_theme_css():
     /* ===== Hermes Teal (desktop default) - dark terminal ===== */
     [data-theme="hermes-teal"] {
         --morandi-bg: #041c1c;
+        /* icon system (dark terminal) */
+        --icon-gray: #7fa8a8;
+        --icon-blue: #6aa8c8;
+        --icon-warm: #c9a8a0;
+        --icon-rose: #e08fb0;
+        --icon-sage: #86c79b;
+        --icon-lavender: #b39ddb;
+        --icon-terracotta: #d99a78;
+        --icon-dark: #cfe8e4;
+        --icon-light: #3a6b6b;
+        --icon-success: #4ade80;
+        --icon-warning: #ffbd38;
+        --icon-error: #fb7185;
         --morandi-sidebar: #062424;
         --morandi-card: #0a2a2a;
         --morandi-blue: #ffac02;
@@ -181,10 +207,27 @@ def render_morandi_theme_css():
         --wb-green: #4ade80;
         --wb-orange: #ffa94d;
         --wb-red: #ff7b7b;
+        /* native Streamlit widgets under dark theme */
+        --st-widget-bg: #0a2f2f;
+        --st-widget-fg: #d8efe9;
+        --st-widget-border: #1d5656;
     }
     /* ===== Nous Blue (desktop light) - cream canvas + vivid blue ===== */
     [data-theme="nous-blue"] {
         --morandi-bg: #E8F2FD;
+        /* icon system (light blue) */
+        --icon-gray: #6b7f92;
+        --icon-blue: #0053FD;
+        --icon-warm: #b08968;
+        --icon-rose: #d473ae;
+        --icon-sage: #2e8b57;
+        --icon-lavender: #7e57c2;
+        --icon-terracotta: #c96f4a;
+        --icon-dark: #10243d;
+        --icon-light: #b9d0f0;
+        --icon-success: #1f7a4d;
+        --icon-warning: #b98a10;
+        --icon-error: #c62a31;
         --morandi-sidebar: #dbeafc;
         --morandi-card: #f4f9ff;
         --morandi-blue: #0053FD;
@@ -990,6 +1033,57 @@ def render_morandi_theme_css():
     .bf-download-btn:hover {
         background: var(--wb-hover);
         border-color: var(--wb-accent);
+    }
+
+
+    /* ===== Dark-theme native widget overrides (hermes-teal) =====
+       Streamlit 原生部件色源在启动时静态确定（config.toml），无法运行时切换。
+       此处按 data-theme 作用域强制覆盖，使原生部件跟随暗色调色板。 */
+    [data-theme="hermes-teal"] div[data-testid="stSidebar"],
+    [data-theme="hermes-teal"] .stApp {
+        color: #d8efe9;
+    }
+    [data-theme="hermes-teal"] div[data-testid="stSidebar"] {
+        background: #062626 !important;
+        border-right: 1px solid #155555 !important;
+    }
+    [data-theme="hermes-teal"] .stApp {
+        background: #041c1c !important;
+    }
+    [data-theme="hermes-teal"] .stButton > button,
+    [data-theme="hermes-teal"] .stDownloadButton > button {
+        background: #0a2f2f !important;
+        color: #d8efe9 !important;
+        border: 1px solid #1d5656 !important;
+    }
+    [data-theme="hermes-teal"] .stButton > button:hover,
+    [data-theme="hermes-teal"] .stDownloadButton > button:hover {
+        border-color: #ffac02 !important;
+        color: #ffe6cb !important;
+    }
+    [data-theme="hermes-teal"] div[data-testid="stExpander"],
+    [data-theme="hermes-teal"] div[data-testid="stExpanderDetails"] {
+        background: #082828 !important;
+        border-color: #174747 !important;
+        color: #d8efe9 !important;
+    }
+    [data-theme="hermes-teal"] div[data-testid="stTextInput"] input,
+    [data-theme="hermes-teal"] div[data-testid="stNumberInput"] input,
+    [data-theme="hermes-teal"] div[data-testid="stTextArea"] textarea,
+    [data-theme="hermes-teal"] div[data-baseweb="select"] > div,
+    [data-theme="hermes-teal"] div[data-baseweb="input"] > div {
+        background: #0a2f2f !important;
+        color: #d8efe9 !important;
+        border-color: #1d5656 !important;
+    }
+    [data-theme="hermes-teal"] div[data-testid="stMarkdownContainer"],
+    [data-theme="hermes-teal"] p,
+    [data-theme="hermes-teal"] span,
+    [data-theme="hermes-teal"] label {
+        color: inherit;
+    }
+    [data-theme="hermes-teal"] hr {
+        border-color: #144444 !important;
     }
 
     /* Theme switch: read persisted choice from sessionStorage and set
