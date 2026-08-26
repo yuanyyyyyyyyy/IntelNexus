@@ -619,8 +619,15 @@ def render_data_sources_panel():
     # 精选情报源一键导入（内置经过验证的 12 个一手 RSS 源，按关注点分组）
     with st.expander(get_text("preset_import_title")):
         st.caption(get_text("preset_import_hint"))
+        # 分组显示名：watch_categories 里的组用其正式名（消除双写漂移）；
+        # threat_intel/ai_news/general_tech 是纯源分组（非巡防关注点），保留本地标签
+        try:
+            from intelnexus.config.watch_categories import get_all_categories as _gac_wc
+            _wc_names = {cid: c.get("name", cid) for cid, c in _gac_wc().items()}
+        except Exception:
+            _wc_names = {}
         preset_cats = {
-            "cyber_vuln": "网络安全漏洞",
+            "cyber_vuln": _wc_names.get("cyber_vuln", "网络安全漏洞"),
             "threat_intel": "威胁情报",
             "ai_news": "AI 资讯",
             "general_tech": "综合科技",
