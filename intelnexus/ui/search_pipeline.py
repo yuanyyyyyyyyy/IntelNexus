@@ -653,8 +653,8 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
             _escaped = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", _escaped)
             _escaped = re.sub(r"(?m)^- ", "• ", _escaped)
             summary_slot.markdown(
-                f'<div class="tldr-card" style="background:#e8f4fd;border-radius:8px;'
-                f'padding:16px;margin-bottom:16px;border-left:4px solid #1a73e8;">'
+                f'<div class="tldr-card" style="background:var(--bg-card);border-radius:8px;'
+                f'padding:16px;margin-bottom:16px;border-left:4px solid var(--border-light);">'
                 f'{_escaped.replace(chr(10), "<br>")}</div>',
                 unsafe_allow_html=True
             )

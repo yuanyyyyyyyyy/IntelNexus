@@ -10,18 +10,18 @@ runOnSave = false
 [client]
 toolbarMode = "minimal"
 
-# [theme] 说明（2026-08-26 双主题改造后）：
+# [theme] 说明（2026-08-26 Hermes "纸白与石墨" 风格）：
 # Streamlit 原生部件（按钮/输入框/下拉/expander）的色源在启动时静态确定，
-# 不支持运行时切换；而自定义 CSS 主题（morandi / hermes-teal / nous-blue）
-# 通过 styles.py 注入的 JS 按 data-theme 属性实时切换。
-# 因此这里的值保持与「默认主题 morandi」一致，保证：
+# 不支持运行时切换；而自定义 CSS 主题通过 styles.py 注入的 JS 按 data-theme
+# 属性实时切换。因此这里的值保持与「默认主题 hermes-paper」一致，保证：
 #   1) 未选主题时原生部件与自定义 CSS 观感统一；
-#   2) 切到暗色 hermes-teal 后，原生部件仍为浅色——这是已知限制，
+#   2) 切到其他主题后，原生部件仍为浅色——这是已知限制，
 #      暗色适配的部件级覆盖见 styles.py 后续迭代。
 # 若要全局换默认主题：改这里 + 改 sidebar._THEMES 默认项，两处同步。
 [theme]
 base = "light"
-primaryColor = "#7B9CB5"
-backgroundColor = "#E8E4DF"
-secondaryBackgroundColor = "#F5F2EE"
-textColor = "#5C5C5C"
+primaryColor = "#1A1A1A"
+backgroundColor = "#FAFAFA"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#1A1A1A"
+font = "sans serif"

@@ -27,7 +27,7 @@ st.set_page_config(
 
 # --- Fixed imports: use real merged modules ---
 from intelnexus.ui.i18n import get_text
-from intelnexus.core.ui.styles import render_light_theme_css, render_morandi_theme_css, render_workbench_css
+from intelnexus.core.ui.styles import render_hermes_theme_css, render_workbench_css, render_status_bar
 from intelnexus.core.settings import set as set_config
 from config import (
     OLLAMA_BASE_URL, OPENROUTER_BASE_URL, OPENROUTER_API_KEY,
@@ -116,28 +116,7 @@ def _render_bulk_collect_button():
         st.rerun()
 
 # --- Render theme ---
-render_morandi_theme_css()
-
-# Theme bootstrap: server knows the persisted choice (theme_choice.json),
-# so no client-side storage read is needed. The iframe script applies it
-# to the top document (st.iframe embeds via srcdoc, same-origin).
-def _apply_saved_theme():
-    try:
-        import json as _json
-        with open("data/theme_choice.json", encoding="utf-8") as _f:
-            _th = (_json.load(_f) or {}).get("theme")
-    except Exception:
-        return
-    if _th:
-        # st.iframe embeds HTML strings via srcdoc and allows same-origin
-        # access, so window.parent.document reaches the real app document.
-        st.iframe(
-            "<script>window.parent.document.documentElement"
-            ".setAttribute('data-theme','" + str(_th) + "');</script>",
-            height=1)
-
-
-_apply_saved_theme()
+render_hermes_theme_css()
 
 # --- Check for onboarding ---
 onboarding_active = render_onboarding()
@@ -196,7 +175,8 @@ if not onboarding_active:
                 )
             with col_search_btn:
                 run_button = st.form_submit_button(get_text("search_button"),
-                                                   use_container_width=True)
+                                                   use_container_width=True,
+                                                   type="primary")
 
         status_slot = st.empty()
 
@@ -268,3 +248,7 @@ if not onboarding_active:
     with tab_kb:
         render_workbench_css()
         render_knowledge_base()
+
+
+# --- Bottom status bar ---
+render_status_bar()
