@@ -134,7 +134,7 @@ def _apply_saved_theme():
         st.iframe(
             "<script>window.parent.document.documentElement"
             ".setAttribute('data-theme','" + str(_th) + "');</script>",
-            height=0)
+            height=1)
 
 
 _apply_saved_theme()
