@@ -78,7 +78,7 @@ def render_download_section():
                 with open(xlsx_path, 'rb') as f:
                     xlsx_data = f.read()
                 st.download_button(
-                    label="Excel已准备",
+                    label=get_text("excel_ready"),
                     data=xlsx_data,
                     file_name=f"{filename}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

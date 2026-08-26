@@ -455,7 +455,12 @@ def render_recommendations():
         for item in similar_briefings:
             briefing = item["briefing"]
             sim = item["similarity"]
-            st.markdown(f"- {icon('entry', 'sm', 'gray')} {briefing.get('id', '')} ({sim:.0%}相似)", unsafe_allow_html=True)
+            _bdate = (briefing.get("created_at", "") or "")[:10] or briefing.get("id", "")
+            st.markdown(
+                f"- {icon('entry', 'sm', 'gray')} "
+                f"{get_text('similar_briefing_item').format(date=_bdate, sim=f'{sim:.0%}')}",
+                unsafe_allow_html=True,
+            )
     
     st.markdown('</div>', unsafe_allow_html=True)
 

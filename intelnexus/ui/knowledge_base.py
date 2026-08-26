@@ -59,10 +59,12 @@ def render_knowledge_base():
         )
     with col_filter2:
         tags = get_tags()
-        tag_options = [get_text("kb_all")] + tags
+        # sentinel uses __all__ instead of translated kb_all so wording/lang
+        # changes cannot break the filter logic
         selected_tag = st.selectbox(
             get_text("kb_filter_tag"),
-            tag_options,
+            ["__all__"] + tags,
+            format_func=lambda v: get_text("kb_all") if v == "__all__" else v,
             key="kb_tag_filter"
         )
     with col_filter3:
@@ -79,7 +81,7 @@ def render_knowledge_base():
     # 获取条目
     items = get_items(
         item_type=filter_type,
-        tag=selected_tag if selected_tag != get_text("kb_all") else None
+        tag=selected_tag if selected_tag != "__all__" else None
     )
     
     # 显示条目列表
