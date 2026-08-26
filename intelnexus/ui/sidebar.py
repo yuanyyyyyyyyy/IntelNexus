@@ -310,6 +310,23 @@ def _render_advanced_settings():
             st.session_state.lang = lang_options[selected_lang]
             st.rerun()
 
+        # 主题切换（写入 localStorage，styles.py 注入的 JS 每次渲染时应用）
+        _THEMES = {"morandi": "Morandi（默认）", "hermes-teal": "Hermes Teal", "nous-blue": "Nous Blue"}
+        import streamlit.components.v1 as _components
+        # Streamlit 无法反向读取浏览器 localStorage；用 session_state 记住本次会话选择，
+        # 首次进入默认 morandi。用户切换后立即通过隐藏组件写回 localStorage 并刷新。
+        sel_theme = st.selectbox("主题 / Theme", list(_THEMES.keys()),
+                                 format_func=lambda x: _THEMES[x],
+                                 index=list(_THEMES.keys()).index(
+                                     st.session_state.get("ui_theme", "morandi")))
+        if sel_theme != st.session_state.get("ui_theme"):
+            st.session_state["ui_theme"] = sel_theme
+            _components.html(
+                f"<script>window.localStorage.setItem('in_theme','{sel_theme}');" + 
+                "document.documentElement.setAttribute('data-theme','" + sel_theme + "');</script>",
+                height=0)
+            st.rerun()
+
         # 自定义模型
         _render_custom_models()
 
