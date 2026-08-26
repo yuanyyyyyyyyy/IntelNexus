@@ -1135,15 +1135,6 @@ def render_morandi_theme_css():
     div[data-testid="stSidebar"] ~ div [data-theme-js-hook],
     [data-theme-js-hook] { display: none !important; }
 </style>
-<script>
-(function () {
-    var THEMES = ["morandi", "hermes-teal", "nous-blue"];
-    var saved = null;
-    try { saved = window.localStorage.getItem("in_theme"); } catch (e) {}
-    if (!saved || THEMES.indexOf(saved) === -1) saved = "morandi";
-    document.documentElement.setAttribute("data-theme", saved);
-})();
-</script>
 <style>
 """, unsafe_allow_html=True)
 
