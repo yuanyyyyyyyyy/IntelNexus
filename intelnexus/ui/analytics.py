@@ -40,7 +40,6 @@ def render_analytics_dashboard():
     )
     from intelnexus.config.push_log import get_push_stats
     from intelnexus.config.briefing_history import get_briefing_history
-    from intelnexus.core.ui.styles import render_workbench_css
 
 
     st.markdown(
