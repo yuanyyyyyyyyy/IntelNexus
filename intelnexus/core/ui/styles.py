@@ -1086,6 +1086,48 @@ def render_morandi_theme_css():
         border-color: #144444 !important;
     }
 
+
+    /* ===== Phase 3: Hermes-style flourishes ===== */
+
+    /* Grain noise texture - desktop signature look. Fixed overlay,
+       pointer-events:none so it never blocks interaction. Teal only
+       (dark canvas shows the 2px dot grid; light themes stay clean). */
+    [data-theme="hermes-teal"] .stApp::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        opacity: 0.07;
+        background: repeating-conic-gradient(#9be8dc 0% 25%, transparent 0% 50%) 0 0 / 2px 2px;
+        z-index: 2;
+    }
+
+    /* Rotating arc ring on primary actions - registers --in-angle so the
+       conic gradient can animate (graceful static fallback elsewhere). */
+    @property --in-angle {
+        syntax: "<angle>";
+        initial-value: 160deg;
+        inherits: false;
+    }
+    @keyframes in-arc-spin {
+        to { --in-angle: 520deg; }
+    }
+    [data-theme="hermes-teal"] .stButton > button[kind="primary"],
+    [data-theme="hermes-teal"] .stFormSubmitButton > button[kind="primary"] {
+        position: relative;
+        border: 1px solid transparent !important;
+        background:
+            linear-gradient(#0a2f2f, #0a2f2f) padding-box,
+            linear-gradient(var(--in-angle),
+                transparent 0%, rgba(255, 172, 2, 0.95) 16%,
+                rgba(232, 244, 240, 0.55) 28%, transparent 42%) border-box !important;
+        transition: filter 0.15s ease;
+    }
+    [data-theme="hermes-teal"] .stButton > button[kind="primary"]:hover,
+    [data-theme="hermes-teal"] .stFormSubmitButton > button[kind="primary"]:hover {
+        animation: in-arc-spin 2.23s linear infinite;
+        filter: brightness(1.12);
+    }
     /* Theme switch: read persisted choice from sessionStorage and set
        document.documentElement.dataset.theme so all [data-theme] blocks resolve.
        Streamlit reruns re-inject this <style>; script runs each time but is
