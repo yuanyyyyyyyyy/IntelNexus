@@ -59,7 +59,8 @@ def render_morandi_theme_css():
     }
 
     /* 字体栈去掉被墙的 Google Fonts @import（曾拖慢 CSS 应用且加载失败） */
-    :root {
+    :root,
+    [data-theme="morandi"] {
         --morandi-bg: #E8E4DF;
         --morandi-sidebar: #DCD8D3;
         --morandi-card: #F5F2EE;
@@ -104,6 +105,143 @@ def render_morandi_theme_css():
         --in-sev-high-fg: #DC2626;
         --in-sev-med-bg: #FEF3C7;
         --in-sev-med-fg: #D97706;
+        /* workbench tokens - morandi defaults (overridden by teal/nous) */
+        --wb-surface: #FFFFFF;
+        --wb-card: #FFFFFF;
+        --wb-text-primary: #4A4540;
+        --wb-text-secondary: #75705F;
+        --wb-accent: #A3A89B;
+        --wb-border: #E2DDD5;
+        --wb-tag-source: #A7B0AE;
+        --wb-tag-sub: #A9B59A;
+        --wb-tag-gen: #A6B2BC;
+        --wb-tag-cat: #B7A6B0;
+        --wb-hover: #ECE7DF;
+        --wb-green: #5F7358;
+        --wb-orange: #9A6B3F;
+        --wb-red: #9C4848;
+    }
+    /* ===== Hermes Teal (desktop default) - dark terminal ===== */
+    [data-theme="hermes-teal"] {
+        --morandi-bg: #041c1c;
+        --morandi-sidebar: #062424;
+        --morandi-card: #0a2a2a;
+        --morandi-blue: #ffac02;
+        --morandi-green: #4ade80;
+        --morandi-pink: #f9a8d4;
+        --morandi-peach: #ffbd38;
+        --morandi-text: #ffe6cb;
+        --morandi-text-light: #c9b28f;
+        --morandi-border: #144444;
+        --morandi-accent: #5eead4;
+        --in-surface-white: #0e3333;
+        --in-chevron-gray: #7fa8a8;
+        --in-sidebar-bg: #062626;
+        --in-divider-gray: #144444;
+        --in-sidebar-border: #155555;
+        --in-sidebar-title-fg: #ffe6cb;
+        --in-btn-secondary-fg: #d8efe9;
+        --in-btn-ghost-fg: #9fc4bd;
+        --in-btn-secondary-border: #1d5656;
+        --in-btn-secondary-bg: #0a2f2f;
+        --in-action-primary: #ffb43f;
+        --in-action-primary-hover: #ffc45e;
+        --in-accent-blue-hover: #ffbd38;
+        --in-lang-hover-bg: #103838;
+        --in-download-btn-hover: #66d99a;
+        --in-status-dot-active: #4ade80;
+        --in-status-dot-error: #fb7185;
+        --in-hint-warn-gold: #ffbd38;
+        --in-panel-hover-border: #ffd8b0;
+        --in-bf-panel-hover-border: #2a6b6b;
+        --in-step-index-bg: #164949;
+        --in-step-done-bg: #123f33;
+        --in-step-current-bg: #113d3d;
+        --in-history-row-hover: #0f3838;
+        --in-toggle-btn-hover: #2a7a7a;
+        --in-output-header-bg: #0d3232;
+        --in-step-done-alt: #0f3a30;
+        --in-step-current-alt: #0f3636;
+        --in-sev-high-bg: #3d1220;
+        --in-sev-high-fg: #ff8fa3;
+        --in-sev-med-bg: #3d2e08;
+        --in-sev-med-fg: #ffcf70;
+        /* workbench tokens */
+        --wb-surface: #062222;
+        --wb-card: #082828;
+        --wb-text-primary: #e8f4f0;
+        --wb-text-secondary: #93b8b2;
+        --wb-accent: #5eead4;
+        --wb-border: #174747;
+        --wb-tag-source: #58a6a6;
+        --wb-tag-sub: #7bc496;
+        --wb-tag-gen: #6aa8c8;
+        --wb-tag-cat: #b98ab8;
+        --wb-hover: #0f3535;
+        --wb-green: #4ade80;
+        --wb-orange: #ffa94d;
+        --wb-red: #ff7b7b;
+    }
+    /* ===== Nous Blue (desktop light) - cream canvas + vivid blue ===== */
+    [data-theme="nous-blue"] {
+        --morandi-bg: #E8F2FD;
+        --morandi-sidebar: #dbeafc;
+        --morandi-card: #f4f9ff;
+        --morandi-blue: #0053FD;
+        --morandi-green: #2e8b57;
+        --morandi-pink: #d473ae;
+        --morandi-peach: #e0954f;
+        --morandi-text: #170d02;
+        --morandi-text-light: #5a6570;
+        --morandi-border: #c4d8f2;
+        --morandi-accent: #4d8af0;
+        --in-surface-white: #ffffff;
+        --in-chevron-gray: #7d8b99;
+        --in-sidebar-bg: #dcebfd;
+        --in-divider-gray: #d3e3fa;
+        --in-sidebar-border: #bcd4f5;
+        --in-sidebar-title-fg: #0a2f66;
+        --in-btn-secondary-fg: #24405e;
+        --in-btn-ghost-fg: #5a7ba1;
+        --in-btn-secondary-border: #b9d0f0;
+        --in-btn-secondary-bg: #eef6ff;
+        --in-action-primary: #0053FD;
+        --in-action-primary-hover: #1a63ff;
+        --in-accent-blue-hover: #1a63ff;
+        --in-lang-hover-bg: #d6e7fd;
+        --in-download-btn-hover: #1a63ff;
+        --in-status-dot-active: #22a06b;
+        --in-status-dot-error: #e5484d;
+        --in-hint-warn-gold: #b98a10;
+        --in-panel-hover-border: #9dc2f7;
+        --in-bf-panel-hover-border: #8db8f2;
+        --in-step-index-bg: #cfe2fa;
+        --in-step-done-bg: #ddf3e4;
+        --in-step-current-bg: #dcebfe;
+        --in-history-row-hover: #dcebfd;
+        --in-toggle-btn-hover: #4d8af0;
+        --in-output-header-bg: #dceafd;
+        --in-step-done-alt: #e3f5ea;
+        --in-step-current-alt: #e7f1fe;
+        --in-sev-high-bg: #ffe5e8;
+        --in-sev-high-fg: #c62a31;
+        --in-sev-med-bg: #fff3d1;
+        --in-sev-med-fg: #9a6b00;
+        /* workbench tokens */
+        --wb-surface: #ffffff;
+        --wb-card: #f7fbff;
+        --wb-text-primary: #10243d;
+        --wb-text-secondary: #56718e;
+        --wb-accent: #4d8af0;
+        --wb-border: #cadef7;
+        --wb-tag-source: #7aa8dd;
+        --wb-tag-sub: #86c79b;
+        --wb-tag-gen: #7fb2e8;
+        --wb-tag-cat: #c393c1;
+        --wb-hover: #e4effd;
+        --wb-green: #1f7a4d;
+        --wb-orange: #b96a12;
+        --wb-red: #c0392b;
     }
 
     #stDecoration {
@@ -853,7 +991,24 @@ def render_morandi_theme_css():
         background: var(--wb-hover);
         border-color: var(--wb-accent);
     }
+
+    /* Theme switch: read persisted choice from sessionStorage and set
+       document.documentElement.dataset.theme so all [data-theme] blocks resolve.
+       Streamlit reruns re-inject this <style>; script runs each time but is
+       idempotent. Default when nothing stored: morandi (original look). */
+    div[data-testid="stSidebar"] ~ div [data-theme-js-hook],
+    [data-theme-js-hook] { display: none !important; }
 </style>
+<script>
+(function () {
+    var THEMES = ["morandi", "hermes-teal", "nous-blue"];
+    var saved = null;
+    try { saved = window.localStorage.getItem("in_theme"); } catch (e) {}
+    if (!saved || THEMES.indexOf(saved) === -1) saved = "morandi";
+    document.documentElement.setAttribute("data-theme", saved);
+})();
+</script>
+<style>
 """, unsafe_allow_html=True)
 
 
@@ -868,26 +1023,9 @@ def render_workbench_css():
 
     /* 通过 :has() 将 workbench 样式限定到包含标记的简报 Tab panel */
     div[role="tabpanel"]:has(.bf-workbench-scope) {
-        --wb-surface: #FFFFFF;
-        --wb-card: #FFFFFF;
-        --wb-text-primary: #4A4540;
-        --wb-text-secondary: #75705F;
-        --wb-accent: #A3A89B;
-        --wb-border: #E2DDD5;
-        --wb-tag-source: #A7B0AE;
-        --wb-tag-sub: #A9B59A;
-        --wb-tag-gen: #A6B2BC;
-        --wb-tag-cat: #B7A6B0;
-        --wb-hover: #ECE7DF;
-        /* 语义辅助色（修复：briefing_viewer 可信度三档着色引用了从未定义的
-           --wb-green/orange/red，浏览器忽略非法值导致着色整体失效）。
-           取 Morandi 同族但加深一档，白底上对比度 ≥ 4.5:1（WCAG AA 正文级）。 */
-        --wb-green: #5F7358;
-        --wb-orange: #9A6B3F;
-        --wb-red: #9C4848;
+        /* wb tokens inherit from the active data-theme palette */
         background: var(--wb-surface) !important;
-        padding: 0 20px 16px 20px !important;
-    }
+        padding: 0 20px 16px 20px !important;}
 
     /* 去掉简报 Tab 内 .stMarkdown 容器自带的背景 / padding / margin */
     div[role="tabpanel"]:has(.bf-workbench-scope) .stMarkdown {

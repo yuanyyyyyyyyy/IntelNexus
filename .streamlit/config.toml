@@ -10,11 +10,16 @@ runOnSave = false
 [client]
 toolbarMode = "minimal"
 
+# [theme] 说明（2026-08-26 双主题改造后）：
+# Streamlit 原生部件（按钮/输入框/下拉/expander）的色源在启动时静态确定，
+# 不支持运行时切换；而自定义 CSS 主题（morandi / hermes-teal / nous-blue）
+# 通过 styles.py 注入的 JS 按 data-theme 属性实时切换。
+# 因此这里的值保持与「默认主题 morandi」一致，保证：
+#   1) 未选主题时原生部件与自定义 CSS 观感统一；
+#   2) 切到暗色 hermes-teal 后，原生部件仍为浅色——这是已知限制，
+#      暗色适配的部件级覆盖见 styles.py 后续迭代。
+# 若要全局换默认主题：改这里 + 改 sidebar._THEMES 默认项，两处同步。
 [theme]
-# 主题基调必须与 intelnexus/core/ui/styles.py 的莫兰迪浅色设计一致。
-# 曾误设 base="dark" + 纯黑背景：Streamlit 原生部件（按钮/输入框/下拉）
-# 按暗色渲染，浮在自定义浅色页面上形成"黑块"，且深色占位文字与
-# 浅色自定义样式叠加产生文字重影。
 base = "light"
 primaryColor = "#7B9CB5"
 backgroundColor = "#E8E4DF"
