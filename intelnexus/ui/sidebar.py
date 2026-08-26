@@ -312,7 +312,7 @@ def _render_advanced_settings():
 
         # 主题切换（写入 localStorage，styles.py 注入的 JS 每次渲染时应用）
         _THEMES = {"morandi": "Morandi（默认）", "hermes-teal": "Hermes Teal", "nous-blue": "Nous Blue"}
-        import streamlit.components.v1 as _components
+
         # Streamlit 无法反向读取浏览器 localStorage；用 session_state 记住本次会话选择，
         # 首次进入默认 morandi。用户切换后立即通过隐藏组件写回 localStorage 并刷新。
         sel_theme = st.selectbox("主题 / Theme", list(_THEMES.keys()),
@@ -328,9 +328,13 @@ def _render_advanced_settings():
                     _json.dump({"theme": sel_theme}, _f)
             except Exception:
                 pass
-            _components.html(
-                f"<script>window.localStorage.setItem('in_theme','{sel_theme}');" + 
-                "document.documentElement.setAttribute('data-theme','" + sel_theme + "');</script>",
+            # st.iframe embeds the HTML via srcdoc; same-origin access lets
+            # window.parent.document flip data-theme on the real app document,
+            # and parent localStorage persists the choice across reloads.
+            st.iframe(
+                f"<script>(function(){{var d=window.parent.document,w=window.parent;"
+                f"try{{w.localStorage.setItem('in_theme','{sel_theme}')}}catch(e){{}}"
+                f"d.documentElement.setAttribute('data-theme','{sel_theme}');}})();</script>",
                 height=0)
             st.rerun()
 

@@ -118,6 +118,27 @@ def _render_bulk_collect_button():
 # --- Render theme ---
 render_morandi_theme_css()
 
+# Theme bootstrap: server knows the persisted choice (theme_choice.json),
+# so no client-side storage read is needed. The iframe script applies it
+# to the top document (st.iframe embeds via srcdoc, same-origin).
+def _apply_saved_theme():
+    try:
+        import json as _json
+        with open("data/theme_choice.json", encoding="utf-8") as _f:
+            _th = (_json.load(_f) or {}).get("theme")
+    except Exception:
+        return
+    if _th:
+        # st.iframe embeds HTML strings via srcdoc and allows same-origin
+        # access, so window.parent.document reaches the real app document.
+        st.iframe(
+            "<script>window.parent.document.documentElement"
+            ".setAttribute('data-theme','" + str(_th) + "');</script>",
+            height=0)
+
+
+_apply_saved_theme()
+
 # --- Check for onboarding ---
 onboarding_active = render_onboarding()
 
