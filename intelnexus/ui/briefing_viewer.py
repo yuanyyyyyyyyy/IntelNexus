@@ -540,6 +540,9 @@ def load_briefing_for_preview(filename: str, html_filename: str = None):
             html_content = get_briefing_history().load_briefing(html_filename)
             st.session_state.current_briefing_html = html_content
         st.session_state.show_briefing_history = False
+        # sync the toggle widget state (else switch shows ON while list is hidden)
+        if "bf_history_toggle" in st.session_state:
+            st.session_state.bf_history_toggle = False
         st.rerun()
 
 
@@ -651,7 +654,7 @@ def render_data_sources_panel():
                     ok = add_source("rss", outline.get("text", "feed"), xml_url,
                                     cat_for_feed, fetch_type="rss")
                     added += 1 if ok else 0
-                st.success(f"已导入 {added} 个精选源")
+                st.success(get_text("preset_imported").format(added=added))
 
     # OPML 批量导入 RSS（目标人群多已有现成订阅清单）
     with st.expander(get_text("import_opml")):
@@ -687,7 +690,7 @@ def render_data_sources_panel():
                 col_info, col_toggle, col_actions = st.columns([4, 1, 2])
                 with col_info:
                     st.write(f"**{html.escape(str(source['name']))}**")
-                    _type_label = "RSS" if source.get("fetch_type") == "rss" else "网页"
+                    _type_label = "RSS" if source.get("fetch_type") == "rss" else get_text("source_type_web")
                     _cat_label = categories.get(source.get("category", ""), source.get("category", "—"))
                     st.caption(f"[{_type_label}] {_cat_label} · {source['url'][:60]}...")
                 with col_toggle:
@@ -719,7 +722,7 @@ def render_data_sources_panel():
                 # 编辑表单
                 if st.session_state.get(f"editing_source_{source['id']}"):
                     with st.container():
-                        st.caption(f"编辑: {source['name']}")
+                        st.caption(get_text("edit_label"))
                         edit_name = st.text_input(get_text("name_label"), value=source['name'], key=f"bf_edit_name_{source['id']}")
                         edit_url = st.text_input("URL", value=source['url'], key=f"bf_edit_url_{source['id']}")
                         cat_options = list(categories.keys())
@@ -966,7 +969,7 @@ def render_subscriptions_panel():
                 # 编辑表单
                 if st.session_state.get(f"editing_sub_{sub['id']}"):
                     with st.container():
-                        st.caption(f"编辑: {sub['name']}")
+                        st.caption(get_text("edit_label"))
                         edit_name = st.text_input(get_text("name_label"), value=sub['name'], key=f"bf_edit_sub_name_{sub['id']}")
                         edit_email = st.text_input(get_text("subscriber_email"), value=sub['email'], key=f"bf_edit_sub_email_{sub['id']}")
 
@@ -1047,7 +1050,7 @@ def render_subscriptions_panel():
 
                         ecol1, ecol2 = st.columns(2)
                         with ecol1:
-                            if st.button("保存", key=f"bf_save_sub_{sub['id']}"):
+                            if st.button(get_text("save"), key=f"bf_save_sub_{sub['id']}"):
                                 if edit_name and edit_email and edit_days:
                                     update_subscriber(sub['id'], {
                                         "name": edit_name,
@@ -1210,7 +1213,7 @@ def render_watch_categories_panel():
                 # 编辑表单
                 if st.session_state.get(f"editing_cat_{cid}"):
                     with st.container():
-                        st.caption(f"编辑: {cfg.get('name', cid)}")
+                        st.caption(get_text("edit_label"))
                         edit_name = st.text_input(get_text("name_label"), value=cfg.get('name', ''), key=f"bf_edit_cat_name_{cid}")
                         edit_queries = st.text_area(
                             get_text("category_queries"),

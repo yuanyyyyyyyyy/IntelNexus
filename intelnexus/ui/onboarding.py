@@ -44,7 +44,7 @@ def render_onboarding() -> bool:
 
     # 获取当前步骤
     step = st.session_state.get("onboarding_step", 1)
-    total_steps = 3
+    total_steps = 4
 
     # 渲染向导容器
     st.markdown('<div class="ob-wizard">', unsafe_allow_html=True)
@@ -82,7 +82,7 @@ def _render_step_choice():
         with c1:
             st.markdown("""
             <div class="ob-choice-card">
-                <div class="ob-choice-icon">📬</div>
+                <div class="ob-choice-icon">""" + icon('briefing', 'lg', 'blue') + """</div>
                 <div class="ob-choice-title">""" + get_text("ob_subscribe_mode") + """</div>
                 <div class="ob-choice-desc">""" + get_text("ob_subscribe_desc") + """</div>
             </div>
@@ -146,16 +146,16 @@ def _render_step_categories():
     # 导航按钮
     col1, col2 = st.columns([1, 4])
     with col1:
-        if st.button("← 上一步", key="ob_back_step2"):
+        if st.button(get_text("ob_prev_step"), key="ob_back_step2"):
             st.session_state.onboarding_step = 1
             st.rerun()
     with col2:
-        if st.button("下一步 →", key="ob_next_step2"):
+        if st.button(get_text("ob_next_step"), key="ob_next_step2"):
             if categories:
                 st.session_state.onboarding_step = 3
                 st.rerun()
             else:
-                st.warning("请至少选择一个领域")
+                st.warning(get_text("ob_pick_one_category"))
 
 
 def _render_step_schedule():
@@ -164,9 +164,15 @@ def _render_step_schedule():
 
     col1, col2 = st.columns(2)
     with col1:
+        freq_map = {
+            "daily": get_text("ob_freq_daily"),
+            "workday": get_text("ob_freq_workday"),
+            "weekly": get_text("ob_freq_weekly"),
+        }
         frequency = st.radio(
             get_text("ob_frequency"),
-            ["每天", "工作日", "每周"],
+            list(freq_map.keys()),
+            format_func=lambda v: freq_map[v],
             key="ob_frequency",
             horizontal=True
         )
@@ -180,11 +186,11 @@ def _render_step_schedule():
     # 导航按钮
     col1, col2 = st.columns([1, 4])
     with col1:
-        if st.button("← 上一步", key="ob_back_step3"):
+        if st.button(get_text("ob_prev_step"), key="ob_back_step3"):
             st.session_state.onboarding_step = 2
             st.rerun()
     with col2:
-        if st.button("下一步 →", key="ob_next_step3"):
+        if st.button(get_text("ob_next_step"), key="ob_next_step3"):
             st.session_state.onboarding_step = 4
             st.rerun()
 
@@ -207,7 +213,7 @@ def _save_onboarding_config():
         return
 
     categories = st.session_state.get("ob_categories", [])
-    frequency = st.session_state.get("ob_frequency", "每天")
+    frequency = st.session_state.get("ob_frequency", "daily")
     push_time = st.session_state.get("ob_push_time", time(8, 0))
 
     # 转换推送时间为字符串
@@ -217,9 +223,9 @@ def _save_onboarding_config():
         push_time_str = "08:00"
 
     # 计算推送日
-    if frequency == "每天":
+    if frequency == "daily":
         push_days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
-    elif frequency == "工作日":
+    elif frequency == "workday":
         push_days = ["mon", "tue", "wed", "thu", "fri"]
     else:  # 每周
         push_days = ["mon"]  # 默认周一
@@ -240,7 +246,7 @@ def _save_onboarding_config():
             categories=categories
         )
     except Exception as e:
-        st.error(f"保存配置失败: {e}")
+        st.error(get_text("ob_save_failed").format(e=e))
 
 
 def _complete_onboarding():
