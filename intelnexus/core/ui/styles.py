@@ -48,8 +48,8 @@ def render_morandi_theme_css():
         content: "";
         width: 7px !important;
         height: 7px !important;
-        border-right: 2px solid #8A8A8A !important;
-        border-bottom: 2px solid #8A8A8A !important;
+        border-right: 2px solid var(--in-chevron-gray) !important;
+        border-bottom: 2px solid var(--in-chevron-gray) !important;
         transform: rotate(45deg) !important;
         transition: transform 0.15s ease !important;
         display: block !important;
@@ -71,6 +71,39 @@ def render_morandi_theme_css():
         --morandi-text-light: #6E6E6E;
         --morandi-border: #C9C5C0;
         --morandi-accent: #9CB5B0;
+        /* Phase 0 token layer: previously-inline literals */
+        --in-surface-white: #FFFFFF;
+        --in-chevron-gray: #8A8A8A;
+        --in-sidebar-bg: #F0F2F5;
+        --in-divider-gray: #EBEEF2;
+        --in-sidebar-border: #E5E7EB;
+        --in-sidebar-title-fg: #1F2937;
+        --in-btn-secondary-fg: #374151;
+        --in-btn-ghost-fg: #6B7280;
+        --in-btn-secondary-border: #D1D5DB;
+        --in-btn-secondary-bg: #F6F8FA;
+        --in-action-primary: #0366D6;
+        --in-action-primary-hover: #0550AE;
+        --in-accent-blue-hover: #6B8BA5;
+        --in-lang-hover-bg: #E5E1DC;
+        --in-download-btn-hover: #7F9680;
+        --in-status-dot-active: #4A9D5F;
+        --in-status-dot-error: #C94A4A;
+        --in-hint-warn-gold: #C99A2E;
+        --in-panel-hover-border: #D2CABC;
+        --in-bf-panel-hover-border: #B0B7C3;
+        --in-step-index-bg: #DED8CE;
+        --in-step-done-bg: #EBF0E4;
+        --in-step-current-bg: #E8ECEE;
+        --in-history-row-hover: #E6E0D8;
+        --in-toggle-btn-hover: #8E938A;
+        --in-output-header-bg: #EAECEF;
+        --in-step-done-alt: #F4FBF5;
+        --in-step-current-alt: #F0F6FF;
+        --in-sev-high-bg: #FEE2E2;
+        --in-sev-high-fg: #DC2626;
+        --in-sev-med-bg: #FEF3C7;
+        --in-sev-med-fg: #D97706;
     }
 
     #stDecoration {
@@ -86,14 +119,14 @@ def render_morandi_theme_css():
     }
 
     div[data-testid="stSidebar"] {
-        background: #F0F2F5 !important;
-        border-right: 1px solid #E5E7EB !important;
+        background: var(--in-sidebar-bg) !important;
+        border-right: 1px solid var(--in-sidebar-border) !important;
     }
 
     .sidebar-title {
         font-size: 18px !important;
         font-weight: 700 !important;
-        color: #1F2937 !important;
+        color: var(--in-sidebar-title-fg) !important;
         padding: 20px 16px 12px !important;
         letter-spacing: -0.01em !important;
     }
@@ -129,7 +162,7 @@ def render_morandi_theme_css():
         border: 1px solid var(--morandi-border) !important;
         padding: 14px 18px !important;
         font-size: 17px !important;
-        background: #FFFFFF !important;
+        background: var(--in-surface-white) !important;
         color: var(--morandi-text) !important;
         transition: all 0.3s ease !important;
     }
@@ -151,12 +184,12 @@ def render_morandi_theme_css():
         padding: 14px 28px !important;
         font-size: 17px !important;
         font-weight: 500 !important;
-        color: #FFFFFF !important;
+        color: var(--in-surface-white) !important;
         transition: all 0.3s ease !important;
     }
 
     .search-button button:hover {
-        background: #6B8BA5 !important;
+        background: var(--in-accent-blue-hover) !important;
         transform: translateY(-1px);
     }
 
@@ -216,12 +249,12 @@ def render_morandi_theme_css():
     }
 
     .lang-btn:hover {
-        background: #E5E1DC;
+        background: var(--in-lang-hover-bg);
     }
 
     .lang-btn.active {
         background: var(--morandi-green);
-        color: #FFFFFF;
+        color: var(--in-surface-white);
         border-color: var(--morandi-green);
     }
 
@@ -288,14 +321,14 @@ def render_morandi_theme_css():
         padding: 12px 24px;
         background: var(--morandi-green);
         border-radius: 12px;
-        color: #FFFFFF;
+        color: var(--in-surface-white);
         text-decoration: none;
         font-weight: 500;
         transition: all 0.3s;
     }
 
     .download-btn:hover {
-        background: #7F9680;
+        background: var(--in-download-btn-hover);
         transform: translateY(-1px);
     }
 
@@ -322,7 +355,7 @@ def render_morandi_theme_css():
 
     .stSuccess {
         background: var(--morandi-green);
-        color: #FFFFFF;
+        color: var(--in-surface-white);
         border-radius: 12px;
     }
 
@@ -374,7 +407,7 @@ def render_morandi_theme_css():
 
     /* === Briefing Welcome Page Styles === */
     .briefing-step-card {
-        background: #FFFFFF;
+        background: var(--in-surface-white);
         border: 1px solid var(--morandi-border);
         border-radius: 14px;
         padding: 20px 16px;
@@ -394,7 +427,7 @@ def render_morandi_theme_css():
         height: 28px;
         line-height: 28px;
         background: var(--morandi-blue);
-        color: #FFFFFF;
+        color: var(--in-surface-white);
         border-radius: 50%;
         font-size: 14px;
         font-weight: 600;
@@ -477,12 +510,12 @@ def render_morandi_theme_css():
     }
 
     .status-dot.active {
-        background: #4a9d5f;
+        background: var(--in-status-dot-active);
         box-shadow: 0 0 0 3px rgba(74,157,95,0.15);
     }
 
     .status-dot.error {
-        background: #c94a4a;
+        background: var(--in-status-dot-error);
         box-shadow: 0 0 0 3px rgba(201,74,74,0.15);
     }
 
@@ -500,7 +533,7 @@ def render_morandi_theme_css():
         display: block;
         width: 3px;
         height: 14px;
-        background: #0366D6;
+        background: var(--in-action-primary);
         border-radius: 2px;
         flex-shrink: 0;
     }
@@ -510,13 +543,13 @@ def render_morandi_theme_css():
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.08em;
-        color: #6B7280;
+        color: var(--in-btn-ghost-fg);
     }
 
     /* Sidebar divider — subtle */
     .sb-divider {
         height: 1px;
-        background: #E5E7EB;
+        background: var(--in-sidebar-border);
         margin: 16px 0;
         border: none;
     }
@@ -526,25 +559,25 @@ def render_morandi_theme_css():
         border-radius: 6px !important;
         font-size: 13px !important;
         font-weight: 500 !important;
-        border: 1px solid #D1D5DB !important;
-        background: #FFFFFF !important;
-        color: #374151 !important;
+        border: 1px solid var(--in-btn-secondary-border) !important;
+        background: var(--in-surface-white) !important;
+        color: var(--in-btn-secondary-fg) !important;
         padding: 8px 16px !important;
         transition: all 0.15s ease !important;
     }
 
     [data-testid="stSidebar"] button[kind="secondary"]:hover {
-        border-color: #0366D6 !important;
-        color: #0366D6 !important;
-        background: #F6F8FA !important;
+        border-color: var(--in-action-primary) !important;
+        color: var(--in-action-primary) !important;
+        background: var(--in-btn-secondary-bg) !important;
     }
 
     /* Primary action buttons in sidebar */
     .sb-action-primary {
         width: 100% !important;
         padding: 12px 20px !important;
-        background: #0366D6 !important;
-        color: #FFFFFF !important;
+        background: var(--in-action-primary) !important;
+        color: var(--in-surface-white) !important;
         border: none !important;
         border-radius: 6px !important;
         font-size: 14px !important;
@@ -553,23 +586,23 @@ def render_morandi_theme_css():
     }
 
     .sb-action-primary:hover {
-        background: #0550AE !important;
+        background: var(--in-action-primary-hover) !important;
     }
 
     .sb-action-secondary {
         width: 100% !important;
         padding: 10px 20px !important;
         background: transparent !important;
-        color: #6B7280 !important;
-        border: 1px solid #D1D5DB !important;
+        color: var(--in-btn-ghost-fg) !important;
+        border: 1px solid var(--in-btn-secondary-border) !important;
         border-radius: 6px !important;
         font-size: 13px !important;
         font-weight: 500 !important;
     }
 
     .sb-action-secondary:hover {
-        background: #F6F8FA !important;
-        color: #374151 !important;
+        background: var(--in-btn-secondary-bg) !important;
+        color: var(--in-btn-secondary-fg) !important;
     }
 
     /* Expander in sidebar: clean */
@@ -590,7 +623,7 @@ def render_morandi_theme_css():
     }
 
     .bf-panel:hover {
-        border-color: #B0B7C3;
+        border-color: var(--in-bf-panel-hover-border);
     }
 
     .bf-panel.bf-panel--source {
@@ -634,7 +667,7 @@ def render_morandi_theme_css():
         font-size: 11px;
         font-weight: 700;
         flex-shrink: 0;
-        background: #EAECEF;
+        background: var(--in-output-header-bg);
         color: var(--wb-text-secondary);
     }
     .bf-step__desc {
@@ -646,19 +679,19 @@ def render_morandi_theme_css():
     /* State variants */
     .bf-step--done {
         border-left-color: var(--wb-tag-sub);
-        background: #F4FBF5;
+        background: var(--in-step-done-alt);
     }
     .bf-step--done .bf-step__index {
         background: var(--wb-tag-sub);
-        color: #FFFFFF;
+        color: var(--in-surface-white);
     }
     .bf-step--current {
         border-left-color: var(--wb-accent);
-        background: #F0F6FF;
+        background: var(--in-step-current-alt);
     }
     .bf-step--current .bf-step__index {
         background: var(--wb-accent);
-        color: #FFFFFF;
+        color: var(--in-surface-white);
     }
     .bf-step--pending {
         border-left-color: var(--wb-border);
@@ -672,7 +705,7 @@ def render_morandi_theme_css():
         gap: 10px;
         margin-bottom: 16px;
         padding-bottom: 12px;
-        border-bottom: 1px solid #EBEEF2;
+        border-bottom: 1px solid var(--in-divider-gray);
     }
 
     .bf-label__tag {
@@ -681,7 +714,7 @@ def render_morandi_theme_css():
         text-transform: uppercase;
         letter-spacing: 0.08em;
         color: var(--wb-text-secondary);
-        background: #F0F2F5;
+        background: var(--in-sidebar-bg);
         padding: 3px 8px;
         border-radius: 3px;
     }
@@ -710,7 +743,7 @@ def render_morandi_theme_css():
         letter-spacing: 0.06em;
         margin-bottom: 14px;
         padding-bottom: 10px;
-        border-bottom: 1px solid #EBEEF2;
+        border-bottom: 1px solid var(--in-divider-gray);
     }
 
     /* 历史列表条目：清晰分隔、信息分层 */
@@ -793,7 +826,7 @@ def render_morandi_theme_css():
         align-items: center;
         justify-content: space-between;
         padding: 10px 0;
-        border-bottom: 1px solid #F0F2F5;
+        border-bottom: 1px solid var(--in-sidebar-bg);
     }
 
     .bf-history-item:last-child {
@@ -889,7 +922,7 @@ def render_workbench_css():
     }
 
     .bf-panel:hover {
-        border-color: #D2CABC;
+        border-color: var(--in-panel-hover-border);
         box-shadow: 0 2px 8px rgba(90,80,70,0.10);
     }
 
@@ -928,7 +961,7 @@ def render_workbench_css():
         font-size: 11px;
         font-weight: 700;
         flex-shrink: 0;
-        background: #DED8CE;
+        background: var(--in-step-index-bg);
         color: var(--wb-text-secondary);
     }
     .bf-step__desc {
@@ -940,19 +973,19 @@ def render_workbench_css():
     /* State variants */
     .bf-step--done {
         border-top-color: var(--wb-tag-sub);
-        background: #EBF0E4;
+        background: var(--in-step-done-bg);
     }
     .bf-step--done .bf-step__index {
         background: var(--wb-tag-sub);
-        color: #FFFFFF;
+        color: var(--in-surface-white);
     }
     .bf-step--current {
         border-top-color: var(--wb-accent);
-        background: #E8ECEE;
+        background: var(--in-step-current-bg);
     }
     .bf-step--current .bf-step__index {
         background: var(--wb-accent);
-        color: #FFFFFF;
+        color: var(--in-surface-white);
     }
     .bf-step--pending {
         border-top-color: var(--wb-border);
@@ -993,7 +1026,7 @@ def render_workbench_css():
         font-size: 11px;
         font-weight: 700;
         flex-shrink: 0;
-        background: #DED8CE;
+        background: var(--in-step-index-bg);
         color: var(--wb-text-secondary);
     }
     div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker) [data-testid="stButton"] > button .bf-step__title {
@@ -1002,19 +1035,19 @@ def render_workbench_css():
     /* 三态配色（边框顶部色条 + 背景） */
     div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker.bf-step--done) [data-testid="stButton"] > button {
         border-top-color: var(--wb-tag-sub);
-        background: #EBF0E4;
+        background: var(--in-step-done-bg);
     }
     div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker.bf-step--done) [data-testid="stButton"] > button .bf-step__index {
         background: var(--wb-tag-sub);
-        color: #FFFFFF;
+        color: var(--in-surface-white);
     }
     div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker.bf-step--current) [data-testid="stButton"] > button {
         border-top-color: var(--wb-accent);
-        background: #E8ECEE;
+        background: var(--in-step-current-bg);
     }
     div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker.bf-step--current) [data-testid="stButton"] > button .bf-step__index {
         background: var(--wb-accent);
-        color: #FFFFFF;
+        color: var(--in-surface-white);
     }
     div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker.bf-step--pending) [data-testid="stButton"] > button {
         border-top-color: var(--wb-border);
@@ -1071,7 +1104,7 @@ def render_workbench_css():
         text-transform: uppercase;
         letter-spacing: 0.08em;
         color: var(--wb-text-secondary);
-        background: #E6E0D8;
+        background: var(--in-history-row-hover);
         padding: 3px 8px;
         border-radius: 3px;
         flex-shrink: 0;
@@ -1093,7 +1126,7 @@ def render_workbench_css():
         min-height: 30px !important;
         padding: 5px 16px !important;
         background: var(--wb-accent) !important;
-        color: #FFFFFF !important;
+        color: var(--in-surface-white) !important;
         border: none !important;
         border-radius: 6px !important;
         font-size: 13px !important;
@@ -1104,7 +1137,7 @@ def render_workbench_css():
 
     div[role="tabpanel"]:has(.bf-workbench-scope) .bf-gen-btn-marker + .element-container div[data-testid="stButton"] > button:hover,
     div[role="tabpanel"]:has(.bf-workbench-scope) .element-container:has(.bf-gen-btn-marker) + .element-container div[data-testid="stButton"] > button:hover {
-        background: #8E938A !important;
+        background: var(--in-toggle-btn-hover) !important;
         transform: none !important;
     }
 
@@ -1184,7 +1217,7 @@ def render_workbench_css():
         letter-spacing: 0.06em;
         margin-bottom: 14px;
         padding-bottom: 10px;
-        border-bottom: 1px solid #E2DDD5;
+        border-bottom: 1px solid var(--wb-border);
     }
 
     /* 历史列表条目：清晰分隔、信息分层 */
@@ -1252,7 +1285,7 @@ def render_workbench_css():
         line-height: 1.5;
     }
     .bf-hint--warn {
-        border-left-color: #C99A2E;
+        border-left-color: var(--in-hint-warn-gold);
     }
 
     /* Override expander styling in workbench:
@@ -1325,7 +1358,7 @@ def render_workbench_css():
         border-left-color: var(--wb-tag-source) !important;
     }
     .bf-panel .stAlert[data-baseweb="notification"][kind="warning"] {
-        border-left-color: #C99A2E !important;
+        border-left-color: var(--in-hint-warn-gold) !important;
     }
     .bf-panel .stAlert [data-testid="stMarkdownContainer"],
     .bf-panel [data-testid="stAlertContainer"] [data-testid="stMarkdownContainer"] {
@@ -1397,12 +1430,12 @@ def render_workbench_css():
         letter-spacing: 0.5px;
     }
     .bf-sev-badge--high {
-        background: #FEE2E2;
-        color: #DC2626;
+        background: var(--in-sev-high-bg);
+        color: var(--in-sev-high-fg);
     }
     .bf-sev-badge--med {
-        background: #FEF3C7;
-        color: #D97706;
+        background: var(--in-sev-med-bg);
+        color: var(--in-sev-med-fg);
     }
 
     /* 条目操作行：紧凑小按钮 + 右对齐 URL */
@@ -1486,7 +1519,7 @@ def render_onboarding_css():
 
     /* Choice Cards */
     .ob-choice-card {
-        background: #FFFFFF;
+        background: var(--in-surface-white);
         border: 1px solid var(--morandi-border);
         border-top: 3px solid var(--morandi-border);
         border-radius: 12px;
@@ -1573,7 +1606,7 @@ def render_onboarding_css():
         padding: 12px 16px;
         border-radius: 8px;
         transition: background 0.15s ease;
-        background: #FFFFFF;
+        background: var(--in-surface-white);
         border: 1px solid var(--morandi-border);
         margin-bottom: 8px;
     }
