@@ -6,6 +6,7 @@
 """
 import base64
 import io
+import os
 import re
 from typing import Dict, Optional
 
@@ -14,30 +15,26 @@ from intelnexus.core.logger import get_logger
 logger = get_logger(__name__)
 
 
-
-# ---- theme-aware chart palette (Phase 2) ----
-_THEME_CHART = {
-    # default morandi: light canvas
-    "morandi": {"fig": "#FFFFFF", "fg": "#5C5C5C", "grid": "#E0DCD6"},
-    # hermes teal: dark terminal canvas
-    "hermes-teal": {"fig": "#082828", "fg": "#FFE6CB", "grid": "#174747"},
-    # nous blue: cream canvas
-    "nous-blue": {"fig": "#F4F9FF", "fg": "#10243D", "grid": "#C9DCF7"},
+# ---- Hermes "纸白与石墨" chart palette ----
+_CHART_PALETTE = {
+    "fig":   "#FAFAFA",   # 背景色
+    "fg":    "#1A1A1A",   # 文字颜色
+    "grid":  "#E0E0E0",   # 网格/边颜色
+    "node_primary":  "#1A1A1A",  # 节点主色
+    "node_secondary": "#666666",  # 节点次要
+    "accent_orange":  "#0055FF",  # 强调橙
+    "accent_green":   "#4ADE80",  # 强调绿
+    "accent_red":     "#EF5350",  # 强调红
+    "edge":           "#CCCCCC",  # 边颜色（浅）
 }
 
 
 def _chart_theme() -> dict:
-    """Read active UI theme palette for chart rendering (falls back to morandi)."""
-    try:
-        import json as _json
-        p = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-            "data", "theme_choice.json")
-        with open(p, encoding='utf-8') as f:
-            name = (_json.load(f) or {}).get("theme", "morandi")
-        return _THEME_CHART.get(name, _THEME_CHART['morandi'])
-    except Exception:
-        return _THEME_CHART['morandi']
+    """Return the Hermes paper-white chart palette.
+
+    保留接口兼容性，始终返回 hermes-paper 配色。
+    """
+    return _CHART_PALETTE
 def generate_threat_chart(evidence_data: dict) -> Optional[str]:
     """生成威胁等级分布饼图（基于 claim 置信度分级）。
 
@@ -86,15 +83,15 @@ def generate_threat_chart(evidence_data: dict) -> Optional[str]:
         if high > 0:
             labels.append(f"高置信 ({high})")
             sizes.append(high)
-            colors.append("#e74c3c")
+            colors.append(_CHART_PALETTE["accent_red"])
         if medium > 0:
             labels.append(f"中置信 ({medium})")
             sizes.append(medium)
-            colors.append("#f39c12")
+            colors.append(_CHART_PALETTE["accent_orange"])
         if low > 0:
             labels.append(f"低置信 ({low})")
             sizes.append(low)
-            colors.append("#95a5a6")
+            colors.append(_CHART_PALETTE["node_secondary"])
 
         fig, ax = plt.subplots(figsize=(4, 3))
         ax.pie(sizes, labels=labels, colors=colors, autopct="%1.0f%%",
@@ -159,7 +156,7 @@ def generate_timeline_chart(scraped_data: dict) -> Optional[str]:
         values = [counts[d] for d in sorted_dates]
 
         fig, ax = plt.subplots(figsize=(max(4, len(sorted_dates) * 0.8), 3))
-        ax.bar(range(len(sorted_dates)), values, color="#3498db")
+        ax.bar(range(len(sorted_dates)), values, color=_CHART_PALETTE["accent_orange"])
         ax.set_xticks(range(len(sorted_dates)))
         ax.set_xticklabels(sorted_dates, rotation=45, ha="right", fontsize=7)
         ax.set_ylabel("来源数")

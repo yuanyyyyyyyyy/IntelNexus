@@ -68,7 +68,7 @@ def render_knowledge_base():
             key="kb_tag_filter"
         )
     with col_filter3:
-        if st.button(get_text("kb_add_note"), key="kb_add_note_btn"):
+        if st.button(get_text("kb_add_note"), key="kb_add_note_btn", type="primary"):
             st.session_state.show_add_note = True
     
     # 显示添加笔记表单

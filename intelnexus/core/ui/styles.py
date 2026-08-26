@@ -1,40 +1,1031 @@
 import streamlit as st
 
 
-def render_light_theme_css():
+def render_hermes_theme_css():
+    """Hermes Agent '纸白与石墨' 社区浅色主题 CSS。"""
     st.markdown("""
 <style>
-    /* Force Light Theme */
-    .stApp {
-        background-color: #FFFFFF !important;
-        color: #1E1E1E !important;
+    /* ============================================================
+       Hermes Agent — Paper White & Graphite
+       单一浅色主题：纸白画布 + 石墨文字 + 橙色强调
+       ============================================================ */
+
+    /* --- CSS Variable System --- */
+    :root {
+        /* 背景色 */
+        --bg-canvas: #F5F5F5;
+        --bg-dot: #B8B8B8;
+        --bg-nav: #F5F5F5;
+        --bg-sidebar: #FFFFFF;
+        --bg-sidebar-hover: #EAEAEA;
+        --bg-card: #FFFFFF;
+        --bg-tab-active: #1A1A1A;
+        --bg-tag: #F0F0F0;
+        --bg-status-bar: #F5F5F5;
+        /* 文字色 */
+        --text-primary: #1A1A1A;
+        --text-secondary: #666666;
+        --text-tertiary: #999999;
+        --text-sidebar: #1A1A1A;
+        --text-sidebar-muted: #666666;
+        --text-placeholder: #AAAAAA;
+        /* 强调色 */
+        --accent-orange: #0055FF;
+        --accent-green: #4ADE80;
+        --accent-red: #EF5350;
+        /* 边框 */
+        --border-light: #E8E8E8;
+        --border-medium: #E0E0E0;
+        --border-sidebar: #E0E0E0;
+        /* 间距 */
+        --space-xs: 4px;
+        --space-sm: 8px;
+        --space-md: 16px;
+        --space-lg: 24px;
+        --space-xl: 48px;
+        /* 圆角 */
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+
+        /* --- Legacy-compatible tokens (used by workbench / onboarding) --- */
+        --in-surface-white: #FFFFFF;
+        --in-chevron-gray: #999999;
+        --in-sidebar-bg: #F5F5F5;
+        --in-divider-gray: #E8E8E8;
+        --in-sidebar-border: #E0E0E0;
+        --in-sidebar-title-fg: #1A1A1A;
+        --in-btn-secondary-fg: #1A1A1A;
+        --in-btn-ghost-fg: #999999;
+        --in-btn-secondary-border: #E0E0E0;
+        --in-btn-secondary-bg: #F5F5F5;
+        --in-action-primary: #0055FF;
+        --in-action-primary-hover: #0044DD;
+        --in-accent-blue-hover: #0055FF;
+        --in-lang-hover-bg: #F0F0F0;
+        --in-download-btn-hover: #0044DD;
+        --in-status-dot-active: #4ADE80;
+        --in-status-dot-error: #EF5350;
+        --in-hint-warn-gold: #0055FF;
+        --in-panel-hover-border: #CCCCCC;
+        --in-bf-panel-hover-border: #CCCCCC;
+        --in-step-index-bg: #F0F0F0;
+        --in-step-done-bg: #EFF6FF;
+        --in-step-current-bg: #F5F5F5;
+        --in-history-row-hover: #F5F5F5;
+        --in-toggle-btn-hover: #333333;
+        --in-output-header-bg: #F5F5F5;
+        --in-step-done-alt: #EFF6FF;
+        --in-step-current-alt: #F5F5F5;
+        --in-sev-high-bg: #FEE2E2;
+        --in-sev-high-fg: #DC2626;
+        --in-sev-med-bg: #FEF3C7;
+        --in-sev-med-fg: #D97706;
+
+        /* Icon system tokens — graphite palette */
+        --icon-gray: #999999;
+        --icon-blue: #666666;
+        --icon-warm: #888888;
+        --icon-rose: #999999;
+        --icon-sage: #888888;
+        --icon-lavender: #999999;
+        --icon-terracotta: #888888;
+        --icon-success: #4ADE80;
+        --icon-warning: #0055FF;
+        --icon-error: #EF5350;
+        --icon-dark: #1A1A1A;
+        --icon-light: #CCCCCC;
+
+        /* Workbench tokens — Hermes paper-white */
+        --wb-surface: #FFFFFF;
+        --wb-card: #FFFFFF;
+        --wb-text-primary: #1A1A1A;
+        --wb-text-secondary: #666666;
+        --wb-accent: #0055FF;
+        --wb-border: #E8E8E8;
+        --wb-tag-source: #0055FF;
+        --wb-tag-sub: #0055FF;
+        --wb-tag-gen: #0055FF;
+        --wb-tag-cat: #0055FF;
+        --wb-hover: #F5F5F5;
+        --wb-bg: #F5F5F5;
+        --wb-green: #4ADE80;
+        --wb-orange: #0055FF;
+        --wb-red: #EF5350;
     }
-    [data-testid="stSidebar"] {
-        background-color: #F5F5F5 !important;
-    }
-    div[data-testid="stMarkdownContainer"] {
-        color: #1E1E1E !important;
-    }
-    .stTextInput > div > div > input {
-        background-color: #FFFFFF !important;
-        color: #1E1E1E !important;
-    }
-    header[data-testid="stHeader"] {
-        background-color: transparent !important;
-    }
-    .stDeployButton {
+
+    /* --- Hide Streamlit decoration --- */
+    #stDecoration {
         display: none !important;
     }
-</style>
-""", unsafe_allow_html=True)
 
+    /* --- Font System --- */
+    * {
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
+            "Noto Sans SC", "PingFang SC", "Microsoft YaHei",
+            "Helvetica Neue", Arial, sans-serif !important;
+    }
 
-def render_morandi_theme_css():
-    st.markdown("""
-<style>
-    /* 图标兜底（修复：Material Icons 连字字体被墙时，折叠面板图标
-       显示为原始英文文本 keyboard_arrow_right 叠在中文标题上）。
-       隐藏连字文本，用纯 CSS 画一个旋转箭头，零字体依赖。 */
+    /* --- Main Canvas Background --- */
+    .stApp {
+        background-color: #FAFAFA !important;
+        background-image: radial-gradient(circle, #D5D5D5 1px, transparent 1px) !important;
+        background-size: 32px 32px !important;
+        background-position: 0 0 !important;
+        padding-bottom: 40px !important;
+    }
+    /* Force main content area gray (override Streamlit inner containers) */
+    .stApp > header,
+    .stApp [data-testid="stHeaderContainer"] {
+        background-color: #FAFAFA !important;
+        background-image: none !important;
+    }
+    section[data-testid="stMain"] {
+        background-color: #FAFAFA !important;
+        background-image: radial-gradient(circle, #D5D5D5 1px, transparent 1px) !important;
+        background-size: 32px 32px !important;
+        background-position: 0 0 !important;
+    }
+    /* Sidebar white */
+    section[data-testid="stSidebar"] {
+        background-color: #FFFFFF !important;
+    }
+
+    /* --- Header --- */
+    header {
+        background: none !important;
+    }
+    [data-testid="stHeaderContainer"] {
+        background: var(--bg-canvas) !important;
+    }
+    div[data-testid="stHeaderContainer"]::before {
+        display: none !important;
+    }
+
+    /* ============================================================
+       TAB NAVIGATION (编号标签导航)
+       ============================================================ */
+    div[data-testid="stTabs"] {
+        background-color: var(--bg-nav) !important;
+        border-bottom: 1px solid var(--border-medium) !important;
+        padding: 0 !important;
+    }
+    button[data-baseweb="tab"],
+    div[data-testid="stTabs"] button {
+        background-color: transparent !important;
+        color: var(--text-secondary) !important;
+        border: none !important;
+        border-radius: var(--radius-sm) !important;
+        padding: var(--space-sm) var(--space-md) !important;
+        font-size: 14px !important;
+        font-weight: 500 !important;
+        transition: all 0.2s ease !important;
+    }
+    button[data-baseweb="tab"][aria-selected="true"],
+    div[data-testid="stTabs"] button[aria-selected="true"],
+    div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] {
+        background-color: var(--bg-tab-active) !important;
+        color: #FFFFFF !important;
+    }
+    button[data-baseweb="tab"]:hover,
+    div[data-testid="stTabs"] button:hover {
+        background-color: var(--border-medium) !important;
+        color: var(--text-primary) !important;
+    }
+
+    /* ============================================================
+       MAIN TITLE / SUBTITLE / GUIDANCE
+       ============================================================ */
+    .main-title {
+        font-size: 42px !important;
+        font-weight: 700 !important;
+        color: var(--text-primary) !important;
+        letter-spacing: -0.02em !important;
+        line-height: 1.2 !important;
+    }
+    .main-subtitle {
+        font-size: 15px !important;
+        font-weight: 400 !important;
+        color: var(--text-secondary) !important;
+    }
+    .main-guidance {
+        font-size: 13px !important;
+        color: var(--text-tertiary) !important;
+    }
+
+    /* ============================================================
+       CARDS / PANELS
+       ============================================================ */
+    .result-card, .report-section {
+        background-color: var(--bg-card) !important;
+        border: 1px solid var(--border-light) !important;
+        border-radius: var(--radius-lg) !important;
+        padding: var(--space-lg) !important;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.06) !important;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+    .result-card:hover, .report-section:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.10) !important;
+        border-color: var(--text-tertiary) !important;
+    }
+    .result-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+    }
+    .result-stats {
+        display: flex;
+        gap: 16px;
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border-light);
+    }
+    .stat-item { text-align: center; }
+    .stat-value {
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    .stat-label {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-top: 4px;
+    }
+    .report-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border-light);
+    }
+    .section-header {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 12px;
+    }
+
+    /* ============================================================
+       BUTTONS
+       ============================================================ */
+    .stButton > button {
+        background-color: var(--bg-tab-active) !important;
+        color: #FFFFFF !important;
+        border: none !important;
+        border-radius: var(--radius-md) !important;
+        padding: 10px 24px !important;
+        font-weight: 600 !important;
+        font-size: 14px !important;
+        transition: all 0.2s ease !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+    }
+    .stButton > button:hover {
+        background-color: #333333 !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+    }
+    .stButton > button:active {
+        transform: scale(0.98) !important;
+    }
+    /* Secondary / download buttons */
+    div[data-testid="stBaseButton-secondary"] > button,
+    div[data-testid="stDownloadButton"] button {
+        background-color: var(--bg-tag) !important;
+        color: var(--text-primary) !important;
+        border: 1px solid var(--border-medium) !important;
+    }
+    .download-btn {
+        display: inline-block;
+        padding: 12px 24px;
+        background: var(--accent-orange);
+        border-radius: var(--radius-lg);
+        color: #FFFFFF;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.3s;
+    }
+    .download-btn:hover {
+        background: #0044DD;
+        transform: translateY(-1px);
+    }
+
+    /* ============================================================
+       INPUT / SEARCH
+       ============================================================ */
+    .stTextInput > div > div > input,
+    .stTextArea > div > div > textarea,
+    .stSelectbox > div > div > div {
+        background-color: var(--bg-card) !important;
+        border: 1px solid var(--border-medium) !important;
+        border-radius: var(--radius-md) !important;
+        color: var(--text-primary) !important;
+    }
+    .stTextInput > div > div > input::placeholder,
+    .stTextArea > div > div > textarea::placeholder {
+        color: var(--text-placeholder) !important;
+    }
+    .stTextInput > div > div > input {
+        border-radius: var(--radius-md) !important;
+    }
+    .search-input input {
+        border-radius: var(--radius-md) !important;
+        border: 1px solid var(--border-medium) !important;
+        padding: 14px 18px !important;
+        font-size: 17px !important;
+        background: var(--bg-card) !important;
+        color: var(--text-primary) !important;
+        transition: all 0.3s ease !important;
+    }
+    .search-input input:focus {
+        border-color: var(--accent-orange) !important;
+        box-shadow: 0 0 0 3px rgba(0,85,255,0.15) !important;
+        outline: none !important;
+    }
+    .search-input input::placeholder {
+        color: var(--text-placeholder) !important;
+    }
+    .search-button button {
+        background-color: #FFFFFF !important;
+        color: #1A1A1A !important;
+        border-radius: 6px !important;
+        border: 1px solid #E0E0E0 !important;
+        padding: 14px 28px !important;
+        font-size: 17px !important;
+        font-weight: 600 !important;
+        transition: all 0.2s ease !important;
+        box-shadow: 0 4px 12px rgba(0,85,255,0.35) !important;
+    }
+    .search-button button:hover {
+        background-color: #F5F5F5 !important;
+        box-shadow: 0 4px 16px rgba(0,85,255,0.25) !important;
+    }
+    .search-button button:active {
+        transform: scale(0.98) !important;
+    }
+    /* Main area buttons — white bg + blue shadow (exclude sidebar) */
+    section[data-testid="stMain"] .stButton > button,
+    section[data-testid="stMain"] .search-button button {
+        background: #FFFFFF !important;
+        color: #1A1A1A !important;
+        border: 1px solid #E0E0E0 !important;
+        border-radius: 6px !important;
+        font-weight: 600 !important;
+        font-size: 13px !important;
+        box-shadow: 0 4px 12px rgba(0,85,255,0.35) !important;
+        transition: all 0.2s ease !important;
+    }
+    section[data-testid="stMain"] .stButton > button:hover,
+    section[data-testid="stMain"] .search-button button:hover {
+        background: #F5F5F5 !important;
+        box-shadow: 0 4px 16px rgba(0,85,255,0.25) !important;
+    }
+
+    /* 全局主按钮风格 — 白底深色文字+蓝色阴影（与生成简报一致） */
+    section[data-testid="stMain"] div[data-testid="stBaseButton-primary"] > button,
+    section[data-testid="stMain"] div[data-testid="stBaseButton-primary"] button {
+        background: #FFFFFF !important;
+        color: #1A1A1A !important;
+        border: 1px solid #E0E0E0 !important;
+        border-radius: 6px !important;
+        font-size: 13px !important;
+        font-weight: 600 !important;
+        padding: 5px 16px !important;
+        min-height: 30px !important;
+        box-shadow: 0 4px 12px rgba(0,85,255,0.45) !important;
+        transition: all 0.2s ease !important;
+    }
+    section[data-testid="stMain"] div[data-testid="stBaseButton-primary"] > button:hover,
+    section[data-testid="stMain"] div[data-testid="stBaseButton-primary"] button:hover {
+        background: #F5F5F5 !important;
+        box-shadow: 0 4px 16px rgba(0,85,255,0.4) !important;
+    }
+
+    /* 表单提交按钮（搜索按钮）— 白底深色文字+蓝色阴影 */
+    section[data-testid="stMain"] div[data-testid="stBaseButton-primaryFormSubmit"] button,
+    section[data-testid="stMain"] div[data-testid="stBaseButton-secondaryFormSubmit"] button {
+        background: #FFFFFF !important;
+        color: #1A1A1A !important;
+        border: 1px solid #E0E0E0 !important;
+        border-radius: 6px !important;
+        font-size: 13px !important;
+        font-weight: 600 !important;
+        padding: 5px 16px !important;
+        min-height: 30px !important;
+        box-shadow: 0 4px 12px rgba(0,85,255,0.45) !important;
+        transition: all 0.2s ease !important;
+    }
+    section[data-testid="stMain"] div[data-testid="stBaseButton-primaryFormSubmit"] button:hover,
+    section[data-testid="stMain"] div[data-testid="stBaseButton-secondaryFormSubmit"] button:hover {
+        background: #F5F5F5 !important;
+        box-shadow: 0 4px 16px rgba(0,85,255,0.4) !important;
+    }
+
+    /* 按钮与下拉框垂直对齐 — 列布局底部对齐 */
+    section[data-testid="stMain"] [data-testid="stHorizontalBlock"],
+    div[role="tabpanel"] [data-testid="stHorizontalBlock"] {
+        align-items: flex-end !important;
+    }
+    section[data-testid="stMain"] [data-testid="column"] > div > .stButton,
+    div[role="tabpanel"] [data-testid="column"] > div > .stButton {
+        padding-bottom: 0 !important;
+        margin-bottom: 0 !important;
+    }
+    section[data-testid="stMain"] [data-testid="column"] > div > .stButton > button,
+    div[role="tabpanel"] [data-testid="column"] > div > .stButton > button {
+        margin-bottom: 0 !important;
+        margin-top: 0 !important;
+    }
+
+    /* ============================================================
+       STATUS DOTS
+       ============================================================ */
+    .status-dot {
+        width: 8px !important;
+        height: 8px !important;
+        border-radius: 50% !important;
+        display: inline-block !important;
+        margin-right: 6px;
+        vertical-align: middle;
+    }
+    .status-dot.active {
+        background-color: var(--accent-green) !important;
+        box-shadow: 0 0 6px rgba(74,222,128,0.4) !important;
+    }
+    .status-dot.warning {
+        background-color: var(--accent-orange) !important;
+        box-shadow: 0 0 6px rgba(0,85,255,0.4) !important;
+    }
+    .status-dot.error {
+        background-color: var(--accent-red) !important;
+        box-shadow: 0 0 6px rgba(239,83,80,0.4) !important;
+    }
+
+    /* ============================================================
+       SIDEBAR SECTION TITLES
+       ============================================================ */
+    .sb-section {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 20px 0 10px;
+        padding: 0 4px;
+        border-left: 3px solid #0055FF !important;
+        color: #1A1A1A !important;
+    }
+    .sb-section::before {
+        content: '';
+        display: block;
+        width: 3px;
+        height: 14px;
+        background: #0055FF;
+        border-radius: 2px;
+        flex-shrink: 0;
+    }
+    .sb-section__label {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #1A1A1A !important;
+    }
+    .sb-divider {
+        height: 1px;
+        background: #E0E0E0;
+        margin: 16px 0;
+        border: none;
+    }
+    /* Sidebar action buttons */
+    .sb-action-primary {
+        width: 100% !important;
+        padding: 12px 20px !important;
+        background: var(--accent-orange) !important;
+        color: #FFFFFF !important;
+        border: none !important;
+        border-radius: var(--radius-sm) !important;
+        font-size: 14px !important;
+        font-weight: 600 !important;
+        margin-bottom: 8px !important;
+    }
+    .sb-action-primary:hover {
+        background: #0044DD !important;
+    }
+    .sb-action-secondary {
+        width: 100% !important;
+        padding: 10px 20px !important;
+        background: transparent !important;
+        color: var(--text-sidebar-muted) !important;
+        border: 1px solid #E0E0E0 !important;
+        border-radius: var(--radius-sm) !important;
+        font-size: 13px !important;
+        font-weight: 500 !important;
+    }
+    .sb-action-secondary:hover {
+        background: #EAEAEA !important;
+        color: #1A1A1A !important;
+    }
+
+    /* ============================================================
+       SEVERITY BADGES
+       ============================================================ */
+    .bf-sev-badge {
+        font-size: 10px !important;
+        font-weight: 600 !important;
+        border-radius: var(--radius-sm) !important;
+        padding: 2px 8px !important;
+    }
+    .bf-sev-badge.high, .bf-sev-badge--high {
+        background-color: #FEE2E2 !important;
+        color: #DC2626 !important;
+    }
+    .bf-sev-badge.medium, .bf-sev-badge--med {
+        background-color: #FEF3C7 !important;
+        color: #D97706 !important;
+    }
+
+    /* ============================================================
+       BRIEFING WELCOME / STEP CARDS
+       ============================================================ */
+    .briefing-step-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-lg);
+        padding: 20px 16px;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        transition: all 0.25s ease;
+    }
+    .briefing-step-card:hover {
+        box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+        transform: translateY(-2px);
+    }
+    .step-num {
+        display: inline-block;
+        width: 28px;
+        height: 28px;
+        line-height: 28px;
+        background: var(--accent-orange);
+        color: #FFFFFF;
+        border-radius: 50%;
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 12px;
+    }
+    .step-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 8px 0 6px;
+    }
+    .step-desc {
+        font-size: 13px;
+        color: var(--text-secondary);
+        line-height: 1.6;
+        margin: 0;
+    }
+    .briefing-tip-box {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        background: rgba(0,85,255,0.06);
+        border-radius: var(--radius-md);
+        padding: 16px 20px;
+        margin-top: 24px;
+    }
+    .tip-accent {
+        width: 3px;
+        height: auto;
+        min-height: 40px;
+        background: var(--accent-orange);
+        border-radius: 2px;
+        flex-shrink: 0;
+    }
+    .tip-content {
+        color: var(--text-secondary);
+        font-size: 14px;
+        line-height: 1.65;
+        margin: 0;
+    }
+
+    /* ============================================================
+       BRIEFING CONFIG PANEL
+       ============================================================ */
+    .briefing-config-panel {
+        background: linear-gradient(135deg, rgba(0,85,255,0.03) 0%, rgba(74,222,128,0.03) 100%);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-lg);
+        padding: 24px;
+        margin: 16px 0 24px 0;
+    }
+    .briefing-config-header {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0 0 12px 0;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--border-light);
+        letter-spacing: 0.3px;
+    }
+    .briefing-config-divider {
+        height: 1px;
+        background: linear-gradient(90deg, transparent, var(--border-light), transparent);
+        margin: 20px 0;
+    }
+
+    /* ============================================================
+       FUNCTION TAG BAR PANEL (.bf-panel)
+       ============================================================ */
+    .bf-panel {
+        background: var(--bg-card);
+        border: 1px solid var(--border-light);
+        border-left: 4px solid var(--accent-orange);
+        border-radius: var(--radius-sm);
+        padding: 20px 24px;
+        margin: 12px 0;
+        transition: border-color 0.15s ease;
+    }
+    .bf-panel:hover {
+        border-color: var(--text-tertiary);
+    }
+    .bf-panel.bf-panel--source { border-left-color: var(--accent-orange); }
+    .bf-panel.bf-panel--sub { border-left-color: var(--accent-orange); }
+    .bf-panel.bf-panel--cat { border-left-color: var(--accent-orange); }
+    .bf-panel.bf-panel--gen { border-left-color: var(--accent-orange); }
+
+    /* ============================================================
+       ONBOARDING 3-STEP BAR (.bf-step)
+       ============================================================ */
+    .bf-step {
+        background: var(--bg-card);
+        border: 1px solid var(--border-light);
+        border-left: 3px solid var(--border-light);
+        border-radius: var(--radius-sm);
+        padding: 12px 14px;
+        height: 100%;
+        min-height: 84px;
+        transition: border-color 0.15s ease, background 0.15s ease;
+    }
+    .bf-step__head {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .bf-step__index {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        font-size: 11px;
+        font-weight: 700;
+        flex-shrink: 0;
+        background: var(--in-step-index-bg);
+        color: var(--text-secondary);
+    }
+    .bf-step__desc {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-top: 8px;
+        line-height: 1.5;
+    }
+    .bf-step--done {
+        border-left-color: var(--accent-orange);
+        background: var(--in-step-done-alt);
+    }
+    .bf-step--done .bf-step__index {
+        background: var(--accent-orange);
+        color: #FFFFFF;
+    }
+    .bf-step--current {
+        border-left-color: var(--accent-orange);
+        background: var(--in-step-current-alt);
+    }
+    .bf-step--current .bf-step__index {
+        background: var(--accent-orange);
+        color: #FFFFFF;
+    }
+    .bf-step--pending {
+        border-left-color: var(--border-light);
+        opacity: 0.85;
+    }
+
+    /* ============================================================
+       SECTION LABEL (.bf-label)
+       ============================================================ */
+    .bf-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border-light);
+    }
+    .bf-label__tag {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-secondary);
+        background: var(--bg-tag);
+        padding: 3px 8px;
+        border-radius: 3px;
+    }
+    .bf-label__title {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+    }
+
+    /* ============================================================
+       OUTPUT AREA (.bf-output)
+       ============================================================ */
+    .bf-output {
+        background: var(--bg-card);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-sm);
+        padding: 20px 24px;
+        margin: 12px 0;
+    }
+    .bf-output__header {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 14px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--border-light);
+    }
+
+    /* ============================================================
+       HISTORY ITEMS
+       ============================================================ */
+    .bf-history-item {
+        padding: 12px 0;
+        border-bottom: 1px solid var(--border-light);
+    }
+    .bf-history-item:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+    .bf-history-item__time {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+        line-height: 1.4;
+    }
+    .bf-history-item__meta {
+        margin-top: 4px;
+        font-size: 12px;
+        color: var(--text-secondary);
+        line-height: 1.5;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+    }
+    .bf-history-item__org { font-weight: 500; color: var(--text-primary); }
+    .bf-history-item__sep { color: var(--border-light); }
+
+    /* History item buttons */
+    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-history-item button {
+        width: 100% !important;
+        min-height: 28px !important;
+        padding: 2px 10px !important;
+        font-size: 13px !important;
+        font-weight: 500 !important;
+        border-radius: 5px !important;
+        background: transparent !important;
+        color: var(--text-secondary) !important;
+        border: 1px solid var(--border-light) !important;
+        box-shadow: none !important;
+        writing-mode: horizontal-tb !important;
+        text-orientation: mixed !important;
+        white-space: nowrap !important;
+    }
+    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-history-item button:hover {
+        background: var(--bg-card) !important;
+        color: var(--text-primary) !important;
+        border-color: var(--accent-orange) !important;
+    }
+
+    /* ============================================================
+       ENTRY ROWS (.bf-entry-row)
+       ============================================================ */
+    .bf-entry-row {
+        display: flex;
+        align-items: center;
+        padding: 6px 0;
+        border-bottom: 1px solid var(--border-light);
+    }
+    .bf-entry-row:last-child { border-bottom: none; }
+    .bf-entry-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        width: 100%;
+    }
+    .bf-entry-title {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-primary);
+        flex: 1;
+        min-width: 200px;
+    }
+    .bf-entry-source {
+        font-size: 11px;
+        color: var(--text-secondary);
+        background: var(--bg-tag);
+        padding: 2px 6px;
+        border-radius: 3px;
+    }
+    .bf-entry-cred { font-size: 11px; font-weight: 600; }
+    .bf-entry-row + div[data-testid="stHorizontalBlock"] {
+        margin-top: -4px;
+        align-items: center;
+    }
+    .bf-entry-row + div[data-testid="stHorizontalBlock"] button {
+        font-size: 11px !important;
+        padding: 2px 8px !important;
+        min-height: 0 !important;
+        border-radius: var(--radius-sm) !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+    .bf-entry-url {
+        font-size: 10.5px;
+        color: var(--text-secondary);
+        opacity: 0.75;
+        display: inline-block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        direction: rtl;
+        text-align: left;
+    }
+
+    /* ============================================================
+       EMPTY STATE
+       ============================================================ */
+    .bf-empty {
+        text-align: center;
+        padding: 32px 16px;
+        color: var(--text-secondary);
+        font-size: 14px;
+    }
+    .bf-empty__action {
+        display: inline-block;
+        margin-top: 10px;
+        color: var(--accent-orange);
+        font-weight: 500;
+        cursor: pointer;
+    }
+    .bf-empty__action:hover { text-decoration: underline; }
+
+    /* ============================================================
+       MISC WIDGET OVERRIDES
+       ============================================================ */
+    div[data-testid="stRadio"] > div { gap: 8px; }
+    div[data-testid="stRadio"] label {
+        border-radius: var(--radius-lg) !important;
+        padding: 12px 16px !important;
+        background: var(--bg-nav) !important;
+        border: 1px solid transparent !important;
+        transition: all 0.2s ease !important;
+        color: var(--text-primary) !important;
+    }
+    div[data-testid="stRadio"] label:hover {
+        background: var(--bg-tag) !important;
+    }
+    div[data-testid="stRadio"] input:checked + div {
+        background: var(--bg-tag) !important;
+        border-color: var(--accent-orange) !important;
+        color: var(--text-primary) !important;
+    }
+    div[data-testid="stSelectbox"] > div {
+        background: var(--bg-card) !important;
+        border: 1px solid var(--border-medium) !important;
+        border-radius: var(--radius-lg) !important;
+    }
+    div[data-testid="stSelectbox"] > div:focus-within {
+        border-color: var(--accent-orange) !important;
+        box-shadow: none !important;
+    }
+    div[data-testid="stSelectbox"] > div > div { border-radius: var(--radius-lg); }
+    div[data-testid="stSlider"] > div > div { border-radius: var(--radius-lg); }
+    div.stButton > button { border-radius: var(--radius-lg); }
+
+    .stSuccess {
+        background: var(--accent-green);
+        color: #FFFFFF;
+        border-radius: var(--radius-lg);
+    }
+    .stSpinner > div > div { border-top-color: var(--accent-orange); }
+
+    div[data-testid="stMarkdownContainer"] p { color: var(--text-primary); }
+
+    /* ============================================================
+       MAIN AREA — Streamlit Native Components
+       ============================================================ */
+
+    /* Main area Expander */
+    [data-testid="stExpander"] {
+        border: 1px solid var(--border-light) !important;
+        border-radius: var(--radius-md) !important;
+        background: var(--bg-card) !important;
+    }
+    [data-testid="stExpander"] > details,
+    [data-testid="stExpander"] > div {
+        background: var(--bg-card) !important;
+        border: none !important;
+    }
+    [data-testid="stExpander"] summary {
+        background: transparent !important;
+        color: var(--text-primary) !important;
+        border: none !important;
+        font-weight: 500 !important;
+    }
+    [data-testid="stExpander"] summary:hover {
+        background: var(--bg-tag) !important;
+    }
+    [data-testid="stExpander"] summary p,
+    [data-testid="stExpander"] summary span {
+        color: var(--text-primary) !important;
+    }
+    [data-testid="stExpander"] summary svg {
+        color: var(--text-secondary) !important;
+    }
+    [data-testid="stExpander"] [data-testid="stExpanderContent"],
+    [data-testid="stExpander"] details > div {
+        background: transparent !important;
+    }
+
+    /* Main area Checkbox */
+    div[data-testid="stCheckbox"] label {
+        color: var(--text-primary) !important;
+    }
+    div[data-testid="stCheckbox"] input[type="checkbox"] {
+        accent-color: var(--accent-orange);
+    }
+
+    /* Main area Divider / Horizontal Rule */
+    hr,
+    div[data-testid="stDivider"] {
+        border-color: var(--border-light) !important;
+        opacity: 0.8 !important;
+    }
+
+    /* Main area Radio (global, non-sidebar) */
+    div[data-testid="stRadio"] label {
+        color: var(--text-primary) !important;
+    }
+
+    /* Language switch */
+    .lang-switch { display: flex; gap: 8px; padding: 12px 16px; }
+    .lang-btn {
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 13px;
+        cursor: pointer;
+        border: 1px solid var(--border-medium);
+        background: var(--bg-card);
+        color: var(--text-primary);
+        transition: all 0.2s;
+    }
+    .lang-btn:hover { background: var(--bg-tag); }
+    .lang-btn.active {
+        background: var(--accent-orange);
+        color: #FFFFFF;
+        border-color: var(--accent-orange);
+    }
+
+    /* Selectbox z-index fix (Streamlit 1.62 RAC) */
+    div[data-testid="stSelectbox"] {
+        pointer-events: auto !important;
+    }
+    div[data-testid="stSelectbox"] ul,
+    div[data-testid="stSelectbox"] [role="listbox"],
+    div[data-testid="stSelectboxVirtualDropdown"] {
+        z-index: 999999 !important;
+        position: relative !important;
+        pointer-events: auto !important;
+    }
+
+    /* ============================================================
+       ICON MATERIAL FALLBACK (CSS-only chevron, no font dependency)
+       ============================================================ */
     span[data-testid="stIconMaterial"] {
         font-size: 0 !important;
         width: 16px !important;
@@ -58,970 +1049,29 @@ def render_morandi_theme_css():
         transform: rotate(225deg) !important;
     }
 
-    /* 字体栈去掉被墙的 Google Fonts @import（曾拖慢 CSS 应用且加载失败） */
-    :root,
-    [data-theme="morandi"] {
-        --morandi-bg: #E8E4DF;
-        --morandi-sidebar: #DCD8D3;
-        --morandi-card: #F5F2EE;
-        --morandi-blue: #7B9CB5;
-        --morandi-green: #8FA890;
-        --morandi-pink: #C4A4A4;
-        --morandi-peach: #D4A5A5;
-        --morandi-text: #5C5C5C;
-        --morandi-text-light: #6E6E6E;
-        --morandi-border: #C9C5C0;
-        --morandi-accent: #9CB5B0;
-        /* Phase 0 token layer: previously-inline literals */
-        --in-surface-white: #FFFFFF;
-        --in-chevron-gray: #8A8A8A;
-        --in-sidebar-bg: #F0F2F5;
-        --in-divider-gray: #EBEEF2;
-        --in-sidebar-border: #E5E7EB;
-        --in-sidebar-title-fg: #1F2937;
-        --in-btn-secondary-fg: #374151;
-        --in-btn-ghost-fg: #6B7280;
-        --in-btn-secondary-border: #D1D5DB;
-        --in-btn-secondary-bg: #F6F8FA;
-        --in-action-primary: #0366D6;
-        --in-action-primary-hover: #0550AE;
-        --in-accent-blue-hover: #6B8BA5;
-        --in-lang-hover-bg: #E5E1DC;
-        --in-download-btn-hover: #7F9680;
-        --in-status-dot-active: #4A9D5F;
-        --in-status-dot-error: #C94A4A;
-        --in-hint-warn-gold: #C99A2E;
-        --in-panel-hover-border: #D2CABC;
-        --in-bf-panel-hover-border: #B0B7C3;
-        --in-step-index-bg: #DED8CE;
-        --in-step-done-bg: #EBF0E4;
-        --in-step-current-bg: #E8ECEE;
-        --in-history-row-hover: #E6E0D8;
-        --in-toggle-btn-hover: #8E938A;
-        --in-output-header-bg: #EAECEF;
-        --in-step-done-alt: #F4FBF5;
-        --in-step-current-alt: #F0F6FF;
-        --in-sev-high-bg: #FEE2E2;
-        --in-sev-high-fg: #DC2626;
-        --in-sev-med-bg: #FEF3C7;
-        --in-sev-med-fg: #D97706;
-        /* icon system tokens (icons.py classes reference these) */
-        --icon-gray: #8B8B8B;
-        --icon-blue: #9AACB8;
-        --icon-warm: #B4A7A0;
-        --icon-rose: #C4A0A0;
-        --icon-sage: #9BA89C;
-        --icon-lavender: #A89BB4;
-        --icon-terracotta: #B89B8C;
-        --icon-dark: #5A5A5A;
-        --icon-light: #C0C0C0;
-        --icon-success: #7F9680;
-        --icon-warning: #C9A227;
-        --icon-error: #C94A4A;
-        /* workbench tokens - morandi defaults (overridden by teal/nous) */
-        --wb-surface: #FFFFFF;
-        --wb-card: #FFFFFF;
-        --wb-text-primary: #4A4540;
-        --wb-text-secondary: #75705F;
-        --wb-accent: #A3A89B;
-        --wb-border: #E2DDD5;
-        --wb-tag-source: #A7B0AE;
-        --wb-tag-sub: #A9B59A;
-        --wb-tag-gen: #A6B2BC;
-        --wb-tag-cat: #B7A6B0;
-        --wb-hover: #ECE7DF;
-        --wb-green: #5F7358;
-        --wb-orange: #9A6B3F;
-        --wb-red: #9C4848;
-    }
-    /* ===== Hermes Teal (desktop default) - dark terminal ===== */
-    [data-theme="hermes-teal"] {
-        --morandi-bg: #041c1c;
-        /* icon system (dark terminal) */
-        --icon-gray: #7fa8a8;
-        --icon-blue: #6aa8c8;
-        --icon-warm: #c9a8a0;
-        --icon-rose: #e08fb0;
-        --icon-sage: #86c79b;
-        --icon-lavender: #b39ddb;
-        --icon-terracotta: #d99a78;
-        --icon-dark: #cfe8e4;
-        --icon-light: #3a6b6b;
-        --icon-success: #4ade80;
-        --icon-warning: #ffbd38;
-        --icon-error: #fb7185;
-        --morandi-sidebar: #062424;
-        --morandi-card: #0a2a2a;
-        --morandi-blue: #ffac02;
-        --morandi-green: #4ade80;
-        --morandi-pink: #f9a8d4;
-        --morandi-peach: #ffbd38;
-        --morandi-text: #ffe6cb;
-        --morandi-text-light: #c9b28f;
-        --morandi-border: #144444;
-        --morandi-accent: #5eead4;
-        --in-surface-white: #0e3333;
-        --in-chevron-gray: #7fa8a8;
-        --in-sidebar-bg: #062626;
-        --in-divider-gray: #144444;
-        --in-sidebar-border: #155555;
-        --in-sidebar-title-fg: #ffe6cb;
-        --in-btn-secondary-fg: #d8efe9;
-        --in-btn-ghost-fg: #9fc4bd;
-        --in-btn-secondary-border: #1d5656;
-        --in-btn-secondary-bg: #0a2f2f;
-        --in-action-primary: #ffb43f;
-        --in-action-primary-hover: #ffc45e;
-        --in-accent-blue-hover: #ffbd38;
-        --in-lang-hover-bg: #103838;
-        --in-download-btn-hover: #66d99a;
-        --in-status-dot-active: #4ade80;
-        --in-status-dot-error: #fb7185;
-        --in-hint-warn-gold: #ffbd38;
-        --in-panel-hover-border: #ffd8b0;
-        --in-bf-panel-hover-border: #2a6b6b;
-        --in-step-index-bg: #164949;
-        --in-step-done-bg: #123f33;
-        --in-step-current-bg: #113d3d;
-        --in-history-row-hover: #0f3838;
-        --in-toggle-btn-hover: #2a7a7a;
-        --in-output-header-bg: #0d3232;
-        --in-step-done-alt: #0f3a30;
-        --in-step-current-alt: #0f3636;
-        --in-sev-high-bg: #3d1220;
-        --in-sev-high-fg: #ff8fa3;
-        --in-sev-med-bg: #3d2e08;
-        --in-sev-med-fg: #ffcf70;
-        /* workbench tokens */
-        --wb-surface: #062222;
-        --wb-card: #082828;
-        --wb-text-primary: #e8f4f0;
-        --wb-text-secondary: #93b8b2;
-        --wb-accent: #5eead4;
-        --wb-border: #174747;
-        --wb-tag-source: #58a6a6;
-        --wb-tag-sub: #7bc496;
-        --wb-tag-gen: #6aa8c8;
-        --wb-tag-cat: #b98ab8;
-        --wb-hover: #0f3535;
-        --wb-green: #4ade80;
-        --wb-orange: #ffa94d;
-        --wb-red: #ff7b7b;
-        /* native Streamlit widgets under dark theme */
-        --st-widget-bg: #0a2f2f;
-        --st-widget-fg: #d8efe9;
-        --st-widget-border: #1d5656;
-    }
-    /* ===== Nous Blue (desktop light) - cream canvas + vivid blue ===== */
-    [data-theme="nous-blue"] {
-        --morandi-bg: #E8F2FD;
-        /* icon system (light blue) */
-        --icon-gray: #6b7f92;
-        --icon-blue: #0053FD;
-        --icon-warm: #b08968;
-        --icon-rose: #d473ae;
-        --icon-sage: #2e8b57;
-        --icon-lavender: #7e57c2;
-        --icon-terracotta: #c96f4a;
-        --icon-dark: #10243d;
-        --icon-light: #b9d0f0;
-        --icon-success: #1f7a4d;
-        --icon-warning: #b98a10;
-        --icon-error: #c62a31;
-        --morandi-sidebar: #dbeafc;
-        --morandi-card: #f4f9ff;
-        --morandi-blue: #0053FD;
-        --morandi-green: #2e8b57;
-        --morandi-pink: #d473ae;
-        --morandi-peach: #e0954f;
-        --morandi-text: #170d02;
-        --morandi-text-light: #5a6570;
-        --morandi-border: #c4d8f2;
-        --morandi-accent: #4d8af0;
-        --in-surface-white: #ffffff;
-        --in-chevron-gray: #7d8b99;
-        --in-sidebar-bg: #dcebfd;
-        --in-divider-gray: #d3e3fa;
-        --in-sidebar-border: #bcd4f5;
-        --in-sidebar-title-fg: #0a2f66;
-        --in-btn-secondary-fg: #24405e;
-        --in-btn-ghost-fg: #5a7ba1;
-        --in-btn-secondary-border: #b9d0f0;
-        --in-btn-secondary-bg: #eef6ff;
-        --in-action-primary: #0053FD;
-        --in-action-primary-hover: #1a63ff;
-        --in-accent-blue-hover: #1a63ff;
-        --in-lang-hover-bg: #d6e7fd;
-        --in-download-btn-hover: #1a63ff;
-        --in-status-dot-active: #22a06b;
-        --in-status-dot-error: #e5484d;
-        --in-hint-warn-gold: #b98a10;
-        --in-panel-hover-border: #9dc2f7;
-        --in-bf-panel-hover-border: #8db8f2;
-        --in-step-index-bg: #cfe2fa;
-        --in-step-done-bg: #ddf3e4;
-        --in-step-current-bg: #dcebfe;
-        --in-history-row-hover: #dcebfd;
-        --in-toggle-btn-hover: #4d8af0;
-        --in-output-header-bg: #dceafd;
-        --in-step-done-alt: #e3f5ea;
-        --in-step-current-alt: #e7f1fe;
-        --in-sev-high-bg: #ffe5e8;
-        --in-sev-high-fg: #c62a31;
-        --in-sev-med-bg: #fff3d1;
-        --in-sev-med-fg: #9a6b00;
-        /* workbench tokens */
-        --wb-surface: #ffffff;
-        --wb-card: #f7fbff;
-        --wb-text-primary: #10243d;
-        --wb-text-secondary: #56718e;
-        --wb-accent: #4d8af0;
-        --wb-border: #cadef7;
-        --wb-tag-source: #7aa8dd;
-        --wb-tag-sub: #86c79b;
-        --wb-tag-gen: #7fb2e8;
-        --wb-tag-cat: #c393c1;
-        --wb-hover: #e4effd;
-        --wb-green: #1f7a4d;
-        --wb-orange: #b96a12;
-        --wb-red: #c0392b;
-    }
-
-    #stDecoration {
-        display: none !important;
-    }
-
-    * {
-        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif !important;
-    }
-
-    .stApp {
-        background: var(--morandi-bg);
-    }
-
-    div[data-testid="stSidebar"] {
-        background: var(--in-sidebar-bg) !important;
-        border-right: 1px solid var(--in-sidebar-border) !important;
-    }
-
-    .sidebar-title {
-        font-size: 18px !important;
-        font-weight: 700 !important;
-        color: var(--in-sidebar-title-fg) !important;
-        padding: 20px 16px 12px !important;
-        letter-spacing: -0.01em !important;
-    }
-
-    .sidebar-subtitle {
-        display: none !important;
-    }
-
-    .main-title {
-        font-size: 40px;
-        font-weight: 600;
-        color: var(--morandi-text);
-        letter-spacing: -0.02em;
-    }
-
-    .main-subtitle {
-        font-size: 19px;
-        font-weight: 400;
-        color: var(--morandi-text-light);
-        margin-top: 4px;
-    }
-
-    .main-guidance {
+    /* ============================================================
+       HINT / WARN
+       ============================================================ */
+    .bf-hint {
+        margin: 4px 0 !important;
+        padding: 6px 0 6px 12px !important;
+        border-left: 3px solid var(--border-light);
+        color: var(--text-secondary);
         font-size: 13px;
-        font-weight: 400;
-        color: var(--morandi-text-light);
-        margin-top: 6px;
-        opacity: 0.85;
-    }
-
-    .search-input input {
-        border-radius: 14px !important;
-        border: 1px solid var(--morandi-border) !important;
-        padding: 14px 18px !important;
-        font-size: 17px !important;
-        background: var(--in-surface-white) !important;
-        color: var(--morandi-text) !important;
-        transition: all 0.3s ease !important;
-    }
-
-    .search-input input:focus {
-        border-color: var(--morandi-blue) !important;
-        box-shadow: 0 0 0 3px rgba(123, 156, 181, 0.15) !important;
-        outline: none !important;
-    }
-
-    .search-input input::placeholder {
-        color: var(--morandi-text-light) !important;
-    }
-
-    .search-button button {
-        border-radius: 14px !important;
-        background: var(--morandi-blue) !important;
-        border: none !important;
-        padding: 14px 28px !important;
-        font-size: 17px !important;
-        font-weight: 500 !important;
-        color: var(--in-surface-white) !important;
-        transition: all 0.3s ease !important;
-    }
-
-    .search-button button:hover {
-        background: var(--in-accent-blue-hover) !important;
-        transform: translateY(-1px);
-    }
-
-    .search-button button:active {
-        transform: scale(0.98) translateY(0);
-    }
-
-    div[data-testid="stRadio"] > div {
-        gap: 8px;
-    }
-
-    div[data-testid="stRadio"] label {
-        border-radius: 12px !important;
-        padding: 12px 16px !important;
-        background: var(--morandi-sidebar) !important;
-        border: 1px solid transparent !important;
-        transition: all 0.2s ease !important;
-        color: var(--morandi-text) !important;
-    }
-
-    div[data-testid="stRadio"] label:hover {
-        background: var(--morandi-sidebar) !important;
-    }
-
-    div[data-testid="stRadio"] input:checked + div {
-        background: var(--morandi-sidebar) !important;
-        border-color: transparent !important;
-        color: var(--morandi-text) !important;
-    }
-
-    div[data-testid="stSelectbox"] > div {
-        background: var(--morandi-sidebar) !important;
-        border: 1px solid var(--morandi-border) !important;
-        border-radius: 12px !important;
-    }
-
-    div[data-testid="stSelectbox"] > div:focus-within {
-        border-color: var(--morandi-border) !important;
-        box-shadow: none !important;
-    }
-
-    .lang-switch {
-        display: flex;
-        gap: 8px;
-        padding: 12px 16px;
-    }
-
-    .lang-btn {
-        padding: 8px 16px;
-        border-radius: 20px;
-        font-size: 13px;
-        cursor: pointer;
-        border: 1px solid var(--morandi-border);
-        background: var(--morandi-card);
-        color: var(--morandi-text);
-        transition: all 0.2s;
-    }
-
-    .lang-btn:hover {
-        background: var(--in-lang-hover-bg);
-    }
-
-    .lang-btn.active {
-        background: var(--morandi-green);
-        color: var(--in-surface-white);
-        border-color: var(--morandi-green);
-    }
-
-    .result-card {
-        background: var(--morandi-card);
-        border-radius: 18px;
-        padding: 24px;
-        margin: 16px 0;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.06);
-        border: 1px solid var(--morandi-border);
-    }
-
-    .result-title {
-        font-size: 15px;
-        font-weight: 600;
-        color: var(--morandi-text);
-        margin-bottom: 8px;
-    }
-
-    .result-stats {
-        display: flex;
-        gap: 16px;
-        margin-top: 16px;
-        padding-top: 16px;
-        border-top: 1px solid var(--morandi-border);
-    }
-
-    .stat-item {
-        text-align: center;
-    }
-
-    .stat-value {
-        font-size: 24px;
-        font-weight: 600;
-        color: var(--morandi-text);
-    }
-
-    .stat-label {
-        font-size: 12px;
-        color: var(--morandi-text-light);
-        margin-top: 4px;
-    }
-
-    .report-section {
-        background: var(--morandi-card);
-        border-radius: 18px;
-        padding: 24px;
-        margin: 16px 0;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.06);
-        border: 1px solid var(--morandi-border);
-    }
-
-    .report-title {
-        font-size: 22px;
-        font-weight: 600;
-        color: var(--morandi-text);
-        margin-bottom: 16px;
-        padding-bottom: 12px;
-        border-bottom: 1px solid var(--morandi-border);
-    }
-
-    .download-btn {
-        display: inline-block;
-        padding: 12px 24px;
-        background: var(--morandi-green);
-        border-radius: 12px;
-        color: var(--in-surface-white);
-        text-decoration: none;
-        font-weight: 500;
-        transition: all 0.3s;
-    }
-
-    .download-btn:hover {
-        background: var(--in-download-btn-hover);
-        transform: translateY(-1px);
-    }
-
-    .section-header {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--morandi-text-light);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 12px;
-    }
-
-    div.stButton > button {
-        border-radius: 12px;
-    }
-
-    div[data-testid="stSelectbox"] > div > div {
-        border-radius: 12px;
-    }
-
-    div[data-testid="stSlider"] > div > div {
-        border-radius: 12px;
-    }
-
-    .stSuccess {
-        background: var(--morandi-green);
-        color: var(--in-surface-white);
-        border-radius: 12px;
-    }
-
-    .stSpinner > div > div {
-        border-top-color: var(--morandi-blue);
-    }
-
-    div[data-testid="stMarkdownContainer"] p {
-        color: var(--morandi-text);
-    }
-
-    .stTextInput > div > div > input {
-        border-radius: 14px !important;
-    }
-
-    header {
-        background: none !important;
-    }
-
-    [data-testid="stHeaderContainer"] {
-        background: var(--morandi-bg) !important;
-    }
-
-    div[data-testid="stHeaderContainer"]::before {
-        display: none !important;
-    }
-
-    /* Fix selectbox dropdown z-index */
-    div[data-testid="stSidebar"] {
-        overflow: visible !important;
-    }
-
-    div[data-testid="stSidebar"] section {
-        overflow: visible !important;
-    }
-
-    div[data-testid="stSelectbox"] {
-        pointer-events: auto !important;
-    }
-
-    div[data-testid="stSelectbox"] ul,
-    div[data-testid="stSelectbox"] [role="listbox"],
-    div[data-testid="stSelectbox"] [data-baseweb="popover"],
-    div[data-testid="stSelectbox"] [data-baseweb="menu"] {
-        z-index: 999999 !important;
-        position: relative !important;
-        pointer-events: auto !important;
-    }
-
-    /* === Briefing Welcome Page Styles === */
-    .briefing-step-card {
-        background: var(--in-surface-white);
-        border: 1px solid var(--morandi-border);
-        border-radius: 14px;
-        padding: 20px 16px;
-        text-align: center;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-        transition: all 0.25s ease;
-    }
-
-    .briefing-step-card:hover {
-        box-shadow: 0 4px 16px rgba(123,156,181,0.12);
-        transform: translateY(-2px);
-    }
-
-    .step-num {
-        display: inline-block;
-        width: 28px;
-        height: 28px;
-        line-height: 28px;
-        background: var(--morandi-blue);
-        color: var(--in-surface-white);
-        border-radius: 50%;
-        font-size: 14px;
-        font-weight: 600;
-        margin-bottom: 12px;
-    }
-
-    .step-title {
-        font-size: 15px;
-        font-weight: 600;
-        color: var(--morandi-text);
-        margin: 8px 0 6px;
-    }
-
-    .step-desc {
-        font-size: 13px;
-        color: var(--morandi-text-light);
-        line-height: 1.6;
-        margin: 0;
-    }
-
-    .briefing-tip-box {
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        background: rgba(123,156,181,0.08);
-        border-radius: 10px;
-        padding: 16px 20px;
-        margin-top: 24px;
-    }
-
-    .tip-accent {
-        width: 3px;
-        height: auto;
-        min-height: 40px;
-        background: var(--morandi-blue);
-        border-radius: 2px;
-        flex-shrink: 0;
-    }
-
-    .tip-content {
-        color: var(--morandi-text-light);
-        font-size: 14px;
-        line-height: 1.65;
-        margin: 0;
-    }
-
-    /* === Briefing Config Panel (inside Tab) === */
-    .briefing-config-panel {
-        background: linear-gradient(135deg, rgba(123,156,181,0.04) 0%, rgba(143,168,144,0.04) 100%);
-        border: 1px solid var(--morandi-border);
-        border-radius: 16px;
-        padding: 24px;
-        margin: 16px 0 24px 0;
-    }
-
-    .briefing-config-header {
-        font-size: 16px;
-        font-weight: 600;
-        color: var(--morandi-text);
-        margin: 0 0 12px 0;
-        padding-bottom: 10px;
-        border-bottom: 1px solid rgba(201,197,192,0.5);
-        letter-spacing: 0.3px;
-    }
-
-    .briefing-config-divider {
-        height: 1px;
-        background: linear-gradient(90deg, transparent, var(--morandi-border), transparent);
-        margin: 20px 0;
-    }
-
-    /* === Status Dot (replaces emoji) === */
-    .status-dot {
-        display: inline-block;
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        margin-right: 6px;
-        vertical-align: middle;
-    }
-
-    .status-dot.active {
-        background: var(--in-status-dot-active);
-        box-shadow: 0 0 0 3px rgba(74,157,95,0.15);
-    }
-
-    .status-dot.error {
-        background: var(--in-status-dot-error);
-        box-shadow: 0 0 0 3px rgba(201,74,74,0.15);
-    }
-
-    /* === Sidebar Workbench Theme (cold-gray, compact) === */
-    .sb-section {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin: 20px 0 10px;
-        padding: 0 4px;
-    }
-
-    .sb-section::before {
-        content: '';
-        display: block;
-        width: 3px;
-        height: 14px;
-        background: var(--in-action-primary);
-        border-radius: 2px;
-        flex-shrink: 0;
-    }
-
-    .sb-section__label {
-        font-size: 11px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: var(--in-btn-ghost-fg);
-    }
-
-    /* Sidebar divider — subtle */
-    .sb-divider {
-        height: 1px;
-        background: var(--in-sidebar-border);
-        margin: 16px 0;
-        border: none;
-    }
-
-    /* Sidebar buttons: clean, no rounded pills */
-    [data-testid="stSidebar"] button[kind="secondary"] {
-        border-radius: 6px !important;
-        font-size: 13px !important;
-        font-weight: 500 !important;
-        border: 1px solid var(--in-btn-secondary-border) !important;
-        background: var(--in-surface-white) !important;
-        color: var(--in-btn-secondary-fg) !important;
-        padding: 8px 16px !important;
-        transition: all 0.15s ease !important;
-    }
-
-    [data-testid="stSidebar"] button[kind="secondary"]:hover {
-        border-color: var(--in-action-primary) !important;
-        color: var(--in-action-primary) !important;
-        background: var(--in-btn-secondary-bg) !important;
-    }
-
-    /* Primary action buttons in sidebar */
-    .sb-action-primary {
-        width: 100% !important;
-        padding: 12px 20px !important;
-        background: var(--in-action-primary) !important;
-        color: var(--in-surface-white) !important;
-        border: none !important;
-        border-radius: 6px !important;
-        font-size: 14px !important;
-        font-weight: 600 !important;
-        margin-bottom: 8px !important;
-    }
-
-    .sb-action-primary:hover {
-        background: var(--in-action-primary-hover) !important;
-    }
-
-    .sb-action-secondary {
-        width: 100% !important;
-        padding: 10px 20px !important;
-        background: transparent !important;
-        color: var(--in-btn-ghost-fg) !important;
-        border: 1px solid var(--in-btn-secondary-border) !important;
-        border-radius: 6px !important;
-        font-size: 13px !important;
-        font-weight: 500 !important;
-    }
-
-    .sb-action-secondary:hover {
-        background: var(--in-btn-secondary-bg) !important;
-        color: var(--in-btn-secondary-fg) !important;
-    }
-
-    /* Expander in sidebar: clean */
-    [data-testid="stSidebar"] [data-testid="stExpander"] {
-        border: none !important;
-        background: transparent !important;
-    }
-
-    /* Function Tag Bar Panel — the signature element */
-    .bf-panel {
-        background: var(--wb-card);
-        border: 1px solid var(--wb-border);
-        border-left: 4px solid var(--wb-tag-source);
-        border-radius: 6px;
-        padding: 20px 24px;
-        margin: 12px 0;
-        transition: border-color 0.15s ease;
-    }
-
-    .bf-panel:hover {
-        border-color: var(--in-bf-panel-hover-border);
-    }
-
-    .bf-panel.bf-panel--source {
-        border-left-color: var(--wb-tag-source);
-    }
-
-    .bf-panel.bf-panel--sub {
-        border-left-color: var(--wb-tag-sub);
-    }
-
-    .bf-panel.bf-panel--cat {
-        border-left-color: var(--wb-tag-cat);
-    }
-
-    /* Onboarding 3-step bar */
-    .bf-step {
-        background: var(--wb-card);
-        border: 1px solid var(--wb-border);
-        border-left: 3px solid var(--wb-border);
-        border-radius: 6px;
-        padding: 12px 14px;
-        height: 100%;
-        min-height: 84px;
-        transition: border-color 0.15s ease, background 0.15s ease;
-    }
-    .bf-step__head {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--wb-text-primary);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    .bf-step__index {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        font-size: 11px;
-        font-weight: 700;
-        flex-shrink: 0;
-        background: var(--in-output-header-bg);
-        color: var(--wb-text-secondary);
-    }
-    .bf-step__desc {
-        font-size: 12px;
-        color: var(--wb-text-secondary);
-        margin-top: 8px;
         line-height: 1.5;
     }
-    /* State variants */
-    .bf-step--done {
-        border-left-color: var(--wb-tag-sub);
-        background: var(--in-step-done-alt);
-    }
-    .bf-step--done .bf-step__index {
-        background: var(--wb-tag-sub);
-        color: var(--in-surface-white);
-    }
-    .bf-step--current {
-        border-left-color: var(--wb-accent);
-        background: var(--in-step-current-alt);
-    }
-    .bf-step--current .bf-step__index {
-        background: var(--wb-accent);
-        color: var(--in-surface-white);
-    }
-    .bf-step--pending {
-        border-left-color: var(--wb-border);
-        opacity: 0.85;
+    .bf-hint--warn {
+        border-left-color: var(--accent-orange);
     }
 
-    /* Section Label: uppercase + color-coded */
-    .bf-label {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 16px;
-        padding-bottom: 12px;
-        border-bottom: 1px solid var(--in-divider-gray);
-    }
-
-    .bf-label__tag {
-        font-size: 11px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: var(--wb-text-secondary);
-        background: var(--in-sidebar-bg);
-        padding: 3px 8px;
-        border-radius: 3px;
-    }
-
-    .bf-label__title {
-        font-size: 15px;
-        font-weight: 600;
-        color: var(--wb-text-primary);
-        margin: 0;
-    }
-
-    /* Output area: clean, no tag bar */
-    .bf-output {
-        background: var(--wb-card);
-        border: 1px solid var(--wb-border);
-        border-radius: 6px;
-        padding: 20px 24px;
-        margin: 12px 0;
-    }
-
-    .bf-output__header {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--wb-text-secondary);
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        margin-bottom: 14px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid var(--in-divider-gray);
-    }
-
-    /* 历史列表条目：清晰分隔、信息分层 */
-    .bf-history-item {
-        padding: 12px 0;
-        border-bottom: 1px solid var(--wb-border);
-    }
-    .bf-history-item:last-child {
-        border-bottom: none;
-        padding-bottom: 0;
-    }
-    .bf-history-item__time {
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--wb-text-primary);
-        line-height: 1.4;
-    }
-    .bf-history-item__meta {
-        margin-top: 4px;
-        font-size: 12px;
-        color: var(--wb-text-secondary);
-        line-height: 1.5;
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 6px;
-    }
-    .bf-history-item__org {
-        font-weight: 500;
-        color: var(--wb-text-primary);
-    }
-    .bf-history-item__sep {
-        color: var(--wb-border);
-    }
-    /* 历史条目内的查看/删除按钮：轻量文字按钮风格，与左侧信息协调 */
-    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-history-item button {
-        width: 100% !important;
-        min-height: 28px !important;
-        padding: 2px 10px !important;
-        font-size: 13px !important;
-        font-weight: 500 !important;
-        border-radius: 5px !important;
-        background: transparent !important;
-        color: var(--wb-text-secondary) !important;
-        border: 1px solid var(--wb-border) !important;
-        box-shadow: none !important;
-        writing-mode: horizontal-tb !important;
-        text-orientation: mixed !important;
-        white-space: nowrap !important;
-    }
-    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-history-item button:hover {
-        background: var(--wb-surface) !important;
-        color: var(--wb-text-primary) !important;
-        border-color: var(--wb-accent) !important;
-    }
-
-    /* Empty state: action-oriented */
-    .bf-empty {
-        text-align: center;
-        padding: 32px 16px;
-        color: var(--wb-text-secondary);
-        font-size: 14px;
-    }
-
-    .bf-empty__action {
-        display: inline-block;
-        margin-top: 10px;
-        color: var(--wb-accent);
-        font-weight: 500;
-        cursor: pointer;
-    }
-
-    .bf-empty__action:hover {
-        text-decoration: underline;
-    }
-
-    /* History list item */
-    .bf-history-item {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 10px 0;
-        border-bottom: 1px solid var(--in-sidebar-bg);
-    }
-
-    .bf-history-item:last-child {
-        border-bottom: none;
-    }
-
-    /* Download buttons in output area */
+    /* Download button in output */
     .bf-download-btn {
         display: inline-block;
         padding: 8px 18px;
-        background: var(--wb-card);
-        border: 1px solid var(--wb-border);
-        border-radius: 6px;
-        color: var(--wb-accent);
+        background: var(--bg-card);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-sm);
+        color: var(--accent-orange);
         font-size: 13px;
         font-weight: 500;
         text-decoration: none;
@@ -1029,118 +1079,247 @@ def render_morandi_theme_css():
         transition: all 0.15s ease;
         margin-right: 8px;
     }
-
     .bf-download-btn:hover {
-        background: var(--wb-hover);
-        border-color: var(--wb-accent);
+        background: var(--bg-tag);
+        border-color: var(--accent-orange);
     }
 
+    /* ============================================================
+       SIDEBAR — ALL RULES IN ONE PLACE
+       Streamlit 1.62+ (React Aria Components)
+       Placed after all global rules so CSS cascade wins.
+       ============================================================ */
 
-    /* ===== Dark-theme native widget overrides (hermes-teal) =====
-       Streamlit 原生部件色源在启动时静态确定（config.toml），无法运行时切换。
-       此处按 data-theme 作用域强制覆盖，使原生部件跟随暗色调色板。 */
-    [data-theme="hermes-teal"] div[data-testid="stSidebar"],
-    [data-theme="hermes-teal"] .stApp {
-        color: #d8efe9;
+    /* --- 1. Sidebar base --- */
+    section[data-testid="stSidebar"] {
+        background-color: var(--bg-sidebar) !important;
+        border-right: 1px solid #E0E0E0 !important;
+        overflow: visible !important;
+        --text-sidebar-muted: #999999;
     }
-    [data-theme="hermes-teal"] div[data-testid="stSidebar"] {
-        background: #062626 !important;
-        border-right: 1px solid #155555 !important;
+    section[data-testid="stSidebar"] * {
+        color: #1A1A1A !important;
     }
-    [data-theme="hermes-teal"] .stApp {
-        background: #041c1c !important;
-    }
-    [data-theme="hermes-teal"] .stButton > button,
-    [data-theme="hermes-teal"] .stDownloadButton > button {
-        background: #0a2f2f !important;
-        color: #d8efe9 !important;
-        border: 1px solid #1d5656 !important;
-    }
-    [data-theme="hermes-teal"] .stButton > button:hover,
-    [data-theme="hermes-teal"] .stDownloadButton > button:hover {
-        border-color: #ffac02 !important;
-        color: #ffe6cb !important;
-    }
-    [data-theme="hermes-teal"] div[data-testid="stExpander"],
-    [data-theme="hermes-teal"] div[data-testid="stExpanderDetails"] {
-        background: #082828 !important;
-        border-color: #174747 !important;
-        color: #d8efe9 !important;
-    }
-    [data-theme="hermes-teal"] div[data-testid="stTextInput"] input,
-    [data-theme="hermes-teal"] div[data-testid="stNumberInput"] input,
-    [data-theme="hermes-teal"] div[data-testid="stTextArea"] textarea,
-    [data-theme="hermes-teal"] div[data-baseweb="select"] > div,
-    [data-theme="hermes-teal"] div[data-baseweb="input"] > div {
-        background: #0a2f2f !important;
-        color: #d8efe9 !important;
-        border-color: #1d5656 !important;
-    }
-    [data-theme="hermes-teal"] div[data-testid="stMarkdownContainer"],
-    [data-theme="hermes-teal"] p,
-    [data-theme="hermes-teal"] span,
-    [data-theme="hermes-teal"] label {
-        color: inherit;
-    }
-    [data-theme="hermes-teal"] hr {
-        border-color: #144444 !important;
+    section[data-testid="stSidebar"] section {
+        overflow: visible !important;
     }
 
-
-    /* ===== Phase 3: Hermes-style flourishes ===== */
-
-    /* Grain noise texture - desktop signature look. Fixed overlay,
-       pointer-events:none so it never blocks interaction. Teal only
-       (dark canvas shows the 2px dot grid; light themes stay clean). */
-    [data-theme="hermes-teal"] .stApp::after {
-        content: "";
-        position: fixed;
-        inset: 0;
-        pointer-events: none;
-        opacity: 0.07;
-        background: repeating-conic-gradient(#9be8dc 0% 25%, transparent 0% 50%) 0 0 / 2px 2px;
-        z-index: 2;
+    /* --- 2. Sidebar title / subtitle --- */
+    .sidebar-title {
+        font-size: 16px !important;
+        font-weight: 700 !important;
+        color: #1A1A1A !important;
+        padding: 20px 16px 12px !important;
+        letter-spacing: -0.01em !important;
+    }
+    .sidebar-subtitle {
+        display: none !important;
     }
 
-    /* Rotating arc ring on primary actions - registers --in-angle so the
-       conic gradient can animate (graceful static fallback elsewhere). */
-    @property --in-angle {
-        syntax: "<angle>";
-        initial-value: 160deg;
-        inherits: false;
+    /* --- 3. Sidebar Radio (RAC) --- */
+    section[data-testid="stSidebar"] div[data-testid="stRadio"] {
+        background: transparent !important;
     }
-    @keyframes in-arc-spin {
-        to { --in-angle: 520deg; }
-    }
-    [data-theme="hermes-teal"] .stButton > button[kind="primary"],
-    [data-theme="hermes-teal"] .stFormSubmitButton > button[kind="primary"] {
-        position: relative;
+    section[data-testid="stSidebar"] div[data-testid="stRadio"] label {
+        background: transparent !important;
+        color: #1A1A1A !important;
+        border-radius: var(--radius-sm) !important;
+        padding: 8px 12px !important;
         border: 1px solid transparent !important;
-        background:
-            linear-gradient(#0a2f2f, #0a2f2f) padding-box,
-            linear-gradient(var(--in-angle),
-                transparent 0%, rgba(255, 172, 2, 0.95) 16%,
-                rgba(232, 244, 240, 0.55) 28%, transparent 42%) border-box !important;
-        transition: filter 0.15s ease;
     }
-    [data-theme="hermes-teal"] .stButton > button[kind="primary"]:hover,
-    [data-theme="hermes-teal"] .stFormSubmitButton > button[kind="primary"]:hover {
-        animation: in-arc-spin 2.23s linear infinite;
-        filter: brightness(1.12);
+    section[data-testid="stSidebar"] div[data-testid="stRadio"] label:hover {
+        background: #EAEAEA !important;
     }
-    /* Theme switch: read persisted choice from sessionStorage and set
-       document.documentElement.dataset.theme so all [data-theme] blocks resolve.
-       Streamlit reruns re-inject this <style>; script runs each time but is
-       idempotent. Default when nothing stored: morandi (original look). */
-    div[data-testid="stSidebar"] ~ div [data-theme-js-hook],
-    [data-theme-js-hook] { display: none !important; }
+
+    /* --- 4. Sidebar Selectbox (RAC) --- */
+    section[data-testid="stSidebar"] .stSelectbox label {
+        color: #1A1A1A !important;
+    }
+    section[data-testid="stSidebar"] div[data-testid="stSelectbox"] > div {
+        background: #FFFFFF !important;
+        border: 1px solid #E0E0E0 !important;
+        border-radius: var(--radius-sm) !important;
+    }
+    section[data-testid="stSidebar"] div[data-testid="stSelectbox"] > div:focus-within {
+        border-color: #0055FF !important;
+    }
+    section[data-testid="stSidebar"] .stSelectbox input,
+    section[data-testid="stSidebar"] .stSelectbox [role="combobox"] {
+        color: #1A1A1A !important;
+        background: transparent !important;
+    }
+    section[data-testid="stSidebar"] .stSelectbox > div > div > div > div {
+        color: #1A1A1A !important;
+    }
+
+    /* --- 5. Sidebar Buttons --- */
+    section[data-testid="stSidebar"] .stButton > button,
+    section[data-testid="stSidebar"] div[data-testid="stBaseButton-secondary"] > button {
+        background: #FFFFFF !important;
+        color: #1A1A1A !important;
+        border: 1px solid #E0E0E0 !important;
+        border-radius: 6px !important;
+        font-size: 13px !important;
+        font-weight: 500 !important;
+        padding: 8px 16px !important;
+        transition: all 0.15s ease !important;
+    }
+    section[data-testid="stSidebar"] .stButton > button:hover,
+    section[data-testid="stSidebar"] div[data-testid="stBaseButton-secondary"] > button:hover {
+        background: #F0F0F0 !important;
+        border-color: #CCCCCC !important;
+    }
+    section[data-testid="stSidebar"] div[data-testid="stBaseButton-primary"] > button,
+    section[data-testid="stSidebar"] div[data-testid="stBaseButton-primary"] button {
+        background: #FFFFFF !important;
+        color: #1A1A1A !important;
+        border: 1px solid #E0E0E0 !important;
+        border-radius: 6px !important;
+        font-size: 13px !important;
+        font-weight: 600 !important;
+        padding: 8px 16px !important;
+        box-shadow: 0 4px 12px rgba(0,85,255,0.45) !important;
+        transition: all 0.2s ease !important;
+    }
+    section[data-testid="stSidebar"] div[data-testid="stBaseButton-primary"] > button:hover,
+    section[data-testid="stSidebar"] div[data-testid="stBaseButton-primary"] button:hover {
+        background: #F5F5F5 !important;
+        box-shadow: 0 4px 16px rgba(0,85,255,0.4) !important;
+    }
+
+    /* --- 6. Sidebar Slider (RAC) --- */
+    section[data-testid="stSidebar"] .stSlider label {
+        color: #1A1A1A !important;
+    }
+
+    /* --- 7. Sidebar Checkbox --- */
+    section[data-testid="stSidebar"] .stCheckbox label {
+        color: #1A1A1A !important;
+    }
+
+    /* --- 8. Sidebar TextInput / NumberInput --- */
+    section[data-testid="stSidebar"] .stTextInput > div > div > input,
+    section[data-testid="stSidebar"] .stNumberInput > div > div > input {
+        background-color: #FFFFFF !important;
+        color: #1A1A1A !important;
+        border-color: #E0E0E0 !important;
+    }
+
+    /* --- 9. Selectbox dropdown panel (global — rendered at body level) --- */
+    div[data-testid="stSelectboxVirtualDropdown"] {
+        background-color: #FFFFFF !important;
+        border-color: #E0E0E0 !important;
+    }
+    div[data-testid="stSelectboxVirtualDropdown"] [role="option"] {
+        background-color: #FFFFFF !important;
+        color: #1A1A1A !important;
+    }
+    div[data-testid="stSelectboxVirtualDropdown"] [role="option"]:hover,
+    div[data-testid="stSelectboxVirtualDropdown"] [data-focused] {
+        background-color: #F0F0F0 !important;
+    }
+    div[data-testid="stSelectboxVirtualDropdown"] [role="option"][aria-selected="true"] {
+        background-color: #F0F0F0 !important;
+        color: #1A1A1A !important;
+    }
+
+    /* --- 10. Sidebar Expander --- */
+    section[data-testid="stSidebar"] [data-testid="stExpander"] {
+        border: 1px solid #E0E0E0 !important;
+        border-radius: var(--radius-sm) !important;
+        background: transparent !important;
+    }
+    section[data-testid="stSidebar"] [data-testid="stExpander"] > details {
+        background: transparent !important;
+        border: none !important;
+    }
+    section[data-testid="stSidebar"] [data-testid="stExpander"] summary {
+        background: transparent !important;
+        color: #1A1A1A !important;
+        border: none !important;
+    }
+    section[data-testid="stSidebar"] [data-testid="stExpander"] summary:hover {
+        background: #EAEAEA !important;
+    }
+    section[data-testid="stSidebar"] [data-testid="stExpander"] summary p,
+    section[data-testid="stSidebar"] [data-testid="stExpander"] summary span {
+        color: #1A1A1A !important;
+    }
+    section[data-testid="stSidebar"] [data-testid="stExpander"] summary svg {
+        color: #1A1A1A !important;
+        fill: #1A1A1A !important;
+    }
+    section[data-testid="stSidebar"] [data-testid="stExpander"] [data-testid="stExpanderContent"],
+    section[data-testid="stSidebar"] [data-testid="stExpander"] details > div {
+        background: transparent !important;
+    }
+
+    /* --- 11. Sidebar Caption --- */
+    section[data-testid="stSidebar"] .stCaptionContainer,
+    section[data-testid="stSidebar"] [data-testid="stCaptionContainer"],
+    section[data-testid="stSidebar"] .stCaption {
+        color: #999999 !important;
+    }
+
+    /* --- 12. Sidebar Widget Labels --- */
+    section[data-testid="stSidebar"] label,
+    section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] {
+        color: #1A1A1A !important;
+    }
+    section[data-testid="stSidebar"] strong,
+    section[data-testid="stSidebar"] .stMarkdown p,
+    section[data-testid="stSidebar"] .stMarkdown strong {
+        color: #1A1A1A !important;
+    }
+
+    /* --- 12b. Sidebar text color enforcement --- */
+    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] span,
+    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] li {
+        color: #1A1A1A !important;
+    }
+    section[data-testid="stSidebar"] .stTextInput > div > div > input,
+    section[data-testid="stSidebar"] .stTextArea > div > div > textarea {
+        color: #1A1A1A !important;
+    }
+    section[data-testid="stSidebar"] .stSelectbox [data-value],
+    section[data-testid="stSidebar"] .stSelectbox [role="combobox"] {
+        color: #1A1A1A !important;
+    }
+    section[data-testid="stSidebar"] .stSlider [data-baseweb="slider"] div {
+        color: #1A1A1A !important;
+    }
+
+    /* --- 13. Sidebar Divider --- */
+    section[data-testid="stSidebar"] hr,
+    section[data-testid="stSidebar"] [data-testid="stDivider"] {
+        border-color: #E0E0E0 !important;
+        opacity: 0.6 !important;
+    }
 </style>
-<style>
+<script>
+(function() {
+    function fixBtnColor() {
+        document.querySelectorAll('div[data-testid="stBaseButton-primary"] button, div[data-testid="stBaseButton-primaryFormSubmit"] button, div[data-testid="stBaseButton-secondaryFormSubmit"] button').forEach(function(btn) {
+            btn.style.setProperty('color', '#1A1A1A', 'important');
+        });
+    }
+    function fixAlignment() {
+        document.querySelectorAll('[data-testid="stHorizontalBlock"]').forEach(function(block) {
+            block.style.setProperty('align-items', 'flex-end', 'important');
+        });
+    }
+    fixBtnColor();
+    fixAlignment();
+    var obs = new MutationObserver(function() { fixBtnColor(); fixAlignment(); });
+    obs.observe(document.body, {childList: true, subtree: true});
+})();
+</script>
 """, unsafe_allow_html=True)
 
 
 def render_workbench_css():
-    """Workbench theme for Briefing Center tab (Morandi soft palette)."""
+    """Workbench theme for Briefing Center tab — Hermes paper-white palette."""
     st.markdown("""
 <style>
     /* 隐藏定位标记 */
@@ -1150,9 +1329,22 @@ def render_workbench_css():
 
     /* 通过 :has() 将 workbench 样式限定到包含标记的简报 Tab panel */
     div[role="tabpanel"]:has(.bf-workbench-scope) {
-        /* wb tokens inherit from the active data-theme palette */
+        --wb-surface: #FFFFFF;
+        --wb-card: #FFFFFF;
+        --wb-text-primary: #1A1A1A;
+        --wb-text-secondary: #666666;
+        --wb-accent: #0055FF;
+        --wb-border: #E8E8E8;
+        --wb-tag-source: #0055FF;
+        --wb-tag-sub: #0055FF;
+        --wb-tag-gen: #0055FF;
+        --wb-tag-cat: #0055FF;
+        --wb-green: #4ADE80;
+        --wb-orange: #0055FF;
+        --wb-red: #EF5350;
         background: var(--wb-surface) !important;
-        padding: 0 20px 16px 20px !important;}
+        padding: 0 20px 16px 20px !important;
+    }
 
     /* 去掉简报 Tab 内 .stMarkdown 容器自带的背景 / padding / margin */
     div[role="tabpanel"]:has(.bf-workbench-scope) .stMarkdown {
@@ -1169,7 +1361,6 @@ def render_workbench_css():
         letter-spacing: -0.02em !important;
         margin-bottom: 4px !important;
     }
-
     div[role="tabpanel"]:has(.bf-workbench-scope) .main-subtitle {
         display: none !important;
     }
@@ -1182,19 +1373,17 @@ def render_workbench_css():
         border-radius: 8px;
         padding: 20px 24px;
         margin: 12px 0;
-        box-shadow: 0 1px 3px rgba(90,80,70,0.05);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
-
     .bf-panel:hover {
-        border-color: var(--in-panel-hover-border);
-        box-shadow: 0 2px 8px rgba(90,80,70,0.10);
+        border-color: #CCCCCC;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
-
     .bf-panel.bf-panel--source { border-top-color: var(--wb-tag-source); }
     .bf-panel.bf-panel--sub { border-top-color: var(--wb-tag-sub); }
     .bf-panel.bf-panel--cat { border-top-color: var(--wb-tag-cat); }
-    .bf-panel.bf-panel--gen { border-top-color: var(--wb-tag-gen); }
+    .bf-panel.bf-panel--gen { border-top-color: var(--wb-tag-source); }
 
     /* Onboarding 3-step bar */
     .bf-step {
@@ -1205,7 +1394,7 @@ def render_workbench_css():
         padding: 12px 14px;
         height: 100%;
         min-height: 84px;
-        box-shadow: 0 1px 2px rgba(90,80,70,0.04);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
         transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
     }
     .bf-step__head {
@@ -1226,7 +1415,7 @@ def render_workbench_css():
         font-size: 11px;
         font-weight: 700;
         flex-shrink: 0;
-        background: var(--in-step-index-bg);
+        background: #F0F0F0;
         color: var(--wb-text-secondary);
     }
     .bf-step__desc {
@@ -1237,28 +1426,27 @@ def render_workbench_css():
     }
     /* State variants */
     .bf-step--done {
-        border-top-color: var(--wb-tag-sub);
-        background: var(--in-step-done-bg);
+        border-top-color: var(--wb-accent);
+        background: #EFF6FF;
     }
     .bf-step--done .bf-step__index {
-        background: var(--wb-tag-sub);
-        color: var(--in-surface-white);
+        background: var(--wb-accent);
+        color: #FFFFFF;
     }
     .bf-step--current {
         border-top-color: var(--wb-accent);
-        background: var(--in-step-current-bg);
+        background: #FFF7ED;
     }
     .bf-step--current .bf-step__index {
         background: var(--wb-accent);
-        color: var(--in-surface-white);
+        color: #FFFFFF;
     }
     .bf-step--pending {
         border-top-color: var(--wb-border);
         opacity: 0.85;
     }
 
-    /* 引导条：st.button 即卡片（去掉透明叠加层，help 作唯一悬停提示）
-       本列含隐藏 marker(.bf-step-marker.状态)，经 :has() 给同列 button 上卡片样式 */
+    /* 引导条按钮卡片样式 */
     div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker) [data-testid="stButton"] > button {
         width: 100%;
         text-align: left;
@@ -1271,7 +1459,7 @@ def render_workbench_css():
         padding: 12px 14px;
         min-height: 84px;
         background: var(--wb-card);
-        box-shadow: 0 1px 2px rgba(90,80,70,0.04);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
         transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
         font-size: 13px;
         font-weight: 600;
@@ -1279,7 +1467,7 @@ def render_workbench_css():
         display: flex;
     }
     div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker) [data-testid="stButton"] > button:hover {
-        box-shadow: 0 2px 8px rgba(90,80,70,0.12);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.10);
     }
     div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker) [data-testid="stButton"] > button .bf-step__index {
         display: inline-flex;
@@ -1291,47 +1479,44 @@ def render_workbench_css():
         font-size: 11px;
         font-weight: 700;
         flex-shrink: 0;
-        background: var(--in-step-index-bg);
+        background: #F0F0F0;
         color: var(--wb-text-secondary);
     }
     div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker) [data-testid="stButton"] > button .bf-step__title {
         line-height: 1.4;
     }
-    /* 三态配色（边框顶部色条 + 背景） */
+    /* 三态配色 */
     div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker.bf-step--done) [data-testid="stButton"] > button {
-        border-top-color: var(--wb-tag-sub);
-        background: var(--in-step-done-bg);
+        border-top-color: var(--wb-accent);
+        background: #EFF6FF;
     }
     div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker.bf-step--done) [data-testid="stButton"] > button .bf-step__index {
-        background: var(--wb-tag-sub);
-        color: var(--in-surface-white);
+        background: var(--wb-accent);
+        color: #FFFFFF;
     }
     div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker.bf-step--current) [data-testid="stButton"] > button {
         border-top-color: var(--wb-accent);
-        background: var(--in-step-current-bg);
+        background: #FFF7ED;
     }
     div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker.bf-step--current) [data-testid="stButton"] > button .bf-step__index {
         background: var(--wb-accent);
-        color: var(--in-surface-white);
+        color: #FFFFFF;
     }
     div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker.bf-step--pending) [data-testid="stButton"] > button {
         border-top-color: var(--wb-border);
         opacity: 0.85;
     }
 
-    /* 可折叠配置区：tab 面板透明，避免双层卡片背景 */
+    /* 可折叠配置区 */
     div[role="tabpanel"]:has(.bf-workbench-scope) .stTabs [data-baseweb="tab-panel"] {
         background: transparent !important;
         padding-left: 0 !important;
         padding-right: 0 !important;
     }
-    /* tab 内 .bf-panel 收敛外边距与顶部彩色条，避免与 tab 重复 */
     div[role="tabpanel"]:has(.bf-workbench-scope) .stTabs .bf-panel {
         margin: 8px 0 0 0 !important;
         border-top-width: 3px !important;
     }
-
-    /* 配置区外层由 expander 改为 toggle + container，补区块间距与轻量边界 */
     div[role="tabpanel"]:has(.bf-workbench-scope) > div[data-testid="stVerticalBlock"] > div[data-testid="stToggle"] {
         margin-top: 18px !important;
     }
@@ -1343,18 +1528,14 @@ def render_workbench_css():
         background: var(--wb-surface);
     }
 
-    /* Section label as card header (merged into .bf-panel, no separate divider) */
+    /* Section label as card header */
     div[role="tabpanel"]:has(.bf-workbench-scope) .bf-panel > .bf-label {
         display: flex;
         align-items: center;
         gap: 10px;
-        margin-bottom: 0;
+        margin-bottom: 20px;
         padding-bottom: 0;
         border-bottom: none;
-    }
-    /* 标题头与首个内部分区之间保留自然间距，避免内容紧贴标题 */
-    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-panel > .bf-label {
-        margin-bottom: 20px;
     }
     div[role="tabpanel"]:has(.bf-workbench-scope) .bf-panel > .bf-label + [data-testid="stExpander"],
     div[role="tabpanel"]:has(.bf-workbench-scope) .bf-panel > .bf-label + div [data-testid="stExpander"],
@@ -1369,12 +1550,11 @@ def render_workbench_css():
         text-transform: uppercase;
         letter-spacing: 0.08em;
         color: var(--wb-text-secondary);
-        background: var(--in-history-row-hover);
+        background: #F0F0F0;
         padding: 3px 8px;
         border-radius: 3px;
         flex-shrink: 0;
     }
-
     .bf-label__title {
         font-size: 15px;
         font-weight: 600;
@@ -1382,45 +1562,81 @@ def render_workbench_css():
         margin: 0;
     }
 
-    /* Generate 主按钮：紧凑、自适应宽度，彻底覆盖 Streamlit 默认大按钮
-       通过隐藏 marker(.bf-gen-btn-marker) 稳定命中，不依赖 DOM 兄弟顺序 */
-    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-gen-btn-marker + .element-container div[data-testid="stButton"] > button,
-    div[role="tabpanel"]:has(.bf-workbench-scope) .element-container:has(.bf-gen-btn-marker) + .element-container div[data-testid="stButton"] > button {
+    /* 生成简报 / 添加笔记 — 按钮对齐（强制底部对齐） */
+    .bf-output .stButton,
+    .bf-panel .stButton {
+        display: flex !important;
+        align-items: flex-end !important;
+        justify-content: flex-start !important;
+        margin: 0 !important;
+        height: 100% !important;
+    }
+    .bf-output .stButton > button,
+    .bf-panel .stButton > button {
+        padding: 8px 20px !important;
+        margin: 0 !important;
+        margin-bottom: 0 !important;
+        line-height: 1.5 !important;
         width: auto !important;
-        height: auto !important;
-        min-height: 30px !important;
+    }
+
+    /* 工作台 tabpanel 内所有按钮 — 白底深色文字（primary 规则在后面自然覆盖） */
+    div[role="tabpanel"]:has(.bf-workbench-scope) div[data-testid="stButton"] > button {
+        background: #FFFFFF !important;
+        color: #1A1A1A !important;
+        border: 1px solid #E0E0E0 !important;
+        border-radius: 6px !important;
+        font-size: 13px !important;
+        font-weight: 500 !important;
         padding: 5px 16px !important;
-        background: var(--wb-accent) !important;
-        color: var(--in-surface-white) !important;
-        border: none !important;
+        min-height: 30px !important;
+        transition: all 0.15s ease !important;
+    }
+    div[role="tabpanel"]:has(.bf-workbench-scope) div[data-testid="stButton"] > button:hover {
+        background: #F5F5F5 !important;
+        border-color: #CCCCCC !important;
+    }
+
+    /* 生成简报 / 添加笔记主按钮 — 白底深色文字+蓝色阴影（统一风格） */
+    div[role="tabpanel"]:has(.bf-workbench-scope) div[data-testid="stBaseButton-primary"] > button,
+    div[role="tabpanel"]:has(.bf-workbench-scope) div[data-testid="stBaseButton-primary"] button {
+        background: #FFFFFF !important;
+        color: #1A1A1A !important;
+        border: 1px solid #E0E0E0 !important;
         border-radius: 6px !important;
         font-size: 13px !important;
         font-weight: 600 !important;
-        line-height: 1.2 !important;
-        transition: background 0.15s ease !important;
+        padding: 5px 16px !important;
+        min-height: 30px !important;
+        box-shadow: 0 4px 12px rgba(0,85,255,0.45) !important;
+        transition: all 0.2s ease !important;
+    }
+    div[role="tabpanel"]:has(.bf-workbench-scope) div[data-testid="stBaseButton-primary"] > button:hover,
+    div[role="tabpanel"]:has(.bf-workbench-scope) div[data-testid="stBaseButton-primary"] button:hover {
+        background: #F5F5F5 !important;
+        box-shadow: 0 4px 16px rgba(0,85,255,0.4) !important;
     }
 
-    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-gen-btn-marker + .element-container div[data-testid="stButton"] > button:hover,
-    div[role="tabpanel"]:has(.bf-workbench-scope) .element-container:has(.bf-gen-btn-marker) + .element-container div[data-testid="stButton"] > button:hover {
-        background: var(--in-toggle-btn-hover) !important;
-        transform: none !important;
-    }
-
-    /* Generate 概览折叠条：轻量、收敛，不喧宾夺主
-       基于 .bf-panel--gen 卡片头后面的 columns 命中，不再依赖 .bf-gen-header */
+    /* Generate 概览折叠条 — 去掉边框（expander 在 .bf-panel--gen 内部） */
+    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-panel--gen [data-testid="stExpander"],
+    div[role="tabpanel"]:has(.bf-workbench-scope) .element-container:has(> div > .bf-panel--gen) div[data-testid="stExpander"],
     div[role="tabpanel"]:has(.bf-workbench-scope) .element-container:has(> div > .bf-panel--gen) + .element-container div[data-testid="stExpander"] {
-        border: 1px solid var(--wb-border) !important;
-        border-radius: 6px !important;
+        border: none !important;
+        border-radius: 0 !important;
         background: transparent !important;
+        box-shadow: none !important;
     }
+    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-panel--gen [data-testid="stExpander"] > summary,
+    div[role="tabpanel"]:has(.bf-workbench-scope) .element-container:has(> div > .bf-panel--gen) div[data-testid="stExpander"] > summary,
     div[role="tabpanel"]:has(.bf-workbench-scope) .element-container:has(> div > .bf-panel--gen) + .element-container div[data-testid="stExpander"] > summary {
+        border: none !important;
         font-size: 13px !important;
         font-weight: 500 !important;
         color: var(--wb-text-secondary) !important;
         padding: 6px 12px !important;
     }
 
-    /* 配置区 tab 切换器：把横向 radio 渲染成 tab 标签 */
+    /* 配置区 tab 切换器 */
     div[role="tabpanel"]:has(.bf-workbench-scope) .bf-settings-tabs-marker + .element-container div[data-testid="stRadio"] > div {
         display: flex;
         gap: 4px;
@@ -1444,7 +1660,7 @@ def render_workbench_css():
         border-bottom: 2px solid var(--wb-accent) !important;
     }
 
-    /* 生成结果统计：轻量卡片，与主操作区视觉分离 */
+    /* 生成结果统计 */
     .bf-generate-stats {
         margin-top: 16px;
         padding: 14px 16px;
@@ -1453,9 +1669,9 @@ def render_workbench_css():
         background: var(--wb-surface);
     }
 
-    /* 通用确认/操作按钮：收紧尺寸，避免「添加数据源」「保存」「删除」等过大 */
-    div[role="tabpanel"]:has(.bf-workbench-scope) div[data-testid="stButton"] > button[kind="secondary"],
-    div[role="tabpanel"]:has(.bf-workbench-scope) div[data-testid="stButton"] > button:not([kind="primary"]):not([kind="secondary"]) {
+    /* 通用确认/操作按钮 */
+    div[role="tabpanel"]:has(.bf-workbench-scope) div[data-testid="stBaseButton-secondary"] > button,
+    div[role="tabpanel"]:has(.bf-workbench-scope) div[data-testid="stButton"] > button:not(:has(~ [data-testid="stBaseButton-primary"])):not(:has(~ [data-testid="stBaseButton-secondary"])) {
         padding: 6px 14px !important;
         min-height: 32px !important;
         font-size: 13px !important;
@@ -1471,9 +1687,8 @@ def render_workbench_css():
         border-radius: 8px;
         padding: 20px 24px;
         margin: 12px 0;
-        box-shadow: 0 1px 3px rgba(90,80,70,0.05);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
-
     .bf-output__header {
         font-size: 13px;
         font-weight: 600;
@@ -1485,62 +1700,17 @@ def render_workbench_css():
         border-bottom: 1px solid var(--wb-border);
     }
 
-    /* 历史列表条目：清晰分隔、信息分层 */
+    /* 历史列表 */
     .bf-history-item {
-        padding: 12px 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 0;
         border-bottom: 1px solid var(--wb-border);
     }
-    .bf-history-item:last-child {
-        border-bottom: none;
-        padding-bottom: 0;
-    }
-    .bf-history-item__time {
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--wb-text-primary);
-        line-height: 1.4;
-    }
-    .bf-history-item__meta {
-        margin-top: 4px;
-        font-size: 12px;
-        color: var(--wb-text-secondary);
-        line-height: 1.5;
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 6px;
-    }
-    .bf-history-item__org {
-        font-weight: 500;
-        color: var(--wb-text-primary);
-    }
-    .bf-history-item__sep {
-        color: var(--wb-border);
-    }
-    /* 历史条目内的查看/删除按钮：轻量文字按钮风格，与左侧信息协调 */
-    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-history-item button {
-        width: 100% !important;
-        min-height: 28px !important;
-        padding: 2px 10px !important;
-        font-size: 13px !important;
-        font-weight: 500 !important;
-        border-radius: 5px !important;
-        background: transparent !important;
-        color: var(--wb-text-secondary) !important;
-        border: 1px solid var(--wb-border) !important;
-        box-shadow: none !important;
-        writing-mode: horizontal-tb !important;
-        text-orientation: mixed !important;
-        white-space: nowrap !important;
-    }
-    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-history-item button:hover {
-        background: var(--wb-surface) !important;
-        color: var(--wb-text-primary) !important;
-        border-color: var(--wb-accent) !important;
-    }
+    .bf-history-item:last-child { border-bottom: none; }
 
-    /* Light inline hint used for empty-state / module-unavailable messages
-       inside cards — reads as part of the card, not a separate alert block */
+    /* Hint */
     .bf-hint {
         margin: 4px 0 !important;
         padding: 6px 0 6px 12px !important;
@@ -1549,27 +1719,20 @@ def render_workbench_css():
         font-size: 13px;
         line-height: 1.5;
     }
-    .bf-hint--warn {
-        border-left-color: var(--in-hint-warn-gold);
-    }
+    .bf-hint--warn { border-left-color: var(--wb-accent); }
 
-    /* Override expander styling in workbench:
-       make expanders look like inner sections of ONE card, not separate cards */
+    /* Expander inside panel */
     .bf-panel [data-testid="stExpander"] {
         border: none !important;
         background: transparent !important;
         box-shadow: none !important;
     }
-
-    /* the inner <details> still draws its own border/background — kill it */
     .bf-panel [data-testid="stExpander"] details,
     .bf-panel [data-testid="stExpander"] > div {
         border: none !important;
         background: transparent !important;
         box-shadow: none !important;
     }
-
-    /* summary row: a plain inner heading, no hover card */
     .bf-panel [data-testid="stExpander"] summary {
         border: none !important;
         background: transparent !important;
@@ -1579,34 +1742,26 @@ def render_workbench_css():
         font-weight: 600 !important;
         color: var(--wb-text-primary) !important;
     }
-    .bf-panel [data-testid="stExpander"] summary:hover {
-        background: transparent !important;
-    }
+    .bf-panel [data-testid="stExpander"] summary:hover { background: transparent !important; }
     .bf-panel [data-testid="stExpander"] summary p {
         font-weight: 600 !important;
         color: var(--wb-text-primary) !important;
     }
-
     .bf-panel [data-testid="stExpanderToggle"] {
         font-size: 13px !important;
         font-weight: 600 !important;
         color: var(--wb-text-primary) !important;
     }
-
-    /* thin divider between consecutive expander sections inside the card */
     .bf-panel [data-testid="stExpander"] + [data-testid="stExpander"] {
         border-top: 1px solid var(--wb-border) !important;
         margin-top: 4px !important;
         padding-top: 4px !important;
     }
-
-    /* give the expander body a little breathing room */
     .bf-panel [data-testid="stExpander"] [data-testid="stExpanderDetails"] {
         padding: 4px 4px 8px 4px !important;
     }
 
-    /* Flatten st.info / st.warning inside the card: keep them as inline
-       light hints (left color bar only) instead of standalone alert blocks */
+    /* Flatten alerts inside card */
     .bf-panel .stAlert,
     .bf-panel [data-testid="stAlertContainer"],
     .bf-panel [data-testid="stAlertContainer"] > div,
@@ -1623,7 +1778,7 @@ def render_workbench_css():
         border-left-color: var(--wb-tag-source) !important;
     }
     .bf-panel .stAlert[data-baseweb="notification"][kind="warning"] {
-        border-left-color: var(--in-hint-warn-gold) !important;
+        border-left-color: var(--wb-accent) !important;
     }
     .bf-panel .stAlert [data-testid="stMarkdownContainer"],
     .bf-panel [data-testid="stAlertContainer"] [data-testid="stMarkdownContainer"] {
@@ -1631,14 +1786,13 @@ def render_workbench_css():
         font-size: 13px !important;
         line-height: 1.5 !important;
     }
-    /* mute the icon so it doesn't read as a separate colored chip */
     .bf-panel .stAlert [data-testid="stIcon"],
     .bf-panel [data-testid="stAlertContainer"] [data-testid="stIcon"] {
         color: var(--wb-text-secondary) !important;
         opacity: 0.7 !important;
     }
 
-    /* Clean up old briefing styles inside workbench */
+    /* Clean up old briefing styles */
     div[role="tabpanel"]:has(.bf-workbench-scope) .briefing-step-card,
     div[role="tabpanel"]:has(.bf-workbench-scope) .briefing-tip-box,
     div[role="tabpanel"]:has(.bf-workbench-scope) .briefing-config-panel,
@@ -1646,47 +1800,13 @@ def render_workbench_css():
         display: none !important;
     }
 
-    /* Status dots keep working but smaller */
+    /* Status dots */
     div[role="tabpanel"]:has(.bf-workbench-scope) .status-dot {
         width: 6px;
         height: 6px;
     }
 
-    /* ---- Reverse Flywheel: briefing entry list ---- */
-    .bf-entry-row {
-        display: flex;
-        align-items: center;
-        padding: 6px 0;
-        border-bottom: 1px solid var(--wb-border);
-    }
-    .bf-entry-row:last-child {
-        border-bottom: none;
-    }
-    .bf-entry-info {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex-wrap: wrap;
-        width: 100%;
-    }
-    .bf-entry-title {
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--wb-text-primary);
-        flex: 1;
-        min-width: 200px;
-    }
-    .bf-entry-source {
-        font-size: 11px;
-        color: var(--wb-text-secondary);
-        background: var(--wb-bg);
-        padding: 2px 6px;
-        border-radius: 3px;
-    }
-    .bf-entry-cred {
-        font-size: 11px;
-        font-weight: 600;
-    }
+    /* Severity badges */
     .bf-sev-badge {
         font-size: 10px;
         font-weight: 700;
@@ -1695,98 +1815,65 @@ def render_workbench_css():
         letter-spacing: 0.5px;
     }
     .bf-sev-badge--high {
-        background: var(--in-sev-high-bg);
-        color: var(--in-sev-high-fg);
+        background: #FEE2E2;
+        color: #DC2626;
     }
     .bf-sev-badge--med {
-        background: var(--in-sev-med-bg);
-        color: var(--in-sev-med-fg);
-    }
-
-    /* 条目操作行：紧凑小按钮 + 右对齐 URL */
-    .bf-entry-row + div[data-testid="stHorizontalBlock"] {
-        margin-top: -4px;
-        align-items: center;
-    }
-    .bf-entry-row + div[data-testid="stHorizontalBlock"] button {
-        font-size: 11px !important;
-        padding: 2px 8px !important;
-        min-height: 0 !important;
-        border-radius: 6px !important;
-        white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
-    }
-    .bf-entry-url {
-        font-size: 10.5px;
-        color: var(--wb-text-secondary);
-        opacity: 0.75;
-        display: inline-block;
-        max-width: 100%;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        direction: rtl;
-        text-align: left;
+        background: #FEF3C7;
+        color: #D97706;
     }
 </style>
 """, unsafe_allow_html=True)
 
 
 def render_onboarding_css():
-    """渲染首次使用向导的CSS样式"""
+    """渲染首次使用向导的CSS样式 — Hermes 纸白与石墨风格。"""
     st.markdown("""
 <style>
     /* --- Onboarding Wizard --- */
     .ob-wizard {
-        background: var(--morandi-card);
-        border: 1px solid var(--morandi-border);
-        border-radius: 18px;
+        background: #FFFFFF;
+        border: 1px solid #E8E8E8;
+        border-radius: 12px;
         padding: 40px;
-        margin: 24px 0;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+        margin: 24px auto;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
         max-width: 800px;
-        margin-left: auto;
-        margin-right: auto;
     }
-
     .ob-title {
         font-size: 32px;
         font-weight: 700;
-        color: var(--morandi-text);
+        color: #1A1A1A;
         text-align: center;
         margin-bottom: 8px;
         letter-spacing: -0.02em;
     }
-
     .ob-subtitle {
         font-size: 16px;
         font-weight: 400;
-        color: var(--morandi-text-light);
+        color: #666666;
         text-align: center;
         margin-bottom: 32px;
     }
-
     .ob-step-indicator {
         text-align: center;
         margin-bottom: 24px;
         font-size: 13px;
-        color: var(--morandi-text-light);
+        color: #999999;
     }
-
     .ob-prompt {
         font-size: 18px;
         font-weight: 600;
-        color: var(--morandi-text);
+        color: #1A1A1A;
         text-align: center;
         margin-bottom: 24px;
     }
 
     /* Choice Cards */
     .ob-choice-card {
-        background: var(--in-surface-white);
-        border: 1px solid var(--morandi-border);
-        border-top: 3px solid var(--morandi-border);
+        background: #FFFFFF;
+        border: 1px solid #E8E8E8;
+        border-top: 3px solid #E8E8E8;
         border-radius: 12px;
         padding: 32px 24px;
         text-align: center;
@@ -1798,67 +1885,47 @@ def render_onboarding_css():
         transition: all 0.2s ease;
         cursor: pointer;
     }
-
     .ob-choice-card:hover {
-        border-top-color: var(--morandi-accent);
-        box-shadow: 0 4px 16px rgba(123,156,181,0.12);
+        border-top-color: #0055FF;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.08);
         transform: translateY(-2px);
     }
-
-    .ob-choice-icon {
-        font-size: 48px;
-        margin-bottom: 16px;
-    }
-
+    .ob-choice-icon { font-size: 48px; margin-bottom: 16px; }
     .ob-choice-title {
         font-size: 18px;
         font-weight: 600;
-        color: var(--morandi-text);
+        color: #1A1A1A;
         margin-bottom: 8px;
     }
-
     .ob-choice-desc {
         font-size: 13px;
-        color: var(--morandi-text-light);
+        color: #666666;
         line-height: 1.5;
     }
 
     /* Skip Button */
-    .ob-skip {
-        text-align: center;
-        margin-top: 24px;
-    }
-
+    .ob-skip { text-align: center; margin-top: 24px; }
     .ob-skip button {
         background: transparent !important;
         border: none !important;
-        color: var(--morandi-text-light) !important;
+        color: #999999 !important;
         font-size: 13px !important;
         text-decoration: underline !important;
     }
-
-    .ob-skip button:hover {
-        color: var(--morandi-text) !important;
-    }
+    .ob-skip button:hover { color: #1A1A1A !important; }
 
     /* Success State */
-    .ob-success-icon {
-        font-size: 64px;
-        text-align: center;
-        margin-bottom: 16px;
-    }
-
+    .ob-success-icon { font-size: 64px; text-align: center; margin-bottom: 16px; }
     .ob-complete-title {
         font-size: 24px;
         font-weight: 700;
-        color: var(--morandi-text);
+        color: #1A1A1A;
         text-align: center;
         margin-bottom: 8px;
     }
-
     .ob-complete-desc {
         font-size: 14px;
-        color: var(--morandi-text-light);
+        color: #666666;
         text-align: center;
         margin-bottom: 32px;
     }
@@ -1870,14 +1937,15 @@ def render_onboarding_css():
         gap: 10px;
         padding: 12px 16px;
         border-radius: 8px;
-        transition: background 0.15s ease;
-        background: var(--in-surface-white);
-        border: 1px solid var(--morandi-border);
+        transition: all 0.15s ease;
+        background: #FFFFFF;
+        border: 1px solid #E8E8E8;
         margin-bottom: 8px;
     }
-
     .ob-category-item:hover {
-        background: var(--morandi-card);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+        border-color: #0055FF;
     }
 
     /* Schedule Section */
@@ -1887,12 +1955,52 @@ def render_onboarding_css():
         gap: 16px;
         margin-bottom: 16px;
     }
-
     .ob-schedule-label {
         font-size: 14px;
         font-weight: 500;
-        color: var(--morandi-text);
+        color: #1A1A1A;
         min-width: 80px;
     }
 </style>
 """, unsafe_allow_html=True)
+
+
+def render_status_bar():
+    """Render Hermes-style bottom status bar."""
+    import datetime
+    now = datetime.datetime.now()
+    time_str = now.strftime("%H:%M")
+    date_str = now.strftime("%Y-%m-%d")
+
+    status_html = """
+    <div style="
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 32px;
+        background-color: #F5F5F5;
+        border-top: 1px solid #E0E0E0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 16px;
+        font-size: 12px;
+        color: #888888;
+        z-index: 9999;
+        font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    ">
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <span style="display: flex; align-items: center; gap: 6px;">
+                <span style="width: 8px; height: 8px; border-radius: 50%; background-color: #4ADE80; display: inline-block; box-shadow: 0 0 6px rgba(74,222,128,0.4);"></span>
+                IntelNexus
+            </span>
+            <span>""" + date_str + """</span>
+            <span>""" + time_str + """</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <span>Intel Search Engine</span>
+        </div>
+    </div>
+    """
+    st.markdown(status_html, unsafe_allow_html=True)

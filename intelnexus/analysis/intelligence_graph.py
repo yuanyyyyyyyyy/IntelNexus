@@ -211,14 +211,14 @@ class IntelligenceGraph:
             from pyvis.network import Network
             net = Network(
                 height="600px", width="100%",
-                bgcolor="#F5F2EE", font_color="#5C5C5C"
+                bgcolor="#FAFAFA", font_color="#1A1A1A"
             )
 
             type_colors = {
-                "PERSON": "#C4A4A4", "ORG": "#7B9CB5", "GPE": "#8FA890",
-                "EVENT": "#D4A5A5", "DATE": "#9CB5B0", "PRODUCT": "#B5A4C4",
-                "MONEY": "#A8C4A4", "NORP": "#C4B5A4", "LAW": "#A4B5C4",
-                "LOC": "#8FA890", "UNKNOWN": "#999999",
+                "PERSON": "#1A1A1A", "ORG": "#0055FF", "GPE": "#4ADE80",
+                "EVENT": "#EF5350", "DATE": "#666666", "PRODUCT": "#0055FF",
+                "MONEY": "#4ADE80", "NORP": "#666666", "LAW": "#CCCCCC",
+                "LOC": "#4ADE80", "UNKNOWN": "#999999",
             }
 
             # 计算中心度和社区

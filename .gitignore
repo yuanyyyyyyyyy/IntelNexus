@@ -67,6 +67,7 @@ test_*.py
 .codebuddy/
 .opencode/
 .reasonix/
+.qoder/
 
 # 文档/学习资料
 docs/
