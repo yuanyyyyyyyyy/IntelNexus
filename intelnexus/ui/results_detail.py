@@ -1,3 +1,5 @@
+import html
+
 import streamlit as st
 from intelnexus.ui.i18n import get_text
 from intelnexus.ui.icons import icon
@@ -134,11 +136,16 @@ def render_results_detail():
         with st.expander(get_text("results_from_source").format(source=source, count=len(items)), expanded=False):
             for i, item in enumerate(items):
                 actual_idx = start_idx + i + 1
-                st.markdown(f"**{actual_idx}. {item.get('title', get_text('no_title'))[:150]}**")
+                # 外部源的标题/描述属不可信输入，进 unsafe_allow_html 前必须转义（防存储型 XSS，
+                # 与 briefing_viewer.render_briefing_entries 同一规范）
+                safe_title = html.escape(str(item.get('title', '') or '')) or get_text("no_title")
+                safe_desc = html.escape(str(item.get('description', '') or ''))
+                safe_summary = html.escape(str(item.get('summary', '') or ''))
+                st.markdown(f"**{actual_idx}. {safe_title[:150]}**")
                 if item.get('description'):
-                    st.markdown(f"{icon('entry', 'sm', 'gray')} {item.get('description', '')[:500]}...", unsafe_allow_html=True)
+                    st.markdown(f"{icon('entry', 'sm', 'gray')} {safe_desc[:500]}...", unsafe_allow_html=True)
                 elif item.get('summary'):
-                    st.markdown(f"{icon('note', 'sm', 'lavender')} {item.get('summary', '')[:500]}...", unsafe_allow_html=True)
+                    st.markdown(f"{icon('note', 'sm', 'lavender')} {safe_summary[:500]}...", unsafe_allow_html=True)
                 if item.get('link') or item.get('url'):
                     link = item.get('link') or item.get('url')
                     st.markdown(get_text("view_original").format(link=link))
@@ -160,11 +167,15 @@ def render_results_detail():
             st.caption(get_text("weak_related_hint"))
             for wi, item in enumerate(weak_items):
                 wkey = f"weak_{wi}"
-                st.markdown(f"**{item.get('title', get_text('no_title'))[:150]}**")
+                # 不可信外部输入先转义再进 unsafe 渲染（同上，防存储型 XSS）
+                safe_title = html.escape(str(item.get('title', '') or '')) or get_text("no_title")
+                safe_desc = html.escape(str(item.get('description', '') or ''))
+                safe_summary = html.escape(str(item.get('summary', '') or ''))
+                st.markdown(f"**{safe_title[:150]}**")
                 if item.get('description'):
-                    st.markdown(f"{icon('entry', 'sm', 'gray')} {item.get('description', '')[:500]}...", unsafe_allow_html=True)
+                    st.markdown(f"{icon('entry', 'sm', 'gray')} {safe_desc[:500]}...", unsafe_allow_html=True)
                 elif item.get('summary'):
-                    st.markdown(f"{icon('note', 'sm', 'lavender')} {item.get('summary', '')[:500]}...", unsafe_allow_html=True)
+                    st.markdown(f"{icon('note', 'sm', 'lavender')} {safe_summary[:500]}...", unsafe_allow_html=True)
                 if item.get('link') or item.get('url'):
                     link = item.get('link') or item.get('url')
                     st.markdown(get_text("view_original").format(link=link))

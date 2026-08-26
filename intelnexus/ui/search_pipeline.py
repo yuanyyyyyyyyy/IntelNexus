@@ -339,9 +339,9 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
                     st.session_state.evidence_data = None
             st.session_state.cache_restored = bool(st.session_state.get("streamed_summary"))
             if cache_restored:
-                st.success("命中查询缓存，已恢复上次报告")
+                st.success(get_text("cache_restored_full"))
             else:
-                st.success("命中查询缓存，跳过重复检索与抓取（报告将重新生成）")
+                st.success(get_text("cache_restored_partial"))
         except Exception as e:
             logger.error(f"恢复缓存失败 [{type(e).__name__}]: {e}", exc_info=True)
             status_slot.warning(f"缓存数据不完整，将重新分析：{e}")

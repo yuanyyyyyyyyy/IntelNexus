@@ -98,7 +98,6 @@ def render_results_panels():
     if actions:
         st.markdown("---")
         st.markdown(f"## {icon('checklist', 'lg', 'blue')} {get_text('results_actions_title')}", unsafe_allow_html=True)
-        priority_icons = {"high": "🔴", "medium": "🟡", "low": "🟢"}
         priority_labels = {
             "high": get_text("priority_urgent"),
             "medium": get_text("priority_important"),
@@ -110,10 +109,11 @@ def render_results_panels():
             "this_month": get_text("deadline_this_month"),
         }
         for a in actions:
-            pi = priority_icons.get(a.get("priority", "low"), "⚪")
+            # 优先级标记用项目自有 SVG 状态图标体系（emoji 违反界面无 emoji 约定）
+            pi = status_icon(a.get("priority", "low"), "sm")
             pl = priority_labels.get(a.get("priority", "low"),
                                      get_text("priority_suggested"))
             dl = deadline_labels.get(a.get("deadline", "this_month"),
                                      get_text("deadline_this_month"))
             st.markdown(f"- {pi} **[{pl}]** {a.get('action', '')} "
-                        f"*({get_text('label_deadline')}: {dl})*")
+                        f"*({get_text('label_deadline')}: {dl})*", unsafe_allow_html=True)

@@ -42,7 +42,7 @@ from intelnexus.ui.results_detail import render_results_detail
 from intelnexus.ui.briefing_viewer import render_briefing_center
 from intelnexus.ui.onboarding import render_onboarding
 from intelnexus.ui.knowledge_base import render_knowledge_base
-from intelnexus.ui.timeline import render_timeline
+from intelnexus.ui import main_tabs
 
 # --- Inject config for shared modules ---
 set_config({
@@ -116,7 +116,6 @@ def _render_bulk_collect_button():
         st.rerun()
 
 # --- Render theme ---
-render_light_theme_css()
 render_morandi_theme_css()
 
 # --- Check for onboarding ---

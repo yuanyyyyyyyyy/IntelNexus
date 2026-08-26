@@ -42,7 +42,6 @@ def render_analytics_dashboard():
     from intelnexus.config.briefing_history import get_briefing_history
     from intelnexus.core.ui.styles import render_workbench_css
 
-    render_workbench_css()
 
     st.markdown(
         '<div class="bf-panel bf-panel--gen">'

@@ -21,7 +21,11 @@ logger = get_logger(__name__)
 def _render_search_mode():
     """搜索模式选择 + 暗网设置"""
     from intelnexus.ui.icons import icon as _icon
-    st.markdown(f'<div class="sb-section"><span class="sb-section__label">{_icon("investigate", "sm", "blue")} Search Mode · 智能路由优先</span></div>', unsafe_allow_html=True)
+    # widget key 预置默认值：number_input 只给 key= 不给 value=，避免
+    # 「default value but also had its value set via Session State API」政策警告刷屏
+    if "tor_port" not in st.session_state:
+        st.session_state.tor_port = DEFAULT_TOR_PORT
+    st.markdown(f'<div class="sb-section"><span class="sb-section__label">{_icon("investigate", "sm", "blue")} {get_text("sidebar_mode_label")}</span></div>', unsafe_allow_html=True)
 
     # 方案一（智能路由）：「智能」置顶为默认——按查询主题自动路由，
     # 手动 5 模式收进高级折叠区供精确控制；暗网仅在 Tor 存活时出现在手动列表。
@@ -66,7 +70,6 @@ def _render_darkweb_settings():
             get_text("tor_port"),
             min_value=1,
             max_value=65535,
-            value=st.session_state.get("tor_port", DEFAULT_TOR_PORT),
             key="tor_port"
         )
 
@@ -294,7 +297,7 @@ def _render_model_settings():
 
 def _render_advanced_settings():
     """高级设置（线程数 + 语言 + 自定义模型）"""
-    with st.expander("高级设置", expanded=False):
+    with st.expander(get_text("sidebar_advanced_settings"), expanded=False):
         # 线程数
         threads = st.slider(get_text("threads"), 1, 16, 5, key="threads_slider")
 
@@ -409,9 +412,9 @@ def _render_custom_models():
                                     mconfig.get("config", {}),
                                 )
                                 if ok:
-                                    st.success(f"✅ {get_text('connection_success')}")
+                                    st.success(get_text("connection_success"))
                                 else:
-                                    st.error(f"❌ {msg}")
+                                    st.error(msg)
                 with btn_del:
                     if st.button(get_text("delete"), key=f"delete_{mname}"):
                         if remove_custom_model(mname):
@@ -475,9 +478,9 @@ def _render_custom_models():
                     with st.spinner(get_text("testing_connection")):
                         ok, msg = test_model_connection(test_type, test_config)
                         if ok:
-                            st.success(f"✅ {get_text('connection_success')}")
+                            st.success(get_text("connection_success"))
                         else:
-                            st.error(f"❌ {msg}")
+                            st.error(msg)
 
             st.divider()
 

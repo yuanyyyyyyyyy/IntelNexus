@@ -3,6 +3,8 @@
 ============
 显示用户收藏的简报条目、搜索结果和笔记
 """
+import html
+
 import streamlit as st
 from typing import List, Optional
 from intelnexus.ui.i18n import get_text
@@ -12,10 +14,8 @@ from intelnexus.ui.icons import icon
 def render_knowledge_base():
     """渲染知识库主界面"""
     from intelnexus.config.knowledge_base import get_items, get_tags, get_stats, add_item, add_tag
-    from intelnexus.core.ui.styles import render_workbench_css
     
     # 注入样式
-    render_workbench_css()
     
     # 统计信息
     stats = get_stats()
@@ -30,7 +30,7 @@ def render_knowledge_base():
     # 统计卡片
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("总计", stats["total"])
+        st.metric(get_text("kb_stat_total"), stats["total"])
     with col2:
         st.metric(get_text("kb_briefing"), stats["by_type"].get("briefing_entry", 0))
     with col3:
@@ -43,15 +43,18 @@ def render_knowledge_base():
     # 筛选栏
     col_filter1, col_filter2, col_filter3 = st.columns([2, 2, 1])
     with col_filter1:
-        type_options = [
-            get_text("kb_all"),
-            get_text("kb_briefing"),
-            get_text("kb_search"),
-            get_text("kb_note")
-        ]
+        # value = type ID (translation only for display); avoids breakage on
+        # wording changes / language switches
+        _type_display = {
+            "all": get_text("kb_all"),
+            "briefing_entry": get_text("kb_briefing"),
+            "search_result": get_text("kb_search"),
+            "note": get_text("kb_note"),
+        }
         selected_type = st.selectbox(
             get_text("kb_filter_type"),
-            type_options,
+            list(_type_display.keys()),
+            format_func=lambda v: _type_display[v],
             key="kb_type_filter"
         )
     with col_filter2:
@@ -71,12 +74,7 @@ def render_knowledge_base():
         _render_add_note_form()
     
     # 筛选类型
-    type_map = {
-        get_text("kb_briefing"): "briefing_entry",
-        get_text("kb_search"): "search_result",
-        get_text("kb_note"): "note"
-    }
-    filter_type = type_map.get(selected_type)
+    filter_type = None if selected_type == "all" else selected_type
     
     # 获取条目
     items = get_items(
@@ -111,8 +109,8 @@ def _render_add_note_form():
         )
         
         # 添加新标签
-        new_tag = st.text_input("新标签", key="new_tag_input", placeholder="输入新标签")
-        if new_tag and st.button("添加标签"):
+        new_tag = st.text_input(get_text("kb_new_tag"), key="new_tag_input", placeholder=get_text("kb_new_tag"))
+        if new_tag and st.button(get_text("kb_add_tag")):
             add_tag(new_tag)
             st.rerun()
         
@@ -130,9 +128,9 @@ def _render_add_note_form():
                     st.session_state.show_add_note = False
                     st.rerun()
                 else:
-                    st.warning("请填写标题和内容")
+                    st.warning(get_text("kb_note_fill_hint"))
         with col2:
-            if st.button("取消"):
+            if st.button(get_text("cancel")):
                 st.session_state.show_add_note = False
                 st.rerun()
 
@@ -159,12 +157,12 @@ def _render_kb_item(item: dict):
     }
     icon_name, icon_color = type_icons.get(item_type, ("entry", "gray"))
     
-    # 渲染条目卡片
+    # 渲染条目卡片（title/source 为外部不可信输入，先转义再进 unsafe HTML，防存储型 XSS）
     st.markdown(
         f'<div class="bf-entry-row">'
         f'<div class="bf-entry-info">'
-        f'<span class="bf-entry-title">{icon(icon_name, "sm", icon_color)} {title[:80]}</span>'
-        f'<span class="bf-entry-source">{source or category or item_type}</span>'
+        f'<span class="bf-entry-title">{icon(icon_name, "sm", icon_color)} {html.escape(str(title or ""))[:80]}</span>'
+        f'<span class="bf-entry-source">{html.escape(str(source or category or item_type or ""))}</span>'
         f'<span class="bf-entry-cred">{created_at}</span>'
         f'</div>'
         f'</div>',
@@ -185,7 +183,7 @@ def _render_kb_item(item: dict):
     col1, col2, col3, col4 = st.columns([1, 1, 1, 3])
     with col1:
         if url:
-            st.link_button("查看", url)
+            st.link_button(get_text("view"), url)
     with col2:
         if converted_topic_id:
             st.markdown(get_text("kb_watching"))
@@ -199,7 +197,7 @@ def _render_kb_item(item: dict):
             else:
                 st.info(get_text("topic_subscribed").format(name=(title or item_id)[:50]))
     with col3:
-        if st.button("删除", key=f"del_{item_id}"):
+        if st.button(get_text("delete"), key=f"del_{item_id}"):
             remove_item(item_id)
             st.rerun()
 
