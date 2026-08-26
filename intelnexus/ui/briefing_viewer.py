@@ -17,6 +17,7 @@ from datetime import datetime
 from intelnexus.config.briefing_history import get_briefing_history
 from intelnexus.ui.i18n import get_text
 from intelnexus.ui.icons import icon
+from intelnexus.ui import main_tabs
 
 
 def _watch_category_options() -> dict:
@@ -403,7 +404,8 @@ def render_briefing_entries():
                 query = raw_title if raw_title else (url or "unknown")
                 st.session_state.pending_forensic_query = query
                 st.session_state.pending_forensic_mode = "all"
-                st.session_state.switch_to_search = True
+                # 编程式跳转到搜索页（一次性旗标，ui.py 渲染前消费并同步 radio 选中态）
+                main_tabs.request_tab(st.session_state, main_tabs.TAB_SEARCH)
                 st.rerun()
         with act_cols[4]:
             if url:
@@ -1313,8 +1315,9 @@ def render_briefing_settings():
             get_text("subscription_management"),
             get_text("watch_categories_mgmt"),
             get_text("analytics_dashboard"),
+            get_text("health_tab"),
         ]
-        tab_keys = ["sources", "subs", "watch", "analytics"]
+        tab_keys = ["sources", "subs", "watch", "analytics", "health"]
 
         # Marker 供 CSS 把配置区 radio 渲染成 tab 样式
         st.markdown('<div class="bf-settings-tabs-marker" style="display:none"></div>', unsafe_allow_html=True)
@@ -1338,6 +1341,9 @@ def render_briefing_settings():
         elif active == "analytics":
             from intelnexus.ui.analytics import render_analytics_dashboard
             render_analytics_dashboard()
+        elif active == "health":
+            from intelnexus.ui.health_dashboard import render_health_overview
+            render_health_overview()
         else:
             render_watch_categories_panel()
 

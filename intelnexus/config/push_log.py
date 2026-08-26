@@ -54,6 +54,27 @@ def record_push_result(briefing_id: str, subscriber_id: str,
         logger.warning(f"record_push_result failed: {e}")
 
 
+def get_push_entries(limit: int = _MAX_ENTRIES) -> list:
+    """读取推送日志原始条目（只读，按落盘顺序，尾部为最新）。
+
+    供运行指标层按自然日口径统计今日推送；任何异常返回空列表。
+    条目结构防御：过滤非 dict、缺 timestamp 或 channels 为空的脏条目，
+    避免消费方对损坏落盘数据重复兜底。
+    """
+    try:
+        entries = _load().get("entries") or []
+        entries = [
+            e for e in entries
+            if isinstance(e, dict)
+            and e.get("timestamp")
+            and isinstance(e.get("channels"), dict)
+            and e.get("channels")
+        ]
+        return entries[-limit:] if limit > 0 else entries
+    except Exception:
+        return []
+
+
 def get_push_stats(days: int = 7) -> Dict:
     """汇总最近 N 天的推送统计。
 
