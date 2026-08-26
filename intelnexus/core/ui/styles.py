@@ -68,7 +68,7 @@ def render_morandi_theme_css():
         --morandi-pink: #C4A4A4;
         --morandi-peach: #D4A5A5;
         --morandi-text: #5C5C5C;
-        --morandi-text-light: #8A8A8A;
+        --morandi-text-light: #6E6E6E;
         --morandi-border: #C9C5C0;
         --morandi-accent: #9CB5B0;
     }
@@ -838,7 +838,7 @@ def render_workbench_css():
         --wb-surface: #FFFFFF;
         --wb-card: #FFFFFF;
         --wb-text-primary: #4A4540;
-        --wb-text-secondary: #8C857D;
+        --wb-text-secondary: #75705F;
         --wb-accent: #A3A89B;
         --wb-border: #E2DDD5;
         --wb-tag-source: #A7B0AE;

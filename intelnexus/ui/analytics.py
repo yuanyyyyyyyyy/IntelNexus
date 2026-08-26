@@ -169,7 +169,11 @@ def render_analytics_dashboard():
 
 
 def _get_category_display_name(category: str) -> str:
-    """获取分类的显示名称（动态：关注点配置优先——含用户自定义；回退内置映射）"""
+    """获取分类显示名：动态读合并后的关注点配置；未知 id 原样返回。
+
+    单一事实源：不再维护本地回退字典（旧硬编码曾与 briefing/config.py
+    的 name 漂移——漏洞与威胁 vs 网络安全漏洞）。
+    """
     try:
         from intelnexus.briefing.config import get_all_categories
         cfg = get_all_categories().get(category)
@@ -177,12 +181,4 @@ def _get_category_display_name(category: str) -> str:
             return cfg["name"]
     except Exception:
         pass
-    category_names = {
-        "ai_gov_usage": "美欧机构AI应用",
-        "ai_china_narrative": "涉我AI舆论",
-        "ai_legislation": "AI新法案",
-        "ai_data_leak": "AI数据泄露",
-        "cyber_vuln": "网络安全漏洞",
-        "cyber_attack": "网络攻击事件",
-    }
-    return category_names.get(category, category)
+    return category

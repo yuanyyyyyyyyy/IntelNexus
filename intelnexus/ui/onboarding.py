@@ -116,31 +116,22 @@ def _render_step_categories():
 
     # 获取预设类别
     try:
-        from intelnexus.briefing.config import WATCH_CATEGORIES
+        # single source of truth: merged watch categories (incl. user-defined)
+        from intelnexus.config.watch_categories import get_all_categories as _gac
+        WATCH_CATEGORIES = _gac()
     except ImportError:
         WATCH_CATEGORIES = {}
-
-    # 类别映射（中文名）
-    category_names = {
-        "ai_gov_usage": "美欧机构AI应用",
-        "ai_china_narrative": "涉我AI舆论",
-        "ai_legislation": "AI新法案",
-        "ai_data_leak": "AI数据泄露",
-        "cyber_vuln": "网络安全漏洞",
-        "cyber_attack": "网络攻击事件",
-    }
 
     # 初始化已选类别
     if "ob_categories" not in st.session_state:
         st.session_state.ob_categories = list(WATCH_CATEGORIES.keys())
 
-    # 渲染复选框
+    # render checkboxes (names come from category config itself)
     categories = []
-    for cat_id, cat_name in category_names.items():
-        if cat_id in WATCH_CATEGORIES:
-            default = cat_id in st.session_state.ob_categories
-            if st.checkbox(cat_name, value=default, key=f"ob_cat_{cat_id}"):
-                categories.append(cat_id)
+    for cat_id, cfg in WATCH_CATEGORIES.items():
+        default = cat_id in st.session_state.ob_categories
+        if st.checkbox(cfg.get("name", cat_id), value=default, key=f"ob_cat_{cat_id}"):
+            categories.append(cat_id)
     st.session_state.ob_categories = categories
 
     # 导航按钮
