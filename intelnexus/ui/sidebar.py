@@ -335,7 +335,7 @@ def _render_advanced_settings():
                 f"<script>(function(){{var d=window.parent.document,w=window.parent;"
                 f"try{{w.localStorage.setItem('in_theme','{sel_theme}')}}catch(e){{}}"
                 f"d.documentElement.setAttribute('data-theme','{sel_theme}');}})();</script>",
-                height=0)
+                height=1)
             st.rerun()
 
         # 自定义模型
