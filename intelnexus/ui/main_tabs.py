@@ -14,23 +14,58 @@ session_state.switch_to_search 旗标自诞生起就没有任何读者（审计 
 """
 
 # radio 选项值（内部键，显示标签由 ui.py 按 i18n 映射）
+TAB_HOME = "home"
 TAB_SEARCH = "search"
 TAB_BRIEFING = "briefing"
 TAB_KB = "kb"
 
-_VALID_TABS = (TAB_SEARCH, TAB_BRIEFING, TAB_KB)
+_VALID_TABS = (TAB_HOME, TAB_SEARCH, TAB_BRIEFING, TAB_KB)
 
+# 兼容旧旗标（仅能跳到搜索页）
 SWITCH_FLAG = "switch_to_search"
+# 通用跳转旗标：值为目标 tab 键，一次性消费
+REQUEST_FLAG = "request_tab"
+
+
+def request_tab(session_state, tab_key: str) -> None:
+    """写入一次性跳转旗标：下一次渲染时激活 ``tab_key``。
+
+    非法目标静默忽略，避免把导航卡死在无效页。
+    调用方在写入后应自行 ``st.rerun()``。
+
+    Args:
+        session_state: st.session_state 或任意支持 ``__setitem__`` 的 dict。
+        tab_key: 目标页键（TAB_HOME/TAB_SEARCH/TAB_BRIEFING/TAB_KB）。
+    """
+    if tab_key not in _VALID_TABS:
+        return
+    try:
+        session_state[REQUEST_FLAG] = tab_key
+    except Exception:
+        pass
+
+
+def _consume_flag(session_state, flag: str) -> None:
+    """就地清除旗标（消费即清零）；不支持 pop 时退化为置 False。"""
+    try:
+        session_state.pop(flag, None)
+    except Exception:
+        try:
+            session_state[flag] = False
+        except Exception:
+            pass
 
 
 def resolve_active_tab(current: str, session_state) -> str:
     """计算本次 rerun 应激活的 Tab。
 
-    规则：
-    - ``session_state[SWITCH_FLAG]`` 为真值 → 返回 TAB_SEARCH 并就地清除标志
-      （一次性语义：跳转只发生一次，之后用户可自由切走）；
-    - 否则沿用 current（用户上次的选择）；
-    - current 非法时兜底到 TAB_SEARCH。
+    优先级：
+    1. ``session_state[REQUEST_FLAG]`` 为合法 tab 键 → 返回该键并就地清除
+       （一次性语义：跳转只发生一次，之后用户可自由切走）；
+       值非法时同样清除旗标，防止脏值残留。
+    2. ``session_state[SWITCH_FLAG]`` 为真值（旧机制兼容）→ 返回 TAB_SEARCH
+       并就地清除。
+    3. 否则沿用 current（用户上次的选择）；current 非法时兜底到 TAB_HOME。
 
     Args:
         current: 上一次选中的 tab 键。
@@ -38,8 +73,22 @@ def resolve_active_tab(current: str, session_state) -> str:
             ``pop`` 的会话状态对象（st.session_state 或 dict 均可）。
 
     Returns:
-        本次应渲染的 tab 键（search/briefing/kb 之一）。
+        本次应渲染的 tab 键（home/search/briefing/kb 之一）。
     """
+    # 1. 通用跳转旗标优先（含非法值清理）
+    requested = None
+    try:
+        if REQUEST_FLAG in session_state:
+            requested = session_state[REQUEST_FLAG]
+    except Exception:
+        requested = None
+
+    if requested is not None:
+        _consume_flag(session_state, REQUEST_FLAG)
+        if requested in _VALID_TABS:
+            return requested
+
+    # 2. 旧旗标兼容：视为请求跳到搜索页
     has_flag = False
     try:
         has_flag = SWITCH_FLAG in session_state and bool(session_state[SWITCH_FLAG])
@@ -48,13 +97,8 @@ def resolve_active_tab(current: str, session_state) -> str:
 
     if has_flag:
         # pop 语义：消费即清零，防止后续每次 rerun 都强制跳回搜索
-        try:
-            session_state.pop(SWITCH_FLAG, None)
-        except Exception:
-            try:
-                session_state[SWITCH_FLAG] = False
-            except Exception:
-                pass
+        _consume_flag(session_state, SWITCH_FLAG)
         return TAB_SEARCH
 
-    return current if current in _VALID_TABS else TAB_SEARCH
+    # 3. 沿用用户选择，非法时兜底首页
+    return current if current in _VALID_TABS else TAB_HOME

@@ -1,5 +1,6 @@
 import streamlit as st
 import base64
+import html
 import json
 import os
 from intelnexus.core.logger import get_logger
@@ -170,16 +171,40 @@ def _render_source_health():
         active_names = [s.name for s in get_registry(
             news_api_key=NEWS_API_KEY()).all_sources()]
         purge_stale_entries(active_names)  # 清掉测试残留/已删源的僵尸条目
+        # purge 是写操作：失效运行指标缓存，消除摘要行与明细列表最长 15s 的口径不一致
+        try:
+            from intelnexus.ui.status_metrics import invalidate_status_metrics
+            invalidate_status_metrics()
+        except Exception:
+            pass
         all_health = get_all_health()
     except Exception:
         return
 
     with st.expander(get_text("source_health"), expanded=False):
+        # 顶部聚合摘要：与状态栏/健康概览面板共享同一口径（15s 缓存）
+        try:
+            from intelnexus.ui.status_metrics import get_health_summary_cached
+            _s = get_health_summary_cached() or {}
+            st.caption(get_text("health_summary_line").format(
+                healthy=int(_s.get("healthy") or 0),
+                degraded=int(_s.get("degraded") or 0),
+                down=int(_s.get("down") or 0)))
+        except Exception:
+            pass
+
         if not all_health:
             st.markdown(f"_{get_text('no_sources')}_")
             return
 
         for h in all_health:
+            # 白名单校验：注册表不存在的源名（异常写入/残留）不渲染，只记日志。
+            # purge 已清理大部分僵尸条目，此处是二次防御。
+            if h.source_name not in active_names:
+                logger.warning(
+                    f"sidebar health: skipping entry for unknown source "
+                    f"{h.source_name!r} (not in active registry)")
+                continue
             if h.status == "healthy":
                 dot = '<span class="status-dot active"></span>'
             elif h.status == "degraded":
@@ -192,7 +217,8 @@ def _render_source_health():
 
             col_name, col_stat, col_rate, col_latency, col_action = st.columns([3, 1, 1, 1, 1])
             with col_name:
-                st.markdown(f"{dot} **{h.source_name}**", unsafe_allow_html=True)
+                # source_name 用户可控（自定义源名），拼入 HTML 前必须转义防 XSS
+                st.markdown(f"{dot} **{html.escape(h.source_name)}**", unsafe_allow_html=True)
             with col_stat:
                 label = get_text(f"source_{h.status}")
                 st.caption(label)

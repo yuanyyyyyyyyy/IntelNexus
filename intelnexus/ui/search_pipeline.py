@@ -186,6 +186,18 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
 
     results_count = len(st.session_state.results)
 
+    # 「今日搜索」落盘：检索未抛错即记录本次搜索（查询词/模式/结果数/模型），
+    # 全部完成的搜索均计入今日搜索（含 0 结果的成功搜索），
+    # 供首页与状态栏的 searches_today 指标读取。失败静默，绝不影响搜索主流程；
+    # 同时失效运行指标缓存，保证计数立即可见（不改变本函数行为与返回值）。
+    try:
+        from intelnexus.config.history import get_history_manager
+        get_history_manager().add_search(query, search_mode, results_count, model or "")
+        from intelnexus.ui.status_metrics import invalidate_status_metrics
+        invalidate_status_metrics()
+    except Exception as e:
+        logger.debug(f"记录搜索历史失败（不影响主流程）: {e}")
+
     source_info = " | ".join([f"{k}: {v}" for k, v in source_counts.items()])
     st.markdown(f"""
     <div class="result-card">

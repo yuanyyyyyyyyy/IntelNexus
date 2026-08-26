@@ -235,10 +235,13 @@ class AIBriefingScheduler:
                 # 推送该订阅者（沿用 notifier 的兴趣过滤 + 参与度重排 + 渠道分发）
                 self._refresh_email_config()
                 results = self.notifier.notify(subscriber, briefing_md, briefing_html)
-                # 落盘推送结果（分析面板的推送成功率数据源；失败不影响主流程）
+                # 落盘推送结果（分析面板的推送成功率数据源；失败不影响主流程）；
+                # 同时失效运行指标缓存，保证推送计数立即可见（跨会话最多 15s TTL 自愈）
                 try:
                     from intelnexus.config.push_log import record_push_result
                     record_push_result(filename or f"scheduled_{subscriber_id}", subscriber_id, results)
+                    from intelnexus.ui.status_metrics import invalidate_status_metrics
+                    invalidate_status_metrics()
                 except Exception:
                     pass
 

@@ -147,6 +147,14 @@ def run_briefing_pipeline(
     entries_data = _build_briefing_entries(all_collected)
     history.save_briefing_data(filename, entries_data)
 
+    # 简报落盘成功：失效运行指标缓存，保证状态栏/首页今日计数立即可见
+    # （延迟导入 + 失败静默，不影响简报主流程与返回值）
+    try:
+        from intelnexus.ui.status_metrics import invalidate_status_metrics
+        invalidate_status_metrics()
+    except Exception:
+        pass
+
     # ---- 4. 推送 ----
     pushed = 0
     if push_enabled:
@@ -158,10 +166,13 @@ def run_briefing_pipeline(
             for sub in subscribers:
                 try:
                     results = notifier.notify(sub, md, briefing_html)
-                    # 落盘推送结果（分析面板的推送成功率数据源；失败不影响主流程）
+                    # 落盘推送结果（分析面板的推送成功率数据源；失败不影响主流程）；
+                    # 同时失效运行指标缓存，保证推送计数立即可见
                     try:
                         from intelnexus.config.push_log import record_push_result
                         record_push_result(filename, sub.get("id", ""), results)
+                        from intelnexus.ui.status_metrics import invalidate_status_metrics
+                        invalidate_status_metrics()
                     except Exception:
                         pass
                     if any(results.values()):

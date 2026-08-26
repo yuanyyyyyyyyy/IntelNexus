@@ -163,34 +163,51 @@ def render_hermes_theme_css():
     }
 
     /* ============================================================
-       TAB NAVIGATION (编号标签导航)
+       MAIN NAVIGATION（横向 radio 主导航，tab 化外观）
+       st.tabs 已移除：导航为 st.radio(key="main_nav_radio")，
+       前置隐藏 main-nav-marker 供 :has() 定位（Streamlit 1.62 radio DOM：
+       stRadio > stRadioGroup > [stRadioOption]，选中项携带 data-selected）。
        ============================================================ */
-    div[data-testid="stTabs"] {
-        background-color: var(--bg-nav) !important;
-        border-bottom: 1px solid var(--border-medium) !important;
-        padding: 0 !important;
+    .main-nav-marker,
+    .app-main-scope {
+        display: none !important;
     }
-    button[data-baseweb="tab"],
-    div[data-testid="stTabs"] button {
+    /* 选项横排成 tab 栏，底部细线贯穿 */
+    .element-container:has(.main-nav-marker) + .element-container div[data-testid="stRadio"] [data-testid="stRadioGroup"] {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 4px !important;
+        border-bottom: 1px solid var(--border-medium) !important;
+        min-height: 0 !important;
+    }
+    /* 未选中：灰字 */
+    .element-container:has(.main-nav-marker) + .element-container div[data-testid="stRadio"] [data-testid="stRadioOption"] {
         background-color: transparent !important;
         color: var(--text-secondary) !important;
         border: none !important;
-        border-radius: var(--radius-sm) !important;
+        border-bottom: 2px solid transparent !important;
+        border-radius: var(--radius-sm) var(--radius-sm) 0 0 !important;
         padding: var(--space-sm) var(--space-md) !important;
+        margin: 0 !important;
         font-size: 14px !important;
         font-weight: 500 !important;
         transition: all 0.2s ease !important;
     }
-    button[data-baseweb="tab"][aria-selected="true"],
-    div[data-testid="stTabs"] button[aria-selected="true"],
-    div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] {
-        background-color: var(--bg-tab-active) !important;
-        color: #FFFFFF !important;
-    }
-    button[data-baseweb="tab"]:hover,
-    div[data-testid="stTabs"] button:hover {
+    .element-container:has(.main-nav-marker) + .element-container div[data-testid="stRadio"] [data-testid="stRadioOption"]:hover,
+    .element-container:has(.main-nav-marker) + .element-container div[data-testid="stRadio"] [data-testid="stRadioOption"][data-hovered] {
         background-color: var(--border-medium) !important;
         color: var(--text-primary) !important;
+    }
+    /* 选中：黑字 + 强调底线 */
+    .element-container:has(.main-nav-marker) + .element-container div[data-testid="stRadio"] [data-testid="stRadioOption"][data-selected],
+    .element-container:has(.main-nav-marker) + .element-container div[data-testid="stRadio"] [data-testid="stRadioOption"][aria-checked="true"] {
+        color: var(--text-primary) !important;
+        font-weight: 600 !important;
+        border-bottom-color: var(--accent-orange) !important;
+    }
+    /* 隐藏 radio 圆点，仅保留 tab 文字（选项 > 内容列 > 行 > 首个子元素即圆点） */
+    .element-container:has(.main-nav-marker) + .element-container div[data-testid="stRadio"] [data-testid="stRadioOption"] > div > div > div:first-child {
+        display: none !important;
     }
 
     /* ============================================================
@@ -426,17 +443,14 @@ def render_hermes_theme_css():
     }
 
     /* 按钮与下拉框垂直对齐 — 列布局底部对齐 */
-    section[data-testid="stMain"] [data-testid="stHorizontalBlock"],
-    div[role="tabpanel"] [data-testid="stHorizontalBlock"] {
+    section[data-testid="stMain"] [data-testid="stHorizontalBlock"] {
         align-items: flex-end !important;
     }
-    section[data-testid="stMain"] [data-testid="column"] > div > .stButton,
-    div[role="tabpanel"] [data-testid="column"] > div > .stButton {
+    section[data-testid="stMain"] [data-testid="column"] > div > .stButton {
         padding-bottom: 0 !important;
         margin-bottom: 0 !important;
     }
-    section[data-testid="stMain"] [data-testid="column"] > div > .stButton > button,
-    div[role="tabpanel"] [data-testid="column"] > div > .stButton > button {
+    section[data-testid="stMain"] [data-testid="column"] > div > .stButton > button {
         margin-bottom: 0 !important;
         margin-top: 0 !important;
     }
@@ -797,7 +811,7 @@ def render_hermes_theme_css():
     .bf-history-item__sep { color: var(--border-light); }
 
     /* History item buttons */
-    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-history-item button {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .bf-history-item button {
         width: 100% !important;
         min-height: 28px !important;
         padding: 2px 10px !important;
@@ -812,7 +826,7 @@ def render_hermes_theme_css():
         text-orientation: mixed !important;
         white-space: nowrap !important;
     }
-    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-history-item button:hover {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .bf-history-item button:hover {
         background: var(--bg-card) !important;
         color: var(--text-primary) !important;
         border-color: var(--accent-orange) !important;
@@ -1327,8 +1341,11 @@ def render_workbench_css():
         display: none !important;
     }
 
-    /* 通过 :has() 将 workbench 样式限定到包含标记的简报 Tab panel */
-    div[role="tabpanel"]:has(.bf-workbench-scope) {
+    /* 通过 :has() 将 workbench 样式限定到简报页激活时的主区（st.tabs 已由
+       radio 主导航替代，旧 Tab panel 锚点失效）。
+       CSS 变量与白纸表面挂在主区（等价旧 Tab panel 的白纸背景）；
+       不改写 padding，避免标题/导航条位移。 */
+    section[data-testid="stMain"]:has(.bf-workbench-scope) {
         --wb-surface: #FFFFFF;
         --wb-card: #FFFFFF;
         --wb-text-primary: #1A1A1A;
@@ -1342,26 +1359,26 @@ def render_workbench_css():
         --wb-green: #4ADE80;
         --wb-orange: #0055FF;
         --wb-red: #EF5350;
-        background: var(--wb-surface) !important;
-        padding: 0 20px 16px 20px !important;
+        background-color: var(--wb-surface) !important;
+        background-image: none !important;
     }
 
     /* 去掉简报 Tab 内 .stMarkdown 容器自带的背景 / padding / margin */
-    div[role="tabpanel"]:has(.bf-workbench-scope) .stMarkdown {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .stMarkdown {
         background: transparent !important;
         padding: 0 !important;
         margin: 0 !important;
     }
 
     /* Override page title for workbench context */
-    div[role="tabpanel"]:has(.bf-workbench-scope) .main-title {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .main-title {
         font-size: 28px !important;
         font-weight: 700 !important;
         color: var(--wb-text-primary) !important;
         letter-spacing: -0.02em !important;
         margin-bottom: 4px !important;
     }
-    div[role="tabpanel"]:has(.bf-workbench-scope) .main-subtitle {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .main-subtitle {
         display: none !important;
     }
 
@@ -1447,7 +1464,7 @@ def render_workbench_css():
     }
 
     /* 引导条按钮卡片样式 */
-    div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker) [data-testid="stButton"] > button {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container [data-testid="stVerticalBlock"]:has(.bf-step-marker) [data-testid="stButton"] > button {
         width: 100%;
         text-align: left;
         justify-content: flex-start;
@@ -1466,10 +1483,10 @@ def render_workbench_css():
         color: var(--wb-text-primary);
         display: flex;
     }
-    div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker) [data-testid="stButton"] > button:hover {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container [data-testid="stVerticalBlock"]:has(.bf-step-marker) [data-testid="stButton"] > button:hover {
         box-shadow: 0 2px 8px rgba(0,0,0,0.10);
     }
-    div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker) [data-testid="stButton"] > button .bf-step__index {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container [data-testid="stVerticalBlock"]:has(.bf-step-marker) [data-testid="stButton"] > button .bf-step__index {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -1482,45 +1499,45 @@ def render_workbench_css():
         background: #F0F0F0;
         color: var(--wb-text-secondary);
     }
-    div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker) [data-testid="stButton"] > button .bf-step__title {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container [data-testid="stVerticalBlock"]:has(.bf-step-marker) [data-testid="stButton"] > button .bf-step__title {
         line-height: 1.4;
     }
     /* 三态配色 */
-    div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker.bf-step--done) [data-testid="stButton"] > button {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container [data-testid="stVerticalBlock"]:has(.bf-step-marker.bf-step--done) [data-testid="stButton"] > button {
         border-top-color: var(--wb-accent);
         background: #EFF6FF;
     }
-    div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker.bf-step--done) [data-testid="stButton"] > button .bf-step__index {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container [data-testid="stVerticalBlock"]:has(.bf-step-marker.bf-step--done) [data-testid="stButton"] > button .bf-step__index {
         background: var(--wb-accent);
         color: #FFFFFF;
     }
-    div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker.bf-step--current) [data-testid="stButton"] > button {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container [data-testid="stVerticalBlock"]:has(.bf-step-marker.bf-step--current) [data-testid="stButton"] > button {
         border-top-color: var(--wb-accent);
         background: #FFF7ED;
     }
-    div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker.bf-step--current) [data-testid="stButton"] > button .bf-step__index {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container [data-testid="stVerticalBlock"]:has(.bf-step-marker.bf-step--current) [data-testid="stButton"] > button .bf-step__index {
         background: var(--wb-accent);
         color: #FFFFFF;
     }
-    div[role="tabpanel"]:has(.bf-workbench-scope) [data-testid="stVerticalBlock"]:has(.bf-step-marker.bf-step--pending) [data-testid="stButton"] > button {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container [data-testid="stVerticalBlock"]:has(.bf-step-marker.bf-step--pending) [data-testid="stButton"] > button {
         border-top-color: var(--wb-border);
         opacity: 0.85;
     }
 
     /* 可折叠配置区 */
-    div[role="tabpanel"]:has(.bf-workbench-scope) .stTabs [data-baseweb="tab-panel"] {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .stTabs [data-baseweb="tab-panel"] {
         background: transparent !important;
         padding-left: 0 !important;
         padding-right: 0 !important;
     }
-    div[role="tabpanel"]:has(.bf-workbench-scope) .stTabs .bf-panel {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .stTabs .bf-panel {
         margin: 8px 0 0 0 !important;
         border-top-width: 3px !important;
     }
-    div[role="tabpanel"]:has(.bf-workbench-scope) > div[data-testid="stVerticalBlock"] > div[data-testid="stToggle"] {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container > div[data-testid="stVerticalBlock"] > div[data-testid="stToggle"] {
         margin-top: 18px !important;
     }
-    div[role="tabpanel"]:has(.bf-workbench-scope) .stContainer {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .stContainer {
         border: 1px solid var(--wb-border);
         border-radius: 8px;
         padding: 14px 16px 4px 16px;
@@ -1529,7 +1546,7 @@ def render_workbench_css():
     }
 
     /* Section label as card header */
-    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-panel > .bf-label {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .bf-panel > .bf-label {
         display: flex;
         align-items: center;
         gap: 10px;
@@ -1537,10 +1554,10 @@ def render_workbench_css():
         padding-bottom: 0;
         border-bottom: none;
     }
-    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-panel > .bf-label + [data-testid="stExpander"],
-    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-panel > .bf-label + div [data-testid="stExpander"],
-    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-panel > .bf-label + div [data-testid="stAlertContainer"],
-    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-panel > .bf-label + div .stAlert {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .bf-panel > .bf-label + [data-testid="stExpander"],
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .bf-panel > .bf-label + div [data-testid="stExpander"],
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .bf-panel > .bf-label + div [data-testid="stAlertContainer"],
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .bf-panel > .bf-label + div .stAlert {
         margin-top: 0 !important;
     }
 
@@ -1580,8 +1597,8 @@ def render_workbench_css():
         width: auto !important;
     }
 
-    /* 工作台 tabpanel 内所有按钮 — 白底深色文字（primary 规则在后面自然覆盖） */
-    div[role="tabpanel"]:has(.bf-workbench-scope) div[data-testid="stButton"] > button {
+    /* 工作台作用域内所有按钮 — 白底深色文字（primary 规则在后面自然覆盖） */
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container div[data-testid="stButton"] > button {
         background: #FFFFFF !important;
         color: #1A1A1A !important;
         border: 1px solid #E0E0E0 !important;
@@ -1592,14 +1609,14 @@ def render_workbench_css():
         min-height: 30px !important;
         transition: all 0.15s ease !important;
     }
-    div[role="tabpanel"]:has(.bf-workbench-scope) div[data-testid="stButton"] > button:hover {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container div[data-testid="stButton"] > button:hover {
         background: #F5F5F5 !important;
         border-color: #CCCCCC !important;
     }
 
     /* 生成简报 / 添加笔记主按钮 — 白底深色文字+蓝色阴影（统一风格） */
-    div[role="tabpanel"]:has(.bf-workbench-scope) div[data-testid="stBaseButton-primary"] > button,
-    div[role="tabpanel"]:has(.bf-workbench-scope) div[data-testid="stBaseButton-primary"] button {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container div[data-testid="stBaseButton-primary"] > button,
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container div[data-testid="stBaseButton-primary"] button {
         background: #FFFFFF !important;
         color: #1A1A1A !important;
         border: 1px solid #E0E0E0 !important;
@@ -1611,24 +1628,24 @@ def render_workbench_css():
         box-shadow: 0 4px 12px rgba(0,85,255,0.45) !important;
         transition: all 0.2s ease !important;
     }
-    div[role="tabpanel"]:has(.bf-workbench-scope) div[data-testid="stBaseButton-primary"] > button:hover,
-    div[role="tabpanel"]:has(.bf-workbench-scope) div[data-testid="stBaseButton-primary"] button:hover {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container div[data-testid="stBaseButton-primary"] > button:hover,
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container div[data-testid="stBaseButton-primary"] button:hover {
         background: #F5F5F5 !important;
         box-shadow: 0 4px 16px rgba(0,85,255,0.4) !important;
     }
 
     /* Generate 概览折叠条 — 去掉边框（expander 在 .bf-panel--gen 内部） */
-    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-panel--gen [data-testid="stExpander"],
-    div[role="tabpanel"]:has(.bf-workbench-scope) .element-container:has(> div > .bf-panel--gen) div[data-testid="stExpander"],
-    div[role="tabpanel"]:has(.bf-workbench-scope) .element-container:has(> div > .bf-panel--gen) + .element-container div[data-testid="stExpander"] {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .bf-panel--gen [data-testid="stExpander"],
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .element-container:has(> div > .bf-panel--gen) div[data-testid="stExpander"],
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .element-container:has(> div > .bf-panel--gen) + .element-container div[data-testid="stExpander"] {
         border: none !important;
         border-radius: 0 !important;
         background: transparent !important;
         box-shadow: none !important;
     }
-    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-panel--gen [data-testid="stExpander"] > summary,
-    div[role="tabpanel"]:has(.bf-workbench-scope) .element-container:has(> div > .bf-panel--gen) div[data-testid="stExpander"] > summary,
-    div[role="tabpanel"]:has(.bf-workbench-scope) .element-container:has(> div > .bf-panel--gen) + .element-container div[data-testid="stExpander"] > summary {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .bf-panel--gen [data-testid="stExpander"] > summary,
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .element-container:has(> div > .bf-panel--gen) div[data-testid="stExpander"] > summary,
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .element-container:has(> div > .bf-panel--gen) + .element-container div[data-testid="stExpander"] > summary {
         border: none !important;
         font-size: 13px !important;
         font-weight: 500 !important;
@@ -1637,11 +1654,11 @@ def render_workbench_css():
     }
 
     /* 配置区 tab 切换器 */
-    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-settings-tabs-marker + .element-container div[data-testid="stRadio"] > div {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .bf-settings-tabs-marker + .element-container div[data-testid="stRadio"] > div {
         display: flex;
         gap: 4px;
     }
-    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-settings-tabs-marker + .element-container div[data-testid="stRadio"] label {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .bf-settings-tabs-marker + .element-container div[data-testid="stRadio"] label {
         border-radius: 6px 6px 0 0 !important;
         padding: 8px 16px !important;
         background: transparent !important;
@@ -1649,11 +1666,11 @@ def render_workbench_css():
         border-bottom: 2px solid transparent !important;
         color: var(--wb-text-secondary) !important;
     }
-    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-settings-tabs-marker + .element-container div[data-testid="stRadio"] label:hover {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .bf-settings-tabs-marker + .element-container div[data-testid="stRadio"] label:hover {
         background: var(--wb-surface) !important;
         color: var(--wb-text-primary) !important;
     }
-    div[role="tabpanel"]:has(.bf-workbench-scope) .bf-settings-tabs-marker + .element-container div[data-testid="stRadio"] input:checked + div {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .bf-settings-tabs-marker + .element-container div[data-testid="stRadio"] input:checked + div {
         background: var(--wb-surface) !important;
         color: var(--wb-text-primary) !important;
         border-color: var(--wb-border) !important;
@@ -1670,8 +1687,8 @@ def render_workbench_css():
     }
 
     /* 通用确认/操作按钮 */
-    div[role="tabpanel"]:has(.bf-workbench-scope) div[data-testid="stBaseButton-secondary"] > button,
-    div[role="tabpanel"]:has(.bf-workbench-scope) div[data-testid="stButton"] > button:not(:has(~ [data-testid="stBaseButton-primary"])):not(:has(~ [data-testid="stBaseButton-secondary"])) {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container div[data-testid="stBaseButton-secondary"] > button,
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container div[data-testid="stButton"] > button:not(:has(~ [data-testid="stBaseButton-primary"])):not(:has(~ [data-testid="stBaseButton-secondary"])) {
         padding: 6px 14px !important;
         min-height: 32px !important;
         font-size: 13px !important;
@@ -1793,15 +1810,15 @@ def render_workbench_css():
     }
 
     /* Clean up old briefing styles */
-    div[role="tabpanel"]:has(.bf-workbench-scope) .briefing-step-card,
-    div[role="tabpanel"]:has(.bf-workbench-scope) .briefing-tip-box,
-    div[role="tabpanel"]:has(.bf-workbench-scope) .briefing-config-panel,
-    div[role="tabpanel"]:has(.bf-workbench-scope) .briefing-config-divider {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .briefing-step-card,
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .briefing-tip-box,
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .briefing-config-panel,
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .briefing-config-divider {
         display: none !important;
     }
 
     /* Status dots */
-    div[role="tabpanel"]:has(.bf-workbench-scope) .status-dot {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .status-dot {
         width: 6px;
         height: 6px;
     }
@@ -1821,6 +1838,113 @@ def render_workbench_css():
     .bf-sev-badge--med {
         background: #FEF3C7;
         color: #D97706;
+    }
+
+    /* ============================================================
+       健康检查概览面板指标卡（任务3 · intelnexus/ui/health_dashboard.py）
+       浅色底 + 左侧 4px 色条，仿 bf-panel 语言；色取 :root 强调色变量。
+       ============================================================ */
+    .hc-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-light);
+        border-left: 4px solid var(--text-tertiary);
+        border-radius: var(--radius-sm);
+        padding: 14px 18px 8px;
+        margin: 12px 0;
+        transition: border-color 0.15s ease;
+    }
+    .hc-card--healthy { border-left-color: var(--accent-green); }
+    .hc-card--degraded { border-left-color: var(--accent-orange); }
+    .hc-card--down { border-left-color: var(--accent-red); }
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .hc-card {
+        background: var(--wb-surface);
+        border-color: var(--wb-border);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .hc-card--healthy { border-left-color: var(--accent-green); }
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .hc-card--degraded { border-left-color: var(--accent-orange); }
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .hc-card--down { border-left-color: var(--accent-red); }
+
+    /* ============================================================
+       今日概览首页（任务5 · intelnexus/ui/overview.py）
+       隐藏 ov-scope marker + :has() 作用域，写法与 bf-workbench-scope 段一致；
+       卡片复用 .hc-card 语言，主操作按钮遵「白底 + 蓝色阴影」主区规范。
+       ============================================================ */
+    .ov-scope {
+        display: none !important;
+    }
+
+    /* 问候区：情感化副文案 + 日期弱化显示 */
+    section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container .ov-tagline {
+        font-size: 15px;
+        font-weight: 400;
+        color: var(--text-secondary);
+        margin-top: 4px;
+        line-height: 1.6;
+    }
+    section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container .ov-tagline .ov-date {
+        margin-left: 10px;
+        font-size: 12px;
+        color: var(--text-tertiary);
+        letter-spacing: 0.04em;
+    }
+
+    /* 指标卡片区：纸白表面 + 等高对齐，色条沿用 .hc-card--* */
+    section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container .ov-card {
+        background: var(--bg-card);
+        border-color: var(--border-light);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        min-height: 108px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin: 16px 0 8px;
+    }
+    section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container .ov-card:hover {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container .ov-card__tag {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-secondary);
+    }
+    section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container .ov-card__value {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-primary);
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+    }
+    section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container .ov-card__sub {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-top: auto;
+    }
+
+    /* 主操作入口按钮 — 白底深色文字 + 蓝色阴影（主区按钮规范）。
+       选择器用 div[data-testid] > button 模式，覆盖 hermes 全局深色按钮。 */
+    section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container div[data-testid="stButton"] > button {
+        background: #FFFFFF !important;
+        color: var(--text-primary) !important;
+        border: 1px solid #E0E0E0 !important;
+        border-radius: 8px !important;
+        font-size: 15px !important;
+        font-weight: 600 !important;
+        padding: 12px 20px !important;
+        min-height: 46px !important;
+        box-shadow: 0 4px 12px rgba(0,85,255,0.45) !important;
+        transition: all 0.2s ease !important;
+    }
+    section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container div[data-testid="stButton"] > button:hover {
+        background: #F5F5F5 !important;
+        border-color: #CCCCCC !important;
+        box-shadow: 0 6px 16px rgba(0,85,255,0.4) !important;
+        transform: translateY(-1px) !important;
+    }
+    section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container div[data-testid="stButton"] > button:active {
+        transform: scale(0.98) !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1961,16 +2085,130 @@ def render_onboarding_css():
         color: #1A1A1A;
         min-width: 80px;
     }
+    /* ---- 状态栏窄屏裁剪（只隐藏低优先级段，健康段始终保留）----
+       < 1100px 隐藏「今日」段（.sb-today）；< 900px 再隐藏调度器段（.sb-scheduler）。
+       窗口宽度以视口为准；段类名由 render_status_bar 生成。 */
+    @media (max-width: 1100px) {
+        .sb-metrics .sb-today { display: none !important; }
+    }
+    @media (max-width: 900px) {
+        .sb-metrics .sb-scheduler { display: none !important; }
+    }
 </style>
 """, unsafe_allow_html=True)
 
 
-def render_status_bar():
-    """Render Hermes-style bottom status bar."""
+def render_status_bar(metrics: "dict | None" = None):
+    """Render Hermes-style bottom status bar.
+
+    - metrics 为 None：纯静态渲染（向后兼容旧调用方式）。
+    - metrics 传入 {"health": {...}, "scheduler": {...}, "today": {...}}
+      （由调用方组装）：右侧追加运行指标段。每段独立 try/except，
+      单段失败不影响其余段与整栏。
+    本函数只渲染不取数；颜色一律走 :root CSS 变量。
+    """
     import datetime
     now = datetime.datetime.now()
     time_str = now.strftime("%H:%M")
     date_str = now.strftime("%Y-%m-%d")
+
+    # 左侧圆点颜色随健康态动态变化：全正常/无数据为绿，有降级橙，有 down 红
+    dot_color = "var(--accent-green)"
+    if isinstance(metrics, dict):
+        try:
+            _h = metrics.get("health") or {}
+            if int(_h.get("down") or 0) > 0:
+                dot_color = "var(--accent-red)"
+            elif int(_h.get("degraded") or 0) > 0:
+                dot_color = "var(--accent-orange)"
+        except Exception:
+            dot_color = "var(--accent-green)"
+
+    # --- 右侧运行指标段（仅当传入 metrics 时渲染）---
+    metrics_html = ""
+    if isinstance(metrics, dict):
+        # 延迟导入 i18n：保持 core 层模块加载期不依赖 ui 层（函数内局部导入先例见上方 datetime）
+        try:
+            from intelnexus.ui.i18n import get_text
+        except Exception:
+            get_text = None
+
+        if get_text is not None:
+            segs = []
+
+            # 数据源健康段：全正常时只显示「● N 正常」（降噪），
+            # 有降级/异常时追加对应颜色的「▲ N 降级」「✕ N 异常」
+            try:
+                h = metrics.get("health") or {}
+                total = int(h.get("total") or 0)
+                healthy = int(h.get("healthy") or 0)
+                degraded = int(h.get("degraded") or 0)
+                down = int(h.get("down") or 0)
+                if total > 0:
+                    parts = []
+                    if healthy > 0 or (degraded == 0 and down == 0):
+                        parts.append(
+                            '<span style="color: var(--accent-green);">● '
+                            + get_text("sb_health_ok").format(n=healthy) + "</span>"
+                        )
+                    if degraded > 0:
+                        parts.append(
+                            '<span style="color: var(--accent-orange);">▲ '
+                            + get_text("sb_health_degraded").format(n=degraded) + "</span>"
+                        )
+                    if down > 0:
+                        parts.append(
+                            '<span style="color: var(--accent-red);">✕ '
+                            + get_text("sb_health_down").format(n=down) + "</span>"
+                        )
+                    if parts:
+                        segs.append(
+                            '<span class="sb-health" style="white-space: nowrap;">' + " ".join(parts) + "</span>"
+                        )
+            except Exception:
+                pass
+
+            # 调度器段：有任务显示下次推送时间；空载显示空闲；未运行灰字手动模式
+            try:
+                s = metrics.get("scheduler") or {}
+                if s.get("running"):
+                    if int(s.get("job_count") or 0) > 0 and s.get("next_run_str"):
+                        segs.append(
+                            '<span class="sb-scheduler" style="white-space: nowrap;">'
+                            + get_text("sb_next_push").format(when=s["next_run_str"])
+                            + "</span>"
+                        )
+                    else:
+                        segs.append(
+                            '<span class="sb-scheduler" style="white-space: nowrap;">'
+                            + get_text("sb_scheduler_idle") + "</span>"
+                        )
+                else:
+                    segs.append(
+                        '<span class="sb-scheduler" style="white-space: nowrap; color: var(--text-tertiary);">'
+                        + get_text("sb_manual_mode") + "</span>"
+                    )
+            except Exception:
+                pass
+
+            # 今日统计段：简报与推送均为 0 时整段隐藏
+            try:
+                t = metrics.get("today") or {}
+                b = int(t.get("briefings_today") or 0)
+                p = int(t.get("pushes_today") or 0)
+                if b > 0 or p > 0:
+                    segs.append(
+                        '<span class="sb-today" style="white-space: nowrap;">'
+                        + get_text("sb_today").format(b=b, p=p) + "</span>"
+                    )
+            except Exception:
+                pass
+
+            if segs:
+                metrics_html = "".join(segs)
+
+    # 无指标段（如测试环境）时追加空容器标记，便于测试与样式定位。
+    metrics_cls = "sb-metrics" + ("" if metrics_html else " sb-metrics-empty")
 
     status_html = """
     <div style="
@@ -1979,26 +2217,28 @@ def render_status_bar():
         left: 0;
         right: 0;
         height: 32px;
-        background-color: #F5F5F5;
-        border-top: 1px solid #E0E0E0;
+        background-color: var(--bg-status-bar);
+        border-top: 1px solid var(--border-medium);
         display: flex;
         align-items: center;
         justify-content: space-between;
         padding: 0 16px;
         font-size: 12px;
-        color: #888888;
+        color: var(--text-tertiary);
+        white-space: nowrap;
         z-index: 9999;
         font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
     ">
         <div style="display: flex; align-items: center; gap: 16px;">
             <span style="display: flex; align-items: center; gap: 6px;">
-                <span style="width: 8px; height: 8px; border-radius: 50%; background-color: #4ADE80; display: inline-block; box-shadow: 0 0 6px rgba(74,222,128,0.4);"></span>
+                <span style="width: 8px; height: 8px; border-radius: 50%; background-color: """ + dot_color + """; display: inline-block; box-shadow: 0 0 6px color-mix(in srgb, """ + dot_color + """ 40%, transparent);"></span>
                 IntelNexus
             </span>
             <span>""" + date_str + """</span>
             <span>""" + time_str + """</span>
         </div>
-        <div style="display: flex; align-items: center; gap: 16px;">
+        <div class=""" + '"' + metrics_cls + '"' + """ style="display: flex; align-items: center; gap: 16px; min-width: 0; overflow: hidden;">
+            """ + metrics_html + """
             <span>Intel Search Engine</span>
         </div>
     </div>

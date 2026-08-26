@@ -141,25 +141,54 @@ if not onboarding_active:
     # --- Sidebar (serves both search mode + briefing management) ---
     search_mode, model, threads = render_sidebar()
 
-    # --- Tabs ---
-    if st.session_state.lang == "zh":
-        tab_labels = ["情报搜索", "简报中心", "知识库"]
-    else:
-        tab_labels = ["Intel Search", "Briefing", "Knowledge Base"]
-    tab_search, tab_briefing, tab_kb = st.tabs(tab_labels)
+    # --- 主导航（横向 radio 代替 st.tabs：支持编程式跳页 + 互斥渲染） ---
+    nav_tab_keys = [main_tabs.TAB_HOME, main_tabs.TAB_SEARCH, main_tabs.TAB_BRIEFING, main_tabs.TAB_KB]
+
+    # 激活页计算：优先消费一次性跳转旗标（取证深查等编程式跳页）。
+    # radio 选项值直接用 tab 键（显示标签由 format_func 按 i18n 映射），
+    # 保证 session_state.main_nav_radio 存的始终是键而非标签文本。
+    active = main_tabs.resolve_active_tab(
+        st.session_state.get("main_nav_radio") or main_tabs.TAB_HOME,
+        st.session_state,
+    )
+    # 被编程跳转改写时，在下一次渲染前同步 radio 选中态（不传 index，避免每次 rerun 重置）
+    if st.session_state.get("main_nav_radio") != active:
+        st.session_state.main_nav_radio = active
+
+    # 隐藏 marker：供 CSS 把导航 radio 渲染成横向 tab 外观（见 styles.py）
+    st.markdown('<div class="main-nav-marker" style="display:none"></div>', unsafe_allow_html=True)
+    st.radio(
+        "main navigation",
+        nav_tab_keys,
+        horizontal=True,
+        label_visibility="collapsed",
+        key="main_nav_radio",
+        format_func=lambda key: get_text(f"nav_{key}"),
+    )
+
+    # 隐藏作用域 marker：主区稳定锚点，替代旧 div[role="tabpanel"] 选择器外层前缀（见 styles.py）
+    st.markdown('<div class="app-main-scope" style="display:none"></div>', unsafe_allow_html=True)
+
+    # =====================
+    #  Home（今日概览）
+    # =====================
+    if active == main_tabs.TAB_HOME:
+        # 首页指标卡复用 .hc-card 样式（定义于 render_workbench_css）；
+        # 互斥渲染保证同一时刻只有一个分支注入，不会重复注入。
+        render_workbench_css()
+        from intelnexus.ui.overview import render_overview
+        render_overview()
 
     # =====================
     #  Search Tab
     # =====================
-    with tab_search:
-        # 反向飞轮：从简报条目跳转过来的取证任务
+    elif active == main_tabs.TAB_SEARCH:
+        # 反向飞轮：从简报条目跳转过来的取证任务（导航已自动切到本页，无需再提示用户手动点 Tab）
         pending_query = st.session_state.pop("pending_forensic_query", None)
         pending_mode = st.session_state.pop("pending_forensic_mode", "all")
         # 简报跳转的预填值写入输入框 session state（控件不再用 value= 回填）
         if pending_query:
             st.session_state.query_input = pending_query
-            # 显示切换提示
-            st.info(f"{icon('investigate', 'sm', 'blue')} 已准备取证分析：**{pending_query}** ← 请点击「情报搜索」Tab查看")
 
         # 用 st.form 包裹输入框与提交按钮：表单提交时所有 widget 值会先同步到
         # session_state，再触发 rerun，从而彻底解决"点按钮时输入框值未提交"的问题。
@@ -238,17 +267,39 @@ if not onboarding_active:
     # =====================
     #  Briefing Tab
     # =====================
-    with tab_briefing:
+    elif active == main_tabs.TAB_BRIEFING:
         render_workbench_css()
         render_briefing_center()
 
     # =====================
     #  Knowledge Base Tab
     # =====================
-    with tab_kb:
+    elif active == main_tabs.TAB_KB:
         render_workbench_css()
         render_knowledge_base()
 
 
 # --- Bottom status bar ---
-render_status_bar()
+def _collect_status_bar_metrics():
+    """组装底部状态栏运行指标：{"health", "scheduler", "today"}。
+
+    聚合层（status_metrics）已内部兜底；此处再包一层 try/except，
+    任何异常（含模块不可用）返回 None，状态栏退化为静态渲染。
+    onboarding 期间也安全调用。
+    """
+    try:
+        from intelnexus.ui.status_metrics import (
+            get_health_summary_cached,
+            get_scheduler_summary_cached,
+            get_today_stats_cached,
+        )
+        return {
+            "health": get_health_summary_cached(),
+            "scheduler": get_scheduler_summary_cached(),
+            "today": get_today_stats_cached(),
+        }
+    except Exception:
+        return None
+
+
+render_status_bar(_collect_status_bar_metrics())
