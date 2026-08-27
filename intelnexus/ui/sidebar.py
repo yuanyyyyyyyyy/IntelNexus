@@ -206,6 +206,16 @@ def _render_source_health():
         except Exception:
             pass
 
+        # 刷新按钮：失效缓存后 rerun，不发起网络探测
+        if st.button(get_text("health_refresh"), key="sb_health_refresh",
+                     use_container_width=True):
+            try:
+                from intelnexus.ui.status_metrics import invalidate_status_metrics
+                invalidate_status_metrics()
+            except Exception:
+                pass
+            st.rerun()
+
         if not all_health:
             st.markdown(f"_{get_text('no_sources')}_")
             return
@@ -228,7 +238,7 @@ def _render_source_health():
             rate = f"{h.success_rate:.0%}"
             latency = f"{h.avg_latency_ms:.0f}ms" if h.avg_latency_ms > 0 else "-"
 
-            col_name, col_stat, col_rate, col_latency, col_action = st.columns([3, 1, 1, 1, 1])
+            col_name, col_stat, col_rate, col_latency, col_action = st.columns([3, 1.2, 1, 1, 1.5])
             with col_name:
                 # source_name 用户可控（自定义源名），拼入 HTML 前必须转义防 XSS
                 st.markdown(f"{dot} **{html.escape(h.source_name)}**", unsafe_allow_html=True)
@@ -241,7 +251,8 @@ def _render_source_health():
                 st.caption(latency)
             with col_action:
                 if h.status in ("degraded", "down"):
-                    if st.button(get_text("source_reset"), key=f"reset_{h.source_name}"):
+                    if st.button(get_text("source_reset"), key=f"reset_{h.source_name}",
+                                 use_container_width=True):
                         h.reset()
                         save_health(h)
                         st.rerun()
