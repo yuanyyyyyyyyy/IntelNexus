@@ -919,6 +919,8 @@ def render_hermes_theme_css():
         font-size: 11px !important;
         padding: 2px 8px !important;
         min-height: 0 !important;
+        max-height: 28px !important;
+        line-height: 1.3 !important;
         border-radius: var(--radius-sm) !important;
         white-space: nowrap !important;
         overflow: hidden !important;

@@ -259,17 +259,60 @@ def render_briefing_entries():
         reverse=True,
     )
 
-    # 分批加载：默认只渲染前 N 条，避免一次生成数千个 Streamlit 部件
+    # 分页：默认每页 30 条，避免一次生成数千个 Streamlit 部件
     PAGE_SIZE = 30
     total_after_filter = len(sorted_entries)
-    shown = st.session_state.get(f"bf_entries_shown_{filename}", PAGE_SIZE)
-    page_entries = sorted_entries[:shown]
-    if total_after_filter > shown:
-        st.caption(get_text("briefing_showing").format(shown=len(page_entries), total=total_after_filter))
-        if st.button(get_text("briefing_load_more"), key=f"bf_more_{filename}",
-                     use_container_width=True):
-            st.session_state[f"bf_entries_shown_{filename}"] = shown + PAGE_SIZE
-            st.rerun()
+    total_pages = max(1, (total_after_filter + PAGE_SIZE - 1) // PAGE_SIZE)
+    # 筛选/排序变化时重置到第 1 页
+    _page_key = f"bf_page_{filename}"
+    _prev_cat = st.session_state.get(f"_bf_prev_cat_{filename}")
+    if _prev_cat != sel_cat:
+        st.session_state[_page_key] = 1
+        st.session_state[f"_bf_prev_cat_{filename}"] = sel_cat
+    current_page = st.session_state.get(_page_key, 1)
+    current_page = max(1, min(current_page, total_pages))
+    start_idx = (current_page - 1) * PAGE_SIZE
+    page_entries = sorted_entries[start_idx:start_idx + PAGE_SIZE]
+
+    # 分页信息行
+    st.caption(get_text("briefing_showing").format(
+        page=current_page, total_pages=total_pages, total=total_after_filter))
+
+    # 分页控件
+    if total_pages > 1:
+        _pg_cols = st.columns([1, 1, 2, 1, 1])
+        with _pg_cols[0]:
+            if st.button(get_text("briefing_page_first"), key=f"bf_pg_first_{filename}",
+                         disabled=current_page <= 1, use_container_width=True):
+                st.session_state[_page_key] = 1
+                st.rerun()
+        with _pg_cols[1]:
+            if st.button(get_text("briefing_page_prev"), key=f"bf_pg_prev_{filename}",
+                         disabled=current_page <= 1, use_container_width=True):
+                st.session_state[_page_key] = current_page - 1
+                st.rerun()
+        with _pg_cols[2]:
+            _jump = st.number_input(
+                get_text("briefing_page_jump"),
+                min_value=1, max_value=total_pages, value=current_page,
+                key=f"bf_pg_jump_{filename}",
+                label_visibility="collapsed",
+            )
+            if _jump != current_page:
+                st.session_state[_page_key] = _jump
+                st.rerun()
+            st.caption(get_text("briefing_page_of").format(total_pages=total_pages),
+                       unsafe_allow_html=True)
+        with _pg_cols[3]:
+            if st.button(get_text("briefing_page_next"), key=f"bf_pg_next_{filename}",
+                         disabled=current_page >= total_pages, use_container_width=True):
+                st.session_state[_page_key] = current_page + 1
+                st.rerun()
+        with _pg_cols[4]:
+            if st.button(get_text("briefing_page_last"), key=f"bf_pg_last_{filename}",
+                         disabled=current_page >= total_pages, use_container_width=True):
+                st.session_state[_page_key] = total_pages
+                st.rerun()
 
     # 反馈身份选择器：把反馈/点击归到具体订阅者（分析统计与个性化推送依赖真实身份数据）
     try:
@@ -349,7 +392,7 @@ def render_briefing_entries():
             except Exception:
                 kb_saved = False
 
-        act_cols = st.columns([1.1, 1.1, 1.6, 2.2, 4])
+        act_cols = st.columns([1, 1, 2.2, 2.5, 3.3])
         with act_cols[0]:
             if st.button(get_text("feedback_up"),
                          key=f"up_{category}_{filename}_{i}",
