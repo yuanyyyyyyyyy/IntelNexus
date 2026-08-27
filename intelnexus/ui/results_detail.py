@@ -151,9 +151,14 @@ def render_results_detail():
                     st.markdown(get_text("view_original").format(link=link))
                 # 收藏到简报草稿（搜→报飞轮闭环）
                 # key 必须全局唯一：i 是组内索引会重复，故用 source+全局序号组合
-                _render_collect_button(item, f"{source}_{actual_idx}")
-                _render_useful_button(item, f"{source}_{actual_idx}")
-                _render_save_to_kb_button(item, f"{source}_{actual_idx}")
+                # 三个按钮横向同行，避免各占一整行
+                _btn_cols = st.columns(3)
+                with _btn_cols[0]:
+                    _render_collect_button(item, f"{source}_{actual_idx}")
+                with _btn_cols[1]:
+                    _render_useful_button(item, f"{source}_{actual_idx}")
+                with _btn_cols[2]:
+                    _render_save_to_kb_button(item, f"{source}_{actual_idx}")
                 st.markdown("---")
 
     # 弱相关结果（被语义相关性过滤降权，不进报告/KG 主干，但保留可追溯）
