@@ -6,6 +6,8 @@ AI简报分析生成器
 
 import os
 import re
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 
@@ -18,6 +20,10 @@ from intelnexus.briefing.templates import (
 from intelnexus.core.logger import get_logger
 
 logger = get_logger(__name__)
+
+# NVD / CISA KEV 结构化数据缓存（进程级，避免每次简报重复拉取）
+_cve_api_cache: Dict[str, dict] = {"nvd": {"data": [], "ts": 0.0}, "kev": {"data": [], "ts": 0.0}}
+_CVE_CACHE_TTL = 3600  # 1 小时
 
 # 中文星期（datetime.weekday(): 0=周一）
 WEEKDAY_CN = ["一", "二", "三", "四", "五", "六", "日"]
@@ -250,22 +256,54 @@ class AIBriefingAnalyzer:
         on_progress("kb_recall", "正在关联历史收藏...", 0.39)
         self._kb_context = self._build_kb_recall_context(collected_data)
 
-        # 逐板块生成，并在每个板块前后上报进度
+        # 逐板块生成：top3 先行（CVE 表格依赖其编号去重），其余板块并行
         contents: Dict[str, str] = {}
         total = len(GENERATION_SECTIONS)
-        top3_cve_ids = set()  # TOP3 中已覆盖的 CVE 编号
-        for idx, (key, method_name) in enumerate(GENERATION_SECTIONS):
-            label = SECTION_LABELS[key]
-            pct = 0.4 + 0.55 * (idx / total)
-            on_progress("generate_progress", f"正在生成：{label}（{idx + 1}/{total}）", pct)
+        top3_cve_ids: set = set()
+
+        # ---- Step 1: top3（串行，后续 CVE 表格需要其编号）----
+        label = SECTION_LABELS["top3"]
+        on_progress("generate_progress", f"正在生成：{label}（1/{total}）", 0.4)
+        contents["top3"] = self._generate_top3(collected_data, llm)
+        top3_cve_ids = set(re.findall(r'CVE-\d{4}-\d+', contents["top3"]))
+
+        # ---- Step 2: 其余板块并行（ThreadPoolExecutor）----
+        remaining = [(k, m) for k, m in GENERATION_SECTIONS if k != "top3"]
+        remaining_total = len(remaining)
+        completed_count = 0
+        _lock = threading.Lock()
+
+        def _run_section(key: str, method_name: str) -> tuple:
+            """执行单个板块生成，返回 (key, content)"""
             if key == "cve_table":
-                contents[key] = getattr(self, method_name)(collected_data, llm,
-                                                          skip_cve_ids=top3_cve_ids)
+                content = getattr(self, method_name)(collected_data, llm,
+                                                     skip_cve_ids=top3_cve_ids)
             else:
-                contents[key] = getattr(self, method_name)(collected_data, llm)
-            # TOP3 生成后提取其中的 CVE 编号，供后续 CVE 表格去重
-            if key == "top3":
-                top3_cve_ids = set(re.findall(r'CVE-\d{4}-\d+', contents["top3"]))
+                content = getattr(self, method_name)(collected_data, llm)
+            return key, content
+
+        with ThreadPoolExecutor(max_workers=min(4, remaining_total)) as executor:
+            future_to_key = {
+                executor.submit(_run_section, k, m): k
+                for k, m in remaining
+            }
+            for future in as_completed(future_to_key):
+                key = future_to_key[future]
+                try:
+                    key, content = future.result()
+                    contents[key] = content
+                except Exception as e:
+                    logger.error(f"板块 {key} 并行生成异常: {e}")
+                    contents[key] = self._get_fallback_content(key)
+                    self._add_warning(SECTION_LABELS.get(key, key), f"并行生成异常：{e}")
+                with _lock:
+                    completed_count += 1
+                    pct = 0.4 + 0.55 * ((1 + completed_count) / total)
+                    on_progress(
+                        "generate_progress",
+                        f"正在生成：{SECTION_LABELS.get(key, key)}（{1 + completed_count}/{total}）",
+                        pct,
+                    )
 
         # 知识图谱链接追加到「重要链接」板块（绝对路径：外发/邮件场景下
         # 相对路径 data\briefings\… 无法打开）
@@ -540,45 +578,67 @@ class AIBriefingAnalyzer:
         results = self._collect(CVE_CATS, collected_data)
         header = "| CVE编号 | 影响产品 | 漏洞类型 | CVSS | 利用状态 | 建议措施 |\n| --- | --- | --- | --- | --- | --- |"
 
-        # 从 NVD / CISA KEV 获取结构化数据
+        # ---- 从缓存或 API 拉取 NVD / CISA KEV 结构化数据 ----
+        import time
+        now_ts = time.time()
+
+        def _fetch_nvd():
+            try:
+                from intelnexus.core.search.sources.nvd_source import NVDSearchSource
+                nvd = NVDSearchSource()
+                return nvd.search_recent_critical(days=7, max_results=10)
+            except Exception as e:
+                logger.warning(f"NVD API 拉取失败: {e}")
+                return []
+
+        def _fetch_kev():
+            try:
+                from intelnexus.core.search.sources.cisa_kev_source import CISAKEVSource
+                kev = CISAKEVSource()
+                return kev.search("vulnerability", max_results=10)
+            except Exception as e:
+                logger.warning(f"CISA KEV API 拉取失败: {e}")
+                return []
+
+        # 检查缓存有效性
+        with threading.Lock():
+            if now_ts - _cve_api_cache["nvd"]["ts"] > _CVE_CACHE_TTL:
+                _cve_api_cache["nvd"]["data"] = _fetch_nvd()
+                _cve_api_cache["nvd"]["ts"] = now_ts
+            if now_ts - _cve_api_cache["kev"]["ts"] > _CVE_CACHE_TTL:
+                _cve_api_cache["kev"]["data"] = _fetch_kev()
+                _cve_api_cache["kev"]["ts"] = now_ts
+            nvd_results = _cve_api_cache["nvd"]["data"]
+            kev_results = _cve_api_cache["kev"]["data"]
+
+        # 提取 NVD 结构化数据
         nvd_data = []
+        for r in nvd_results:
+            metadata = r.get("metadata", {})
+            if metadata.get("cve_id"):
+                nvd_data.append({
+                    "cve_id": metadata.get("cve_id", ""),
+                    "cvss_score": metadata.get("cvss_score", ""),
+                    "affected_products": metadata.get("affected_products", []),
+                    "vuln_types": metadata.get("vuln_types", []),
+                    "description": r.get("description", "")[:200],
+                    "url": r.get("url", ""),
+                })
+
+        # 提取 CISA KEV 结构化数据
         kev_data = []
-        try:
-            from intelnexus.core.search.sources.nvd_source import NVDSearchSource
-            from intelnexus.core.search.sources.cisa_kev_source import CISAKEVSource
-            nvd = NVDSearchSource()
-            kev = CISAKEVSource()
-            nvd_results = nvd.search_recent_critical(days=7, max_results=10)
-            kev_results = kev.search("vulnerability", max_results=10)
-
-            # 提取 NVD 结构化数据
-            for r in nvd_results:
-                metadata = r.get("metadata", {})
-                if metadata.get("cve_id"):
-                    nvd_data.append({
-                        "cve_id": metadata.get("cve_id", ""),
-                        "cvss_score": metadata.get("cvss_score", ""),
-                        "affected_products": metadata.get("affected_products", []),
-                        "vuln_types": metadata.get("vuln_types", []),
-                        "description": r.get("description", "")[:200],
-                        "url": r.get("url", ""),
-                    })
-
-            # 提取 CISA KEV 结构化数据
-            for r in kev_results:
-                metadata = r.get("metadata", {})
-                if metadata.get("cve_id"):
-                    kev_data.append({
-                        "cve_id": metadata.get("cve_id", ""),
-                        "vendor": metadata.get("vendor", ""),
-                        "product": metadata.get("product", ""),
-                        "due_date": metadata.get("due_date", ""),
-                        "required_action": metadata.get("required_action", ""),
-                        "description": r.get("description", "")[:200],
-                        "url": r.get("url", ""),
-                    })
-        except Exception as e:
-            logger.warning(f"NVD/KEV API 数据拉取失败: {e}")
+        for r in kev_results:
+            metadata = r.get("metadata", {})
+            if metadata.get("cve_id"):
+                kev_data.append({
+                    "cve_id": metadata.get("cve_id", ""),
+                    "vendor": metadata.get("vendor", ""),
+                    "product": metadata.get("product", ""),
+                    "due_date": metadata.get("due_date", ""),
+                    "required_action": metadata.get("required_action", ""),
+                    "description": r.get("description", "")[:200],
+                    "url": r.get("url", ""),
+                })
 
         # 合并数据，优先使用 KEV 数据（在野利用更紧急）
         all_cves = {}

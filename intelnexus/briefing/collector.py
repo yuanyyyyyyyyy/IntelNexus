@@ -195,7 +195,7 @@ class AIBriefingCollector:
                     query=query,
                     max_results=max_results,
                     threads=5,
-                    global_timeout=90  # 从60s增加到90s，减少超时错误
+                    global_timeout=60  # 从90s降至60s，减少无效等待
                 )
 
                 # 转换为统一格式
