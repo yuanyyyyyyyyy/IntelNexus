@@ -644,10 +644,11 @@ def _render_custom_providers():
                 with btn_test:
                     if st.button(get_text("test_connection"), key=f"test_provider_list_{pname}"):
                         with st.spinner(get_text("testing_connection")):
+                            pconfig = get_provider_config(pname)
                             ok, msg = test_provider_connection(
-                                provider.get("base_url", ""),
-                                provider.get("api_key", ""),
-                                provider.get("api_format", "openai"),
+                                pconfig.get("base_url", "") if pconfig else provider.get("base_url", ""),
+                                pconfig.get("api_key", "") if pconfig else "",
+                                pconfig.get("api_format", "openai") if pconfig else provider.get("api_format", "openai"),
                             )
                             if ok:
                                 st.success(msg)
