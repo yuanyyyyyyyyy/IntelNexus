@@ -428,6 +428,7 @@ def _render_custom_models():
                         st.session_state[editing_key] = False
                         st.rerun()
             else:
+                st.markdown('<div class="custom-model-actions">', unsafe_allow_html=True)
                 btn_edit, btn_test, btn_del = st.columns(3)
                 with btn_edit:
                     if st.button(get_text("edit_model"), key=f"edit_{mname}"):
@@ -458,6 +459,7 @@ def _render_custom_models():
                         if remove_custom_model(mname):
                             st.success(get_text("deleted"))
                             st.rerun()
+                st.markdown('</div>', unsafe_allow_html=True)
 
             # 编辑表单（展开在模型条目下方）
             if is_editing:
@@ -644,6 +646,7 @@ def _render_custom_providers():
                             else:
                                 st.error(msg)
             else:
+                st.markdown('<div class="custom-provider-actions">', unsafe_allow_html=True)
                 btn_edit, btn_del, btn_test = st.columns(3)
                 with btn_edit:
                     if st.button(get_text("edit_provider"), key=f"edit_provider_{pname}"):
@@ -675,6 +678,7 @@ def _render_custom_providers():
                                 st.success(msg)
                             else:
                                 st.error(msg)
+                st.markdown('</div>', unsafe_allow_html=True)
 
             # 编辑表单
             if is_editing:
