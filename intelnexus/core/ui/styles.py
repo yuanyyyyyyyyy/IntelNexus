@@ -1436,8 +1436,6 @@ def render_workbench_css():
         --wb-green: #4ADE80;
         --wb-orange: #0055FF;
         --wb-red: #EF5350;
-        background-color: var(--wb-surface) !important;
-        background-image: none !important;
     }
 
     /* 去掉简报 Tab 内 .stMarkdown 容器自带的背景 / padding / margin */
