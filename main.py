@@ -13,28 +13,55 @@ from typing import Dict, List
 # reloads ("Examining the path of torch.classes raised: Tried to instantiate
 # class '__path__._path'..."). It is a known no-op message, not an error.
 # We filter it at the stderr stream level so real errors stay visible.
-class _StderrTorchFilter:
+class _StderrNoiseFilter:
+    """过滤 stderr 中的已知无害噪音（torch / langchain-openai 等）。
+
+    多行消息处理：匹配到噪音首行后进入抑制模式，直到遇到空行或
+    新的标准日志行（[timestamp 前缀）才恢复输出，避免多行警告的
+    后续行泄漏。
+    """
     def __init__(self, stream):
         self._stream = stream
         self._buf = ""
+        self._suppress = False
 
-    _TORCH_NOISE = (
+    _NOISE_PREFIXES = (
         "Examining the path of torch.classes raised",
         "Tried to instantiate class '__path__._path'",
+        "langchain-openai injected a custom httpx transport",
     )
 
+    def _is_noise_start(self, line: str) -> bool:
+        return any(line.startswith(p) for p in self._NOISE_PREFIXES)
+
+    @staticmethod
+    def _is_noise_end(line: str) -> bool:
+        """空行或新日志行（[20... 前缀）标志噪音消息结束。"""
+        stripped = line.strip()
+        if not stripped:
+            return True
+        if stripped.startswith("[20"):
+            return True
+        return False
+
     def write(self, data):
-        # torch prints this as a single line; buffer until newline to decide
         self._buf += data
-        if "\n" in self._buf:
-            head, self._buf = self._buf.rsplit("\n", 1)
-            head += "\n"
-            if not any(k in head for k in self._TORCH_NOISE):
-                self._stream.write(head)
+        while "\n" in self._buf:
+            line, self._buf = self._buf.split("\n", 1)
+            if self._suppress:
+                if self._is_noise_end(line):
+                    self._suppress = False
+                    self._stream.write(line + "\n")
+            elif self._is_noise_start(line):
+                self._suppress = True
+            else:
+                self._stream.write(line + "\n")
 
     def flush(self):
-        if self._buf and not any(k in self._buf for k in self._TORCH_NOISE):
-            self._stream.write(self._buf)
+        if self._buf:
+            if not self._suppress:
+                self._stream.write(self._buf)
+            self._buf = ""
         self._stream.flush()
 
     def __getattr__(self, name):
@@ -42,13 +69,18 @@ class _StderrTorchFilter:
 
 
 if not getattr(sys, "frozen", False):
-    sys.stderr = _StderrTorchFilter(sys.stderr)
+    sys.stderr = _StderrNoiseFilter(sys.stderr)
 
 logging.getLogger("torch").setLevel(logging.CRITICAL + 1)
 
 # langchain-openai 注入自定义 httpx transport 后会禁用 httpx 的代理自动检测，
 # 并在每次导入时输出一行 warning。本地部署不需要此行为，提前关闭。
 os.environ.setdefault("LANGCHAIN_OPENAI_TCP_KEEPALIVE", "0")
+# 双重保险：即便 env var 未生效，也抑制 langchain 系列的 INFO/WARNING 日志，
+# 只保留 ERROR 及以上级别（真正的错误不应被吞掉）。
+logging.getLogger("langchain").setLevel(logging.ERROR)
+logging.getLogger("langchain_openai").setLevel(logging.ERROR)
+logging.getLogger("langchain_core").setLevel(logging.ERROR)
 
 # Ensure root project dir resolves first so root-level config.py and the
 # intelnexus/ package are importable. The single-package layout removes the
