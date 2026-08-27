@@ -287,7 +287,13 @@ def test_provider_connection(base_url: str, api_key: str = "", api_format: str =
     import time
     import requests
 
+    logger.info("[PROVIDER TEST] ======== 开始测试供应商连接 ========")
+    logger.info("[PROVIDER TEST] 原始 URL: %s", base_url)
+    logger.info("[PROVIDER TEST] API 格式: %s", api_format)
+    logger.info("[PROVIDER TEST] API Key: %s...", api_key[:10] if api_key and len(api_key) > 10 else api_key or "无")
+
     if not base_url:
+        logger.warning("[PROVIDER TEST] URL 为空，终止测试")
         return False, "请填写请求地址"
 
     try:
@@ -299,7 +305,10 @@ def test_provider_connection(base_url: str, api_key: str = "", api_format: str =
             else:
                 headers["Authorization"] = f"Bearer {api_key}"
 
+        logger.info("[PROVIDER TEST] 请求头: %s", {k: v[:20] + "..." if len(v) > 20 else v for k, v in headers.items()})
+
         test_payload = {"model": "test", "messages": [{"role": "user", "content": "hi"}], "max_tokens": 1}
+        logger.info("[PROVIDER TEST] 请求体: %s", test_payload)
 
         url = base_url.rstrip("/")
         
@@ -319,48 +328,68 @@ def test_provider_connection(base_url: str, api_key: str = "", api_format: str =
                 else:
                     candidate_urls.append(url + "/v1/chat/completions")
         
+        logger.info("[PROVIDER TEST] 候选 URL 列表 (%d 个):", len(candidate_urls))
+        for i, u in enumerate(candidate_urls, 1):
+            logger.info("[PROVIDER TEST]   %d. %s", i, u)
+        
         last_error = None
-        for test_url in candidate_urls:
+        for idx, test_url in enumerate(candidate_urls, 1):
+            logger.info("[PROVIDER TEST] 尝试 URL %d/%d: %s", idx, len(candidate_urls), test_url)
             try:
                 start_time = time.time()
                 response = requests.post(test_url, json=test_payload, headers=headers, timeout=10)
                 latency_ms = int((time.time() - start_time) * 1000)
                 
+                logger.info("[PROVIDER TEST] 响应状态码: %d", response.status_code)
+                logger.info("[PROVIDER TEST] 响应内容: %s", response.text[:500] if response.text else "空")
+                
                 # 如果得到任何响应（包括错误响应），说明连接成功
                 if response.status_code in (200, 201):
+                    logger.info("[PROVIDER TEST] 连接成功 (%dms)", latency_ms)
                     return True, f"连接成功 ({latency_ms}ms)"
                 elif response.status_code == 401:
+                    logger.warning("[PROVIDER TEST] 认证失败 (401)")
                     return False, f"认证失败 (401) - API Key 无效"
                 elif response.status_code == 403:
+                    logger.warning("[PROVIDER TEST] 访问被拒绝 (403)")
                     return False, f"访问被拒绝 (403)"
                 elif response.status_code == 404:
                     last_error = f"地址不存在 (404)"
+                    logger.warning("[PROVIDER TEST] URL %d 返回 404，尝试下一个", idx)
                     continue  # 尝试下一个 URL
                 elif response.status_code == 429:
+                    logger.warning("[PROVIDER TEST] 请求过于频繁 (429)")
                     return False, f"请求过于频繁 (429)"
                 elif response.status_code == 405:
+                    logger.info("[PROVIDER TEST] 连接成功 (%dms) - 方法不允许但服务器可达", latency_ms)
                     return True, f"连接成功 ({latency_ms}ms) - 方法不允许但服务器可达"
                 else:
+                    logger.info("[PROVIDER TEST] 连接成功 (%dms) - 状态码: %d", latency_ms, response.status_code)
                     return True, f"连接成功 ({latency_ms}ms) - 状态码: {response.status_code}"
             except requests.exceptions.Timeout:
                 last_error = "连接超时 (10s)"
+                logger.warning("[PROVIDER TEST] URL %d 超时 (10s)", idx)
                 continue
             except requests.exceptions.ConnectionError as e:
-                last_error = f"连接错误"
+                last_error = f"连接错误: {str(e)[:100]}"
+                logger.warning("[PROVIDER TEST] URL %d 连接错误: %s", idx, str(e)[:200])
                 continue
             except Exception as e:
                 error_msg = str(e)
                 if len(error_msg) > 200:
                     error_msg = error_msg[:200] + "..."
                 last_error = f"连接失败: {error_msg}"
+                logger.warning("[PROVIDER TEST] URL %d 异常: %s", idx, error_msg)
                 continue
         
+        logger.error("[PROVIDER TEST] 所有 URL 均失败，最后错误: %s", last_error)
         return False, last_error or "无法访问目标地址"
 
     except Exception as e:
         error_msg = str(e)
         if len(error_msg) > 200:
             error_msg = error_msg[:200] + "..."
+        logger.exception("[PROVIDER TEST] 未预期的异常")
         return False, f"连接失败: {error_msg}"
 
 
