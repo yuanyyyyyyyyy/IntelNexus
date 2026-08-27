@@ -516,7 +516,7 @@ def delete_briefing(filename: str):
 
 
 def render_data_sources_panel():
-    """数据源管理面板 — 左右分栏：左侧搜索+列表，右侧详情/表单"""
+    """数据源管理面板（蓝色标签条）"""
     st.markdown(f'''
     <div class="bf-panel bf-panel--source">
         <div class="bf-label">
@@ -526,251 +526,49 @@ def render_data_sources_panel():
     ''', unsafe_allow_html=True)
 
     try:
-        from intelnexus.config.sources import (
-            get_all_sources, add_source, remove_source, toggle_source,
-            update_source, test_source,
-        )
+        from intelnexus.config.sources import get_all_sources, add_source, remove_source, toggle_source, update_source, test_source
         SOURCES_AVAILABLE = True
     except ImportError:
         SOURCES_AVAILABLE = False
 
     if not SOURCES_AVAILABLE:
-        st.markdown(f"<p class='bf-hint bf-hint--warn'>{get_text('module_unavailable')}</p>",
-                     unsafe_allow_html=True)
+        st.markdown(f"<p class='bf-hint bf-hint--warn'>{get_text('module_unavailable')}</p>", unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
         return
 
+    with st.expander(get_text("add_data_source")):
+        source_type = st.selectbox(
+            get_text("source_type"),
+            [get_text("source_type_rss"), get_text("source_type_web")],
+            key="bf_source_type_selector"
+        )
+        source_name = st.text_input(get_text("source_name"), key="bf_source_name_input")
+        source_url = st.text_input(get_text("source_url"), key="bf_source_url_input")
+
+        # 动态读取关注点配置（含用户自定义）——修复：新关注点无法归属数据源
+        categories = _watch_category_options()
+        source_category = st.selectbox(
+            get_text("source_category"),
+            list(categories.keys()),
+            format_func=lambda x: categories[x],
+            key="bf_source_category_selector"
+        )
+
+        if st.button(get_text("add_source"), key="bf_add_source_btn"):
+            if source_name and source_url:
+                type_val = "rss" if source_type == get_text("source_type_rss") else "web"
+                if add_source(type_val, source_name, source_url, source_category):
+                    st.success(get_text("source_added"))
+                    st.rerun()
+                else:
+                    st.error(get_text("source_add_failed"))
+            else:
+                st.warning(get_text("fill_fields"))
+
     sources = get_all_sources()
     all_sources_list = sources.get("subscription_sources", []) + sources.get("custom_sources", [])
-    categories = _watch_category_options()
 
-    # ---- 左栏：搜索 + 列表 ----
-    left, right = st.columns([1, 2])
-
-    with left:
-        search = st.text_input(
-            get_text("search_placeholder"),
-            key="bf_src_search",
-            placeholder=get_text("search_placeholder"),
-            label_visibility="collapsed",
-        )
-        query = search.strip().lower()
-        filtered = [
-            s for s in all_sources_list
-            if not query
-            or query in s.get("name", "").lower()
-            or query in s.get("url", "").lower()
-        ]
-
-        if not filtered:
-            st.caption(get_text("no_items"))
-        else:
-            for src in filtered:
-                status_cls = "active" if src.get("enabled", True) else ""
-                tag = "RSS" if src.get("fetch_type") == "rss" else "Web"
-                label = f"{src['name'][:20]}  [{tag}]"
-                if st.button(
-                    label,
-                    key=f"bf_src_sel_{src['id']}",
-                    use_container_width=True,
-                ):
-                    st.session_state.bf_src_selected = src["id"]
-                    st.rerun()
-
-        # 底部：添加按钮 + 批量测试
-        st.markdown("---")
-        if st.button(f"+ {get_text('add_data_source')}", key="bf_src_add_btn",
-                      use_container_width=True):
-            st.session_state.bf_src_selected = None
-            st.session_state.bf_src_mode = "add"
-            st.rerun()
-
-        if all_sources_list:
-            if st.button(get_text("batch_test"), key="bf_src_batch_test",
-                          use_container_width=True):
-                st.session_state.bf_src_batch_test = True
-                st.rerun()
-
-    # ---- 批量测试结果 ----
-    if st.session_state.get("bf_src_batch_test"):
-        with st.spinner(get_text("testing")):
-            results = []
-            for src in all_sources_list:
-                ft = src.get("fetch_type", "web_engine")
-                r = test_source(src["url"], ft, timeout=8)
-                results.append((src["name"], r))
-            st.session_state.bf_src_batch_test = False
-
-        with right:
-            st.markdown(f"**{get_text('test_results')}**")
-            for name, r in results:
-                cls = "active" if r["success"] else "error"
-                status = get_text("source_ok") if r["success"] else get_text("source_fail")
-                st.markdown(
-                    f'<span class="status-dot {cls}"></span> '
-                    f'{html.escape(name)} — {status} ({r.get("latency_ms", "—")}ms)',
-                    unsafe_allow_html=True,
-                )
-            st.markdown("---")
-
-    # ---- 右栏：详情 / 添加 / 编辑 ----
-    with right:
-        mode = st.session_state.get("bf_src_mode")
-        sel_id = st.session_state.get("bf_src_selected")
-
-        if mode == "add":
-            # ---- 添加表单 ----
-            st.markdown(f"**{get_text('add_data_source')}**")
-            src_type = st.selectbox(
-                get_text("source_type"),
-                [get_text("source_type_rss"), get_text("source_type_web")],
-                key="bf_src_new_type",
-            )
-            src_name = st.text_input(get_text("source_name"), key="bf_src_new_name")
-            src_url = st.text_input(get_text("source_url"), key="bf_src_new_url")
-            cat_keys = list(categories.keys())
-            src_cat = st.selectbox(
-                get_text("source_category"), cat_keys,
-                format_func=lambda x: categories[x],
-                key="bf_src_new_cat",
-            )
-            c1, c2 = st.columns(2)
-            with c1:
-                if st.button(get_text("add_source"), key="bf_src_new_submit",
-                              use_container_width=True):
-                    if src_name and src_url:
-                        tv = "rss" if src_type == get_text("source_type_rss") else "web"
-                        if add_source(tv, src_name, src_url, src_cat):
-                            st.success(get_text("source_added"))
-                            st.session_state.bf_src_mode = None
-                            st.rerun()
-                        else:
-                            st.error(get_text("source_add_failed"))
-                    else:
-                        st.warning(get_text("fill_fields"))
-            with c2:
-                if st.button(get_text("cancel"), key="bf_src_new_cancel",
-                              use_container_width=True):
-                    st.session_state.bf_src_mode = None
-                    st.rerun()
-
-            # 预设导入 + OPML 导入
-            _render_source_import_section(categories)
-
-        elif mode == "edit" and sel_id:
-            # ---- 编辑表单 ----
-            src = next((s for s in all_sources_list if s["id"] == sel_id), None)
-            if not src:
-                st.session_state.bf_src_mode = None
-            else:
-                st.markdown(f"**{get_text('edit_label')}**")
-                edit_name = st.text_input(get_text("name_label"), value=src["name"],
-                                           key="bf_src_ed_name")
-                edit_url = st.text_input("URL", value=src["url"], key="bf_src_ed_url")
-                cat_keys = list(categories.keys())
-                cur_cat = src.get("category", "")
-                edit_cat = st.selectbox(
-                    get_text("category_label"), cat_keys,
-                    index=cat_keys.index(cur_cat) if cur_cat in cat_keys else 0,
-                    format_func=lambda x: categories[x],
-                    key="bf_src_ed_cat",
-                )
-                c1, c2 = st.columns(2)
-                with c1:
-                    if st.button(get_text("save"), key="bf_src_ed_save",
-                                  use_container_width=True):
-                        if edit_name and edit_url:
-                            update_source(sel_id, {
-                                "name": edit_name, "url": edit_url,
-                                "category": edit_cat,
-                            })
-                            st.session_state.bf_src_mode = None
-                            st.rerun()
-                        else:
-                            st.warning(get_text("fill_fields"))
-                with c2:
-                    if st.button(get_text("cancel"), key="bf_src_ed_cancel",
-                                  use_container_width=True):
-                        st.session_state.bf_src_mode = None
-                        st.rerun()
-
-        elif sel_id:
-            # ---- 详情视图 ----
-            src = next((s for s in all_sources_list if s["id"] == sel_id), None)
-            if not src:
-                st.session_state.bf_src_selected = None
-            else:
-                enabled = src.get("enabled", True)
-                tag = "RSS" if src.get("fetch_type") == "rss" else get_text("source_type_web")
-                cat_label = categories.get(src.get("category", ""), src.get("category", "—"))
-                st.markdown(f"### {html.escape(src['name'])}")
-                st.caption(f"{tag} · {cat_label}")
-                st.markdown(f"`{html.escape(src['url'][:80])}`")
-                status_cls = "active" if enabled else "error"
-                status_text = get_text("enabled_label") if enabled else get_text("disabled_label")
-                st.markdown(
-                    f'<span class="status-dot {status_cls}"></span> {status_text}',
-                    unsafe_allow_html=True,
-                )
-
-                c1, c2, c3 = st.columns(3)
-                with c1:
-                    if st.button(get_text("test_source_btn"), key="bf_src_detail_test",
-                                  use_container_width=True):
-                        ft = src.get("fetch_type", "web_engine")
-                        result = test_source(src["url"], ft)
-                        if result["success"]:
-                            st.success(get_text("source_test_ok_msg").format(
-                                latency=result.get("latency_ms", "?")))
-                        else:
-                            st.error(get_text("source_test_fail_msg").format(
-                                reason=result["message"]))
-                with c2:
-                    if st.button(get_text("edit"), key="bf_src_detail_edit",
-                                  use_container_width=True):
-                        st.session_state.bf_src_mode = "edit"
-                        st.rerun()
-                with c3:
-                    if st.button(get_text("delete"), key="bf_src_detail_del",
-                                  use_container_width=True):
-                        st.session_state[f"confirm_del_src_{sel_id}"] = True
-                        st.rerun()
-
-                if st.session_state.get(f"confirm_del_src_{sel_id}"):
-                    st.warning(get_text("confirm_delete") + "?")
-                    dc1, dc2 = st.columns(2)
-                    with dc1:
-                        if st.button(get_text("confirm_delete"), key="bf_src_del_confirm",
-                                      use_container_width=True, type="primary"):
-                            remove_source(sel_id)
-                            st.session_state.bf_src_selected = None
-                            st.session_state.bf_src_mode = None
-                            st.session_state.pop(f"confirm_del_src_{sel_id}", None)
-                            st.rerun()
-                    with dc2:
-                        if st.button(get_text("cancel"), key="bf_src_del_cancel",
-                                      use_container_width=True):
-                            st.session_state.pop(f"confirm_del_src_{sel_id}", None)
-                            st.rerun()
-
-                # 启用/禁用切换
-                st.markdown("---")
-                new_enabled = st.toggle(
-                    get_text("enabled_label"), value=enabled,
-                    key="bf_src_toggle",
-                )
-                if new_enabled != enabled:
-                    toggle_source(sel_id, new_enabled)
-                    st.rerun()
-
-        else:
-            st.info(get_text("no_selection"))
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-
-def _render_source_import_section(categories: dict) -> None:
-    """数据源面板内的预设导入 + OPML 导入（仅在添加模式下显示）"""
+    # 精选情报源一键导入（内置经过验证的 12 个一手 RSS 源，按关注点分组）
     with st.expander(get_text("preset_import_title")):
         st.caption(get_text("preset_import_hint"))
         try:
@@ -798,7 +596,6 @@ def _render_source_import_section(categories: dict) -> None:
             elif not sel:
                 st.warning(get_text("fill_fields"))
             else:
-                from intelnexus.config.sources import add_source as _add_src
                 tree = ET.parse(opml_path)
                 added = 0
                 _pairs = []
@@ -814,21 +611,21 @@ def _render_source_import_section(categories: dict) -> None:
                     cat_for_feed = _glabel
                     if cat_for_feed is None or cat_for_feed not in sel:
                         continue
-                    ok = _add_src("rss", outline.get("text", "feed"), xml_url,
-                                  cat_for_feed, fetch_type="rss")
+                    ok = add_source("rss", outline.get("text", "feed"), xml_url,
+                                    cat_for_feed, fetch_type="rss")
                     added += 1 if ok else 0
                 st.success(get_text("preset_imported").format(added=added))
 
+    # OPML 批量导入 RSS
     with st.expander(get_text("import_opml")):
-        opml_file = st.file_uploader(get_text("opml_upload"), type=["opml", "xml"],
-                                      key="bf_opml_uploader")
+        opml_file = st.file_uploader(get_text("opml_upload"), type=["opml", "xml"], key="bf_opml_uploader")
         _cats_now = _watch_category_options()
         if opml_file is not None and _cats_now:
             opml_cat = st.selectbox(
                 get_text("source_category"),
                 list(_cats_now.keys()),
                 format_func=lambda x: _cats_now[x],
-                key="bf_opml_category",
+                key="bf_opml_category"
             )
             if st.button(get_text("opml_import_btn"), key="bf_opml_import_btn"):
                 try:
@@ -847,9 +644,109 @@ def _render_source_import_section(categories: dict) -> None:
         elif opml_file is not None and not _cats_now:
             st.info(get_text("no_watch_categories"))
 
+    if all_sources_list:
+        with st.expander(get_text("manage_sources")):
+            # 搜索过滤
+            _src_search = st.text_input(
+                get_text("search_placeholder"),
+                key="bf_src_search",
+                placeholder=get_text("search_placeholder"),
+                label_visibility="collapsed",
+            )
+            _src_query = _src_search.strip().lower()
+            _filtered_src = [
+                s for s in all_sources_list
+                if not _src_query
+                or _src_query in s.get("name", "").lower()
+                or _src_query in s.get("url", "").lower()
+            ]
+
+            # 批量测试
+            if st.button(get_text("batch_test"), key="bf_src_batch_test"):
+                st.session_state.bf_src_batch_running = True
+            if st.session_state.get("bf_src_batch_running"):
+                with st.spinner(get_text("testing")):
+                    for _bs in _filtered_src:
+                        _ft = _bs.get("fetch_type", "web_engine")
+                        _br = test_source(_bs["url"], _ft, timeout=8)
+                        _bcls = "active" if _br["success"] else "error"
+                        _bstatus = get_text("source_ok") if _br["success"] else get_text("source_fail")
+                        st.markdown(
+                            f'<span class="status-dot {_bcls}"></span> '
+                            f'{html.escape(_bs["name"])} — {_bstatus} ({_br.get("latency_ms", "—")}ms)',
+                            unsafe_allow_html=True,
+                        )
+                st.session_state.bf_src_batch_running = False
+
+            for source in _filtered_src:
+                col_info, col_toggle, col_actions = st.columns([4, 1, 2])
+                with col_info:
+                    st.write(f"**{html.escape(str(source['name']))}**")
+                    _type_label = "RSS" if source.get("fetch_type") == "rss" else get_text("source_type_web")
+                    _cat_label = categories.get(source.get("category", ""), source.get("category", "—"))
+                    st.caption(f"[{_type_label}] {_cat_label} · {source['url'][:60]}...")
+                with col_toggle:
+                    enabled = st.toggle(get_text("enabled_label"), value=source.get("enabled", True), key=f"bf_toggle_{source['id']}", label_visibility="collapsed")
+                    if enabled != source.get("enabled", True):
+                        toggle_source(source['id'], enabled)
+                        st.rerun()
+                with col_actions:
+                    act_cols = st.columns(3)
+                    with act_cols[0]:
+                        if st.button(get_text("test_source_btn"), key=f"bf_test_{source['id']}",
+                                     help=get_text("test_source_help")):
+                            fetch_type = source.get("fetch_type", "web_engine")
+                            result = test_source(source['url'], fetch_type)
+                            if result["success"]:
+                                st.success(result["message"])
+                            else:
+                                st.error(result["message"])
+                    with act_cols[1]:
+                        if st.button(get_text("edit"), key=f"bf_edit_{source['id']}",
+                                     help=get_text("edit_source_help")):
+                            st.session_state[f"editing_source_{source['id']}"] = True
+                            st.rerun()
+                    with act_cols[2]:
+                        if _delete_with_confirm(f"src_{source['id']}"):
+                            if remove_source(source['id']):
+                                st.rerun()
+
+                # 编辑表单
+                if st.session_state.get(f"editing_source_{source['id']}"):
+                    with st.container():
+                        st.caption(get_text("edit_label"))
+                        edit_name = st.text_input(get_text("name_label"), value=source['name'], key=f"bf_edit_name_{source['id']}")
+                        edit_url = st.text_input("URL", value=source['url'], key=f"bf_edit_url_{source['id']}")
+                        cat_options = list(categories.keys())
+                        edit_cat = st.selectbox(
+                            get_text("category_label"),
+                            cat_options,
+                            index=cat_options.index(source.get('category', 'ai_gov_usage')) if source.get('category') in cat_options else 0,
+                            format_func=lambda x: categories[x],
+                            key=f"bf_edit_cat_{source['id']}"
+                        )
+                        ecol1, ecol2 = st.columns(2)
+                        with ecol1:
+                            if st.button(get_text("save"), key=f"bf_save_{source['id']}"):
+                                if edit_name and edit_url:
+                                    update_source(source['id'], {"name": edit_name, "url": edit_url, "category": edit_cat})
+                                    st.session_state[f"editing_source_{source['id']}"] = False
+                                    st.rerun()
+                        with ecol2:
+                            if st.button(get_text("cancel"), key=f"bf_cancel_{source['id']}"):
+                                st.session_state[f"editing_source_{source['id']}"] = False
+                                st.rerun()
+    else:
+        st.markdown(
+            f"<p class='bf-hint'>{get_text('no_sources')} —— {get_text('welcome_step_sources_desc')}</p>",
+            unsafe_allow_html=True
+        )
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
 
 def render_subscriptions_panel():
-    """订阅者管理面板 — 左右分栏：左侧搜索+列表，右侧详情/表单"""
+    """订阅者管理面板（绿色标签条）"""
     st.markdown(f'''
     <div class="bf-panel bf-panel--sub">
         <div class="bf-label">
@@ -859,290 +756,348 @@ def render_subscriptions_panel():
     ''', unsafe_allow_html=True)
 
     try:
-        from intelnexus.config.subscriptions import (
-            get_all_subscribers, add_subscriber, remove_subscriber, update_subscriber,
-        )
+        from intelnexus.config.subscriptions import get_all_subscribers, add_subscriber, remove_subscriber, update_subscriber
         SUBSCRIPTION_AVAILABLE = True
     except ImportError:
         SUBSCRIPTION_AVAILABLE = False
 
     if not SUBSCRIPTION_AVAILABLE:
-        st.markdown(f"<p class='bf-hint bf-hint--warn'>{get_text('module_unavailable')}</p>",
-                     unsafe_allow_html=True)
+        st.markdown(f"<p class='bf-hint bf-hint--warn'>{get_text('module_unavailable')}</p>", unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
         return
 
     from intelnexus.config.email_settings import (
-        get_email_settings, save_email_settings, test_email_settings,
+        get_email_settings, save_email_settings, test_email_settings
     )
+
     _render_scheduler_status_banner()
 
-    subscribers = get_all_subscribers()
-    categories = _watch_category_options()
+    with st.expander(get_text("email_settings"), expanded=False):
+        stored_cfg = get_email_settings()
 
-    # ---- 左栏：搜索 + 列表 ----
-    left, right = st.columns([1, 2])
-
-    with left:
-        search = st.text_input(
-            get_text("search_placeholder"),
-            key="bf_sub_search",
-            placeholder=get_text("search_placeholder"),
-            label_visibility="collapsed",
+        col_smtp1, col_smtp2 = st.columns(2)
+        with col_smtp1:
+            smtp_server = st.text_input(
+                get_text("smtp_server"),
+                value=stored_cfg.get("smtp_server", ""),
+                key="bf_smtp_server_input"
+            )
+            smtp_port = st.number_input(
+                get_text("smtp_port"),
+                value=int(stored_cfg.get("smtp_port", 587)),
+                key="bf_smtp_port_input"
+            )
+        with col_smtp2:
+            smtp_username = st.text_input(
+                get_text("smtp_username"),
+                value=stored_cfg.get("username", ""),
+                key="bf_smtp_username_input"
+            )
+            smtp_password = st.text_input(
+                get_text("smtp_password"),
+                value=stored_cfg.get("password", ""),
+                type="password",
+                key="bf_smtp_password_input"
+            )
+        smtp_use_tls = st.checkbox(
+            get_text("smtp_use_tls"),
+            value=bool(stored_cfg.get("use_tls", True)),
+            key="bf_smtp_use_tls_input"
         )
-        query = search.strip().lower()
-        filtered = [
-            s for s in subscribers
-            if not query
-            or query in s.get("name", "").lower()
-            or query in s.get("email", "").lower()
+
+        def _collect_email_cfg() -> dict:
+            return {
+                "smtp_server": smtp_server.strip(), "smtp_port": int(smtp_port),
+                "username": smtp_username.strip(), "password": smtp_password,
+                "use_tls": smtp_use_tls
+            }
+
+        if st.button(get_text("save_email_settings"), key="bf_save_email_btn"):
+            if save_email_settings(_collect_email_cfg()):
+                st.success(get_text("email_settings_saved"))
+            else:
+                st.error(get_text("save_failed"))
+
+        st.caption(get_text("smtp_settings_hint"))
+        test_to = st.text_input(get_text("test_email_to"), key="bf_test_email_to")
+        if st.button(get_text("send_test_email"), key="bf_send_test_email_btn"):
+            cfg_now = _collect_email_cfg()
+            if not cfg_now["smtp_server"] or not cfg_now["username"] \
+                    or not cfg_now["password"] or not test_to.strip():
+                st.warning(get_text("fill_fields"))
+            else:
+                save_email_settings(cfg_now)
+                with st.spinner(get_text("testing")):
+                    ok = test_email_settings(test_to.strip())
+                if ok:
+                    st.success(get_text("test_email_sent_ok"))
+                else:
+                    st.error(get_text("test_email_failed"))
+
+    with st.expander(get_text("add_subscriber")):
+        sub_name = st.text_input(get_text("subscriber_name"), key="bf_sub_name_input")
+        sub_email = st.text_input(get_text("subscriber_email"), key="bf_sub_email_input")
+
+        st.markdown(f"**{get_text('push_channels')}**")
+        col_ch1, col_ch2, col_ch3 = st.columns(3)
+        with col_ch1:
+            email_enabled = st.checkbox(get_text("push_channel_email"), value=True, key="bf_email_enabled")
+        with col_ch2:
+            wecom_enabled = st.checkbox(get_text("push_channel_wecom"), value=False, key="bf_wecom_enabled")
+        with col_ch3:
+            dingtalk_enabled = st.checkbox(get_text("push_channel_dingtalk"), value=False, key="bf_dingtalk_enabled")
+
+        wecom_webhook = dingtalk_webhook = dingtalk_secret = ""
+        if wecom_enabled:
+            wecom_webhook = st.text_input(get_text("wecom_webhook"), key="bf_wecom_webhook_input")
+        if dingtalk_enabled:
+            dingtalk_webhook = st.text_input(get_text("dingtalk_webhook"), key="bf_dingtalk_webhook_input")
+            dingtalk_secret = st.text_input(get_text("dingtalk_secret"), key="bf_dingtalk_secret_input")
+
+        st.markdown(f"**{get_text('schedule_settings')}**")
+        col_time, col_tz = st.columns(2)
+        with col_time:
+            from datetime import datetime as dt
+            push_time = st.time_input(get_text("push_time"), value=dt(2026, 1, 1, 8, 0), key="bf_push_time")
+        with col_tz:
+            push_timezone = st.selectbox(
+                get_text("push_timezone"),
+                ["Asia/Shanghai", "America/New_York", "Europe/London", "Asia/Tokyo"],
+                key="bf_push_tz"
+            )
+
+        day_options = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+        day_labels = [
+            get_text("push_days_mon"), get_text("push_days_tue"), get_text("push_days_wed"),
+            get_text("push_days_thu"), get_text("push_days_fri"), get_text("push_days_sat"), get_text("push_days_sun")
         ]
+        push_days = st.multiselect(
+            get_text("push_days"),
+            day_options,
+            default=["mon", "tue", "wed", "thu", "fri"],
+            format_func=lambda x: day_labels[day_options.index(x)],
+            key="bf_push_days"
+        )
 
-        if not filtered:
-            st.caption(get_text("no_items"))
-        else:
-            for sub in filtered:
-                sched_enabled = sub.get("schedule", {}).get("enabled", False)
-                status_cls = "active" if sched_enabled else "error"
-                label = f"{sub['name'][:20]}  {sub['email'][:18]}"
-                if st.button(
-                    label,
-                    key=f"bf_sub_sel_{sub['id']}",
-                    use_container_width=True,
-                ):
-                    st.session_state.bf_sub_selected = sub["id"]
+        st.markdown(f"**{get_text('watch_categories')}**")
+        categories = _watch_category_options()
+        selected_categories = []
+        for cat_id, cat_name in categories.items():
+            if st.checkbox(cat_name, value=True, key=f"bf_cat_{cat_id}"):
+                selected_categories.append(cat_id)
+
+        if st.button(get_text("add_subscriber_btn"), key="bf_add_sub_btn"):
+            import re
+            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            if not sub_name or not sub_email:
+                st.warning(get_text("fill_fields"))
+            elif not re.match(email_pattern, sub_email):
+                st.warning(get_text("invalid_email"))
+            else:
+                channels = {
+                    "email": {"enabled": email_enabled, "address": sub_email},
+                    "wecom": {"enabled": wecom_enabled, "webhook": wecom_webhook},
+                    "dingtalk": {"enabled": dingtalk_enabled, "webhook": dingtalk_webhook, "secret": dingtalk_secret}
+                }
+                schedule = {
+                    "time": push_time.strftime("%H:%M"),
+                    "timezone": push_timezone,
+                    "enabled": True,
+                    "days": push_days
+                }
+                new_sub_id = add_subscriber(sub_name, sub_email, channels, schedule, selected_categories)
+                if new_sub_id:
+                    st.success(get_text("subscriber_added"))
+                    from intelnexus.briefing.scheduler_registry import on_subscriber_changed
+                    on_subscriber_changed(new_sub_id, "add")
                     st.rerun()
+                else:
+                    st.error(get_text("subscriber_add_failed"))
 
-        st.markdown("---")
-        if st.button(f"+ {get_text('add_subscriber')}", key="bf_sub_add_btn",
-                      use_container_width=True):
-            st.session_state.bf_sub_selected = None
-            st.session_state.bf_sub_mode = "add"
-            st.rerun()
+    subscribers = get_all_subscribers()
+    if subscribers:
+        with st.expander(get_text("manage_subscribers")):
+            # 搜索过滤
+            _sub_search = st.text_input(
+                get_text("search_placeholder"),
+                key="bf_sub_search",
+                placeholder=get_text("search_placeholder"),
+                label_visibility="collapsed",
+            )
+            _sub_query = _sub_search.strip().lower()
+            _filtered_sub = [
+                s for s in subscribers
+                if not _sub_query
+                or _sub_query in s.get("name", "").lower()
+                or _sub_query in s.get("email", "").lower()
+            ]
 
-    # ---- 右栏：详情 / 添加 / 编辑 ----
-    with right:
-        mode = st.session_state.get("bf_sub_mode")
-        sel_id = st.session_state.get("bf_sub_selected")
-
-        if mode == "add":
-            st.markdown(f"**{get_text('add_subscriber')}**")
-            _render_subscriber_form(categories, is_edit=False)
-
-        elif mode == "edit" and sel_id:
-            sub = next((s for s in subscribers if s["id"] == sel_id), None)
-            if not sub:
-                st.session_state.bf_sub_mode = None
-            else:
-                st.markdown(f"**{get_text('edit_label')}**")
-                _render_subscriber_form(categories, is_edit=True, subscriber=sub)
-
-        elif sel_id:
-            sub = next((s for s in subscribers if s["id"] == sel_id), None)
-            if not sub:
-                st.session_state.bf_sub_selected = None
-            else:
-                sched = sub.get("schedule", {})
-                channels = sub.get("channels", {})
-                active_ch = [k for k, v in channels.items()
-                             if isinstance(v, dict) and v.get("enabled")]
-                cats = sub.get("categories", [])
-
-                st.markdown(f"### {html.escape(sub['name'])}")
-                st.caption(html.escape(sub['email']))
-
-                status_cls = "active" if sched.get("enabled") else "error"
-                status_text = get_text("enabled_label") if sched.get("enabled") else get_text("disabled_label")
-                st.markdown(
-                    f'<span class="status-dot {status_cls}"></span> {status_text}',
-                    unsafe_allow_html=True,
-                )
-
-                st.markdown(
-                    f"**{get_text('push_channels')}:** {', '.join(active_ch) or '—'}  \n"
-                    f"**{get_text('schedule_settings')}:** {sched.get('time', '—')} "
-                    f"({sched.get('timezone', '—')})  \n"
-                    f"**{get_text('watch_categories')}:** "
-                    f"{', '.join(categories.get(c, c) for c in cats) if cats else '—'}"
-                )
-
-                c1, c2, c3 = st.columns(3)
-                with c1:
-                    if st.button(get_text("manual_push_now"), key="bf_sub_push",
-                                  use_container_width=True):
-                        try:
-                            from intelnexus.briefing.scheduler_registry import get_scheduler
-                            sched_obj = get_scheduler()
-                            if sched_obj and hasattr(sched_obj, '_send_to_subscriber'):
-                                sched_obj._send_to_subscriber(sub)
-                                st.success(get_text("manual_push_success"))
-                            else:
-                                st.warning("调度器不可用")
-                        except Exception as e:
-                            st.error(get_text("manual_push_failed"))
-                with c2:
-                    if st.button(get_text("edit"), key="bf_sub_detail_edit",
-                                  use_container_width=True):
-                        st.session_state.bf_sub_mode = "edit"
-                        st.rerun()
-                with c3:
-                    if st.button(get_text("delete"), key="bf_sub_detail_del",
-                                  use_container_width=True):
-                        st.session_state[f"confirm_del_sub_{sel_id}"] = True
-                        st.rerun()
-
-                if st.session_state.get(f"confirm_del_sub_{sel_id}"):
-                    st.warning(get_text("confirm_delete") + "?")
-                    dc1, dc2 = st.columns(2)
-                    with dc1:
-                        if st.button(get_text("confirm_delete"), key="bf_sub_del_confirm",
-                                      use_container_width=True, type="primary"):
-                            remove_subscriber(sel_id)
-                            from intelnexus.briefing.scheduler_registry import on_subscriber_changed
-                            on_subscriber_changed(sel_id, "remove")
-                            st.session_state.bf_sub_selected = None
-                            st.session_state.bf_sub_mode = None
-                            st.session_state.pop(f"confirm_del_sub_{sel_id}", None)
+            for sub in _filtered_sub:
+                col_info, col_status, col_actions = st.columns([4, 1, 2])
+                with col_info:
+                    st.write(f"**{sub['name']}**")
+                    st.caption(sub['email'])
+                with col_status:
+                    status = "<span class='status-dot active'></span>" if sub.get("schedule", {}).get("enabled") else "<span class='status-dot error'></span>"
+                    st.write(status, unsafe_allow_html=True)
+                with col_actions:
+                    act_cols = st.columns(3)
+                    with act_cols[0]:
+                        if st.button(get_text("manual_push_now"), key=f"bf_push_{sub['id']}",
+                                     help=get_text("manual_push")):
+                            try:
+                                from intelnexus.briefing.scheduler_registry import get_scheduler
+                                sched_obj = get_scheduler()
+                                if sched_obj and hasattr(sched_obj, '_send_to_subscriber'):
+                                    sched_obj._send_to_subscriber(sub)
+                                    st.success(get_text("manual_push_success"))
+                                else:
+                                    st.warning("调度器不可用")
+                            except Exception:
+                                st.error(get_text("manual_push_failed"))
+                    with act_cols[1]:
+                        if st.button(get_text("edit"), key=f"bf_edit_sub_{sub['id']}",
+                                     help=get_text("edit_subscriber_help")):
+                            st.session_state[f"editing_sub_{sub['id']}"] = True
                             st.rerun()
-                    with dc2:
-                        if st.button(get_text("cancel"), key="bf_sub_del_cancel",
-                                      use_container_width=True):
-                            st.session_state.pop(f"confirm_del_sub_{sel_id}", None)
-                            st.rerun()
+                    with act_cols[2]:
+                        if _delete_with_confirm(f"sub_{sub['id']}"):
+                            if remove_subscriber(sub['id']):
+                                from intelnexus.briefing.scheduler_registry import on_subscriber_changed
+                                on_subscriber_changed(sub['id'], "remove")
+                                st.rerun()
 
-        else:
-            st.info(get_text("no_selection"))
+                with st.container():
+                    st.caption(get_text("view_details"))
+                    channels = sub.get("channels", {})
+                    active_channels = [k for k, v in channels.items() if isinstance(v, dict) and v.get("enabled")]
+                    schedule = sub.get("schedule", {})
+                    cats = sub.get("categories", [])
+                    st.markdown(
+                        f"- {get_text('push_channels')}: {', '.join(active_channels) or '—'}\n"
+                        f"- {get_text('schedule_settings')}: {schedule.get('time', '—')} ({schedule.get('timezone', '—')})\n"
+                        f"- {get_text('watch_categories')}: {', '.join(cats) if cats else '—'}"
+                    )
+
+                # 编辑表单
+                if st.session_state.get(f"editing_sub_{sub['id']}"):
+                    with st.container():
+                        st.caption(get_text("edit_label"))
+                        edit_name = st.text_input(get_text("name_label"), value=sub['name'], key=f"bf_edit_sub_name_{sub['id']}")
+                        edit_email = st.text_input(get_text("subscriber_email"), value=sub['email'], key=f"bf_edit_sub_email_{sub['id']}")
+
+                        _ch = sub.get("channels", {})
+                        _sch = sub.get("schedule", {})
+                        e_ch1, e_ch2, e_ch3 = st.columns(3)
+                        with e_ch1:
+                            edit_email_on = st.checkbox(get_text("push_channel_email"),
+                                                        value=(_ch.get("email", {}) or {}).get("enabled", False),
+                                                        key=f"bf_ech_email_{sub['id']}")
+                        with e_ch2:
+                            edit_wecom_on = st.checkbox(get_text("push_channel_wecom"),
+                                                        value=(_ch.get("wecom", {}) or {}).get("enabled", False),
+                                                        key=f"bf_ech_wecom_{sub['id']}")
+                        with e_ch3:
+                            edit_ding_on = st.checkbox(get_text("push_channel_dingtalk"),
+                                                       value=(_ch.get("dingtalk", {}) or {}).get("enabled", False),
+                                                       key=f"bf_ech_ding_{sub['id']}")
+                        edit_wecom_webhook = ""
+                        edit_ding_webhook = edit_ding_secret = ""
+                        if edit_wecom_on:
+                            edit_wecom_webhook = st.text_input(
+                                get_text("wecom_webhook"),
+                                value=(_ch.get("wecom", {}) or {}).get("webhook", ""),
+                                key=f"bf_ewh_wecom_{sub['id']}")
+                        if edit_ding_on:
+                            edit_ding_webhook = st.text_input(
+                                get_text("dingtalk_webhook"),
+                                value=(_ch.get("dingtalk", {}) or {}).get("webhook", ""),
+                                key=f"bf_ewh_ding_{sub['id']}")
+                            edit_ding_secret = st.text_input(
+                                get_text("dingtalk_secret"),
+                                value=(_ch.get("dingtalk", {}) or {}).get("secret", ""),
+                                type="password",
+                                key=f"bf_esec_ding_{sub['id']}")
+
+                        e_sch1, e_sch2 = st.columns(2)
+                        with e_sch1:
+                            from datetime import time as dtime
+                            try:
+                                _hh, _mm = map(int, (_sch.get("time", "08:00")).split(":"))
+                            except Exception:
+                                _hh, _mm = 8, 0
+                            edit_push_time = st.time_input(get_text("push_time"),
+                                                           value=dtime(_hh, _mm), key=f"bf_etime_{sub['id']}")
+                        with e_sch2:
+                            _tz_options = ["Asia/Shanghai", "America/New_York", "Europe/London", "Asia/Tokyo"]
+                            _cur_tz = _sch.get("timezone", "Asia/Shanghai")
+                            edit_tz = st.selectbox(
+                                get_text("push_timezone"),
+                                _tz_options,
+                                index=_tz_options.index(_cur_tz) if _cur_tz in _tz_options else 0,
+                                key=f"bf_etz_{sub['id']}"
+                            )
+                        _day_options = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+                        _day_labels = [
+                            get_text("push_days_mon"), get_text("push_days_tue"), get_text("push_days_wed"),
+                            get_text("push_days_thu"), get_text("push_days_fri"), get_text("push_days_sat"),
+                            get_text("push_days_sun")
+                        ]
+                        edit_days = st.multiselect(
+                            get_text("push_days"),
+                            _day_options,
+                            default=_sch.get("days", ["mon", "tue", "wed", "thu", "fri"]),
+                            format_func=lambda x: _day_labels[_day_options.index(x)],
+                            key=f"bf_edays_{sub['id']}"
+                        )
+                        edit_enabled = st.toggle(get_text("enabled_label"),
+                                                 value=_sch.get("enabled", False), key=f"bf_een_{sub['id']}")
+
+                        edit_cats = []
+                        for cat_id, cat_name in categories.items():
+                            if st.checkbox(cat_name, value=cat_id in cats, key=f"bf_edit_sub_cat_{sub['id']}_{cat_id}"):
+                                edit_cats.append(cat_id)
+
+                        ecol1, ecol2 = st.columns(2)
+                        with ecol1:
+                            if st.button(get_text("save"), key=f"bf_save_sub_{sub['id']}"):
+                                if edit_name and edit_email and edit_days:
+                                    update_subscriber(sub['id'], {
+                                        "name": edit_name,
+                                        "email": edit_email,
+                                        "categories": edit_cats,
+                                        "channels": {
+                                            "email": {"enabled": edit_email_on, "address": edit_email},
+                                            "wecom": {"enabled": edit_wecom_on, "webhook": edit_wecom_webhook},
+                                            "dingtalk": {"enabled": edit_ding_on, "webhook": edit_ding_webhook,
+                                                         "secret": edit_ding_secret}
+                                        },
+                                        "schedule": {
+                                            "time": edit_push_time.strftime("%H:%M"),
+                                            "timezone": edit_tz,
+                                            "days": edit_days,
+                                            "enabled": edit_enabled
+                                        }
+                                    })
+                                    from intelnexus.briefing.scheduler_registry import on_subscriber_changed
+                                    on_subscriber_changed(sub['id'], "update")
+                                    st.session_state[f"editing_sub_{sub['id']}"] = False
+                                    st.rerun()
+                        with ecol2:
+                            if st.button(get_text("cancel"), key=f"bf_cancel_sub_{sub['id']}"):
+                                st.session_state[f"editing_sub_{sub['id']}"] = False
+                                st.rerun()
+    else:
+        st.markdown(
+            f"<p class='bf-hint'>{get_text('no_subscribers')} —— {get_text('welcome_step_subscribers_desc')}</p>",
+            unsafe_allow_html=True
+        )
 
     st.markdown('</div>', unsafe_allow_html=True)
 
 
-def _render_subscriber_form(categories: dict, is_edit: bool = False,
-                            subscriber: dict = None) -> None:
-    """订阅者添加/编辑共用表单"""
-    sub = subscriber or {}
-    _ch = sub.get("channels", {})
-    _sch = sub.get("schedule", {})
-    prefix = "bf_sub_ed" if is_edit else "bf_sub_new"
-    cats_selected = sub.get("categories", [])
-
-    name = st.text_input(get_text("subscriber_name"),
-                          value=sub.get("name", ""), key=f"{prefix}_name")
-    email_val = st.text_input(get_text("subscriber_email"),
-                               value=sub.get("email", ""), key=f"{prefix}_email")
-
-    st.markdown(f"**{get_text('push_channels')}**")
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        email_on = st.checkbox(get_text("push_channel_email"),
-                                value=(_ch.get("email") or {}).get("enabled", True),
-                                key=f"{prefix}_ch_email")
-    with c2:
-        wecom_on = st.checkbox(get_text("push_channel_wecom"),
-                                value=(_ch.get("wecom") or {}).get("enabled", False),
-                                key=f"{prefix}_ch_wecom")
-    with c3:
-        ding_on = st.checkbox(get_text("push_channel_dingtalk"),
-                               value=(_ch.get("dingtalk") or {}).get("enabled", False),
-                               key=f"{prefix}_ch_ding")
-
-    wecom_wh = ding_wh = ding_sec = ""
-    if wecom_on:
-        wecom_wh = st.text_input(get_text("wecom_webhook"),
-                                  value=(_ch.get("wecom") or {}).get("webhook", ""),
-                                  key=f"{prefix}_wh_wecom")
-    if ding_on:
-        ding_wh = st.text_input(get_text("dingtalk_webhook"),
-                                 value=(_ch.get("dingtalk") or {}).get("webhook", ""),
-                                 key=f"{prefix}_wh_ding")
-        ding_sec = st.text_input(get_text("dingtalk_secret"),
-                                  value=(_ch.get("dingtalk") or {}).get("secret", ""),
-                                  type="password", key=f"{prefix}_sec_ding")
-
-    st.markdown(f"**{get_text('schedule_settings')}**")
-    from datetime import time as dtime
-    try:
-        _hh, _mm = map(int, (_sch.get("time", "08:00")).split(":"))
-    except Exception:
-        _hh, _mm = 8, 0
-    c1, c2 = st.columns(2)
-    with c1:
-        push_time = st.time_input(get_text("push_time"),
-                                   value=dtime(_hh, _mm), key=f"{prefix}_time")
-    with c2:
-        _tz_opts = ["Asia/Shanghai", "America/New_York", "Europe/London", "Asia/Tokyo"]
-        _cur_tz = _sch.get("timezone", "Asia/Shanghai")
-        push_tz = st.selectbox(
-            get_text("push_timezone"), _tz_opts,
-            index=_tz_opts.index(_cur_tz) if _cur_tz in _tz_opts else 0,
-            key=f"{prefix}_tz",
-        )
-
-    _day_opts = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
-    _day_lbl = [get_text("push_days_mon"), get_text("push_days_tue"),
-                get_text("push_days_wed"), get_text("push_days_thu"),
-                get_text("push_days_fri"), get_text("push_days_sat"),
-                get_text("push_days_sun")]
-    push_days = st.multiselect(
-        get_text("push_days"), _day_opts,
-        default=_sch.get("days", ["mon", "tue", "wed", "thu", "fri"]),
-        format_func=lambda x: _day_lbl[_day_opts.index(x)],
-        key=f"{prefix}_days",
-    )
-
-    st.markdown(f"**{get_text('watch_categories')}**")
-    selected_cats = []
-    for cid, cname in categories.items():
-        if st.checkbox(cname, value=cid in cats_selected, key=f"{prefix}_cat_{cid}"):
-            selected_cats.append(cid)
-
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button(get_text("save"), key=f"{prefix}_save", use_container_width=True):
-            import re
-            email_re = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-            if not name or not email_val:
-                st.warning(get_text("fill_fields"))
-            elif not re.match(email_re, email_val):
-                st.warning(get_text("invalid_email"))
-            else:
-                channels = {
-                    "email": {"enabled": email_on, "address": email_val},
-                    "wecom": {"enabled": wecom_on, "webhook": wecom_wh},
-                    "dingtalk": {"enabled": ding_on, "webhook": ding_wh, "secret": ding_sec},
-                }
-                schedule = {
-                    "time": push_time.strftime("%H:%M"),
-                    "timezone": push_tz,
-                    "enabled": True,
-                    "days": push_days,
-                }
-                if is_edit and sub:
-                    update_subscriber(sub["id"], {
-                        "name": name, "email": email_val,
-                        "categories": selected_cats,
-                        "channels": channels, "schedule": schedule,
-                    })
-                    from intelnexus.briefing.scheduler_registry import on_subscriber_changed
-                    on_subscriber_changed(sub["id"], "update")
-                    st.session_state.bf_sub_mode = None
-                else:
-                    new_id = add_subscriber(name, email_val, channels, schedule, selected_cats)
-                    if new_id:
-                        st.success(get_text("subscriber_added"))
-                        from intelnexus.briefing.scheduler_registry import on_subscriber_changed
-                        on_subscriber_changed(new_id, "add")
-                        st.session_state.bf_sub_mode = None
-                    else:
-                        st.error(get_text("subscriber_add_failed"))
-                st.rerun()
-    with c2:
-        if st.button(get_text("cancel"), key=f"{prefix}_cancel", use_container_width=True):
-            st.session_state.bf_sub_mode = None
-            st.rerun()
-
-
 def render_watch_categories_panel():
-    """关注点管理面板 — 左右分栏：左侧搜索+列表，右侧详情/表单"""
+    """关注点管理面板（紫标签条）：新增/编辑/删除关注点，可配置化"""
     st.markdown(f'''
     <div class="bf-panel bf-panel--cat">
         <div class="bf-label">
@@ -1161,225 +1116,162 @@ def render_watch_categories_panel():
         CAT_AVAILABLE = False
 
     if not CAT_AVAILABLE:
-        st.markdown(f"<p class='bf-hint bf-hint--warn'>{get_text('module_unavailable')}</p>",
-                     unsafe_allow_html=True)
+        st.markdown(f"<p class='bf-hint bf-hint--warn'>{get_text('module_unavailable')}</p>", unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
         return
 
     cats = get_all_categories()
+
     try:
         from intelnexus.briefing.config import BRIEFING_SECTIONS as _sections
     except ImportError:
         _sections = []
 
-    # ---- 左栏：搜索 + 列表 ----
-    left, right = st.columns([1, 2])
-
-    with left:
-        search = st.text_input(
-            get_text("search_placeholder"),
-            key="bf_cat_search",
-            placeholder=get_text("search_placeholder"),
-            label_visibility="collapsed",
+    with st.expander(get_text("add_watch_category")):
+        new_id = st.text_input(get_text("category_id"), key="bf_cat_new_id")
+        new_name = st.text_input(get_text("category_name"), key="bf_cat_new_name")
+        _section_options = [""] + list(_sections)
+        new_section = st.selectbox(
+            get_text("category_section"),
+            _section_options,
+            format_func=lambda s: s if s else get_text("category_section_none"),
+            key="bf_cat_new_section"
         )
-        query = search.strip().lower()
-        filtered = {
-            cid: cfg for cid, cfg in cats.items()
-            if not query
-            or query in cfg.get("name", "").lower()
-            or query in cid.lower()
-        }
+        new_queries = st.text_area(
+            get_text("category_queries"),
+            placeholder=get_text("category_queries_ph"),
+            key="bf_cat_new_queries"
+        )
+        if st.button(get_text("add_watch_category_btn"), key="bf_cat_add_btn"):
+            import re
+            nid = new_id.strip()
+            if new_id and new_name and new_queries:
+                if not re.match(r"^[a-z0-9_]+$", nid):
+                    st.warning(get_text("category_id_invalid"))
+                elif nid in cats:
+                    st.error(get_text("category_id_exists"))
+                else:
+                    cfg = {
+                        "name": new_name,
+                        "name_en": new_name,
+                        "description": "",
+                        "icon": "info",
+                        "section": new_section,
+                        "search_queries": [q.strip() for q in new_queries.splitlines() if q.strip()],
+                        "enabled": True,
+                    }
+                    if add_category(nid, cfg):
+                        st.success(get_text("watch_category_added"))
+                        st.rerun()
+                    else:
+                        st.error(get_text("watch_category_failed"))
+            else:
+                st.warning(get_text("fill_fields"))
 
-        if not filtered:
-            st.caption(get_text("no_items"))
-        else:
-            for cid, cfg in filtered.items():
+    if cats:
+        from intelnexus.briefing.config import WATCH_CATEGORIES as _default_cats
+        with st.expander(get_text("manage_watch_categories")):
+            # 搜索过滤
+            _cat_search = st.text_input(
+                get_text("search_placeholder"),
+                key="bf_cat_search",
+                placeholder=get_text("search_placeholder"),
+                label_visibility="collapsed",
+            )
+            _cat_query = _cat_search.strip().lower()
+            _filtered_cats = {
+                cid: cfg for cid, cfg in cats.items()
+                if not _cat_query
+                or _cat_query in cfg.get("name", "").lower()
+                or _cat_query in cid.lower()
+            }
+
+            for cid, cfg in _filtered_cats.items():
                 is_enabled = cfg.get("enabled", True)
-                status_cls = "active" if is_enabled else ""
-                label = f"{cfg.get('name', cid)[:20]}"
-                if st.button(
-                    label,
-                    key=f"bf_cat_sel_{cid}",
-                    use_container_width=True,
-                ):
-                    st.session_state.bf_cat_selected = cid
-                    st.rerun()
+                col_info, col_toggle, col_actions = st.columns([4, 1, 2])
+                with col_info:
+                    status_icon = "●" if is_enabled else "○"
+                    st.write(f"{status_icon} **{cfg.get('name', cid)}**")
+                    st.caption(f"{cid} · {len(cfg.get('search_queries', []))} 条查询")
+                with col_toggle:
+                    new_enabled = st.toggle(
+                        get_text("enabled_label"), value=is_enabled,
+                        key=f"bf_toggle_cat_{cid}",
+                        label_visibility="collapsed"
+                    )
+                    if new_enabled != is_enabled:
+                        update_category(cid, {"enabled": new_enabled})
+                        st.rerun()
+                with col_actions:
+                    act_cols = st.columns(2)
+                    with act_cols[0]:
+                        if st.button(get_text("edit"), key=f"bf_edit_cat_{cid}",
+                                     help=get_text("edit_category_help")):
+                            st.session_state[f"editing_cat_{cid}"] = True
+                            st.rerun()
+                    with act_cols[1]:
+                        is_default_cat = cid in _default_cats
+                        del_label = get_text("disable_default") if is_default_cat else get_text("delete")
+                        del_help = (
+                            get_text("delete_default_help") if is_default_cat else get_text("delete_custom_help")
+                        )
+                        if is_default_cat:
+                            if st.button(del_label, key=f"bf_del_cat_{cid}", help=del_help):
+                                if remove_category(cid):
+                                    st.success(get_text("watch_category_disabled"))
+                                    st.rerun()
+                        else:
+                            if _delete_with_confirm(f"cat_{cid}", label=del_label, help=del_help):
+                                if remove_category(cid):
+                                    st.success(get_text("watch_category_deleted"))
+                                    st.rerun()
 
-        st.markdown("---")
-        if st.button(f"+ {get_text('add_watch_category')}", key="bf_cat_add_btn",
-                      use_container_width=True):
-            st.session_state.bf_cat_selected = None
-            st.session_state.bf_cat_mode = "add"
-            st.rerun()
+                if st.session_state.get(f"editing_cat_{cid}"):
+                    with st.container():
+                        st.caption(get_text("edit_label"))
+                        edit_name = st.text_input(get_text("name_label"), value=cfg.get('name', ''), key=f"bf_edit_cat_name_{cid}")
+                        edit_queries = st.text_area(
+                            get_text("category_queries"),
+                            value='\n'.join(cfg.get('search_queries', [])),
+                            key=f"bf_edit_cat_queries_{cid}"
+                        )
+                        ecol1, ecol2 = st.columns(2)
+                        with ecol1:
+                            if st.button(get_text("save"), key=f"bf_save_cat_{cid}"):
+                                if edit_name and edit_queries:
+                                    updates = {
+                                        "name": edit_name,
+                                        "name_en": edit_name,
+                                        "search_queries": [q.strip() for q in edit_queries.splitlines() if q.strip()]
+                                    }
+                                    update_category(cid, updates)
+                                    st.session_state[f"editing_cat_{cid}"] = False
+                                    st.rerun()
+                        with ecol2:
+                            if st.button(get_text("cancel"), key=f"bf_cancel_cat_{cid}"):
+                                st.session_state[f"editing_cat_{cid}"] = False
+                                st.rerun()
 
-        # 恢复被禁用的内置类目
-        disabled_defaults = get_disabled_default_ids()
-        if disabled_defaults:
-            with st.expander(get_text("restore_defaults")):
-                for did in disabled_defaults:
-                    if st.button(did, key=f"bf_restore_{did}", use_container_width=True):
+    disabled_defaults = get_disabled_default_ids()
+    if disabled_defaults:
+        with st.expander(get_text("restore_defaults")):
+            for did in disabled_defaults:
+                r_info, r_act = st.columns([4, 1])
+                with r_info:
+                    st.caption(f"`{did}`")
+                with r_act:
+                    if st.button(get_text("restore_btn"), key=f"bf_restore_cat_{did}"):
                         if restore_default(did):
                             st.success(get_text("watch_category_restored"))
                             st.rerun()
-
-    # ---- 右栏：详情 / 添加 / 编辑 ----
-    with right:
-        mode = st.session_state.get("bf_cat_mode")
-        sel_id = st.session_state.get("bf_cat_selected")
-
-        if mode == "add":
-            st.markdown(f"**{get_text('add_watch_category')}**")
-            new_id = st.text_input(get_text("category_id"), key="bf_cat_new_id")
-            new_name = st.text_input(get_text("category_name"), key="bf_cat_new_name")
-            _section_opts = [""] + list(_sections)
-            new_section = st.selectbox(
-                get_text("category_section"), _section_opts,
-                format_func=lambda s: s if s else get_text("category_section_none"),
-                key="bf_cat_new_section",
-            )
-            new_queries = st.text_area(
-                get_text("category_queries"),
-                placeholder=get_text("category_queries_ph"),
-                key="bf_cat_new_queries",
-            )
-            c1, c2 = st.columns(2)
-            with c1:
-                if st.button(get_text("add_watch_category_btn"), key="bf_cat_new_submit",
-                              use_container_width=True):
-                    import re
-                    nid = new_id.strip()
-                    if new_id and new_name and new_queries:
-                        if not re.match(r"^[a-z0-9_]+$", nid):
-                            st.warning(get_text("category_id_invalid"))
-                        elif nid in cats:
-                            st.error(get_text("category_id_exists"))
-                        else:
-                            cfg = {
-                                "name": new_name, "name_en": new_name,
-                                "description": "", "icon": "info",
-                                "section": new_section,
-                                "search_queries": [q.strip() for q in new_queries.splitlines() if q.strip()],
-                                "enabled": True,
-                            }
-                            if add_category(nid, cfg):
-                                st.success(get_text("watch_category_added"))
-                                st.session_state.bf_cat_mode = None
-                                st.rerun()
-                            else:
-                                st.error(get_text("watch_category_failed"))
-                    else:
-                        st.warning(get_text("fill_fields"))
-            with c2:
-                if st.button(get_text("cancel"), key="bf_cat_new_cancel",
-                              use_container_width=True):
-                    st.session_state.bf_cat_mode = None
-                    st.rerun()
-
-        elif mode == "edit" and sel_id:
-            cfg = cats.get(sel_id)
-            if not cfg:
-                st.session_state.bf_cat_mode = None
-            else:
-                st.markdown(f"**{get_text('edit_label')}**")
-                edit_name = st.text_input(get_text("name_label"),
-                                           value=cfg.get("name", ""),
-                                           key="bf_cat_ed_name")
-                edit_queries = st.text_area(
-                    get_text("category_queries"),
-                    value="\n".join(cfg.get("search_queries", [])),
-                    key="bf_cat_ed_queries",
-                )
-                c1, c2 = st.columns(2)
-                with c1:
-                    if st.button(get_text("save"), key="bf_cat_ed_save",
-                                  use_container_width=True):
-                        if edit_name and edit_queries:
-                            update_category(sel_id, {
-                                "name": edit_name, "name_en": edit_name,
-                                "search_queries": [q.strip() for q in edit_queries.splitlines() if q.strip()],
-                            })
-                            st.session_state.bf_cat_mode = None
-                            st.rerun()
-                        else:
-                            st.warning(get_text("fill_fields"))
-                with c2:
-                    if st.button(get_text("cancel"), key="bf_cat_ed_cancel",
-                                  use_container_width=True):
-                        st.session_state.bf_cat_mode = None
-                        st.rerun()
-
-        elif sel_id:
-            cfg = cats.get(sel_id)
-            if not cfg:
-                st.session_state.bf_cat_selected = None
-            else:
-                is_enabled = cfg.get("enabled", True)
-                st.markdown(f"### {html.escape(cfg.get('name', sel_id))}")
-                st.caption(f"`{sel_id}`")
-
-                status_cls = "active" if is_enabled else "error"
-                status_text = get_text("enabled_label") if is_enabled else get_text("disabled_label")
-                st.markdown(
-                    f'<span class="status-dot {status_cls}"></span> {status_text}',
-                    unsafe_allow_html=True,
-                )
-
-                queries = cfg.get("search_queries", [])
-                if queries:
-                    st.markdown(f"**{get_text('category_queries')}** ({len(queries)})")
-                    for q in queries:
-                        st.markdown(f"- `{q}`")
-
-                c1, c2, c3 = st.columns(3)
-                with c1:
-                    new_enabled = st.toggle(
-                        get_text("enabled_label"), value=is_enabled,
-                        key="bf_cat_toggle",
-                    )
-                    if new_enabled != is_enabled:
-                        update_category(sel_id, {"enabled": new_enabled})
-                        st.rerun()
-                with c2:
-                    if st.button(get_text("edit"), key="bf_cat_detail_edit",
-                                  use_container_width=True):
-                        st.session_state.bf_cat_mode = "edit"
-                        st.rerun()
-                with c3:
-                    from intelnexus.briefing.config import WATCH_CATEGORIES as _default_cats
-                    is_default = sel_id in _default_cats
-                    del_label = get_text("disable_default") if is_default else get_text("delete")
-                    if st.button(del_label, key="bf_cat_detail_del",
-                                  use_container_width=True):
-                        if is_default:
-                            if remove_category(sel_id):
-                                st.success(get_text("watch_category_disabled"))
-                                st.session_state.bf_cat_selected = None
-                                st.rerun()
-                        else:
-                            st.session_state[f"confirm_del_cat_{sel_id}"] = True
-                            st.rerun()
-
-                if st.session_state.get(f"confirm_del_cat_{sel_id}"):
-                    st.warning(get_text("confirm_delete") + "?")
-                    dc1, dc2 = st.columns(2)
-                    with dc1:
-                        if st.button(get_text("confirm_delete"), key="bf_cat_del_confirm",
-                                      use_container_width=True, type="primary"):
-                            if remove_category(sel_id):
-                                st.success(get_text("watch_category_deleted"))
-                            st.session_state.bf_cat_selected = None
-                            st.session_state.bf_cat_mode = None
-                            st.session_state.pop(f"confirm_del_cat_{sel_id}", None)
-                            st.rerun()
-                    with dc2:
-                        if st.button(get_text("cancel"), key="bf_cat_del_cancel",
-                                      use_container_width=True):
-                            st.session_state.pop(f"confirm_del_cat_{sel_id}", None)
-                            st.rerun()
-        else:
-            st.info(get_text("no_selection"))
+    else:
+        st.markdown(
+            f"<p class='bf-hint'>{get_text('no_watch_categories')}</p>",
+            unsafe_allow_html=True
+        )
 
     st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 def render_generate_top():
