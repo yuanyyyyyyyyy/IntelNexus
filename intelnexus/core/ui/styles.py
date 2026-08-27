@@ -1258,6 +1258,19 @@ def render_hermes_theme_css():
         margin-top: 0 !important;
         margin-bottom: 0 !important;
     }
+    /* --- 5b-1. Sidebar health panel: compact buttons in column rows ---
+       健康面板每行用 st.columns 布局，重置按钮所在列很窄，
+       默认按钮样式会导致文字换行（竖向显示）。强制紧凑单行。 */
+    section[data-testid="stSidebar"] div[data-testid="stHorizontalBlock"] .stButton > button {
+        font-size: 11px !important;
+        padding: 2px 6px !important;
+        min-height: 0 !important;
+        max-height: 24px !important;
+        line-height: 1.2 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
     section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
         margin-top: 0 !important;
         margin-bottom: 0 !important;
