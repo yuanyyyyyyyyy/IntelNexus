@@ -68,7 +68,7 @@ _BRIEFING_ZH = {
     "smtp_username": "SMTP 用户名",
     "smtp_password": "SMTP 密码",
     "smtp_use_tls": "使用 TLS",
-    "smtp_settings_hint": "配置将持久化保存；定时推送与本页手动推送共用此来源。此处保存的值优先于 .env / 环境变量中的旧配置。",
+    "smtp_settings_hint": "配置将持久化保存；定时推送与本页手动推送共用此来源。安全建议：SMTP 密码等敏感凭据请配置在 .env 文件中（已在 .gitignore），此处保存的值会被 .env 中的密码覆盖。",
     "test_email_to": "测试收件邮箱",
     "send_test_email": "发送测试邮件",
     "testing": "正在发送测试邮件…",
@@ -377,6 +377,7 @@ _BRIEFING_ZH = {
     "provider_deleted": "供应商已删除",
     "test_connection": "测速",
     "testing_connection": "正在测速...",
+    "llm_proxy_refused_hint": "代理连接被拒绝：请求被路由到了未运行的本地代理。LLM 接口已默认直连，若仍失败，请检查代理客户端是否已启动，或修正 .env 中的 HTTP(S)_PROXY 配置后重启应用。",
     "provider_name_placeholder": "例如：Claude 官方",
     "provider_remark_placeholder": "例如：公司专用账号",
     "provider_website_placeholder": "https://example.com（可选）",
@@ -625,7 +626,7 @@ _BRIEFING_EN = {
     "smtp_username": "SMTP Username",
     "smtp_password": "SMTP Password",
     "smtp_use_tls": "Use TLS",
-    "smtp_settings_hint": "Settings are persisted; scheduled push and manual push share this source. Values saved here take precedence over .env / env vars.",
+    "smtp_settings_hint": "Settings are persisted; scheduled push and manual push share this source. Security note: For SMTP password and other sensitive credentials, configure them in .env file (already in .gitignore). Password saved here will be overridden by .env.",
     "test_email_to": "Test recipient email",
     "send_test_email": "Send test email",
     "testing": "Sending test email...",
@@ -770,6 +771,7 @@ _BRIEFING_EN = {
     "provider_deleted": "Provider deleted",
     "test_connection": "Test",
     "testing_connection": "Testing...",
+    "llm_proxy_refused_hint": "Proxy connection refused: the request was routed to a local proxy that isn't running. LLM endpoints now default to direct connection; if this persists, start your proxy client or fix HTTP(S)_PROXY in .env, then restart the app.",
     "provider_name_placeholder": "e.g.: Claude Official",
     "provider_remark_placeholder": "e.g.: Company account",
     "provider_website_placeholder": "https://example.com (optional)",
@@ -1134,3 +1136,19 @@ def get_text(key):
         return briefing[key]
     # 兜底：先看搜索中文表，再看简报中文表，否则返回 key
     return _SEARCH_LANG.get("zh", {}).get(key, _BRIEFING_ZH.get(key, key))
+
+
+# core 层（不依赖 streamlit）返回的连接测试错误中的占位符，
+# 与 intelnexus.core.llm.models.PROXY_REFUSED_MARKER 保持一致。
+_LLM_PROXY_REFUSED_MARKER = "[[llm_proxy_refused]]"
+
+
+def localize_llm_test_error(msg):
+    """将 LLM 连接测试错误中的代理拒绝占位符替换为当前语言的提示词条。
+
+    core 层无法访问 st.session_state，故错误文案中携带语言无关的占位符，
+    在 UI 展示前统一本地化；无占位符时原样返回。
+    """
+    if not msg or _LLM_PROXY_REFUSED_MARKER not in msg:
+        return msg
+    return msg.replace(_LLM_PROXY_REFUSED_MARKER, get_text("llm_proxy_refused_hint"))
