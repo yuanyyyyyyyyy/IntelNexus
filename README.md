@@ -1,7 +1,8 @@
 <div align="center">
 <h1>IntelNexus: AI驱动的多源网络情报分析平台</h1>
 <p>从网页、新闻和暗网等多个来源搜索和分析信息，利用LLM生成专业的情报报告。</p>
-<a href="#安装">安装</a> &bull; <a href="#使用">使用</a> &bull; <a href="#配置">配置</a><br><br>
+<a href="#安装">安装</a> &bull; <a href="#使用">使用</a> &bull; <a href="#配置">配置</a><br>
+<p><strong>非技术用户？</strong> 请阅读 <a href="USER_GUIDE.md"> 用户使用指南</a>（无需编程知识）</p>
 </div>
 
 ---
