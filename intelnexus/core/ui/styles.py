@@ -560,12 +560,6 @@ def render_hermes_theme_css():
         letter-spacing: 0.05em;
         color: #1A1A1A !important;
     }
-    .sb-divider {
-        height: 1px;
-        background: #E0E0E0;
-        margin: 16px 0;
-        border: none;
-    }
     /* Sidebar action buttons */
     .sb-action-primary {
         width: 100% !important;
@@ -1048,8 +1042,7 @@ def render_hermes_theme_css():
     }
 
     /* Main area Divider / Horizontal Rule */
-    hr,
-    div[data-testid="stDivider"] {
+    hr {
         border-color: var(--border-light) !important;
         opacity: 0.8 !important;
     }
@@ -1267,26 +1260,13 @@ def render_hermes_theme_css():
         margin-top: 0 !important;
         margin-bottom: 0 !important;
     }
-    /* --- 5c. Custom Model/Provider Action Buttons (compact) --- */
-    .custom-model-actions [data-testid="column"],
-    .custom-provider-actions [data-testid="column"] {
-        padding-left: 0 !important;
-        padding-right: 0 !important;
-    }
-    .custom-model-actions [data-testid="stHorizontalBlock"],
-    .custom-provider-actions [data-testid="stHorizontalBlock"] {
-        gap: 4px !important;
-    }
-    section[data-testid="stSidebar"] .custom-model-actions div.stButton,
-    section[data-testid="stSidebar"] .custom-provider-actions div.stButton {
-        width: 100% !important;
-    }
-    section[data-testid="stSidebar"] .custom-model-actions .stButton > button,
-    section[data-testid="stSidebar"] .custom-provider-actions .stButton > button {
-        padding: 2px 6px !important;
-        font-size: 11px !important;
-        min-height: 24px !important;
-        width: 100% !important;
+    /* --- 5c. 侧边栏自定义模型/供应商列表（紧凑间距） ---
+       锚定框架对 keyed container 生成的包装类（.st-key-cm_list / .st-key-cp_list，
+       由前端 Block 组件直接渲染，不经过 markdown 净化器，不会被剥离）；
+       仅命中列表条目间的 st.divider()，.sb-divider、st.markdown("---") 等不受影响 */
+    section[data-testid="stSidebar"] .st-key-cm_list hr,
+    section[data-testid="stSidebar"] .st-key-cp_list hr {
+        margin: 4px 0 !important;
     }
 
     /* --- 6. Sidebar Slider (RAC) --- */
@@ -1393,8 +1373,7 @@ def render_hermes_theme_css():
     }
 
     /* --- 13. Sidebar Divider --- */
-    section[data-testid="stSidebar"] hr,
-    section[data-testid="stSidebar"] [data-testid="stDivider"] {
+    section[data-testid="stSidebar"] hr {
         border-color: #E0E0E0 !important;
         opacity: 0.6 !important;
     }
