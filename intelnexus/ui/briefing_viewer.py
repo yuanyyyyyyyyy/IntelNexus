@@ -787,18 +787,82 @@ def render_data_sources_panel():
             if st.button(get_text("batch_test"), key="bf_src_batch_test"):
                 st.session_state.bf_src_batch_running = True
             if st.session_state.get("bf_src_batch_running"):
-                with st.spinner(get_text("testing")):
-                    for _bs in _filtered_src:
-                        _ft = _bs.get("fetch_type", "web_engine")
-                        _br = test_source(_bs["url"], _ft, timeout=8)
-                        _bcls = "active" if _br["success"] else "error"
-                        _bstatus = get_text("source_ok") if _br["success"] else get_text("source_fail")
-                        st.markdown(
-                            f'<span class="status-dot {_bcls}"></span> '
-                            f'{html.escape(_bs["name"])} — {_bstatus} ({_br.get("latency_ms", "—")}ms)',
-                            unsafe_allow_html=True,
-                        )
-                st.session_state.bf_src_batch_running = False
+                # 探测结论写入健康表（侧边栏/状态栏读盘），仅限注册表白名单：
+                # subscription_sources 未注册，写入会被侧边栏 purge_stale_entries 清除。
+                # 传参与侧边栏/其他调用点对齐，复用进程内注册表单例，避免重建第二个实例；
+                # 失败回退空集（不落盘，仅展示）
+                _probe_names = set()
+                try:
+                    from intelnexus.core.search.registry import get_registry
+                    from intelnexus.config.search_settings import get_news_api_key
+                    _probe_names = {s.name for s in get_registry(
+                        news_api_key=get_news_api_key()).all_sources()}
+                except Exception:
+                    pass
+                # st.rerun() 会丢弃本轮所有内联渲染：逐源结果先收集，经 session_state
+                # 持久化，由下方固定渲染点在重绘后重新展示（保留至下次批量测试覆盖）
+                _rows = []
+                try:
+                    with st.spinner(get_text("testing")):
+                        for _bs in _filtered_src:
+                            _ft = _bs.get("fetch_type", "web_engine")
+                            _br = test_source(_bs["url"], _ft, timeout=8)
+                            _rows.append({
+                                "name": _bs.get("name", ""),
+                                "success": bool(_br.get("success")),
+                                "latency_ms": _br.get("latency_ms", "—"),
+                            })
+                            _bcls = "active" if _br["success"] else "error"
+                            _bstatus = get_text("source_ok") if _br["success"] else get_text("source_fail")
+                            st.markdown(
+                                f'<span class="status-dot {_bcls}"></span> '
+                                f'{html.escape(_bs["name"])} — {_bstatus} ({_br.get("latency_ms", "—")}ms)',
+                                unsafe_allow_html=True,
+                            )
+                            # 同步落盘：失败置 degraded（不剔除出搜索管线），成功恢复 healthy；
+                            # 写入失败绝不影响探测展示（全异常兜底）
+                            try:
+                                if _bs.get("name") in _probe_names:
+                                    from intelnexus.core.search.health import record_probe_result
+                                    record_probe_result(
+                                        _bs["name"],
+                                        bool(_br.get("success")),
+                                        float(_br.get("latency_ms") or 0),
+                                        error=None if _br.get("success") else _br.get("message"),
+                                    )
+                            except Exception:
+                                pass
+                finally:
+                    # 中途异常也不残留旗标、不遗漏缓存失效；部分结果同样持久化。
+                    # 各步独立兜底，单步失败不影响其余清理（RerunException 会跳过后续语句，
+                    # 故旗标复位必须在 st.rerun() 之前）
+                    try:
+                        st.session_state["bf_src_batch_results"] = _rows
+                    except Exception:
+                        pass
+                    try:
+                        st.session_state.bf_src_batch_running = False
+                    except Exception:
+                        pass
+                    try:
+                        from intelnexus.ui.status_metrics import invalidate_status_metrics
+                        invalidate_status_metrics()
+                    except Exception:
+                        pass
+                # 刷新页面：侧边栏明细（读盘）与汇总/状态栏/首页（缓存）下次渲染全部拿到最新口径；
+                # 探测结果由下方固定渲染点重绘，不随 rerun 丢失
+                st.rerun()
+
+            # 批量测试结果固定渲染点：重绘上一轮探测结果（直到下次批量测试覆盖）
+            if st.session_state.get("bf_src_batch_results"):
+                for _row in st.session_state["bf_src_batch_results"]:
+                    _bcls = "active" if _row.get("success") else "error"
+                    _bstatus = get_text("source_ok") if _row.get("success") else get_text("source_fail")
+                    st.markdown(
+                        f'<span class="status-dot {_bcls}"></span> '
+                        f'{html.escape(str(_row.get("name", "")))} — {_bstatus} ({_row.get("latency_ms", "—")}ms)',
+                        unsafe_allow_html=True,
+                    )
 
             for source in _filtered_src:
                 col_info, col_toggle, col_actions = st.columns([3, 1, 3])
