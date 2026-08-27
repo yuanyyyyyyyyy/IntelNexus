@@ -37,7 +37,9 @@ DATA_FILES = [
     # 预设数据
     ("presets", "presets"),
     # 默认数据文件（首次运行的初始状态）
-    ("data", "data"),
+    # 注意：data/ 目录含用户凭据（email_settings.json 等），不打包进 EXE
+    # 用户需在运行后通过 UI 配置或手动创建 data/ 目录
+    # ("data", "data"),  # 已注释：避免泄露敏感凭据
     # 环境变量模板
     (".env.example", "."),
 ]
