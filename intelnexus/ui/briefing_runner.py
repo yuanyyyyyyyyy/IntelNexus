@@ -258,8 +258,10 @@ def _render_stats(key_prefix: str, compact: bool, result: dict = None):
 
     total_items = sum(result.get("collected_counts", {}).values())
 
-    with st.container():
-        st.markdown('<div class="bf-generate-stats">', unsafe_allow_html=True)
+    # 用 st.container 替代手动 <div>：Streamlit widget（columns/metric）
+    # 会被正确渲染在 container 内部，而非作为 div 的兄弟元素。
+    # CSS 通过 [data-key="bf-stats-{key_prefix}"] 定位容器样式。
+    with st.container(key=f"bf-stats-{key_prefix}"):
         if compact:
             st.caption(
                 f"{get_text('briefing_stat_collected')}: {total_items} · "
@@ -279,4 +281,3 @@ def _render_stats(key_prefix: str, compact: bool, result: dict = None):
             with st.expander(get_text("briefing_stat_warnings"), expanded=False):
                 for w in warnings:
                     st.caption(f"• {w}")
-        st.markdown('</div>', unsafe_allow_html=True)
