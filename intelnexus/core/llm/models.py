@@ -337,7 +337,9 @@ def test_provider_connection(base_url: str, api_key: str = "", api_format: str =
             logger.info("[PROVIDER TEST] 尝试 URL %d/%d: %s", idx, len(candidate_urls), test_url)
             try:
                 start_time = time.time()
-                response = requests.post(test_url, json=test_payload, headers=headers, timeout=10)
+                # 禁用代理，直连目标服务器（避免系统代理导致连接失败）
+                proxies = {"http": None, "https": None}
+                response = requests.post(test_url, json=test_payload, headers=headers, timeout=10, proxies=proxies)
                 latency_ms = int((time.time() - start_time) * 1000)
                 
                 logger.info("[PROVIDER TEST] 响应状态码: %d", response.status_code)
