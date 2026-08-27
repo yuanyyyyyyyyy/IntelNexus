@@ -8,7 +8,6 @@
 - 品牌信息来自 organization 配置，不写死任何品牌
 """
 
-import os
 import re
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -44,9 +43,9 @@ def export_briefing_pdf(briefing_md: str, output_path: str, organization: dict =
         org = organization or BRIEFING_CONFIG.get("organization", {})
         org_name = org.get("name", "")
 
-        _register_chinese_font()
+        font_regular, font_bold = _register_chinese_font()
         styles = getSampleStyleSheet()
-        _add_chinese_styles(styles)
+        _add_chinese_styles(styles, font_regular, font_bold)
 
         header_text = f"AI 与网络安全每日情报简报  |  {org_name}"
         footer_base = f"{org_name} · 每日情报简报"
@@ -61,7 +60,7 @@ def export_briefing_pdf(briefing_md: str, output_path: str, organization: dict =
         )
 
         def _decorate(canvas, d):
-            _on_page(canvas, d, header_text, footer_base)
+            _on_page(canvas, d, header_text, footer_base, font_regular)
 
         doc.build(story, onFirstPage=_decorate, onLaterPages=_decorate)
         logger.info(f"Briefing PDF exported: {output_path}")
@@ -75,13 +74,13 @@ def export_briefing_pdf(briefing_md: str, output_path: str, organization: dict =
         raise
 
 
-def _on_page(canvas, doc, header_text: str, footer_base: str):
+def _on_page(canvas, doc, header_text: str, footer_base: str, font_name: str = "ChineseFont"):
     """每页页眉/页脚回调"""
     canvas.saveState()
     w, h = A4
 
     # 页眉
-    canvas.setFont("ChineseFont", 9)
+    canvas.setFont(font_name, 9)
     canvas.setFillColorRGB(0.45, 0.45, 0.45)
     canvas.drawString(2.5 * cm, h - 1.2 * cm, header_text)
     canvas.setStrokeColorRGB(0.8, 0.8, 0.8)
@@ -241,70 +240,65 @@ def _split_md_row(line: str) -> list:
 
 
 def _register_chinese_font():
-    """注册中文字体"""
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.ttfonts import TTFont
+    """注册中文字体（统一走 font_registry：自带 Noto Sans SC + 系统字体兜底）
 
-    font_paths = [
-        "C:/Windows/Fonts/msyh.ttc",
-        "C:/Windows/Fonts/simhei.ttf",
-        "C:/Windows/Fonts/simsun.ttc",
-        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
-        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-    ]
+    Returns:
+        tuple: ``(regular_name, bold_name | None)``。保留既有注册名
+        ``ChineseFont`` 以兼容样式/页眉页脚引用；Bold 字重经
+        ``registerFontFamily`` 关联，使 ``<b>`` 命中真粗体。
+    """
+    from intelnexus.export.font_registry import register_pdf_fonts
 
-    for path in font_paths:
-        if os.path.exists(path):
-            try:
-                pdfmetrics.registerFont(TTFont("ChineseFont", path))
-                return
-            except Exception:
-                continue
-
-    logger.warning("No Chinese font found, PDF may not display Chinese correctly")
+    regular, bold = register_pdf_fonts("ChineseFont", "ChineseFont-Bold")
+    if regular is None:
+        # 无任何可用字体：保留旧行为（返回既有名称，渲染时报错由上层捕获）
+        logger.warning("No Chinese font found, PDF may not display Chinese correctly")
+        return "ChineseFont", None
+    return regular, bold
 
 
-def _add_chinese_styles(styles):
-    """添加中文样式"""
+def _add_chinese_styles(styles, regular: str = "ChineseFont", bold: str = None):
+    """添加中文样式：正文用 Regular，标题/表头用 Bold 真字重"""
+    bold_font = bold or regular
     styles.add(ParagraphStyle(
         "ChTitle", parent=styles["Title"],
-        fontName="ChineseFont", fontSize=18, spaceAfter=12
+        fontName=bold_font, fontSize=18, spaceAfter=12
     ))
     styles.add(ParagraphStyle(
         "ChCoverTitle", parent=styles["Title"],
-        fontName="ChineseFont", fontSize=22, alignment=TA_CENTER,
+        fontName=bold_font, fontSize=22, alignment=TA_CENTER,
         textColor=colors.HexColor("#1F4E88"), spaceAfter=10
     ))
     styles.add(ParagraphStyle(
         "ChCoverSub", parent=styles["Normal"],
-        fontName="ChineseFont", fontSize=11, alignment=TA_CENTER,
+        fontName=regular, fontSize=11, alignment=TA_CENTER,
         textColor=colors.HexColor("#666666"), spaceAfter=4, leading=16
     ))
     styles.add(ParagraphStyle(
         "ChHeading2", parent=styles["Heading2"],
-        fontName="ChineseFont", fontSize=15, spaceBefore=10, spaceAfter=8,
+        fontName=bold_font, fontSize=15, spaceBefore=10, spaceAfter=8,
         textColor=colors.HexColor("#1F4E88")
     ))
     styles.add(ParagraphStyle(
         "ChHeading3", parent=styles["Heading3"],
-        fontName="ChineseFont", fontSize=12.5, spaceBefore=8, spaceAfter=6,
+        fontName=bold_font, fontSize=12.5, spaceBefore=8, spaceAfter=6,
         textColor=colors.HexColor("#2E5A88")
     ))
     styles.add(ParagraphStyle(
         "ChNormal", parent=styles["Normal"],
-        fontName="ChineseFont", fontSize=10, leading=15
+        fontName=regular, fontSize=10, leading=15
     ))
     styles.add(ParagraphStyle(
         "ChFooter", parent=styles["Normal"],
-        fontName="ChineseFont", fontSize=9.5, alignment=TA_CENTER,
+        fontName=regular, fontSize=9.5, alignment=TA_CENTER,
         textColor=colors.HexColor("#888888"), spaceAfter=3, leading=14
     ))
     styles.add(ParagraphStyle(
         "ChCellHead", parent=styles["Normal"],
-        fontName="ChineseFont", fontSize=10, leading=13,
+        fontName=bold_font, fontSize=10, leading=13,
         textColor=colors.HexColor("#1F4E88")
     ))
     styles.add(ParagraphStyle(
         "ChCell", parent=styles["Normal"],
-        fontName="ChineseFont", fontSize=9.5, leading=13
+        fontName=regular, fontSize=9.5, leading=13
     ))

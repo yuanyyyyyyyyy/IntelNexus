@@ -35,6 +35,46 @@ def _chart_theme() -> dict:
     保留接口兼容性，始终返回 hermes-paper 配色。
     """
     return _CHART_PALETTE
+
+
+# 自带字体是否已注册过（addfont 重复调用无害，此标志避免重复解析开销）
+_BUNDLED_FONT_ADDED = False
+
+
+def _apply_cjk_font(matplotlib, font_manager) -> None:
+    """为 matplotlib 配置中文字体。
+
+    优先注册项目自带的 Noto Sans SC（font.sans-serif 首位），
+    保留系统字体候选兜底；字体缺失/异常时不影响图表生成。
+    """
+    global _BUNDLED_FONT_ADDED
+    candidates = []
+    try:
+        from intelnexus.export.font_registry import get_cjk_font_paths, MPL_SYSTEM_CJK_CANDIDATES
+        regular = get_cjk_font_paths().get("regular")
+        if regular is not None:
+            if not _BUNDLED_FONT_ADDED:
+                font_manager.fontManager.addfont(str(regular))
+                _BUNDLED_FONT_ADDED = True
+            family = font_manager.FontProperties(fname=str(regular)).get_name()
+            candidates.append(family)
+        candidates += MPL_SYSTEM_CJK_CANDIDATES
+    except Exception as e:
+        logger.debug(f"bundled CJK font setup skipped: {e}")
+        candidates = ["Microsoft YaHei", "SimHei", "DengXian"]
+
+    available = []
+    for _font in candidates:
+        try:
+            font_manager.findfont(_font, fallback_to_default=False)
+            available.append(_font)
+        except Exception:
+            continue
+    if available:
+        matplotlib.rcParams["font.sans-serif"] = available
+        matplotlib.rcParams["axes.unicode_minus"] = False
+
+
 def generate_threat_chart(evidence_data: dict) -> Optional[str]:
     """生成威胁等级分布饼图（基于 claim 置信度分级）。
 
@@ -57,17 +97,7 @@ def generate_threat_chart(evidence_data: dict) -> Optional[str]:
         import matplotlib
         matplotlib.use("Agg")
         from matplotlib import font_manager
-        _cjk = None
-        for _font in ("Microsoft YaHei", "SimHei", "DengXian"):
-            try:
-                font_manager.findfont(_font, fallback_to_default=False)
-                _cjk = _font
-                break
-            except Exception:
-                continue
-        if _cjk:
-            matplotlib.rcParams["font.sans-serif"] = [_cjk]
-            matplotlib.rcParams["axes.unicode_minus"] = False
+        _apply_cjk_font(matplotlib, font_manager)
         import matplotlib.pyplot as plt
         _th = _chart_theme()
         plt.rcParams["figure.facecolor"] = _th["fig"]
@@ -130,17 +160,7 @@ def generate_timeline_chart(scraped_data: dict) -> Optional[str]:
         import matplotlib
         matplotlib.use("Agg")
         from matplotlib import font_manager
-        _cjk = None
-        for _font in ("Microsoft YaHei", "SimHei", "DengXian"):
-            try:
-                font_manager.findfont(_font, fallback_to_default=False)
-                _cjk = _font
-                break
-            except Exception:
-                continue
-        if _cjk:
-            matplotlib.rcParams["font.sans-serif"] = [_cjk]
-            matplotlib.rcParams["axes.unicode_minus"] = False
+        _apply_cjk_font(matplotlib, font_manager)
         import matplotlib.pyplot as plt
         _th = _chart_theme()
         plt.rcParams["figure.facecolor"] = _th["fig"]

@@ -11,6 +11,7 @@ from typing import List, Optional
 import re
 
 from intelnexus.core.logger import get_logger
+from intelnexus.export.font_registry import DOCX_CJK_FONT_NAME
 
 logger = get_logger(__name__)
 
@@ -161,35 +162,35 @@ def _parse_md_tables(lines: List[str]) -> List[dict]:
     return tables
 
 def _register_chinese_font():
-    """Register Chinese font for PDF rendering."""
+    """Register Chinese font for PDF rendering.
+
+    统一走 font_registry：优先项目自带 Noto Sans SC（Regular + Bold 真字重），
+    缺失时按系统字体候选链兜底。保留既有注册名 ``Chinese``。
+
+    Returns:
+        tuple: ``(regular_name | None, bold_name | None)``
+    """
     if not REPORTLAB_AVAILABLE:
-        return None
-    font_paths = [
-        "C:/Windows/Fonts/simhei.ttf",
-        "C:/Windows/Fonts/simsun.ttc",
-        "C:/Windows/Fonts/msyh.ttc",
-        "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
-        "/System/Library/Fonts/PingFang.ttc",
-    ]
-    for font_path in font_paths:
-        if os.path.exists(font_path):
-            try:
-                pdfmetrics.registerFont(TTFont("Chinese", font_path))
-                return "Chinese"
-            except Exception:
-                continue
-    return None
+        return None, None
+    from intelnexus.export.font_registry import register_pdf_fonts
+
+    return register_pdf_fonts("Chinese", "Chinese-Bold")
 
 
-def _build_pdf_styles(font_name):
-    """Build paragraph styles for PDF generation."""
+def _build_pdf_styles(font_name, bold_name=None):
+    """Build paragraph styles for PDF generation.
+
+    标题/章节标题使用 Bold 真字重，正文使用 Regular；
+    段落内 ``<b>`` 经 registerFontFamily 映射到 Bold。
+    """
     styles = getSampleStyleSheet()
     font_for_cjk = font_name if font_name else "Helvetica"
+    font_bold_cjk = bold_name if bold_name else font_for_cjk
 
     title_style = ParagraphStyle(
         'CustomTitle',
         parent=styles['Heading1'],
-        fontName=font_for_cjk,
+        fontName=font_bold_cjk,
         fontSize=20,
         textColor=colors.HexColor('#1F4E88'),
         spaceAfter=20,
@@ -198,7 +199,7 @@ def _build_pdf_styles(font_name):
     heading_style = ParagraphStyle(
         'CustomHeading',
         parent=styles['Heading2'],
-        fontName=font_for_cjk,
+        fontName=font_bold_cjk,
         fontSize=14,
         textColor=colors.HexColor('#1F4E88'),
         spaceAfter=10,
@@ -215,7 +216,7 @@ def _build_pdf_styles(font_name):
     sub_heading_style = ParagraphStyle(
         'SubHeading',
         parent=styles['Heading3'],
-        fontName=font_for_cjk,
+        fontName=font_bold_cjk,
         fontSize=12,
         textColor=colors.HexColor('#2E5A88'),
         spaceAfter=8,
@@ -294,7 +295,7 @@ def _content_to_pdf_story(content, styles):
             story.append(Paragraph(_xml_escape(re.sub(r"^#+\s+", "", stripped)), styles["title"]))
         else:
             body = _xml_escape(stripped)
-            body = re.sub(r"\*\*(.+?)\*\*", r"<b></b>", body)
+            body = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", body)
             story.append(Paragraph(body, styles["normal"]))
         i += 1
     return story
@@ -314,8 +315,8 @@ def export_pdf(content: str, query: str, output_path: str) -> str:
     if output_dir and not os.path.exists(output_dir):
         os.makedirs(output_dir)
     
-    chinese_font = _register_chinese_font()
-    styles = _build_pdf_styles(chinese_font)
+    chinese_font, chinese_bold = _register_chinese_font()
+    styles = _build_pdf_styles(chinese_font, chinese_bold)
     
     doc = SimpleDocTemplate(
         output_path,
@@ -435,18 +436,20 @@ def export_word(content: str, query: str, output_path: str) -> str:
     doc = Document()
     
     # 设置默认字体：中英文都指定（w:eastAsia 缺失时 Word 用默认东亚字体渲染，
-    # 部分环境显示为乱码/豆腐块）。微软雅黑优先，兼容无此字体的环境。
+    # 部分环境显示为乱码/豆腐块）。中文用思源黑体（Source Han Sans SC）：
+    # docx 仅按名称引用字体、不内嵌字体文件，无字体授权风险；接收方缺少该字体时，
+    # Word 会按主题自动替换为可用中文字体，仍可正常渲染。
     style = doc.styles['Normal']
     style.font.name = 'Calibri'
     style.font.size = Pt(11)
     try:
         from docx.oxml.ns import qn
-        style.element.rPr.rFonts.set(qn('w:eastAsia'), '微软雅黑')
+        style.element.rPr.rFonts.set(qn('w:eastAsia'), DOCX_CJK_FONT_NAME)
         for hname, hsize in (('Heading 1', 16), ('Heading 2', 14), ('Heading 3', 12)):
             hs = doc.styles[hname]
             hs.font.name = 'Calibri'
             if hs.element.rPr is not None and hs.element.rPr.rFonts is not None:
-                hs.element.rPr.rFonts.set(qn('w:eastAsia'), '微软雅黑')
+                hs.element.rPr.rFonts.set(qn('w:eastAsia'), DOCX_CJK_FONT_NAME)
     except Exception as e:
         logger.debug(f"Word east-asian font setup skipped: {e}")
     
@@ -608,14 +611,14 @@ def export_excel(content: str, query: str, output_path: str) -> str:
     ws.title = "情报报告"
     
     # 定义样式
-    header_font = Font(name='微软雅黑', size=16, bold=True, color='FFFFFF')
+    header_font = Font(name=DOCX_CJK_FONT_NAME, size=16, bold=True, color='FFFFFF')
     header_fill = PatternFill(start_color='1F4E79', end_color='1F4E79', fill_type='solid')
     header_alignment = Alignment(horizontal='center', vertical='center')
     
-    title_font = Font(name='微软雅黑', size=12, bold=True)
+    title_font = Font(name=DOCX_CJK_FONT_NAME, size=12, bold=True)
     title_fill = PatternFill(start_color='D9E1F2', end_color='D9E1F2', fill_type='solid')
     
-    normal_font = Font(name='微软雅黑', size=11)
+    normal_font = Font(name=DOCX_CJK_FONT_NAME, size=11)
     wrap_alignment = Alignment(wrap_text=True, vertical='top')
     
     thin_border = Border(
@@ -697,7 +700,7 @@ def export_excel(content: str, query: str, output_path: str) -> str:
         ws.merge_cells(f'A{current_row}:B{current_row}')
         
         if is_title:
-            ws[f'A{current_row}'].font = Font(name='微软雅黑', size=11, bold=True, color='1F4E79')
+            ws[f'A{current_row}'].font = Font(name=DOCX_CJK_FONT_NAME, size=11, bold=True, color='1F4E79')
         else:
             ws[f'A{current_row}'].font = normal_font
         
@@ -715,7 +718,7 @@ def export_excel(content: str, query: str, output_path: str) -> str:
     footer_row = current_row + 2
     ws.merge_cells(f'A{footer_row}:B{footer_row}')
     ws[f'A{footer_row}'] = f"© 2026 IntelNexus Platform | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-    ws[f'A{footer_row}'].font = Font(name='微软雅黑', size=9, italic=True, color='808080')
+    ws[f'A{footer_row}'].font = Font(name=DOCX_CJK_FONT_NAME, size=9, italic=True, color='808080')
     ws[f'A{footer_row}'].alignment = Alignment(horizontal='center')
     
     # 确保输出目录存在

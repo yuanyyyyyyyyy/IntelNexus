@@ -569,7 +569,10 @@ BRIEFING_STANDALONE_HTML = """<!DOCTYPE html>
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
 
         body {{
-            font-family: 'Source Han Sans SC', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+            /* 独立 HTML 简报：西文 Inter 先行，中文依次回落思源/鸿蒙/雅黑。
+               该文件脱离 Streamlit 独立打开，无法引用 static/ 自托管字体，
+               故不内嵌 @font-face，仅调整字体栈顺序（用户已装相应字体时生效）。 */
+            font-family: 'Inter', 'Source Han Sans SC', 'Noto Sans SC', 'HarmonyOS Sans SC', 'Microsoft YaHei', sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
             line-height: 1.8;

@@ -47,6 +47,11 @@ def render_hermes_theme_css():
         --radius-sm: 6px;
         --radius-md: 8px;
         --radius-lg: 12px;
+        /* 字体（自托管：config.toml [[theme.fontFaces]] 注册 woff2）。
+           西文 Inter 先行，中文回落到 HarmonyOS Sans SC，系统字体兜底；
+           全局及内联样式一律引用变量，勿再硬编码字体栈。 */
+        --font-ui: "Inter", "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+        --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Courier New", monospace;
 
         /* --- Legacy-compatible tokens (used by workbench / onboarding) --- */
         --in-surface-white: #FFFFFF;
@@ -119,11 +124,32 @@ def render_hermes_theme_css():
         display: none !important;
     }
 
-    /* --- Font System --- */
-    * {
-        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
-            "Noto Sans SC", "PingFang SC", "Microsoft YaHei",
-            "Helvetica Neue", Arial, sans-serif !important;
+    /* --- Font System ---
+       旧版通配符选择器 + !important 的全局字体压制已移除：
+       它会盖过 Streamlit 主题字体（config.toml fontFaces），
+       且连代码块等宽字体一起压掉。改为显式覆盖面选择器 + var(--font-ui)，
+       不带 !important，允许更高特异性规则（含 Streamlit 原生主题）正常覆盖；
+       个别元素若被内建样式盖过，应针对性补规则而不是恢复通配。 */
+    html,
+    body,
+    [class*="st-"],
+    [data-baseweb],
+    div, span, p, li, a, label,
+    button, input, select, textarea, optgroup {
+        font-family: var(--font-ui);
+    }
+    body {
+        line-height: 1.55;
+    }
+    /* 代码 / 哈希 / 数据展示区统一等宽字体。
+       注意：全局 [class*="st-"] { font-family: var(--font-ui) } 特异性 (0,1,0)，
+       而 Streamlit 的 code/pre 自身带 st-emotion-cache 类会被其命中，
+       裸类型选择器 (0,0,1) 会被盖过；故用祖先/自身类组合抬升特异性。 */
+    html code, html pre, html kbd, html samp,
+    [class*="st-"] code, [class*="st-"] pre, [class*="st-"] kbd, [class*="st-"] samp,
+    code[class*="st-"], pre[class*="st-"], kbd[class*="st-"], samp[class*="st-"],
+    [data-testid="stCode"] {
+        font-family: var(--font-mono);
     }
 
     /* --- Main Canvas Background --- */
@@ -309,9 +335,12 @@ def render_hermes_theme_css():
     .stButton > button:active {
         transform: scale(0.98) !important;
     }
-    /* Secondary / download buttons */
+    /* Secondary / download buttons（新版 Streamlit 可能把 data-testid
+       直接放在 <button> 自身，两种 DOM 形态均兼容，下同） */
     div[data-testid="stBaseButton-secondary"] > button,
-    div[data-testid="stDownloadButton"] button {
+    button[data-testid="stBaseButton-secondary"],
+    div[data-testid="stDownloadButton"] button,
+    button[data-testid="stDownloadButton"] {
         background-color: var(--bg-tag) !important;
         color: var(--text-primary) !important;
         border: 1px solid var(--border-medium) !important;
@@ -404,7 +433,8 @@ def render_hermes_theme_css():
 
     /* 全局主按钮风格 — 白底深色文字+蓝色阴影（与生成简报一致） */
     section[data-testid="stMain"] div[data-testid="stBaseButton-primary"] > button,
-    section[data-testid="stMain"] div[data-testid="stBaseButton-primary"] button {
+    section[data-testid="stMain"] div[data-testid="stBaseButton-primary"] button,
+    section[data-testid="stMain"] button[data-testid="stBaseButton-primary"] {
         background: #FFFFFF !important;
         color: #1A1A1A !important;
         border: 1px solid #E0E0E0 !important;
@@ -417,14 +447,17 @@ def render_hermes_theme_css():
         transition: all 0.2s ease !important;
     }
     section[data-testid="stMain"] div[data-testid="stBaseButton-primary"] > button:hover,
-    section[data-testid="stMain"] div[data-testid="stBaseButton-primary"] button:hover {
+    section[data-testid="stMain"] div[data-testid="stBaseButton-primary"] button:hover,
+    section[data-testid="stMain"] button[data-testid="stBaseButton-primary"]:hover {
         background: #F5F5F5 !important;
         box-shadow: 0 4px 16px rgba(0,85,255,0.4) !important;
     }
 
     /* 表单提交按钮（搜索按钮）— 白底深色文字+蓝色阴影 */
     section[data-testid="stMain"] div[data-testid="stBaseButton-primaryFormSubmit"] button,
-    section[data-testid="stMain"] div[data-testid="stBaseButton-secondaryFormSubmit"] button {
+    section[data-testid="stMain"] div[data-testid="stBaseButton-secondaryFormSubmit"] button,
+    section[data-testid="stMain"] button[data-testid="stBaseButton-primaryFormSubmit"],
+    section[data-testid="stMain"] button[data-testid="stBaseButton-secondaryFormSubmit"] {
         background: #FFFFFF !important;
         color: #1A1A1A !important;
         border: 1px solid #E0E0E0 !important;
@@ -437,7 +470,9 @@ def render_hermes_theme_css():
         transition: all 0.2s ease !important;
     }
     section[data-testid="stMain"] div[data-testid="stBaseButton-primaryFormSubmit"] button:hover,
-    section[data-testid="stMain"] div[data-testid="stBaseButton-secondaryFormSubmit"] button:hover {
+    section[data-testid="stMain"] div[data-testid="stBaseButton-secondaryFormSubmit"] button:hover,
+    section[data-testid="stMain"] button[data-testid="stBaseButton-primaryFormSubmit"]:hover,
+    section[data-testid="stMain"] button[data-testid="stBaseButton-secondaryFormSubmit"]:hover {
         background: #F5F5F5 !important;
         box-shadow: 0 4px 16px rgba(0,85,255,0.4) !important;
     }
@@ -1168,7 +1203,8 @@ def render_hermes_theme_css():
 
     /* --- 5. Sidebar Buttons --- */
     section[data-testid="stSidebar"] .stButton > button,
-    section[data-testid="stSidebar"] div[data-testid="stBaseButton-secondary"] > button {
+    section[data-testid="stSidebar"] div[data-testid="stBaseButton-secondary"] > button,
+    section[data-testid="stSidebar"] button[data-testid="stBaseButton-secondary"] {
         background: #FFFFFF !important;
         color: #1A1A1A !important;
         border: 1px solid #E0E0E0 !important;
@@ -1179,12 +1215,14 @@ def render_hermes_theme_css():
         transition: all 0.15s ease !important;
     }
     section[data-testid="stSidebar"] .stButton > button:hover,
-    section[data-testid="stSidebar"] div[data-testid="stBaseButton-secondary"] > button:hover {
+    section[data-testid="stSidebar"] div[data-testid="stBaseButton-secondary"] > button:hover,
+    section[data-testid="stSidebar"] button[data-testid="stBaseButton-secondary"]:hover {
         background: #F0F0F0 !important;
         border-color: #CCCCCC !important;
     }
     section[data-testid="stSidebar"] div[data-testid="stBaseButton-primary"] > button,
-    section[data-testid="stSidebar"] div[data-testid="stBaseButton-primary"] button {
+    section[data-testid="stSidebar"] div[data-testid="stBaseButton-primary"] button,
+    section[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"] {
         background: #FFFFFF !important;
         color: #1A1A1A !important;
         border: 1px solid #E0E0E0 !important;
@@ -1196,7 +1234,8 @@ def render_hermes_theme_css():
         transition: all 0.2s ease !important;
     }
     section[data-testid="stSidebar"] div[data-testid="stBaseButton-primary"] > button:hover,
-    section[data-testid="stSidebar"] div[data-testid="stBaseButton-primary"] button:hover {
+    section[data-testid="stSidebar"] div[data-testid="stBaseButton-primary"] button:hover,
+    section[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"]:hover {
         background: #F5F5F5 !important;
         box-shadow: 0 4px 16px rgba(0,85,255,0.4) !important;
     }
@@ -1314,7 +1353,7 @@ def render_hermes_theme_css():
 <script>
 (function() {
     function fixBtnColor() {
-        document.querySelectorAll('div[data-testid="stBaseButton-primary"] button, div[data-testid="stBaseButton-primaryFormSubmit"] button, div[data-testid="stBaseButton-secondaryFormSubmit"] button').forEach(function(btn) {
+        document.querySelectorAll('div[data-testid="stBaseButton-primary"] button, div[data-testid="stBaseButton-primaryFormSubmit"] button, div[data-testid="stBaseButton-secondaryFormSubmit"] button, button[data-testid="stBaseButton-primary"], button[data-testid="stBaseButton-primaryFormSubmit"], button[data-testid="stBaseButton-secondaryFormSubmit"]').forEach(function(btn) {
             btn.style.setProperty('color', '#1A1A1A', 'important');
         });
     }
@@ -1616,7 +1655,8 @@ def render_workbench_css():
 
     /* 生成简报 / 添加笔记主按钮 — 白底深色文字+蓝色阴影（统一风格） */
     section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container div[data-testid="stBaseButton-primary"] > button,
-    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container div[data-testid="stBaseButton-primary"] button {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container div[data-testid="stBaseButton-primary"] button,
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container button[data-testid="stBaseButton-primary"] {
         background: #FFFFFF !important;
         color: #1A1A1A !important;
         border: 1px solid #E0E0E0 !important;
@@ -1629,7 +1669,8 @@ def render_workbench_css():
         transition: all 0.2s ease !important;
     }
     section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container div[data-testid="stBaseButton-primary"] > button:hover,
-    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container div[data-testid="stBaseButton-primary"] button:hover {
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container div[data-testid="stBaseButton-primary"] button:hover,
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container button[data-testid="stBaseButton-primary"]:hover {
         background: #F5F5F5 !important;
         box-shadow: 0 4px 16px rgba(0,85,255,0.4) !important;
     }
@@ -1688,6 +1729,7 @@ def render_workbench_css():
 
     /* 通用确认/操作按钮 */
     section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container div[data-testid="stBaseButton-secondary"] > button,
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container button[data-testid="stBaseButton-secondary"],
     section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container div[data-testid="stButton"] > button:not(:has(~ [data-testid="stBaseButton-primary"])):not(:has(~ [data-testid="stBaseButton-secondary"])) {
         padding: 6px 14px !important;
         min-height: 32px !important;
@@ -2227,7 +2269,7 @@ def render_status_bar(metrics: "dict | None" = None):
         color: var(--text-tertiary);
         white-space: nowrap;
         z-index: 9999;
-        font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        font-family: var(--font-ui);
     ">
         <div style="display: flex; align-items: center; gap: 16px;">
             <span style="display: flex; align-items: center; gap: 6px;">
