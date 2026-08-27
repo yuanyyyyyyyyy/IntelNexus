@@ -1258,13 +1258,14 @@ def render_hermes_theme_css():
         box-shadow: 0 4px 16px rgba(0,85,255,0.4) !important;
     }
 
-    /* --- 5b. Custom Model/Provider Card (compact) --- */
-    .custom-model-card {
-        margin: 0 0 4px 0 !important;
-        padding: 0 !important;
+    /* --- 5b. Sidebar element-container spacing (compact model cards) --- */
+    section[data-testid="stSidebar"] .element-container {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
     }
-    .custom-model-card [data-testid="stMarkdownContainer"] p {
-        margin: 0 0 4px 0 !important;
+    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
     }
     /* --- 5c. Custom Model/Provider Action Buttons (compact) --- */
     .custom-model-actions [data-testid="column"],
@@ -1275,6 +1276,10 @@ def render_hermes_theme_css():
     .custom-model-actions [data-testid="stHorizontalBlock"],
     .custom-provider-actions [data-testid="stHorizontalBlock"] {
         gap: 4px !important;
+    }
+    section[data-testid="stSidebar"] .custom-model-actions div.stButton,
+    section[data-testid="stSidebar"] .custom-provider-actions div.stButton {
+        width: 100% !important;
     }
     section[data-testid="stSidebar"] .custom-model-actions .stButton > button,
     section[data-testid="stSidebar"] .custom-provider-actions .stButton > button {
