@@ -554,7 +554,7 @@ def _render_custom_models():
         api_key = st.text_input(get_text("api_key"), type="password", key="add_model_api_key")
         model_id = st.text_input(get_text("model_id"), key="add_model_id")
 
-        btn_add, btn_cancel = st.columns(2)
+        btn_add, btn_cancel, btn_test = st.columns(3)
         with btn_add:
             if st.button(get_text("add_model"), type="primary"):
                 if custom_model_name and model_id and base_url:
@@ -570,6 +570,18 @@ def _render_custom_models():
             if st.button(get_text("cancel_add")):
                 st.session_state["show_add_model"] = False
                 st.rerun()
+        with btn_test:
+            if st.button(get_text("test_connection"), key="test_new_model"):
+                if model_id and base_url:
+                    with st.spinner(get_text("testing_connection")):
+                        config = {"model_name": model_id, "base_url": base_url, "api_key": api_key}
+                        ok, msg = test_model_connection(model_type.lower(), config)
+                        if ok:
+                            st.success(msg)
+                        else:
+                            st.error(msg)
+                else:
+                    st.error(get_text("fill_fields"))
 
     # ---- 自定义供应商 ----
     _render_custom_providers()
