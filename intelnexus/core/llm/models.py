@@ -230,13 +230,10 @@ def test_model_connection(model_type: str, config: Dict) -> tuple:
             custom_providers = get_custom_providers()
             provider_names = [p["name"].lower() for p in custom_providers]
             if type_lower in provider_names:
-                from langchain_openai import ChatOpenAI
-                llm_class = ChatOpenAI
-                constructor_params = {
-                    "model_name": temp_model,
-                    "base_url": config.get("base_url", ""),
-                    "api_key": config.get("api_key"),
-                }
+                # 使用 test_provider_connection 进行测试（已处理代理问题）
+                base_url = config.get("base_url", "")
+                api_key = config.get("api_key", "")
+                return test_provider_connection(base_url, api_key, "openai")
             else:
                 return False, f"不支持的模型类型: {model_type}"
 
