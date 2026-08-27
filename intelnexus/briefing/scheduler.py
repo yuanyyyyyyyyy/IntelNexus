@@ -67,7 +67,6 @@ class AIBriefingScheduler:
         llm, name, reason = resolve_scheduler_llm()
         if llm is not None:
             self.analyzer._llm = llm
-            logger.info(f"Scheduler LLM resolved: {name}")
             scheduler_registry.set_model_status(name, degraded=False)
         else:
             logger.warning(f"Scheduler LLM unavailable: {reason}")
