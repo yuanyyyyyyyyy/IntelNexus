@@ -102,7 +102,15 @@ def _render_metric_cards(metrics: "dict | None") -> None:
     }
 
     # ---- 卡1：今日简报 ----
-    if today.get("briefings_today", 0) > 0:
+    # searches_today 取数与现有口径一致：异常/缺省一律兜底为 0，绝不阻断卡片渲染
+    try:
+        searches_today = int(today.get("searches_today", 0) or 0)
+    except Exception:
+        searches_today = 0
+    briefings_n = today.get("briefings_today", 0)
+    search_meta = get_text("ov_card_search_meta").format(s=searches_today, n=briefings_n)
+
+    if briefings_n > 0:
         last = today.get("last_briefing") or {}
         title = last.get("title") or get_text("untitled")
         value = html.escape(title)
@@ -110,12 +118,12 @@ def _render_metric_cards(metrics: "dict | None") -> None:
         when = _fmt_briefing_time(last.get("created_at") or "")
         if when:
             sub_bits.append(when)
-        sub_bits.append(get_text("ov_briefing_count").format(n=today.get("briefings_today", 0)))
+        sub_bits.append(search_meta)
         sub = " · ".join(sub_bits)
         card_cls = "hc-card ov-card hc-card--healthy"
     else:
         value = get_text("ov_briefing_none")
-        sub = ""
+        sub = search_meta
         card_cls = "hc-card ov-card"
 
     briefing_card = (
