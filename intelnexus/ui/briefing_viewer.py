@@ -442,7 +442,8 @@ def render_briefing_history():
         time_str = created_at[11:16] if len(created_at) >= 16 else ""
         org = entry.get("organization", "") or "—"
         categories = entry.get("categories") or []
-        cats_text = "、".join(categories[:3]) if categories else "—"
+        _cat_map = _watch_category_options()
+        cats_text = "、".join(_cat_map.get(c, c) for c in categories[:3]) if categories else "—"
         if len(categories) > 3:
             cats_text += f" 等{len(categories)}个"
         subs = entry.get("subscribers_count", 0)
@@ -679,7 +680,7 @@ def render_data_sources_panel():
                 st.session_state.bf_src_batch_running = False
 
             for source in _filtered_src:
-                col_info, col_toggle, col_actions = st.columns([4, 1, 2])
+                col_info, col_toggle, col_actions = st.columns([3, 1, 3])
                 with col_info:
                     st.write(f"**{html.escape(str(source['name']))}**")
                     _type_label = "RSS" if source.get("fetch_type") == "rss" else get_text("source_type_web")
@@ -933,7 +934,7 @@ def render_subscriptions_panel():
             ]
 
             for sub in _filtered_sub:
-                col_info, col_status, col_actions = st.columns([4, 1, 2])
+                col_info, col_status, col_actions = st.columns([3, 1, 3])
                 with col_info:
                     st.write(f"**{sub['name']}**")
                     st.caption(sub['email'])
@@ -973,10 +974,11 @@ def render_subscriptions_panel():
                     active_channels = [k for k, v in channels.items() if isinstance(v, dict) and v.get("enabled")]
                     schedule = sub.get("schedule", {})
                     cats = sub.get("categories", [])
+                    _cat_names = _watch_category_options()
                     st.markdown(
                         f"- {get_text('push_channels')}: {', '.join(active_channels) or '—'}\n"
                         f"- {get_text('schedule_settings')}: {schedule.get('time', '—')} ({schedule.get('timezone', '—')})\n"
-                        f"- {get_text('watch_categories')}: {', '.join(cats) if cats else '—'}"
+                        f"- {get_text('watch_categories')}: {', '.join(_cat_names.get(c, c) for c in cats) if cats else '—'}"
                     )
 
                 # 编辑表单
@@ -1264,11 +1266,6 @@ def render_watch_categories_panel():
                         if restore_default(did):
                             st.success(get_text("watch_category_restored"))
                             st.rerun()
-    else:
-        st.markdown(
-            f"<p class='bf-hint'>{get_text('no_watch_categories')}</p>",
-            unsafe_allow_html=True
-        )
 
     st.markdown('</div>', unsafe_allow_html=True)
 

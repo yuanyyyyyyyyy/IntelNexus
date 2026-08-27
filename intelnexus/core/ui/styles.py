@@ -1683,6 +1683,7 @@ def render_workbench_css():
         margin-bottom: 0 !important;
         line-height: 1.5 !important;
         width: auto !important;
+        white-space: nowrap !important;
     }
 
     /* 工作台作用域内所有按钮 — 白底深色文字（primary 规则在后面自然覆盖） */
