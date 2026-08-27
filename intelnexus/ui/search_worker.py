@@ -356,19 +356,22 @@ def run_search_computation(
             conflicts_context=conflicts_context,
             kb_context=kb_context,
         )
+        # 保存 LLM 原始输出（供证据链追踪、行动项提取、TL;DR 提取使用）
+        result["llm_raw_output"] = generated or ""
         result["streamed_summary"] = generated or ""
     except Exception as e:
         logger.error(f"报告生成失败: {e}")
+        result["llm_raw_output"] = ""
         result["streamed_summary"] = ""
 
     # ---- 9. 证据链追踪 ----
     progress_callback("evidence", "追踪证据链...", 0.85)
     try:
-        if result.get("streamed_summary"):
+        if result.get("llm_raw_output"):
             from intelnexus.analysis.evidence_tracer import EvidenceTracer
             tracer = EvidenceTracer()
             result["evidence_data"] = tracer.trace(
-                result["streamed_summary"], result["scraped"])
+                result["llm_raw_output"], result["scraped"])
         else:
             result["evidence_data"] = None
     except Exception as e:
@@ -403,19 +406,43 @@ def run_search_computation(
     except Exception as e:
         logger.warning(f"可视化图表注入失败: {e}")
 
-    # 行动项提取
+    # 行动项提取（基于 LLM 原始输出）
     try:
-        if result.get("streamed_summary"):
+        if result.get("llm_raw_output"):
             from intelnexus.analysis.action_extractor import extract_actions
-            result["action_items"] = extract_actions(result["streamed_summary"])
+            result["action_items"] = extract_actions(result["llm_raw_output"])
     except Exception as e:
         logger.warning(f"行动项提取失败: {e}")
 
-    # TL;DR 速览卡
+    # TL;DR 速览卡（基于 LLM 原始输出）
     try:
-        result["tldr_card"] = _extract_tldr_card(result.get("streamed_summary", ""))
+        result["tldr_card"] = _extract_tldr_card(result.get("llm_raw_output", ""))
     except Exception:
         result["tldr_card"] = ""
+
+    # ---- 11. 组装 10 板块结构化报告 ----
+    progress_callback("finalizing", "组装结构化报告...", 0.95)
+    try:
+        from intelnexus.export.report_builder import build_intelligence_report
+        assembled = build_intelligence_report(
+            query=query,
+            search_mode=search_mode,
+            model=model,
+            llm_output=result.get("llm_raw_output", ""),
+            results=result.get("results", []),
+            source_counts=result.get("source_counts", {}),
+            source_stats=result.get("source_stats", {}),
+            credibility_data=result.get("credibility_data"),
+            kg_entities=result.get("kg_entities", []),
+            kg_relations=result.get("kg_relations", []),
+            conflicts=result.get("conflicts", []),
+            action_items=result.get("action_items", []),
+            scraped=result.get("scraped", {}),
+        )
+        result["streamed_summary"] = assembled
+    except Exception as e:
+        logger.warning(f"结构化报告组装失败，回退到 LLM 原始输出: {e}")
+        # 回退：保持 streamed_summary 为 LLM 原始输出
 
     # 记录搜索历史
     try:
