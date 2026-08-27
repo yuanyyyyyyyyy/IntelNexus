@@ -63,6 +63,12 @@ EXCLUDES = [
 HIDDEN_IMPORTS = [
     "streamlit",
     "streamlit.web.cli",
+    "streamlit.runtime.scriptrunner",
+    "streamlit.runtime.scriptrunner.magic_funcs",
+    "streamlit.delta_generator",
+    "streamlit.elements",
+    "streamlit.elements.arrow",
+    "streamlit.elements.lib",
     "click",
     "langchain",
     "langchain_core",
