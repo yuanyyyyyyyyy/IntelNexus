@@ -11,6 +11,8 @@ from intelnexus.core.llm.utils import get_model_choices, is_vision_model
 from intelnexus.core.llm.models import (
     add_custom_model, get_custom_model_names, remove_custom_model,
     get_custom_models, get_model_config, update_custom_model, test_model_connection,
+    add_custom_provider, get_custom_providers, remove_custom_provider,
+    get_custom_provider_names, get_provider_config, update_custom_provider,
 )
 from intelnexus.search_app.darkweb import is_available as darkweb_available
 
@@ -542,16 +544,215 @@ def _render_custom_models():
         api_key = st.text_input(get_text("api_key"), type="password", key="add_model_api_key")
         model_id = st.text_input(get_text("model_id"), key="add_model_id")
 
-        if st.button(get_text("add_model")):
-            if custom_model_name and model_id and base_url:
-                config = {"model_name": model_id, "base_url": base_url, "api_key": api_key}
-                if add_custom_model(custom_model_name, model_type.lower(), config):
-                    st.success(get_text("model_add_success"))
-                    st.rerun()
+        btn_add, btn_cancel = st.columns(2)
+        with btn_add:
+            if st.button(get_text("add_model"), type="primary"):
+                if custom_model_name and model_id and base_url:
+                    config = {"model_name": model_id, "base_url": base_url, "api_key": api_key}
+                    if add_custom_model(custom_model_name, model_type.lower(), config):
+                        st.success(get_text("model_add_success"))
+                        st.rerun()
+                    else:
+                        st.error(get_text("model_exists"))
                 else:
-                    st.error(get_text("model_exists"))
+                    st.error(get_text("fill_fields"))
+        with btn_cancel:
+            if st.button(get_text("cancel_add")):
+                st.session_state["show_add_model"] = False
+                st.rerun()
+
+    # ---- 自定义供应商 ----
+    _render_custom_providers()
+
+
+def _render_custom_providers():
+    """自定义供应商管理：添加 / 编辑 / 删除"""
+    st.markdown('<div class="sb-section"><span class="sb-section__label">Custom Providers</span></div>', unsafe_allow_html=True)
+
+    # ---- 已有供应商列表 ----
+    custom_providers = get_custom_providers()
+    if custom_providers:
+        st.markdown(f"**{get_text('custom_providers')}**")
+        for provider in custom_providers:
+            pname = provider["name"]
+            purl = provider.get("base_url", "")
+            premark = provider.get("remark", "")
+            editing_key = f"editing_provider_{pname}"
+            is_editing = st.session_state.get(editing_key, False)
+
+            # 供应商信息
+            display_text = f"**{pname}**"
+            if premark:
+                display_text += f" *{premark}*"
+            display_text += f" `{purl}`"
+            st.markdown(display_text)
+
+            # 按钮行
+            if is_editing:
+                btn_save, btn_cancel = st.columns(2)
+                with btn_save:
+                    if st.button(get_text("save_changes"), key=f"save_provider_{pname}", type="primary"):
+                        new_config = {
+                            "base_url": st.session_state.get(f"edit_provider_url_{pname}", ""),
+                            "remark": st.session_state.get(f"edit_provider_remark_{pname}", ""),
+                            "website": st.session_state.get(f"edit_provider_website_{pname}", ""),
+                            "api_key": st.session_state.get(f"edit_provider_api_key_{pname}", ""),
+                            "api_format": st.session_state.get(f"edit_provider_api_format_{pname}", "openai"),
+                            "auth_field": st.session_state.get(f"edit_provider_auth_field_{pname}", "Authorization"),
+                        }
+                        if update_custom_provider(pname, **new_config):
+                            st.success(get_text("provider_added"))
+                            st.session_state[editing_key] = False
+                            st.rerun()
+                        else:
+                            st.error(get_text("error"))
+                with btn_cancel:
+                    if st.button(get_text("cancel_edit"), key=f"cancel_provider_{pname}"):
+                        st.session_state[editing_key] = False
+                        st.rerun()
             else:
-                st.error(get_text("fill_fields"))
+                btn_edit, btn_del = st.columns(2)
+                with btn_edit:
+                    if st.button(get_text("edit_provider"), key=f"edit_provider_{pname}"):
+                        pconfig = get_provider_config(pname)
+                        if pconfig:
+                            st.session_state[f"edit_provider_url_{pname}"] = pconfig.get("base_url", "")
+                            st.session_state[f"edit_provider_remark_{pname}"] = pconfig.get("remark", "")
+                            st.session_state[f"edit_provider_website_{pname}"] = pconfig.get("website", "")
+                            st.session_state[f"edit_provider_api_key_{pname}"] = pconfig.get("api_key", "")
+                            st.session_state[f"edit_provider_api_format_{pname}"] = pconfig.get("api_format", "openai")
+                            st.session_state[f"edit_provider_auth_field_{pname}"] = pconfig.get("auth_field", "Authorization")
+                        st.session_state[editing_key] = True
+                        st.rerun()
+                with btn_del:
+                    if st.button(get_text("delete_provider"), key=f"delete_provider_{pname}"):
+                        if remove_custom_provider(pname):
+                            st.success(get_text("provider_deleted"))
+                            st.rerun()
+
+            # 编辑表单
+            if is_editing:
+                row1_col1, row1_col2 = st.columns(2)
+                with row1_col1:
+                    st.text_input(
+                        get_text("provider_name"),
+                        key=f"edit_provider_name_{pname}",
+                        value=pname,
+                        disabled=True,
+                    )
+                with row1_col2:
+                    st.text_input(
+                        get_text("provider_remark"),
+                        key=f"edit_provider_remark_{pname}",
+                    )
+
+                st.text_input(
+                    get_text("provider_website"),
+                    key=f"edit_provider_website_{pname}",
+                )
+
+                st.text_input(
+                    get_text("provider_api_key"),
+                    type="password",
+                    key=f"edit_provider_api_key_{pname}",
+                )
+
+                st.text_input(
+                    get_text("base_url"),
+                    key=f"edit_provider_url_{pname}",
+                )
+
+                with st.expander(get_text("provider_advanced_options"), expanded=False):
+                    st.caption(get_text("provider_advanced_hint"))
+                    api_format_options = ["openai", "anthropic", "custom"]
+                    st.selectbox(
+                        get_text("provider_api_format"),
+                        api_format_options,
+                        key=f"edit_provider_api_format_{pname}",
+                    )
+                    st.text_input(
+                        get_text("provider_auth_field"),
+                        key=f"edit_provider_auth_field_{pname}",
+                    )
+
+            st.divider()
+
+    # ---- 添加新供应商（按钮折叠） ----
+    show_add_provider = st.session_state.get("show_add_provider", False)
+    if st.button(get_text("add_new_provider"), key="toggle_add_provider"):
+        st.session_state["show_add_provider"] = not show_add_provider
+        st.rerun()
+
+    if show_add_provider:
+        row1_col1, row1_col2 = st.columns(2)
+        with row1_col1:
+            provider_name = st.text_input(
+                get_text("provider_name"),
+                key="add_provider_name",
+                placeholder=get_text("provider_name_placeholder"),
+            )
+        with row1_col2:
+            provider_remark = st.text_input(
+                get_text("provider_remark"),
+                key="add_provider_remark",
+                placeholder=get_text("provider_remark_placeholder"),
+            )
+
+        provider_website = st.text_input(
+            get_text("provider_website"),
+            key="add_provider_website",
+            placeholder=get_text("provider_website_placeholder"),
+        )
+
+        provider_api_key = st.text_input(
+            get_text("provider_api_key"),
+            type="password",
+            key="add_provider_api_key",
+        )
+
+        provider_url = st.text_input(
+            get_text("base_url"),
+            key="add_provider_url",
+        )
+        st.caption(get_text("provider_base_url_hint"))
+
+        with st.expander(get_text("provider_advanced_options"), expanded=False):
+            st.caption(get_text("provider_advanced_hint"))
+            api_format_options = ["openai", "anthropic", "custom"]
+            provider_api_format = st.selectbox(
+                get_text("provider_api_format"),
+                api_format_options,
+                key="add_provider_api_format",
+            )
+            provider_auth_field = st.text_input(
+                get_text("provider_auth_field"),
+                key="add_provider_auth_field",
+                value="Authorization",
+            )
+
+        btn_add, btn_cancel = st.columns(2)
+        with btn_add:
+            if st.button(get_text("add_provider"), type="primary"):
+                if provider_name:
+                    if add_custom_provider(
+                        name=provider_name,
+                        base_url=provider_url,
+                        remark=provider_remark,
+                        website=provider_website,
+                        api_key=provider_api_key,
+                        api_format=provider_api_format,
+                        auth_field=provider_auth_field,
+                    ):
+                        st.success(get_text("provider_added"))
+                        st.rerun()
+                    else:
+                        st.error(get_text("provider_exists"))
+                else:
+                    st.error(get_text("fill_fields"))
+        with btn_cancel:
+            if st.button(get_text("cancel_add"), key="cancel_add_provider"):
+                st.session_state["show_add_provider"] = False
+                st.rerun()
 
 
 def render_sidebar():
