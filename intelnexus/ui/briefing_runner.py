@@ -265,15 +265,17 @@ def _briefing_progress_fragment(key_prefix: str, compact: bool):
             warnings = result.get("warnings", [])
             if warnings:
                 st.warning(get_text("briefing_partial").format(n=len(warnings)))
-        # 重置任务状态（只消费一次结果）
+        # 重置任务状态并触发整页 rerun（同搜索 fragment 修复）
         runner.reset(_BRIEFING_TASK_ID)
+        st.rerun()
         return
 
     if status == "failed":
         error_msg = state.get("error", "未知错误")
         st.error(f"{get_text('briefing_failed')}: {error_msg}")
-        # 重置失败状态
+        # 重置失败状态并触发整页 rerun
         runner.reset(_BRIEFING_TASK_ID)
+        st.rerun()
         return
 
     # idle 状态：渲染上一轮缓存结果（如有）
