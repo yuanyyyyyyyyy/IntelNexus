@@ -384,6 +384,15 @@ def _render_custom_models():
         ],
     }
 
+    # 动态添加自定义供应商到模型类型列表
+    custom_providers = get_custom_providers()
+    for provider in custom_providers:
+        pname = provider["name"]
+        if pname not in MODEL_TYPES:
+            MODEL_TYPES.append(pname)
+        if pname not in DEFAULT_BASE_URLS:
+            DEFAULT_BASE_URLS[pname] = provider.get("base_url", "")
+
     # ---- 已有模型列表 ----
     custom_models = get_custom_models()
     if custom_models:
