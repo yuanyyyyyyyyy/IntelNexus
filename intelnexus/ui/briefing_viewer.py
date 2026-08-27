@@ -546,7 +546,7 @@ def render_briefing_history():
         st.markdown('<div class="bf-history-item">', unsafe_allow_html=True)
         sel_col, info_col, act_col = st.columns([0.5, 4, 2])
         with sel_col:
-            st.checkbox("", key=f"bf_sel_{fn}", label_visibility="collapsed")
+            st.checkbox("\u00A0", key=f"bf_sel_{fn}", label_visibility="collapsed")
         with info_col:
             time_label = f"{date_str} {time_str}".strip()
             st.markdown(
