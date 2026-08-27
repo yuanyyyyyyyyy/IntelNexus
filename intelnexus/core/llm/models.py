@@ -270,3 +270,160 @@ def test_model_connection(model_type: str, config: Dict) -> tuple:
                 break
 
         return False, f"连接失败: {translated}\n{error_msg}"
+
+
+# ============================================================================
+# Custom Providers Management
+# ============================================================================
+
+CUSTOM_PROVIDERS_FILE = "data/custom_providers.json"
+
+
+def _ensure_custom_providers_file():
+    """Ensure the custom providers file exists."""
+    Path("data").mkdir(exist_ok=True)
+    if not os.path.exists(CUSTOM_PROVIDERS_FILE):
+        safe_write_json(CUSTOM_PROVIDERS_FILE, {"providers": []})
+
+
+def get_custom_providers() -> List[Dict[str, str]]:
+    """Get all custom providers."""
+    _ensure_custom_providers_file()
+    data = safe_read_json(CUSTOM_PROVIDERS_FILE)
+    return data.get("providers", [])
+
+
+def add_custom_provider(
+    name: str,
+    base_url: str,
+    remark: str = "",
+    website: str = "",
+    api_key: str = "",
+    api_format: str = "openai",
+    auth_field: str = "Authorization",
+    model_mapping: Optional[Dict] = None,
+) -> bool:
+    """
+    Add a new custom provider.
+
+    Args:
+        name: Provider name (e.g., "Claude", "My Provider")
+        base_url: Base URL for the provider's API
+        remark: Optional remark/note
+        website: Optional official website URL
+        api_key: API key for authentication
+        api_format: API format (openai, anthropic, custom)
+        auth_field: Authentication header field name
+        model_mapping: Optional model name mapping dict
+
+    Returns:
+        True if successful, False otherwise
+    """
+    if not name:
+        return False
+
+    _ensure_custom_providers_file()
+
+    data = safe_read_json(CUSTOM_PROVIDERS_FILE)
+    if not data:
+        data = {"providers": []}
+
+    existing_names = [p["name"] for p in data.get("providers", [])]
+    if name in existing_names:
+        return False
+
+    new_provider = {
+        "name": name,
+        "base_url": base_url,
+        "remark": remark,
+        "website": website,
+        "api_key": _encode_sensitive({"api_key": api_key}).get("api_key", ""),
+        "api_format": api_format,
+        "auth_field": auth_field,
+        "model_mapping": model_mapping or {},
+    }
+    data.setdefault("providers", []).append(new_provider)
+
+    return safe_write_json(CUSTOM_PROVIDERS_FILE, data)
+
+
+def remove_custom_provider(name: str) -> bool:
+    """Remove a custom provider by name."""
+    _ensure_custom_providers_file()
+
+    data = safe_read_json(CUSTOM_PROVIDERS_FILE)
+    if not data:
+        return False
+
+    original_count = len(data.get("providers", []))
+    data["providers"] = [p for p in data.get("providers", []) if p["name"] != name]
+
+    if len(data["providers"]) < original_count:
+        return safe_write_json(CUSTOM_PROVIDERS_FILE, data)
+    return False
+
+
+def get_custom_provider_names() -> List[str]:
+    """Get a list of custom provider names."""
+    return [p["name"] for p in get_custom_providers()]
+
+
+def get_provider_config(name: str) -> Optional[Dict]:
+    """Get the configuration for a custom provider (sensitive fields decoded)."""
+    for provider in get_custom_providers():
+        if provider["name"] == name:
+            result = provider.copy()
+            if "api_key" in result and result["api_key"]:
+                result["api_key"] = _decode_sensitive({"api_key": result["api_key"]}).get("api_key", "")
+            return result
+    return None
+
+
+def update_custom_provider(
+    name: str,
+    base_url: str,
+    remark: str = "",
+    website: str = "",
+    api_key: str = "",
+    api_format: str = "openai",
+    auth_field: str = "Authorization",
+    model_mapping: Optional[Dict] = None,
+) -> bool:
+    """
+    Update an existing custom provider by name.
+
+    Args:
+        name: Provider name to update
+        base_url: New base URL
+        remark: Optional remark/note
+        website: Optional official website URL
+        api_key: API key for authentication
+        api_format: API format (openai, anthropic, custom)
+        auth_field: Authentication header field name
+        model_mapping: Optional model name mapping dict
+
+    Returns:
+        True if successful, False otherwise
+    """
+    if not name:
+        return False
+
+    _ensure_custom_providers_file()
+
+    data = safe_read_json(CUSTOM_PROVIDERS_FILE)
+    if not data:
+        return False
+
+    for provider in data.get("providers", []):
+        if provider["name"] == name:
+            provider["base_url"] = base_url
+            provider["remark"] = remark
+            provider["website"] = website
+            if api_key:
+                provider["api_key"] = _encode_sensitive({"api_key": api_key}).get("api_key", "")
+            provider["api_format"] = api_format
+            provider["auth_field"] = auth_field
+            provider["model_mapping"] = model_mapping or {}
+            return safe_write_json(CUSTOM_PROVIDERS_FILE, data)
+
+    return False
