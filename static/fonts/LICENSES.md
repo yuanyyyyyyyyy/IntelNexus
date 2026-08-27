@@ -37,7 +37,25 @@
   2. 不得对字体文件本身进行修改后重新分发（排版渲染、转换格式供本项目使用除外的情形请自行评估）；
   3. 不得单独售卖字体；字体可随应用 / 文档免费分发。
 
-## 4. Noto Sans SC（思源黑体 · 简中）
+## 4. Playfair Display
+
+- **用途**：Web 端英文标题（衬线体，优雅人文风格）
+- **文件**：`static/fonts/playfair-display/PlayfairDisplay-{Regular,Bold}.woff2`
+- **许可**：SIL Open Font License 1.1（OFL）
+- **版权**：Copyright 2005-2024 Claus Eggers Sørensen
+- **来源**：https://github.com/clauseggers/Playfair（Google Fonts 版本）
+- **许可摘要**：同 OFL 标准条款（见上）。
+
+## 5. Noto Serif SC（思源宋体 · 简中）
+
+- **用途**：Web 端简体中文显示（宋体，人文优雅风格）
+- **文件**：`static/fonts/noto-serif-sc/NotoSerifSC-*.woff2`（CJK 简中子集 + Latin 子集）
+- **许可**：SIL Open Font License 1.1（OFL）
+- **版权**：Copyright 2012 Google Inc. All Rights Reserved.
+- **来源**：fontsource `@fontsource/noto-serif-sc@5.2.8` 提取 chinese-simplified + latin 子集 woff2
+- **许可摘要**：同 OFL 标准条款（见上）。
+
+## 6. Noto Sans SC（思源黑体 · 简中）
 
 - **用途**：PDF / Word / matplotlib 等导出链路中文渲染
 - **文件**：`intelnexus/assets/fonts/NotoSansSC-{Regular,Bold}.ttf`（静态字重，非 variable，兼容 reportlab）
@@ -51,7 +69,7 @@
 
 按 OFL 1.1 第 2 条，再分发须随附许可全文，本项目全文文件位置：
 
-- `static/fonts/OFL.txt`：Inter / JetBrains Mono（版权行含两个项目的声明）
+- `static/fonts/OFL.txt`：Inter / JetBrains Mono / Playfair Display / Noto Serif SC（版权行含多个项目的声明）
 - `intelnexus/assets/fonts/OFL.txt`：Noto Sans SC（版权行为 Copyright 2012 Google Inc.）
 
 ## OFL 通用条款提示

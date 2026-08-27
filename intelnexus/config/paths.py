@@ -10,10 +10,16 @@ SearchHistory 用相对 CWD 的 "data"，落在仓库内。两套锚点并存导
 - migrate_legacy_data_files(): 一次性把旧目录中的既有数据文件搬到新位置。
   仅当目标不存在时复制（绝不覆盖仓库内更新的文件），搬完后旧文件加
   .migrated.bak 后缀保留作备份。可安全重复调用（幂等）。
+
+Streamlit Community Cloud 兼容：
+- SCC 无持久化磁盘，重启后 data/ 丢失。
+- 检测环境变量 STREAMLIT_SHARING=true 时，数据目录切换到 /tmp/intelnexus_data
+  （容器生命周期内有效，适合演示/试用场景）。
 """
 
 import os
 import shutil
+import sys
 
 from intelnexus.core.logger import get_logger
 
@@ -21,7 +27,33 @@ logger = get_logger(__name__)
 
 # intelnexus/config/paths.py → 包根=intelnexus → 项目根=上一级
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DATA_DIR = os.path.join(PROJECT_ROOT, "data")
+
+
+def _resolve_data_dir() -> str:
+    """根据运行环境选择数据目录。
+
+    优先级：
+    1. 环境变量 INTELNEXUS_DATA_DIR（用户显式指定）
+    2. Streamlit Community Cloud（STREAMLIT_SHARING=true）→ /tmp/intelnexus_data
+    3. PyInstaller 打包（sys.frozen）→ EXE 所在目录/data（持久化）
+    4. 默认 → 仓库内 <repo>/data/
+    """
+    env_override = os.getenv("INTELNEXUS_DATA_DIR")
+    if env_override:
+        return env_override
+
+    if os.getenv("STREAMLIT_SHARING", "").lower() == "true":
+        return "/tmp/intelnexus_data"
+
+    # PyInstaller: 数据应存储在 EXE 旁边，而非临时解压目录
+    if getattr(sys, "frozen", False):
+        exe_dir = os.path.dirname(sys.executable)
+        return os.path.join(exe_dir, "data")
+
+    return os.path.join(PROJECT_ROOT, "data")
+
+
+DATA_DIR = _resolve_data_dir()
 
 # 旧的（仓库外）数据目录：仅用于一次性迁移读取
 _LEGACY_DATA_DIR = os.path.abspath(os.path.join(

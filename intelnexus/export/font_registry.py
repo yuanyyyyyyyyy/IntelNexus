@@ -48,7 +48,7 @@ NOTO_SANS_SC_BOLD = _FONTS_DIR / "NotoSansSC-Bold.ttf"
 #: docx ``w:eastAsia`` 使用的中文字体名。
 #: docx 只按名称引用字体、不内嵌字体文件，因此不涉及字体授权；
 #: 接收方系统缺少该字体时，Word 会按主题自动替换为可用中文字体。
-DOCX_CJK_FONT_NAME = "Source Han Sans SC"
+DOCX_CJK_FONT_NAME = "Source Han Serif SC"
 
 #: matplotlib ``font.sans-serif`` 的系统字体兜底候选
 MPL_SYSTEM_CJK_CANDIDATES = ["Microsoft YaHei", "SimHei", "DengXian"]

@@ -13,12 +13,13 @@ enableStaticServing = true
 [client]
 toolbarMode = "minimal"
 
-# [theme] 说明（2026-08-26 Hermes "纸白与石墨" 风格）：
+# [theme] 说明（2026-08-27 Hermes "优雅人文" 风格）：
 # 项目仅单一浅色主题，无主题切换；下方取值即全局唯一主题配置，
 # 与 styles.py 注入的自定义 CSS 观感统一。
 # 字体方案（自托管，勿改用在线字体——国内网络下 Google Fonts 不可达）：
-#   西文 Inter（正文/标题）+ 中文 HarmonyOS Sans SC（兜底走 CSS 字体栈，
-#   见 styles.py 的 --font-ui）+ 等宽 JetBrains Mono（代码/哈希）。
+#   标题 Playfair Display（衬线体）+ 正文 Inter（无衬线体）
+#   + 中文 Noto Serif SC（宋体）+ 等宽 JetBrains Mono（代码/哈希）。
+#   HarmonyOS Sans SC 保留作为中文备选。
 #   fontFaces 的 url 是相对应用根的路径，静态目录经 /app/static/ 前缀路由，
 #   故形如 "app/static/fonts/..."；fontFaces 变更需重启服务器才生效。
 [[theme.fontFaces]]
@@ -41,6 +42,49 @@ family = "Inter"
 url = "app/static/fonts/inter/Inter-Bold.woff2"
 weight = 700
 
+# --- Playfair Display（标题衬线体）---
+[[theme.fontFaces]]
+family = "Playfair Display"
+url = "app/static/fonts/playfair-display/PlayfairDisplay-Regular.woff2"
+weight = 400
+
+[[theme.fontFaces]]
+family = "Playfair Display"
+url = "app/static/fonts/playfair-display/PlayfairDisplay-Bold.woff2"
+weight = 700
+
+# --- Noto Serif SC（中文宋体）---
+[[theme.fontFaces]]
+family = "Noto Serif SC"
+url = "app/static/fonts/noto-serif-sc/NotoSerifSC-Regular.woff2"
+weight = 400
+
+[[theme.fontFaces]]
+family = "Noto Serif SC"
+url = "app/static/fonts/noto-serif-sc/NotoSerifSC-Medium.woff2"
+weight = 500
+
+[[theme.fontFaces]]
+family = "Noto Serif SC"
+url = "app/static/fonts/noto-serif-sc/NotoSerifSC-SemiBold.woff2"
+weight = 600
+
+[[theme.fontFaces]]
+family = "Noto Serif SC"
+url = "app/static/fonts/noto-serif-sc/NotoSerifSC-Bold.woff2"
+weight = 700
+
+[[theme.fontFaces]]
+family = "Noto Serif SC"
+url = "app/static/fonts/noto-serif-sc/NotoSerifSC-Latin-Regular.woff2"
+weight = 400
+
+[[theme.fontFaces]]
+family = "Noto Serif SC"
+url = "app/static/fonts/noto-serif-sc/NotoSerifSC-Latin-Bold.woff2"
+weight = 700
+
+# --- HarmonyOS Sans SC（中文备选）---
 [[theme.fontFaces]]
 family = "HarmonyOS Sans SC"
 url = "app/static/fonts/harmonyos/HarmonyOSSansSC-Regular.woff2"
@@ -73,7 +117,7 @@ backgroundColor = "#FAFAFA"
 secondaryBackgroundColor = "#FFFFFF"
 textColor = "#1A1A1A"
 font = "Inter"
-headingFont = "Inter"
+headingFont = "Playfair Display"
 codeFont = "JetBrains Mono"
 
 # 排版层级：正文 400；标题 h1=700、h2/h3=600、h4 起回落到 500。
