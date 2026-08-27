@@ -429,7 +429,7 @@ def _render_custom_models():
                         st.rerun()
             else:
                 st.markdown('<div class="custom-model-actions">', unsafe_allow_html=True)
-                btn_edit, btn_test, btn_del = st.columns(3)
+                btn_edit, btn_test, btn_del = st.columns(3, gap="small")
                 with btn_edit:
                     if st.button(get_text("edit_model"), key=f"edit_{mname}"):
                         mconfig = get_model_config(mname)
@@ -647,7 +647,7 @@ def _render_custom_providers():
                                 st.error(msg)
             else:
                 st.markdown('<div class="custom-provider-actions">', unsafe_allow_html=True)
-                btn_edit, btn_del, btn_test = st.columns(3)
+                btn_edit, btn_del, btn_test = st.columns(3, gap="small")
                 with btn_edit:
                     if st.button(get_text("edit_provider"), key=f"edit_provider_{pname}"):
                         pconfig = get_provider_config(pname)
