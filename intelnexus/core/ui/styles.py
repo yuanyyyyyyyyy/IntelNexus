@@ -496,6 +496,9 @@ def render_hermes_theme_css():
     section[data-testid="stMain"] [data-testid="stHorizontalBlock"] {
         align-items: flex-end !important;
     }
+    section[data-testid="stMain"]:has(.ov-scope) [data-testid="stHorizontalBlock"] {
+        align-items: stretch !important;
+    }
     section[data-testid="stMain"] [data-testid="column"] > div > .stButton {
         padding-bottom: 0 !important;
         margin-bottom: 0 !important;
@@ -1255,6 +1258,14 @@ def render_hermes_theme_css():
         box-shadow: 0 4px 16px rgba(0,85,255,0.4) !important;
     }
 
+    /* --- 5b. Custom Model/Provider Action Buttons (compact) --- */
+    section[data-testid="stSidebar"] .custom-model-actions .stButton > button,
+    section[data-testid="stSidebar"] .custom-provider-actions .stButton > button {
+        padding: 4px 10px !important;
+        font-size: 12px !important;
+        min-height: 28px !important;
+    }
+
     /* --- 6. Sidebar Slider (RAC) --- */
     section[data-testid="stSidebar"] .stSlider label {
         color: #1A1A1A !important;
@@ -1932,22 +1943,23 @@ def render_workbench_css():
     }
 
     /* 问候区：情感化副文案 + 日期弱化显示 */
-    section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container .ov-tagline {
-        font-size: 15px;
+    .ov-tagline {
+        font-size: 15px !important;
         font-weight: 400;
-        color: var(--text-secondary);
+        color: var(--text-secondary) !important;
         margin-top: 4px;
         line-height: 1.6;
     }
-    section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container .ov-date {
-        font-size: 12px;
-        color: var(--text-tertiary);
+    .ov-date {
+        font-size: 12px !important;
+        color: var(--text-tertiary) !important;
         letter-spacing: 0.04em;
         margin-top: 2px;
     }
 
     /* 指标卡片区：纸白表面 + 等高对齐 + 左侧色条 */
-    section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container .ov-card {
+    .ov-card {
+        flex: 1 !important;
         background: var(--bg-card);
         border: 1px solid var(--border-light) !important;
         border-left: 4px solid var(--text-tertiary) !important;
@@ -1960,59 +1972,84 @@ def render_workbench_css():
         padding: 14px 18px 10px;
         margin: 12px 0;
     }
-    section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container .ov-card.hc-card--healthy {
+    .ov-card.hc-card--healthy {
         border-left-color: var(--accent-green) !important;
     }
-    section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container .ov-card.hc-card--degraded {
+    .ov-card.hc-card--degraded {
         border-left-color: var(--accent-orange) !important;
     }
-    section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container .ov-card.hc-card--down {
+    .ov-card.hc-card--down {
         border-left-color: var(--accent-red) !important;
     }
-    section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container .ov-card:hover {
+    .ov-card:hover {
         box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
-    section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container .ov-card__tag {
-        font-size: 12px;
-        font-weight: 700;
+    .ov-card__tag {
+        font-size: 12px !important;
+        font-weight: 700 !important;
         text-transform: uppercase;
         letter-spacing: 0.06em;
-        color: var(--text-tertiary);
+        color: var(--text-tertiary) !important;
     }
-    section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container .ov-card__value {
-        font-size: 20px;
-        font-weight: 700;
-        color: var(--text-primary);
+    .ov-card__value {
+        font-size: 20px !important;
+        font-weight: 700 !important;
+        color: var(--text-primary) !important;
         line-height: 1.35;
         overflow-wrap: anywhere;
     }
-    section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container .ov-card__sub {
-        font-size: 13px;
-        color: var(--text-secondary);
+    .ov-card__sub {
+        font-size: 13px !important;
+        color: var(--text-secondary) !important;
         margin-top: 6px;
     }
 
-    /* 主操作入口按钮 — 深色填充 + 白字（高对比度）。 */
-    section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container div[data-testid="stButton"] > button {
-        background: var(--bg-tab-active) !important;
-        color: #FFFFFF !important;
-        border: none !important;
+    /* 数据源状态点阵：一行彩色圆点 + 短名称，快速定位故障源 */
+    .ov-status-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 14px;
+        padding: 6px 0;
+        margin: 4px 0 8px;
+    }
+    .ov-status-dot {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        cursor: default;
+    }
+    .ov-status-dot .status-dot {
+        width: 8px;
+        height: 8px;
+        flex-shrink: 0;
+    }
+    .ov-status-label {
+        font-size: 12px !important;
+        color: var(--text-secondary) !important;
+        white-space: nowrap;
+    }
+
+    /* 主操作入口按钮 — 白底 + 蓝色阴影（匹配搜索按钮风格）。 */
+    section[data-testid="stMain"]:has(.ov-scope) div[data-testid="stButton"] > button {
+        background: #FFFFFF !important;
+        color: #1A1A1A !important;
+        border: 1px solid #E0E0E0 !important;
         border-radius: var(--radius-md) !important;
         font-size: 15px !important;
         font-weight: 600 !important;
         padding: 14px 24px !important;
         min-height: 48px !important;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+        box-shadow: 0 4px 12px rgba(0,85,255,0.45) !important;
         transition: all 0.2s ease !important;
         letter-spacing: 0.01em !important;
     }
-    section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container div[data-testid="stButton"] > button:hover {
-        background: #333333 !important;
-        border-color: transparent !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.25) !important;
+    section[data-testid="stMain"]:has(.ov-scope) div[data-testid="stButton"] > button:hover {
+        background: #F5F5F5 !important;
+        border-color: #CCCCCC !important;
+        box-shadow: 0 4px 16px rgba(0,85,255,0.4) !important;
         transform: translateY(-1px) !important;
     }
-    section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container div[data-testid="stButton"] > button:active {
+    section[data-testid="stMain"]:has(.ov-scope) div[data-testid="stButton"] > button:active {
         transform: scale(0.98) !important;
     }
 </style>
