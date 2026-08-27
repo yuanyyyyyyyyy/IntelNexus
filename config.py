@@ -65,7 +65,16 @@ try:
 except Exception:
     pass
 
-# ========== 代理配置（仅在使用时生效；为空则不走代理） ==========
-HTTP_PROXY = os.getenv("HTTP_PROXY") or os.getenv("http_proxy")
-HTTPS_PROXY = os.getenv("HTTPS_PROXY") or os.getenv("https_proxy")
+# ========== 代理配置（统一由 proxy_settings 模块管理） ==========
+# 旧环境变量方式仍兼容（proxy_settings 会读取 HTTP_PROXY/HTTPS_PROXY 作为兜底），
+# 但实际代理地址由 intelnexus.config.proxy_settings.get_effective_proxy() 统一提供。
+# 此处保留变量仅为向后兼容，新代码应直接使用 proxy_settings 模块。
+try:
+    from intelnexus.config.proxy_settings import get_proxy_settings as _gps
+    _proxy_cfg = _gps()
+    HTTP_PROXY = _proxy_cfg.get("proxy_url", "") or None
+    HTTPS_PROXY = HTTP_PROXY
+except Exception:
+    HTTP_PROXY = os.getenv("HTTP_PROXY") or os.getenv("http_proxy")
+    HTTPS_PROXY = os.getenv("HTTPS_PROXY") or os.getenv("https_proxy")
 USE_TOR = os.getenv("USE_TOR", "false").lower() == "true"
