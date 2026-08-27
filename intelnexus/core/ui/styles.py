@@ -807,9 +807,9 @@ def render_hermes_theme_css():
     }
 
     /* ============================================================
-       OUTPUT AREA (.bf-output)
+       OUTPUT AREA ([data-key="bf-output"])
        ============================================================ */
-    .bf-output {
+    [data-key="bf-output"] {
         background: var(--bg-card);
         border: 1px solid var(--border-light);
         border-radius: var(--radius-sm);
@@ -1655,7 +1655,7 @@ def render_workbench_css():
     }
 
     /* 生成简报 / 添加笔记 — 按钮对齐（强制底部对齐） */
-    .bf-output .stButton,
+    [data-key="bf-output"] .stButton,
     .bf-panel .stButton {
         display: flex !important;
         align-items: flex-end !important;
@@ -1663,7 +1663,7 @@ def render_workbench_css():
         margin: 0 !important;
         height: 100% !important;
     }
-    .bf-output .stButton > button,
+    [data-key="bf-output"] .stButton > button,
     .bf-panel .stButton > button {
         padding: 8px 20px !important;
         margin: 0 !important;
@@ -1756,7 +1756,7 @@ def render_workbench_css():
     }
 
     /* 生成结果统计 */
-    .bf-generate-stats {
+    [data-key^="bf-stats-"] {
         margin-top: 16px;
         padding: 14px 16px;
         border: 1px solid var(--wb-border);
@@ -1776,7 +1776,9 @@ def render_workbench_css():
     }
 
     /* Output area */
-    .bf-output {
+    [data-key="bf-output"],
+    [data-key="bf-entries"],
+    [data-key="bf-history"] {
         background: var(--wb-card);
         border: 1px solid var(--wb-border);
         border-top: 3px solid var(--wb-accent);
