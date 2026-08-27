@@ -46,6 +46,10 @@ if not getattr(sys, "frozen", False):
 
 logging.getLogger("torch").setLevel(logging.CRITICAL + 1)
 
+# langchain-openai 注入自定义 httpx transport 后会禁用 httpx 的代理自动检测，
+# 并在每次导入时输出一行 warning。本地部署不需要此行为，提前关闭。
+os.environ.setdefault("LANGCHAIN_OPENAI_TCP_KEEPALIVE", "0")
+
 # Ensure root project dir resolves first so root-level config.py and the
 # intelnexus/ package are importable. The single-package layout removes the
 # old sys.path hacks that worked around duplicated sub-project modules.
@@ -396,10 +400,12 @@ def ui(ui_port, ui_host, no_scheduler):
         _start_ai_scheduler()
 
     ui_script = os.path.join(base, "ui.py")
+    # 用环境变量传 server 配置，避免 CLI --server.* 参数与 config.toml
+    # [server] 段冲突触发 "An update to the [server] config option..." 警告。
+    os.environ["STREAMLIT_SERVER_PORT"] = str(ui_port)
+    os.environ["STREAMLIT_SERVER_ADDRESS"] = ui_host
     sys.argv = [
         "streamlit", "run", ui_script,
-        f"--server.port={ui_port}",
-        f"--server.address={ui_host}",
         "--global.developmentMode=false",
     ]
     sys.exit(stcli.main())
