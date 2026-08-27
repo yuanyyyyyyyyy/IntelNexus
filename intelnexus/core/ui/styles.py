@@ -1258,17 +1258,29 @@ def render_hermes_theme_css():
         box-shadow: 0 4px 16px rgba(0,85,255,0.4) !important;
     }
 
-    /* --- 5b. Custom Model/Provider Action Buttons (compact) --- */
+    /* --- 5b. Custom Model/Provider Card (compact) --- */
+    .custom-model-card {
+        margin: 0 0 4px 0 !important;
+        padding: 0 !important;
+    }
+    .custom-model-card [data-testid="stMarkdownContainer"] p {
+        margin: 0 0 4px 0 !important;
+    }
+    /* --- 5c. Custom Model/Provider Action Buttons (compact) --- */
     .custom-model-actions [data-testid="column"],
     .custom-provider-actions [data-testid="column"] {
         padding-left: 0 !important;
         padding-right: 0 !important;
     }
+    .custom-model-actions [data-testid="stHorizontalBlock"],
+    .custom-provider-actions [data-testid="stHorizontalBlock"] {
+        gap: 4px !important;
+    }
     section[data-testid="stSidebar"] .custom-model-actions .stButton > button,
     section[data-testid="stSidebar"] .custom-provider-actions .stButton > button {
-        padding: 4px 8px !important;
-        font-size: 12px !important;
-        min-height: 28px !important;
+        padding: 2px 6px !important;
+        font-size: 11px !important;
+        min-height: 24px !important;
         width: 100% !important;
     }
 

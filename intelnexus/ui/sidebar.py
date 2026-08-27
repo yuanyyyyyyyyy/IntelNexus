@@ -403,6 +403,7 @@ def _render_custom_models():
             editing_key = f"editing_{mname}"
             is_editing = st.session_state.get(editing_key, False)
 
+            st.markdown('<div class="custom-model-card">', unsafe_allow_html=True)
             # 模型信息
             st.markdown(f"**{mname}** ` `{mtype}` `")
 
@@ -460,6 +461,7 @@ def _render_custom_models():
                             st.success(get_text("deleted"))
                             st.rerun()
                 st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
             # 编辑表单（展开在模型条目下方）
             if is_editing:

@@ -190,6 +190,57 @@ def _render_metric_cards(metrics: "dict | None") -> None:
 
 
 # ---------------------------------------------------------------------------
+# 数据源状态点阵
+# ---------------------------------------------------------------------------
+
+_STATUS_DOT_cls = {"healthy": "active", "degraded": "warning", "down": "error"}
+
+
+def _render_source_status_bar() -> None:
+    """首页数据源状态点阵：一行彩色圆点 + 短名称，快速定位故障源。"""
+    try:
+        from intelnexus.core.search.health import get_all_health
+        from intelnexus.core.search.registry import get_registry
+
+        all_health = get_all_health()
+        registry = get_registry()
+        active_names = (
+            {s.__class__.__name__ for s in registry.all_sources()}
+            if registry else None
+        )
+
+        items = []
+        for h in all_health:
+            if active_names is not None and h.source_name not in active_names:
+                continue
+            items.append(h)
+        items.sort(
+            key=lambda h: {"down": 0, "degraded": 1, "healthy": 2}.get(h.status, 3)
+        )
+
+        if not items:
+            return
+
+        dots = []
+        for h in items:
+            dot_cls = _STATUS_DOT_cls.get(h.status, "error")
+            short = h.source_name.replace("Source", "").replace("Search", "")
+            dots.append(
+                f'<span class="ov-status-dot" title="{html.escape(h.source_name)}">'
+                f'<span class="status-dot {dot_cls}"></span>'
+                f'<span class="ov-status-label">{html.escape(short)}</span>'
+                f'</span>'
+            )
+
+        st.markdown(
+            f'<div class="ov-status-bar">{"".join(dots)}</div>',
+            unsafe_allow_html=True,
+        )
+    except Exception:
+        pass
+
+
+# ---------------------------------------------------------------------------
 # 主操作入口
 # ---------------------------------------------------------------------------
 
@@ -239,6 +290,9 @@ def render_overview() -> None:
         _render_metric_cards(metrics)
     except Exception:
         st.markdown(get_text("ov_greet_fallback"))
+
+    # ---- 数据源状态点阵 ----
+    _render_source_status_bar()
 
     # ---- 主操作入口 ----
     _render_action_buttons()
