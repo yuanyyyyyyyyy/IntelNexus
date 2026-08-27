@@ -1,12 +1,14 @@
 """
 简报历史管理
-============
+===========
 保存和查看 AI 简报历史记录
 """
 
+import io
 import json
 import os
-from datetime import datetime
+import zipfile
+from datetime import datetime, timedelta
 from typing import List, Optional
 
 from intelnexus.core.settings.file_lock import safe_read_json, safe_write_json
@@ -80,7 +82,8 @@ class BriefingHistory:
         }
         
         # 读全量索引做截断判断（limit=1 会把 100 条之外的旧条目永久挤出）
-        history = self.get_briefings(limit=self._MAX_HISTORY_ENTRIES + 500)
+        # include_deleted=True：软删除条目也占位，防止删除后索引缩减导致新条目被误挤出
+        history = self.get_briefings(limit=self._MAX_HISTORY_ENTRIES + 500, include_deleted=True)
         if len(history) >= self._MAX_HISTORY_ENTRIES:
             logger.warning(
                 f"Briefing history has {len(history)} entries (max {self._MAX_HISTORY_ENTRIES}), "
@@ -93,11 +96,13 @@ class BriefingHistory:
         logger.info(f"Briefing saved: {filename}")
         return filename
     
-    def get_briefings(self, limit: int = 20) -> List[dict]:
+    def get_briefings(self, limit: int = 20, include_deleted: bool = False) -> List[dict]:
         """获取简报历史"""
         history = safe_read_json(self.history_file)
         if not isinstance(history, list):
             return []
+        if not include_deleted:
+            history = [h for h in history if not h.get("deleted")]
         return history[:limit]
     
     def load_briefing(self, filename: str) -> Optional[str]:
@@ -113,29 +118,82 @@ class BriefingHistory:
             return f.read()
     
     def delete_briefing(self, filename: str) -> bool:
-        """删除简报"""
-        filepath = os.path.realpath(os.path.join(self.briefings_dir, filename))
-        if not filepath.startswith(os.path.realpath(self.briefings_dir)):
-            logger.warning(f"Path traversal attempt blocked: {filename}")
-            return False
-        if os.path.exists(filepath):
-            os.remove(filepath)
-            # 同步删除条目数据文件
-            data_file = self._data_filename(filename)
-            if os.path.exists(data_file):
-                os.remove(data_file)
-            history = self.get_briefings(limit=100)
-            history = [h for h in history if h.get("filename") != filename]
-            safe_write_json(self.history_file, history)
-            return True
+        """软删除简报（标记 deleted，文件保留）"""
+        history = self.get_briefings(limit=self._MAX_HISTORY_ENTRIES + 500, include_deleted=True)
+        for entry in history:
+            if entry.get("filename") == filename:
+                if entry.get("deleted"):
+                    return False
+                entry["deleted"] = True
+                entry["deleted_at"] = datetime.now().isoformat()
+                safe_write_json(self.history_file, history)
+                return True
         return False
+
+    def restore_briefing(self, filename: str) -> bool:
+        """恢复软删除的简报"""
+        history = self.get_briefings(limit=self._MAX_HISTORY_ENTRIES + 500, include_deleted=True)
+        for entry in history:
+            if entry.get("filename") == filename:
+                if not entry.get("deleted"):
+                    return False
+                entry["deleted"] = False
+                entry["deleted_at"] = None
+                safe_write_json(self.history_file, history)
+                return True
+        return False
+
+    def purge_deleted(self, days: int = 30) -> int:
+        """清理超过指定天数的软删除条目及其物理文件，返回清理数量"""
+        history = self.get_briefings(limit=self._MAX_HISTORY_ENTRIES + 500, include_deleted=True)
+        cutoff = datetime.now() - timedelta(days=days)
+        kept = []
+        purged = 0
+        for entry in history:
+            if entry.get("deleted") and entry.get("deleted_at"):
+                try:
+                    deleted_at = datetime.fromisoformat(entry["deleted_at"])
+                except (ValueError, TypeError):
+                    kept.append(entry)
+                    continue
+                if deleted_at < cutoff:
+                    # 物理删除文件
+                    fp = os.path.realpath(os.path.join(self.briefings_dir, entry["filename"]))
+                    if fp.startswith(os.path.realpath(self.briefings_dir)) and os.path.exists(fp):
+                        os.remove(fp)
+                    df = self._data_filename(entry["filename"])
+                    if os.path.exists(df):
+                        os.remove(df)
+                    purged += 1
+                    continue
+            kept.append(entry)
+        if purged:
+            safe_write_json(self.history_file, kept)
+        return purged
+
+    def export_briefings(self, filenames: List[str]) -> Optional[bytes]:
+        """将多个简报打包为 ZIP，返回字节流；无有效文件时返回 None"""
+        buf = io.BytesIO()
+        count = 0
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for fn in filenames:
+                fp = os.path.realpath(os.path.join(self.briefings_dir, fn))
+                if not fp.startswith(os.path.realpath(self.briefings_dir)):
+                    continue
+                if not os.path.exists(fp):
+                    continue
+                zf.write(fp, arcname=fn)
+                count += 1
+        if count == 0:
+            return None
+        return buf.getvalue()
 
     def update_entry(self, filename: str, fields: dict) -> bool:
         """按文件名更新历史索引条目的元数据字段（如 subscribers_count/source）。
 
         仅合并已知键；条目不存在时返回 False。
         """
-        history = self.get_briefings(limit=self._MAX_HISTORY_ENTRIES + 500)
+        history = self.get_briefings(limit=self._MAX_HISTORY_ENTRIES + 500, include_deleted=True)
         found = False
         for entry in history:
             if entry.get("filename") == filename:

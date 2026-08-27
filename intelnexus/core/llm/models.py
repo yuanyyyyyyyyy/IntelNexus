@@ -202,7 +202,10 @@ def test_model_connection(model_type: str, config: Dict) -> tuple:
         # Build constructor params based on type
         constructor_params = {}
         if type_lower in ("openai", "deepseek", "cohere", "mistral",
-                          "通义千问", "智谱ai", "百度文心一言", "讯飞星火",
+                          "通义千问", "qwen",
+                          "智谱ai", "zhipu ai",
+                          "百度文心一言", "baidu ernie",
+                          "讯飞星火", "iflytek spark",
                           "moonshot", "01.ai"):
             base_url = config.get("base_url", "")
             if "/anthropic" in (base_url or "").lower():
@@ -252,16 +255,18 @@ def test_model_connection(model_type: str, config: Dict) -> tuple:
                 "google_api_key": config.get("api_key"),
             }
         else:
-            # 尝试作为自定义供应商处理（使用 OpenAI 兼容格式）
-            custom_providers = get_custom_providers()
-            provider_names = [p["name"].lower() for p in custom_providers]
-            if type_lower in provider_names:
-                # 使用 test_provider_connection 进行测试（已处理代理问题）
-                base_url = config.get("base_url", "")
-                api_key = config.get("api_key", "")
-                return test_provider_connection(base_url, api_key, "openai")
+            # 未知类型兜底：当作 OpenAI 兼容接口处理
+            base_url = config.get("base_url", "")
+            if base_url:
+                from langchain_openai import ChatOpenAI
+                llm_class = ChatOpenAI
+                constructor_params = {
+                    "model_name": temp_model,
+                    "base_url": base_url,
+                    "api_key": config.get("api_key"),
+                }
             else:
-                return False, f"不支持的模型类型: {model_type}"
+                return False, f"不支持的模型类型: {model_type}（未配置 base_url）"
 
         # Build params: disable streaming for test
         params = {**constructor_params}

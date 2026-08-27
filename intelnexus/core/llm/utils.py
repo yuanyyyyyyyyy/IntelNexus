@@ -290,7 +290,14 @@ def resolve_model_config(model_choice: str):
                                 "google_api_key": config_params.get("api_key"),
                             }
                         }
-                    elif model_type in ["cohere", "mistral", "deepseek", "通义千问", "智谱ai", "百度文心一言", "讯飞星火", "moonshot", "01.ai"]:
+                    elif model_type in [
+                        "cohere", "mistral", "deepseek",
+                        "通义千问", "qwen",
+                        "智谱ai", "zhipu ai",
+                        "百度文心一言", "baidu ernie",
+                        "讯飞星火", "iflytek spark",
+                        "moonshot", "01.ai",
+                    ]:
                         base_url = config_params.get("base_url", "")
                         if "/anthropic" in (base_url or "").lower():
                             return {
@@ -310,6 +317,18 @@ def resolve_model_config(model_choice: str):
                                 "api_key": config_params.get("api_key"),
                             }
                         }
+                    else:
+                        # 未知类型兜底：当作 OpenAI 兼容接口处理
+                        base_url = config_params.get("base_url", "")
+                        if base_url:
+                            return {
+                                "class": ChatOpenAI,
+                                "constructor_params": {
+                                    "model_name": config_params.get("model_name", custom_model_name),
+                                    "base_url": base_url,
+                                    "api_key": config_params.get("api_key"),
+                                }
+                            }
     except ImportError:
         pass
 

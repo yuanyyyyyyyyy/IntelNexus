@@ -98,7 +98,7 @@ def _render_darkweb_settings():
         if not tor_running and advanced_mode:
             st.warning(f"{get_text('tor_not_running')} - {get_text('default_mode')}")
 
-        st.markdown('<hr class="sb-divider">', unsafe_allow_html=True)
+        st.divider()
         st.markdown(f"**{get_text('custom_onion_sites')}**")
 
         if "custom_onion_sites" not in st.session_state:
@@ -120,19 +120,29 @@ def _render_darkweb_settings():
 
             if st.button(get_text("add_site"), key="add_site_btn"):
                 if new_site_name and new_site_url:
-                    new_site = {"name": new_site_name, "url": new_site_url}
-                    if new_site_auth and new_site_user and new_site_pass:
-                        encoded_pass = base64.b64encode(new_site_pass.encode("utf-8")).decode("utf-8")
-                        new_site["auth"] = {"type": "basic", "username": new_site_user, "password": encoded_pass}
-                    st.session_state.custom_onion_sites.append(new_site)
+                    # 入库前 URL 安全校验（协议/目标地址）；校验器不可用时放行原流程（仅记日志）
                     try:
-                        os.makedirs("data", exist_ok=True)
-                        with open("data/custom_onion_sites.json", "w", encoding="utf-8") as f:
-                            json.dump(st.session_state.custom_onion_sites, f, ensure_ascii=False, indent=2)
+                        from intelnexus.core.security.url_guard import validate_external_url
+                        url_ok, url_reason = validate_external_url(new_site_url)
                     except Exception as e:
-                        logger.error(f"{get_text('briefing_save_site_failed')}: {e}")
-                    st.success(f"OK — {get_text('site_saved')}")
-                    st.rerun()
+                        logger.warning(f"URL 校验器不可用，放行原流程: {e}")
+                        url_ok, url_reason = True, ""
+                    if not url_ok:
+                        st.error(get_text(f"sec_url_{url_reason}"))
+                    else:
+                        new_site = {"name": new_site_name, "url": new_site_url}
+                        if new_site_auth and new_site_user and new_site_pass:
+                            encoded_pass = base64.b64encode(new_site_pass.encode("utf-8")).decode("utf-8")
+                            new_site["auth"] = {"type": "basic", "username": new_site_user, "password": encoded_pass}
+                        st.session_state.custom_onion_sites.append(new_site)
+                        try:
+                            os.makedirs("data", exist_ok=True)
+                            with open("data/custom_onion_sites.json", "w", encoding="utf-8") as f:
+                                json.dump(st.session_state.custom_onion_sites, f, ensure_ascii=False, indent=2)
+                        except Exception as e:
+                            logger.error(f"{get_text('briefing_save_site_failed')}: {e}")
+                        st.success(f"OK — {get_text('site_saved')}")
+                        st.rerun()
 
         try:
             sites_file = "data/custom_onion_sites.json"
@@ -397,134 +407,138 @@ def _render_custom_models():
     custom_models = get_custom_models()
     if custom_models:
         st.markdown(f"**{get_text('custom_models_list')}**")
-        for model in custom_models:
-            mname = model["name"]
-            mtype = model.get("type", "")
-            editing_key = f"editing_{mname}"
-            is_editing = st.session_state.get(editing_key, False)
+        # 外层容器统一小间距，压缩模型条目之间的垂直留白（替代侧边栏默认 1rem gap）；
+        # key="cm_list" 使框架渲染 .st-key-cm_list 包装类，供 5c CSS 锚定条目分隔线（净化器无法剥离）
+        with st.container(gap="small", key="cm_list"):
+            for model in custom_models:
+                mname = model["name"]
+                mtype = model.get("type", "")
+                editing_key = f"editing_{mname}"
+                is_editing = st.session_state.get(editing_key, False)
 
-            st.markdown('<div class="custom-model-card">', unsafe_allow_html=True)
-            # 模型信息
-            st.markdown(f"**{mname}** ` `{mtype}` `")
+                # 信息+按钮行整体包入容器归组（紧凑行距同时依赖 5b 的 margin 清零规则，
+                # 不再用未闭合 div hack 制造空元素）
+                with st.container(gap=None):
+                    # 模型信息
+                    st.markdown(f"**{mname}** ` `{mtype}` `")
 
-            # 按钮行（单层 columns，不嵌套）
-            if is_editing:
-                btn_save, btn_cancel = st.columns(2)
-                with btn_save:
-                    if st.button(get_text("save_changes"), key=f"save_{mname}", type="primary"):
-                        new_config = {
-                            "model_name": st.session_state.get(f"edit_model_id_{mname}", ""),
-                            "base_url": st.session_state.get(f"edit_base_url_{mname}", ""),
-                            "api_key": st.session_state.get(f"edit_api_key_{mname}", ""),
-                        }
-                        new_type = st.session_state.get(f"edit_type_{mname}", mtype)
-                        if update_custom_model(mname, new_type, new_config):
-                            st.success(get_text("model_update_success"))
-                            st.session_state[editing_key] = False
-                            st.rerun()
+                    # 按钮行：等宽 columns + stretch 按钮，保证三按钮宽度一致、间隔严格相等（单层，不嵌套）
+                    if is_editing:
+                        btn_save, btn_cancel = st.columns(2, gap="small")
+                        with btn_save:
+                            if st.button(get_text("save_changes"), key=f"save_{mname}", type="primary", width="stretch"):
+                                new_config = {
+                                    "model_name": st.session_state.get(f"edit_model_id_{mname}", ""),
+                                    "base_url": st.session_state.get(f"edit_base_url_{mname}", ""),
+                                    "api_key": st.session_state.get(f"edit_api_key_{mname}", ""),
+                                }
+                                new_type = st.session_state.get(f"edit_type_{mname}", mtype)
+                                if update_custom_model(mname, new_type, new_config):
+                                    st.success(get_text("model_update_success"))
+                                    st.session_state[editing_key] = False
+                                    st.rerun()
+                                else:
+                                    st.error(get_text("error"))
+                        with btn_cancel:
+                            if st.button(get_text("cancel_edit"), key=f"cancel_{mname}", width="stretch"):
+                                st.session_state[editing_key] = False
+                                st.rerun()
+                    else:
+                        btn_edit, btn_test, btn_del = st.columns(3, gap="small")
+                        with btn_edit:
+                            if st.button(get_text("edit_model"), key=f"edit_{mname}", width="stretch"):
+                                mconfig = get_model_config(mname)
+                                cfg = mconfig.get("config", {}) if mconfig else {}
+                                _norm_type = next((t for t in MODEL_TYPES if t.lower() == mtype.lower()), mtype)
+                                st.session_state[f"edit_type_{mname}"] = _norm_type
+                                st.session_state[f"edit_model_id_{mname}"] = cfg.get("model_name", "")
+                                st.session_state[f"edit_base_url_{mname}"] = cfg.get("base_url", "")
+                                st.session_state[f"edit_api_key_{mname}"] = cfg.get("api_key", "")
+                                st.session_state[editing_key] = True
+                                st.rerun()
+                        with btn_test:
+                            if st.button(get_text("test_connection"), key=f"test_{mname}", width="stretch"):
+                                mconfig = get_model_config(mname)
+                                if mconfig:
+                                    with st.spinner(get_text("testing_connection")):
+                                        ok, msg = test_model_connection(
+                                            mconfig.get("type", ""),
+                                            mconfig.get("config", {}),
+                                        )
+                                        if ok:
+                                            st.success(get_text("connection_success"))
+                                        else:
+                                            st.error(msg)
+                        with btn_del:
+                            if st.button(get_text("delete"), key=f"delete_{mname}", width="stretch"):
+                                if remove_custom_model(mname):
+                                    st.success(get_text("deleted"))
+                                    st.rerun()
+
+                # 编辑表单（展开在模型条目下方，同样归入容器保持条目分组一致）
+                if is_editing:
+                    with st.container(gap=None):
+                        prev_type_key = f"_prev_edit_type_{mname}"
+                        cur_edit_type = st.session_state.get(f"edit_type_{mname}", mtype)
+                        if prev_type_key not in st.session_state:
+                            st.session_state[prev_type_key] = cur_edit_type
+                        elif cur_edit_type != st.session_state[prev_type_key]:
+                            if cur_edit_type in MULTI_BASE_URLS:
+                                st.session_state[f"edit_base_url_{mname}"] = MULTI_BASE_URLS[cur_edit_type][0][1]
+                            elif cur_edit_type in DEFAULT_BASE_URLS:
+                                st.session_state[f"edit_base_url_{mname}"] = DEFAULT_BASE_URLS[cur_edit_type]
+                            st.session_state[prev_type_key] = cur_edit_type
+
+                        edit_type = st.selectbox(
+                            get_text("model_type"),
+                            MODEL_TYPES,
+                            key=f"edit_type_{mname}",
+                        )
+                        st.text_input(
+                            get_text("model_id"),
+                            key=f"edit_model_id_{mname}",
+                        )
+
+                        if edit_type in MULTI_BASE_URLS:
+                            options = MULTI_BASE_URLS[edit_type]
+                            labels = [opt[0] for opt in options]
+                            cur_url = st.session_state.get(f"edit_base_url_{mname}", "")
+                            cur_label = next((lbl for lbl, url in options if url == cur_url), labels[0])
+                            sel_label = st.selectbox(
+                                get_text("base_url"),
+                                labels,
+                                index=labels.index(cur_label) if cur_label in labels else 0,
+                                key=f"edit_base_url_format_{mname}",
+                            )
+                            st.session_state[f"edit_base_url_{mname}"] = options[labels.index(sel_label)][1]
                         else:
-                            st.error(get_text("error"))
-                with btn_cancel:
-                    if st.button(get_text("cancel_edit"), key=f"cancel_{mname}"):
-                        st.session_state[editing_key] = False
-                        st.rerun()
-            else:
-                st.markdown('<div class="custom-model-actions">', unsafe_allow_html=True)
-                btn_edit, btn_test, btn_del = st.columns(3, gap="small")
-                with btn_edit:
-                    if st.button(get_text("edit_model"), key=f"edit_{mname}"):
-                        mconfig = get_model_config(mname)
-                        cfg = mconfig.get("config", {}) if mconfig else {}
-                        _norm_type = next((t for t in MODEL_TYPES if t.lower() == mtype.lower()), mtype)
-                        st.session_state[f"edit_type_{mname}"] = _norm_type
-                        st.session_state[f"edit_model_id_{mname}"] = cfg.get("model_name", "")
-                        st.session_state[f"edit_base_url_{mname}"] = cfg.get("base_url", "")
-                        st.session_state[f"edit_api_key_{mname}"] = cfg.get("api_key", "")
-                        st.session_state[editing_key] = True
-                        st.rerun()
-                with btn_test:
-                    if st.button(get_text("test_connection"), key=f"test_{mname}"):
-                        mconfig = get_model_config(mname)
-                        if mconfig:
+                            st.text_input(
+                                get_text("base_url"),
+                                key=f"edit_base_url_{mname}",
+                            )
+
+                        st.text_input(
+                            get_text("api_key"),
+                            type="password",
+                            key=f"edit_api_key_{mname}",
+                        )
+
+                        if st.button(get_text("test_connection"), key=f"test_edit_{mname}", width="stretch"):
+                            test_config = {
+                                "model_name": st.session_state.get(f"edit_model_id_{mname}", ""),
+                                "base_url": st.session_state.get(f"edit_base_url_{mname}", ""),
+                                "api_key": st.session_state.get(f"edit_api_key_{mname}", ""),
+                            }
+                            test_type = st.session_state.get(f"edit_type_{mname}", mtype)
                             with st.spinner(get_text("testing_connection")):
-                                ok, msg = test_model_connection(
-                                    mconfig.get("type", ""),
-                                    mconfig.get("config", {}),
-                                )
+                                ok, msg = test_model_connection(test_type, test_config)
                                 if ok:
                                     st.success(get_text("connection_success"))
                                 else:
                                     st.error(msg)
-                with btn_del:
-                    if st.button(get_text("delete"), key=f"delete_{mname}"):
-                        if remove_custom_model(mname):
-                            st.success(get_text("deleted"))
-                            st.rerun()
-                st.markdown('</div>', unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
 
-            # 编辑表单（展开在模型条目下方）
-            if is_editing:
-                prev_type_key = f"_prev_edit_type_{mname}"
-                cur_edit_type = st.session_state.get(f"edit_type_{mname}", mtype)
-                if prev_type_key not in st.session_state:
-                    st.session_state[prev_type_key] = cur_edit_type
-                elif cur_edit_type != st.session_state[prev_type_key]:
-                    if cur_edit_type in MULTI_BASE_URLS:
-                        st.session_state[f"edit_base_url_{mname}"] = MULTI_BASE_URLS[cur_edit_type][0][1]
-                    elif cur_edit_type in DEFAULT_BASE_URLS:
-                        st.session_state[f"edit_base_url_{mname}"] = DEFAULT_BASE_URLS[cur_edit_type]
-                    st.session_state[prev_type_key] = cur_edit_type
-
-                edit_type = st.selectbox(
-                    get_text("model_type"),
-                    MODEL_TYPES,
-                    key=f"edit_type_{mname}",
-                )
-                st.text_input(
-                    get_text("model_id"),
-                    key=f"edit_model_id_{mname}",
-                )
-
-                if edit_type in MULTI_BASE_URLS:
-                    options = MULTI_BASE_URLS[edit_type]
-                    labels = [opt[0] for opt in options]
-                    cur_url = st.session_state.get(f"edit_base_url_{mname}", "")
-                    cur_label = next((lbl for lbl, url in options if url == cur_url), labels[0])
-                    sel_label = st.selectbox(
-                        get_text("base_url"),
-                        labels,
-                        index=labels.index(cur_label) if cur_label in labels else 0,
-                        key=f"edit_base_url_format_{mname}",
-                    )
-                    st.session_state[f"edit_base_url_{mname}"] = options[labels.index(sel_label)][1]
-                else:
-                    st.text_input(
-                        get_text("base_url"),
-                        key=f"edit_base_url_{mname}",
-                    )
-
-                st.text_input(
-                    get_text("api_key"),
-                    type="password",
-                    key=f"edit_api_key_{mname}",
-                )
-
-                if st.button(get_text("test_connection"), key=f"test_edit_{mname}"):
-                    test_config = {
-                        "model_name": st.session_state.get(f"edit_model_id_{mname}", ""),
-                        "base_url": st.session_state.get(f"edit_base_url_{mname}", ""),
-                        "api_key": st.session_state.get(f"edit_api_key_{mname}", ""),
-                    }
-                    test_type = st.session_state.get(f"edit_type_{mname}", mtype)
-                    with st.spinner(get_text("testing_connection")):
-                        ok, msg = test_model_connection(test_type, test_config)
-                        if ok:
-                            st.success(get_text("connection_success"))
-                        else:
-                            st.error(msg)
-
-            st.divider()
+                # 条目分隔线：标准 st.divider()，由 5c CSS 通过 .st-key-cm_list 容器锚定（4px 紧凑 margin）
+                st.divider()
 
     # ---- 添加新模型（按钮折叠，不使用 expander 避免嵌套） ----
     show_add = st.session_state.get("show_add_model", False)
@@ -599,135 +613,141 @@ def _render_custom_providers():
     custom_providers = get_custom_providers()
     if custom_providers:
         st.markdown(f"**{get_text('custom_providers')}**")
-        for provider in custom_providers:
-            pname = provider["name"]
-            purl = provider.get("base_url", "")
-            premark = provider.get("remark", "")
-            editing_key = f"editing_provider_{pname}"
-            is_editing = st.session_state.get(editing_key, False)
+        # 外层容器统一小间距，压缩供应商条目之间的垂直留白（与模型列表保持一致）；
+        # key="cp_list" 使框架渲染 .st-key-cp_list 包装类，供 5c CSS 锚定条目分隔线（净化器无法剥离）
+        with st.container(gap="small", key="cp_list"):
+            for provider in custom_providers:
+                pname = provider["name"]
+                purl = provider.get("base_url", "")
+                premark = provider.get("remark", "")
+                editing_key = f"editing_provider_{pname}"
+                is_editing = st.session_state.get(editing_key, False)
 
-            # 供应商信息
-            display_text = f"**{pname}**"
-            if premark:
-                display_text += f" *{premark}*"
-            display_text += f" `{purl}`"
-            st.markdown(display_text)
+                # 信息+按钮行整体包入容器归组（紧凑行距同时依赖 5b 的 margin 清零规则，
+                # 不再用未闭合 div hack）
+                with st.container(gap=None):
+                    # 供应商信息
+                    display_text = f"**{pname}**"
+                    if premark:
+                        display_text += f" *{premark}*"
+                    display_text += f" `{purl}`"
+                    st.markdown(display_text)
 
-            # 按钮行
-            if is_editing:
-                btn_save, btn_cancel, btn_test = st.columns(3)
-                with btn_save:
-                    if st.button(get_text("save_changes"), key=f"save_provider_{pname}", type="primary"):
-                        new_config = {
-                            "base_url": st.session_state.get(f"edit_provider_url_{pname}", ""),
-                            "remark": st.session_state.get(f"edit_provider_remark_{pname}", ""),
-                            "website": st.session_state.get(f"edit_provider_website_{pname}", ""),
-                            "api_key": st.session_state.get(f"edit_provider_api_key_{pname}", ""),
-                            "api_format": st.session_state.get(f"edit_provider_api_format_{pname}", "openai"),
-                            "auth_field": st.session_state.get(f"edit_provider_auth_field_{pname}", "Authorization"),
-                        }
-                        if update_custom_provider(pname, **new_config):
-                            st.success(get_text("provider_added"))
-                            st.session_state[editing_key] = False
-                            st.rerun()
-                        else:
-                            st.error(get_text("error"))
-                with btn_cancel:
-                    if st.button(get_text("cancel_edit"), key=f"cancel_provider_{pname}"):
-                        st.session_state[editing_key] = False
-                        st.rerun()
-                with btn_test:
-                    if st.button(get_text("test_connection"), key=f"test_provider_{pname}"):
-                        test_url = st.session_state.get(f"edit_provider_url_{pname}", "")
-                        test_key = st.session_state.get(f"edit_provider_api_key_{pname}", "")
-                        test_format = st.session_state.get(f"edit_provider_api_format_{pname}", "openai")
-                        with st.spinner(get_text("testing_connection")):
-                            ok, msg = test_provider_connection(test_url, test_key, test_format)
-                            if ok:
-                                st.success(msg)
-                            else:
-                                st.error(msg)
-            else:
-                st.markdown('<div class="custom-provider-actions">', unsafe_allow_html=True)
-                btn_edit, btn_del, btn_test = st.columns(3, gap="small")
-                with btn_edit:
-                    if st.button(get_text("edit_provider"), key=f"edit_provider_{pname}"):
-                        pconfig = get_provider_config(pname)
-                        if pconfig:
-                            st.session_state[f"edit_provider_url_{pname}"] = pconfig.get("base_url", "")
-                            st.session_state[f"edit_provider_remark_{pname}"] = pconfig.get("remark", "")
-                            st.session_state[f"edit_provider_website_{pname}"] = pconfig.get("website", "")
-                            st.session_state[f"edit_provider_api_key_{pname}"] = pconfig.get("api_key", "")
-                            st.session_state[f"edit_provider_api_format_{pname}"] = pconfig.get("api_format", "openai")
-                            st.session_state[f"edit_provider_auth_field_{pname}"] = pconfig.get("auth_field", "Authorization")
-                        st.session_state[editing_key] = True
-                        st.rerun()
-                with btn_del:
-                    if st.button(get_text("delete_provider"), key=f"delete_provider_{pname}"):
-                        if remove_custom_provider(pname):
-                            st.success(get_text("provider_deleted"))
-                            st.rerun()
-                with btn_test:
-                    if st.button(get_text("test_connection"), key=f"test_provider_list_{pname}"):
-                        with st.spinner(get_text("testing_connection")):
-                            pconfig = get_provider_config(pname)
-                            ok, msg = test_provider_connection(
-                                pconfig.get("base_url", "") if pconfig else provider.get("base_url", ""),
-                                pconfig.get("api_key", "") if pconfig else "",
-                                pconfig.get("api_format", "openai") if pconfig else provider.get("api_format", "openai"),
+                    # 按钮行：等宽 columns + stretch 按钮，保证三按钮宽度一致、间隔严格相等
+                    if is_editing:
+                        btn_save, btn_cancel, btn_test = st.columns(3, gap="small")
+                        with btn_save:
+                            if st.button(get_text("save_changes"), key=f"save_provider_{pname}", type="primary", width="stretch"):
+                                new_config = {
+                                    "base_url": st.session_state.get(f"edit_provider_url_{pname}", ""),
+                                    "remark": st.session_state.get(f"edit_provider_remark_{pname}", ""),
+                                    "website": st.session_state.get(f"edit_provider_website_{pname}", ""),
+                                    "api_key": st.session_state.get(f"edit_provider_api_key_{pname}", ""),
+                                    "api_format": st.session_state.get(f"edit_provider_api_format_{pname}", "openai"),
+                                    "auth_field": st.session_state.get(f"edit_provider_auth_field_{pname}", "Authorization"),
+                                }
+                                if update_custom_provider(pname, **new_config):
+                                    st.success(get_text("provider_added"))
+                                    st.session_state[editing_key] = False
+                                    st.rerun()
+                                else:
+                                    st.error(get_text("error"))
+                        with btn_cancel:
+                            if st.button(get_text("cancel_edit"), key=f"cancel_provider_{pname}", width="stretch"):
+                                st.session_state[editing_key] = False
+                                st.rerun()
+                        with btn_test:
+                            if st.button(get_text("test_connection"), key=f"test_provider_{pname}", width="stretch"):
+                                test_url = st.session_state.get(f"edit_provider_url_{pname}", "")
+                                test_key = st.session_state.get(f"edit_provider_api_key_{pname}", "")
+                                test_format = st.session_state.get(f"edit_provider_api_format_{pname}", "openai")
+                                with st.spinner(get_text("testing_connection")):
+                                    ok, msg = test_provider_connection(test_url, test_key, test_format)
+                                    if ok:
+                                        st.success(msg)
+                                    else:
+                                        st.error(msg)
+                    else:
+                        btn_edit, btn_del, btn_test = st.columns(3, gap="small")
+                        with btn_edit:
+                            if st.button(get_text("edit_provider"), key=f"edit_provider_{pname}", width="stretch"):
+                                pconfig = get_provider_config(pname)
+                                if pconfig:
+                                    st.session_state[f"edit_provider_url_{pname}"] = pconfig.get("base_url", "")
+                                    st.session_state[f"edit_provider_remark_{pname}"] = pconfig.get("remark", "")
+                                    st.session_state[f"edit_provider_website_{pname}"] = pconfig.get("website", "")
+                                    st.session_state[f"edit_provider_api_key_{pname}"] = pconfig.get("api_key", "")
+                                    st.session_state[f"edit_provider_api_format_{pname}"] = pconfig.get("api_format", "openai")
+                                    st.session_state[f"edit_provider_auth_field_{pname}"] = pconfig.get("auth_field", "Authorization")
+                                st.session_state[editing_key] = True
+                                st.rerun()
+                        with btn_del:
+                            if st.button(get_text("delete_provider"), key=f"delete_provider_{pname}", width="stretch"):
+                                if remove_custom_provider(pname):
+                                    st.success(get_text("provider_deleted"))
+                                    st.rerun()
+                        with btn_test:
+                            if st.button(get_text("test_connection"), key=f"test_provider_list_{pname}", width="stretch"):
+                                with st.spinner(get_text("testing_connection")):
+                                    pconfig = get_provider_config(pname)
+                                    ok, msg = test_provider_connection(
+                                        pconfig.get("base_url", "") if pconfig else provider.get("base_url", ""),
+                                        pconfig.get("api_key", "") if pconfig else "",
+                                        pconfig.get("api_format", "openai") if pconfig else provider.get("api_format", "openai"),
+                                    )
+                                    if ok:
+                                        st.success(msg)
+                                    else:
+                                        st.error(msg)
+
+                # 编辑表单（归入容器保持条目分组一致）
+                if is_editing:
+                    with st.container(gap=None):
+                        row1_col1, row1_col2 = st.columns(2)
+                        with row1_col1:
+                            st.text_input(
+                                get_text("provider_name"),
+                                key=f"edit_provider_name_{pname}",
+                                value=pname,
+                                disabled=True,
                             )
-                            if ok:
-                                st.success(msg)
-                            else:
-                                st.error(msg)
-                st.markdown('</div>', unsafe_allow_html=True)
+                        with row1_col2:
+                            st.text_input(
+                                get_text("provider_remark"),
+                                key=f"edit_provider_remark_{pname}",
+                            )
 
-            # 编辑表单
-            if is_editing:
-                row1_col1, row1_col2 = st.columns(2)
-                with row1_col1:
-                    st.text_input(
-                        get_text("provider_name"),
-                        key=f"edit_provider_name_{pname}",
-                        value=pname,
-                        disabled=True,
-                    )
-                with row1_col2:
-                    st.text_input(
-                        get_text("provider_remark"),
-                        key=f"edit_provider_remark_{pname}",
-                    )
+                        st.text_input(
+                            get_text("provider_website"),
+                            key=f"edit_provider_website_{pname}",
+                        )
 
-                st.text_input(
-                    get_text("provider_website"),
-                    key=f"edit_provider_website_{pname}",
-                )
+                        st.text_input(
+                            get_text("provider_api_key"),
+                            type="password",
+                            key=f"edit_provider_api_key_{pname}",
+                        )
 
-                st.text_input(
-                    get_text("provider_api_key"),
-                    type="password",
-                    key=f"edit_provider_api_key_{pname}",
-                )
+                        st.text_input(
+                            get_text("base_url"),
+                            key=f"edit_provider_url_{pname}",
+                        )
 
-                st.text_input(
-                    get_text("base_url"),
-                    key=f"edit_provider_url_{pname}",
-                )
+                        with st.expander(get_text("provider_advanced_options"), expanded=False):
+                            st.caption(get_text("provider_advanced_hint"))
+                            api_format_options = ["openai", "anthropic", "custom"]
+                            st.selectbox(
+                                get_text("provider_api_format"),
+                                api_format_options,
+                                key=f"edit_provider_api_format_{pname}",
+                            )
+                            st.text_input(
+                                get_text("provider_auth_field"),
+                                key=f"edit_provider_auth_field_{pname}",
+                            )
 
-                with st.expander(get_text("provider_advanced_options"), expanded=False):
-                    st.caption(get_text("provider_advanced_hint"))
-                    api_format_options = ["openai", "anthropic", "custom"]
-                    st.selectbox(
-                        get_text("provider_api_format"),
-                        api_format_options,
-                        key=f"edit_provider_api_format_{pname}",
-                    )
-                    st.text_input(
-                        get_text("provider_auth_field"),
-                        key=f"edit_provider_auth_field_{pname}",
-                    )
-
-            st.divider()
+                # 条目分隔线：标准 st.divider()，由 5c CSS 通过 .st-key-cp_list 容器锚定（4px 紧凑 margin）
+                st.divider()
 
     # ---- 添加新供应商（按钮折叠） ----
     show_add_provider = st.session_state.get("show_add_provider", False)

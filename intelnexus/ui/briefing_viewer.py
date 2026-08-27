@@ -417,73 +417,185 @@ def render_briefing_entries():
     st.markdown('</div>', unsafe_allow_html=True)
 
 
+def _parse_created_at(created_at: str):
+    """安全解析 created_at 字符串，返回 (date_str, time_str)；失败返回 ('—', '')"""
+    if not created_at:
+        return "—", ""
+    try:
+        dt = datetime.fromisoformat(created_at)
+        return dt.strftime("%Y-%m-%d"), dt.strftime("%H:%M")
+    except (ValueError, TypeError):
+        return created_at[:10] if len(created_at) >= 10 else "—", created_at[11:16] if len(created_at) >= 16 else ""
+
+
 def render_briefing_history():
     """
-    渲染简报历史列表
+    渲染简报历史列表（含搜索过滤 / 批量选择 / 导出 / 软删除恢复）
 
     守卫条件：st.session_state.show_briefing_history 为 True
-    显示内容：历史简报列表，支持查看和删除
     """
     if not st.session_state.get("show_briefing_history"):
         return
 
-    history = get_briefing_history().get_briefings(limit=20)
+    history_mgr = get_briefing_history()
+    # 读全量（含软删除）以便恢复面板使用
+    all_entries = history_mgr.get_briefings(limit=100, include_deleted=True)
+    visible = [e for e in all_entries if not e.get("deleted")]
+    deleted = [e for e in all_entries if e.get("deleted")]
 
     st.markdown(f'<div class="bf-output"><div class="bf-output__header">{get_text("briefing_history")}</div>', unsafe_allow_html=True)
 
-    if not history:
+    if not visible and not deleted:
         st.markdown(f"<p class='bf-hint'>{get_text('briefing_history_empty')}</p>", unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
         return
 
-    for entry in history:
-        created_at = entry.get("created_at", "")
-        date_str = created_at[:10] if created_at else "—"
-        time_str = created_at[11:16] if len(created_at) >= 16 else ""
+    # ---- 搜索 & 日期过滤栏 ----
+    _cat_map = _watch_category_options()
+    f_search, f_from, f_to = st.columns([3, 1, 1])
+    with f_search:
+        search_q = st.text_input(
+            get_text("history_search"),
+            key="bf_hist_search",
+            placeholder=get_text("history_search"),
+            label_visibility="collapsed",
+        )
+    with f_from:
+        date_from = st.date_input(
+            get_text("history_date_from"),
+            value=None,
+            key="bf_hist_date_from",
+            label_visibility="collapsed",
+        )
+    with f_to:
+        date_to = st.date_input(
+            get_text("history_date_to"),
+            value=None,
+            key="bf_hist_date_to",
+            label_visibility="collapsed",
+        )
+
+    # 过滤逻辑
+    def _match(entry):
+        q = search_q.strip().lower()
+        if q:
+            org = (entry.get("organization") or "").lower()
+            fn = (entry.get("filename") or "").lower()
+            cats = " ".join(entry.get("categories", [])).lower()
+            if q not in org and q not in fn and q not in cats:
+                return False
+        ca = entry.get("created_at", "")
+        if ca:
+            try:
+                dt = datetime.fromisoformat(ca).date()
+            except (ValueError, TypeError):
+                dt = None
+            if dt:
+                if date_from and dt < date_from:
+                    return False
+                if date_to and dt > date_to:
+                    return False
+        return True
+
+    filtered = [e for e in visible if _match(e)]
+
+    if not filtered and not deleted:
+        st.markdown(f"<p class='bf-hint'>{get_text('history_no_match')}</p>", unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        return
+
+    # ---- 批量选择 + 导出 ----
+    select_all_key = "bf_hist_select_all"
+    st.session_state.setdefault(select_all_key, False)
+
+    export_col, purge_col, _ = st.columns([1, 1, 4])
+    with export_col:
+        if st.button(get_text("history_export"), key="bf_hist_export_btn", disabled=not filtered):
+            selected = [e["filename"] for e in filtered if st.session_state.get(f"bf_sel_{e['filename']}")]
+            if not selected:
+                st.warning(get_text("history_export_empty"))
+            else:
+                zip_data = history_mgr.export_briefings(selected)
+                if zip_data:
+                    st.download_button(
+                        label=f"{get_text('history_export')} ({len(selected)})",
+                        data=zip_data,
+                        file_name=f"briefings_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip",
+                        mime="application/zip",
+                        key="bf_hist_zip_download",
+                    )
+                    st.toast(get_text("history_export_done").format(n=len(selected)))
+    with purge_col:
+        if deleted and st.button(get_text("briefing_purged").format(n=len(deleted)), key="bf_hist_purge_btn"):
+            n = history_mgr.purge_deleted(days=0)
+            if n:
+                st.toast(get_text("briefing_purged").format(n=n))
+                st.rerun()
+
+    # ---- 正常列表 ----
+    for entry in filtered:
+        date_str, time_str = _parse_created_at(entry.get("created_at", ""))
         org = entry.get("organization", "") or "—"
         categories = entry.get("categories") or []
-        _cat_map = _watch_category_options()
         cats_text = "、".join(_cat_map.get(c, c) for c in categories[:3]) if categories else "—"
         if len(categories) > 3:
             cats_text += f" 等{len(categories)}个"
         subs = entry.get("subscribers_count", 0)
+        fn = entry.get("filename", "")
 
         st.markdown('<div class="bf-history-item">', unsafe_allow_html=True)
-        info_col, act_col = st.columns([5, 2])
+        sel_col, info_col, act_col = st.columns([0.5, 4, 2])
+        with sel_col:
+            st.checkbox("", key=f"bf_sel_{fn}", label_visibility="collapsed")
         with info_col:
-            # 第一行：日期时间（主标题）
             time_label = f"{date_str} {time_str}".strip()
             st.markdown(
                 f'<div class="bf-history-item__time">{time_label}</div>',
                 unsafe_allow_html=True,
             )
-            # 第二行：机构 + 关注点 + 推送（次要信息）
             st.markdown(
                 f'<div class="bf-history-item__meta">'
-                f'<span class="bf-history-item__org">{org}</span>'
+                f'<span class="bf-history-item__org">{html.escape(org)}</span>'
                 f'<span class="bf-history-item__sep">·</span>'
-                f'<span>关注点：{cats_text}</span>'
+                f'<span>{cats_text}</span>'
                 f'<span class="bf-history-item__sep">·</span>'
-                f'<span>推送 {subs} 人</span>'
+                f'<span>{subs}</span>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
         with act_col:
             v_col, d_col = st.columns(2)
             with v_col:
-                if st.button(get_text("view"), key=f"view_{entry.get('filename')}", use_container_width=True):
-                    load_briefing_for_preview(
-                        entry.get("filename"),
-                        entry.get("html_filename")
-                    )
+                if st.button(get_text("view"), key=f"view_{fn}", use_container_width=True):
+                    load_briefing_for_preview(fn, entry.get("html_filename"))
             with d_col:
                 if _delete_with_confirm(
-                    f"bf_{entry.get('filename')}",
+                    f"bf_{fn}",
                     label=get_text("delete"),
                     use_container_width=True,
                 ):
-                    delete_briefing(entry.get("filename"))
+                    history_mgr.delete_briefing(fn)
+                    st.success(get_text("briefing_deleted"))
+                    st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
+
+    # ---- 已删除条目恢复区 ----
+    if deleted:
+        with st.expander(f"{get_text('restore')} ({len(deleted)})", expanded=False):
+            for entry in deleted:
+                date_str, time_str = _parse_created_at(entry.get("deleted_at") or entry.get("created_at", ""))
+                org = entry.get("organization", "") or "—"
+                fn = entry.get("filename", "")
+                st.markdown(
+                    f'<div class="bf-history-item" style="opacity:0.5">'
+                    f'<div class="bf-history-item__time">{date_str} {time_str} — {html.escape(org)}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+                if st.button(get_text("restore"), key=f"restore_{fn}", use_container_width=True):
+                    history_mgr.restore_briefing(fn)
+                    st.success(get_text("briefing_restored"))
+                    st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -505,7 +617,7 @@ def load_briefing_for_preview(filename: str, html_filename: str = None):
 
 
 def delete_briefing(filename: str):
-    """删除简报"""
+    """软删除简报"""
     get_briefing_history().delete_briefing(filename)
     st.success(get_text("briefing_deleted"))
     st.rerun()
@@ -557,12 +669,21 @@ def render_data_sources_panel():
 
         if st.button(get_text("add_source"), key="bf_add_source_btn"):
             if source_name and source_url:
-                type_val = "rss" if source_type == get_text("source_type_rss") else "web"
-                if add_source(type_val, source_name, source_url, source_category):
-                    st.success(get_text("source_added"))
-                    st.rerun()
+                # 入库前 URL 安全校验；校验器不可用时放行原流程（库层 add_source 内仍有兜底校验）
+                try:
+                    from intelnexus.core.security.url_guard import validate_external_url
+                    _url_ok, _url_reason = validate_external_url(source_url)
+                except Exception:
+                    _url_ok, _url_reason = True, ""
+                if not _url_ok:
+                    st.error(get_text(f"sec_url_{_url_reason}"))
                 else:
-                    st.error(get_text("source_add_failed"))
+                    type_val = "rss" if source_type == get_text("source_type_rss") else "web"
+                    if add_source(type_val, source_name, source_url, source_category):
+                        st.success(get_text("source_added"))
+                        st.rerun()
+                    else:
+                        st.error(get_text("source_add_failed"))
             else:
                 st.warning(get_text("fill_fields"))
 
@@ -730,9 +851,12 @@ def render_data_sources_panel():
                         with ecol1:
                             if st.button(get_text("save"), key=f"bf_save_{source['id']}"):
                                 if edit_name and edit_url:
-                                    update_source(source['id'], {"name": edit_name, "url": edit_url, "category": edit_cat})
-                                    st.session_state[f"editing_source_{source['id']}"] = False
-                                    st.rerun()
+                                    # url 变更经库层安全校验；被拒时给出可见提示且不关闭编辑表单
+                                    if update_source(source['id'], {"name": edit_name, "url": edit_url, "category": edit_cat}):
+                                        st.session_state[f"editing_source_{source['id']}"] = False
+                                        st.rerun()
+                                    else:
+                                        st.error(get_text("sec_url_rejected"))
                         with ecol2:
                             if st.button(get_text("cancel"), key=f"bf_cancel_{source['id']}"):
                                 st.session_state[f"editing_source_{source['id']}"] = False

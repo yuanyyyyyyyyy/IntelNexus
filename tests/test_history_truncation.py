@@ -33,3 +33,21 @@ def test_update_entry_merges_fields(history):
 
 def test_update_entry_missing_returns_false(history):
     assert history.update_entry("briefing_ghost.md", {"x": 1}) is False
+
+
+def test_soft_deleted_entries_count_toward_cap(history):
+    """软删除条目仍占索引位，防止删除后新条目被误挤出"""
+    max_n = bh.BriefingHistory._MAX_HISTORY_ENTRIES
+    for i in range(max_n):
+        history.save_briefing(markdown_content=f"b-{i}")
+    # 软删除前 10 条
+    entries = history.get_briefings(limit=max_n, include_deleted=True)
+    for e in entries[-10:]:
+        history.delete_briefing(e["filename"])
+    # 总数仍为 max_n（含已删除）
+    all_entries = history.get_briefings(limit=max_n + 100, include_deleted=True)
+    assert len(all_entries) == max_n
+    # 保存新条目，应挤出最老的（含已删除的）
+    history.save_briefing(markdown_content="newest")
+    all_after = history.get_briefings(limit=max_n + 100, include_deleted=True)
+    assert len(all_after) == max_n
