@@ -38,15 +38,8 @@ Thumbs.db
 *.log
 
 # Data files
-data/*.json
-data/*.tmp.*
-data/source_health.json.tmp.*
-data/*.csv
-data/*.txt
-data/cache/
-data/briefings/
-data/reports/
-data/docs/
+# 本地数据目录含凭据与用户数据（email_settings.json 等），整目录忽略
+data/
 src/config/data/
 
 # Output & Reports
@@ -87,5 +80,3 @@ intelnexus/data/result_cache/
 # zcode
 .zcode/
 
-# 语义模型本地缓存（~470MB，运行时从 ModelScope 自动下载，勿入库）
-data/models/
