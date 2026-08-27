@@ -101,7 +101,7 @@ EMAIL_HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;background-color:#f5f5f5;font-family:'Microsoft YaHei','Segoe UI',Arial,sans-serif;">
+<body style="margin:0;padding:0;background-color:#f5f5f5;font-family:'Noto Serif SC','Source Han Serif SC','Microsoft YaHei','Segoe UI',serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f5f5;">
 <tr><td align="center" style="padding:20px;">
 <table width="800" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:8px;">
@@ -572,7 +572,7 @@ BRIEFING_STANDALONE_HTML = """<!DOCTYPE html>
             /* 独立 HTML 简报：西文 Inter 先行，中文依次回落思源/鸿蒙/雅黑。
                该文件脱离 Streamlit 独立打开，无法引用 static/ 自托管字体，
                故不内嵌 @font-face，仅调整字体栈顺序（用户已装相应字体时生效）。 */
-            font-family: 'Inter', 'Source Han Sans SC', 'Noto Sans SC', 'HarmonyOS Sans SC', 'Microsoft YaHei', sans-serif;
+            font-family: 'Inter', 'Noto Serif SC', 'Source Han Serif SC', 'HarmonyOS Sans SC', 'Microsoft YaHei', sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
             line-height: 1.8;

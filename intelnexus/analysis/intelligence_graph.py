@@ -21,7 +21,7 @@ _extractor_lock = threading.Lock()
 
 # 知识图谱节点标签中文字体族（CSS 字体栈，依赖浏览器本地字体回落，
 # 不引入任何在线字体依赖，保持离线部署能力）
-_GRAPH_CJK_FONT_FACE = "'HarmonyOS Sans SC', 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif"
+_GRAPH_CJK_FONT_FACE = "'Noto Serif SC', 'Source Han Serif SC', 'HarmonyOS Sans SC', 'Microsoft YaHei', serif"
 
 
 def get_entity_extractor():

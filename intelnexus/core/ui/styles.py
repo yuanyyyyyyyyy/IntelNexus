@@ -48,9 +48,11 @@ def render_hermes_theme_css():
         --radius-md: 8px;
         --radius-lg: 12px;
         /* 字体（自托管：config.toml [[theme.fontFaces]] 注册 woff2）。
-           西文 Inter 先行，中文回落到 HarmonyOS Sans SC，系统字体兜底；
-           全局及内联样式一律引用变量，勿再硬编码字体栈。 */
-        --font-ui: "Inter", "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+           标题 Playfair Display（衬线体）+ 正文 Inter（无衬线体）
+           + 中文 Noto Serif SC（宋体）+ 等宽 JetBrains Mono。
+           HarmonyOS Sans SC 作为中文备选。 */
+        --font-ui: "Inter", "Noto Serif SC", "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+        --font-heading: "Playfair Display", "Noto Serif SC", "Source Han Serif SC", "SimSun", serif;
         --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Courier New", monospace;
 
         /* --- Legacy-compatible tokens (used by workbench / onboarding) --- */
@@ -151,6 +153,16 @@ def render_hermes_theme_css():
     [data-testid="stCode"] {
         font-family: var(--font-mono);
     }
+    /* 标题衬线体：Playfair Display 优雅人文风格 */
+    [data-testid="stHeading"] h1,
+    [data-testid="stHeading"] h2,
+    [data-testid="stHeading"] h3,
+    [data-testid="stHeading"] h4,
+    [data-testid="stHeading"] h5,
+    [data-testid="stHeading"] h6 {
+        font-family: var(--font-heading);
+        letter-spacing: -0.02em;
+    }
 
     /* --- Main Canvas Background --- */
     .stApp {
@@ -245,15 +257,18 @@ def render_hermes_theme_css():
         color: var(--text-primary) !important;
         letter-spacing: -0.02em !important;
         line-height: 1.2 !important;
+        margin-bottom: 4px !important;
     }
     .main-subtitle {
         font-size: 15px !important;
         font-weight: 400 !important;
         color: var(--text-secondary) !important;
+        margin-bottom: 2px !important;
     }
     .main-guidance {
         font-size: 13px !important;
         color: var(--text-tertiary) !important;
+        margin-bottom: 0 !important;
     }
 
     /* ============================================================
@@ -1924,65 +1939,77 @@ def render_workbench_css():
         margin-top: 4px;
         line-height: 1.6;
     }
-    section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container .ov-tagline .ov-date {
-        margin-left: 10px;
+    section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container .ov-date {
         font-size: 12px;
         color: var(--text-tertiary);
         letter-spacing: 0.04em;
+        margin-top: 2px;
     }
 
-    /* 指标卡片区：纸白表面 + 等高对齐，色条沿用 .hc-card--* */
+    /* 指标卡片区：纸白表面 + 等高对齐 + 左侧色条 */
     section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container .ov-card {
         background: var(--bg-card);
-        border-color: var(--border-light);
+        border: 1px solid var(--border-light) !important;
+        border-left: 4px solid var(--text-tertiary) !important;
+        border-radius: var(--radius-sm) !important;
         box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-        min-height: 108px;
+        min-height: 120px;
         display: flex;
         flex-direction: column;
-        gap: 6px;
-        margin: 16px 0 8px;
+        gap: 8px;
+        padding: 14px 18px 10px;
+        margin: 12px 0;
+    }
+    section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container .ov-card.hc-card--healthy {
+        border-left-color: var(--accent-green) !important;
+    }
+    section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container .ov-card.hc-card--degraded {
+        border-left-color: var(--accent-orange) !important;
+    }
+    section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container .ov-card.hc-card--down {
+        border-left-color: var(--accent-red) !important;
     }
     section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container .ov-card:hover {
         box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
     section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container .ov-card__tag {
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: var(--text-secondary);
+        letter-spacing: 0.06em;
+        color: var(--text-tertiary);
     }
     section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container .ov-card__value {
-        font-size: 15px;
-        font-weight: 600;
+        font-size: 20px;
+        font-weight: 700;
         color: var(--text-primary);
-        line-height: 1.45;
+        line-height: 1.35;
         overflow-wrap: anywhere;
     }
     section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container .ov-card__sub {
-        font-size: 12px;
+        font-size: 13px;
         color: var(--text-secondary);
-        margin-top: auto;
+        margin-top: 6px;
     }
 
-    /* 主操作入口按钮 — 白底深色文字 + 蓝色阴影（主区按钮规范）。
-       选择器用 div[data-testid] > button 模式，覆盖 hermes 全局深色按钮。 */
+    /* 主操作入口按钮 — 深色填充 + 白字（高对比度）。 */
     section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container div[data-testid="stButton"] > button {
-        background: #FFFFFF !important;
-        color: var(--text-primary) !important;
-        border: 1px solid #E0E0E0 !important;
-        border-radius: 8px !important;
+        background: var(--bg-tab-active) !important;
+        color: #FFFFFF !important;
+        border: none !important;
+        border-radius: var(--radius-md) !important;
         font-size: 15px !important;
         font-weight: 600 !important;
-        padding: 12px 20px !important;
-        min-height: 46px !important;
-        box-shadow: 0 4px 12px rgba(0,85,255,0.45) !important;
+        padding: 14px 24px !important;
+        min-height: 48px !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
         transition: all 0.2s ease !important;
+        letter-spacing: 0.01em !important;
     }
     section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container div[data-testid="stButton"] > button:hover {
-        background: #F5F5F5 !important;
-        border-color: #CCCCCC !important;
-        box-shadow: 0 6px 16px rgba(0,85,255,0.4) !important;
+        background: #333333 !important;
+        border-color: transparent !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25) !important;
         transform: translateY(-1px) !important;
     }
     section[data-testid="stMain"]:has(.ov-scope) .element-container:has(.app-main-scope) ~ .element-container div[data-testid="stButton"] > button:active {

@@ -1,0 +1,32 @@
+# IntelNexus EXE 构建依赖
+# 基于 requirements.txt，排除重型可选依赖以减小包体积
+# 用法: pip install -r requirements-build.txt pyinstaller
+
+# ---- 核心依赖（与 requirements.txt 一致）----
+requests>=2.31.0
+urllib3>=2.0.0
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+portalocker>=2.8.0
+python-dateutil>=2.8.0
+streamlit>=1.47.0
+python-dotenv>=1.0.0
+langchain>=0.1.0
+langchain-core>=0.1.0
+langchain-openai>=0.0.5
+langchain-ollama>=0.0.1
+reportlab>=4.0.0
+python-docx>=1.1.0
+openpyxl>=3.1.0
+networkx>=3.1
+pyvis>=0.3.1
+numpy>=1.24.0
+click>=8.0.0
+apscheduler>=3.10.0
+
+# ---- 排除的重型可选依赖（不安装）----
+# torch (~2GB) - 仅 sentence-transformers 需要
+# sentence-transformers (~50MB) - 语义评分增强
+# spacy (~200MB) - NER 知识图谱
+# matplotlib (~30MB) - 图表可视化
+# 这些功能在 EXE 版本中降级/不可用

@@ -55,9 +55,9 @@ def _render_greeting(segment: str, briefings_today: "int | None") -> None:
     else:
         line_key = f"ov_greet_{segment}_pending"
     line = get_text(line_key)
-    date_part = f'<span class="ov-date">{date_str}</span>' if date_str else ""
+    date_part = f'<div class="ov-date">{date_str}</div>' if date_str else ""
     st.markdown(
-        f'<div class="ov-tagline">{html.escape(line)}{date_part}</div>',
+        f'<div class="ov-tagline">{html.escape(line)}</div>{date_part}',
         unsafe_allow_html=True,
     )
 

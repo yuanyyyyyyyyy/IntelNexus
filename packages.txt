@@ -1,0 +1,4 @@
+# Streamlit Community Cloud 系统级依赖
+# lxml 需要 libxml2 和 libxslt
+libxml2-dev
+libxslt-dev

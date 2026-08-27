@@ -3,18 +3,36 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
+def _get_secret(key: str, default=None):
+    """优先从 Streamlit secrets 读取，回退到环境变量。
+
+    Streamlit Community Cloud 通过 UI Secrets 面板注入配置，
+    不使用 .env 文件。本地开发时走 .env（dotenv 已 load）。
+    """
+    # 1) 尝试 Streamlit secrets（仅在 Streamlit 运行时可用）
+    try:
+        import streamlit as st
+        if hasattr(st, "secrets") and key in st.secrets:
+            return st.secrets[key]
+    except Exception:
+        pass
+    # 2) 回退到环境变量
+    return os.getenv(key, default)
+
+
 # ========== LLM配置 ==========
 # 模型仅支持「本地 Ollama」与「用户在界面添加的自定义模型」，不内置任何云端预设。
 # Ollama 本地服务地址（必填，用于自动探测本地模型）
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+OLLAMA_BASE_URL = _get_secret("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
 # 以下为可选：仅当你在「自定义模型」中选择 OpenRouter / Google 类型并留空密钥时作为兜底，
 # 实际密钥优先取自自定义模型自身配置。
-OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+OPENROUTER_BASE_URL = _get_secret("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+OPENROUTER_API_KEY = _get_secret("OPENROUTER_API_KEY")
+GOOGLE_API_KEY = _get_secret("GOOGLE_API_KEY")
 
 # ========== 搜索配置 ==========
-NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")
+NEWS_API_KEY = _get_secret("NEWS_API_KEY", "")
 if NEWS_API_KEY and NEWS_API_KEY.startswith("your_"):
     NEWS_API_KEY = ""
 
