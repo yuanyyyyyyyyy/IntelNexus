@@ -97,4 +97,5 @@ class SecurityNewsSource(BaseSearchSource):
             return results
         except Exception as e:
             logger.warning(f"SecurityNewsSource 检索失败: {e}")
+            self.last_error = f"{type(e).__name__}: {e}"[:200]
             return []

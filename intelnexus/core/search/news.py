@@ -1,9 +1,11 @@
 import time
+import threading
 import requests
 from typing import List, Dict, Optional
 from bs4 import BeautifulSoup
 from urllib.parse import quote
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 import random
 
 try:
@@ -16,7 +18,18 @@ from intelnexus.core.search import USER_AGENTS, get_http_proxies, get_http_proxi
 
 logger = get_logger(__name__)
 
-RSS_FETCH_TIMEOUT = 25
+RSS_FETCH_TIMEOUT = 15
+# RSS 并行聚合预算（秒）：保证 News 源墙钟有界，不拖爆 registry 全局超时；
+# 超时后收割已完成结果并取消未启动任务。
+RSS_BUDGET = 45
+
+# 最近一次新闻检索各子源（RSS feed / Bing News / Google News）的失败摘要；
+# NewsSearch.search 入口清空，供适配器在空结果时汇总写入 last_error。
+# 读写经 _LAST_NEWS_ERRORS_LOCK 保护：clear 与「读取聚合」为原子段（append 在锁内）。
+# 已知局限：并发多次调用 NewsSearch.search 时（共享模块级列表），错误文案可能跨检索串味；
+# 当前架构下同一时刻只有一次检索在跑，可接受。
+LAST_NEWS_ERRORS: list = []
+_LAST_NEWS_ERRORS_LOCK = threading.Lock()
 
 RSS_SOURCES = [
     # ---- 国内可直连、无需代理（高质量订阅源，不过滤相关性，仅域名黑名单）----
@@ -159,14 +172,9 @@ class NewsSearch:
         # 非安全类RSS源（需要额外安全关键词过滤）
         NON_SECURITY_SOURCES = ["Solidot", "量子位", "IT之家", "少数派"]
 
-        for source in RSS_SOURCES:
-            if len(results) >= max_results:
-                break
-            if source.get("requires_proxy") and not get_http_proxies():
-                logger.info(f"跳过需代理源 {source['name']}（未配置代理）")
-                continue
-            # 计数器在 try 外初始化：异常路径下日志语句仍可安全访问
-            source_results = 0
+        def _fetch_one(source: Dict) -> List[Dict]:
+            """单 feed 独立「抓取+解析+过滤」工作函数（在子线程执行）。"""
+            source_results: List[Dict] = []
             try:
                 if "{query}" in source["url"]:
                     url = source["url"].format(query=quote(query))
@@ -188,7 +196,7 @@ class NewsSearch:
                         items = soup.find_all("entry")[:max_results]
 
                     for item in items:
-                        if source_results >= source_limit:
+                        if len(source_results) >= source_limit:
                             break
 
                         title = item.find("title")
@@ -235,15 +243,61 @@ class NewsSearch:
                             if is_blocked_domain(item["url"]):
                                 continue
 
-                            results.append(item)
-                            source_results += 1
+                            source_results.append(item)
             except Exception as e:
                 logger.warning(f"RSS search error from {source['name']}: {e}")
+                # 失败信号：供适配器在空结果时汇总写入 last_error（锁内 append）
+                with _LAST_NEWS_ERRORS_LOCK:
+                    LAST_NEWS_ERRORS.append(f"{source['name']}: {type(e).__name__}")
 
-            if source_results > 0:
-                logger.info(f"RSS源 {source['name']} 返回 {source_results} 条结果")
+            if source_results:
+                logger.info(f"RSS源 {source['name']} 返回 {len(source_results)} 条结果")
+            return source_results
 
-        return results
+        # 代理门控：未配置代理时跳过需代理源（行为与原串行版一致）
+        eligible_sources = []
+        for source in RSS_SOURCES:
+            if source.get("requires_proxy") and not get_http_proxies():
+                logger.info(f"跳过需代理源 {source['name']}（未配置代理）")
+                continue
+            eligible_sources.append(source)
+
+        # 并行抓取：每 feed 独立线程，聚合预算 RSS_BUDGET 秒，保证墙钟有界。
+        # 原串行版 19 个源平均 ~90s，超过 registry.collect 的 60s 全局预算，
+        # 导致晚到的成功结果被 cancel_futures 丢弃。
+        if eligible_sources:
+            executor = ThreadPoolExecutor(max_workers=6)
+            try:
+                futures = {
+                    executor.submit(_fetch_one, source): source
+                    for source in eligible_sources
+                }
+                # 主循环已收集的 future 集合：超时收割分支据此去重，避免重复条目在截断窗口内挤占名额。
+                collected = set()
+                try:
+                    for f in as_completed(futures, timeout=RSS_BUDGET):
+                        collected.add(f)
+                        try:
+                            results.extend(f.result() or [])
+                        except Exception as e:
+                            logger.warning(f"RSS 源检索异常: {e}")
+                except FuturesTimeoutError:
+                    logger.info(f"RSS 并行聚合超时 ({RSS_BUDGET}s)，收割已完成结果并取消未启动任务")
+                    for f in futures:
+                        if f in collected:
+                            continue
+                        if f.done():
+                            collected.add(f)
+                            try:
+                                results.extend(f.result() or [])
+                            except Exception:
+                                pass
+                        else:
+                            f.cancel()
+            finally:
+                executor.shutdown(wait=False, cancel_futures=True)
+
+        return results[:max_results]
 
     def search_bing_news(self, query: str, max_results: int = 10) -> List[Dict]:
         results = []
@@ -280,6 +334,9 @@ class NewsSearch:
                         continue
         except Exception as e:
             logger.warning(f"Bing news search error: {e}")
+            # 失败信号：供适配器在空结果时汇总写入 last_error（锁内 append）
+            with _LAST_NEWS_ERRORS_LOCK:
+                LAST_NEWS_ERRORS.append(f"Bing News: {type(e).__name__}")
         return results
 
     def search_google_news(self, query: str, max_results: int = 10) -> List[Dict]:
@@ -289,7 +346,7 @@ class NewsSearch:
             params = {"q": query, "hl": "en-US", "gl": "US"}
             headers = {"User-Agent": random.choice(USER_AGENTS)}
 
-            response = get_session(get_http_proxies()).get(url, params=params, headers=headers, timeout=10)
+            response = get_session(get_http_proxies_for(True)).get(url, params=params, headers=headers, timeout=10)
             if response.status_code == 200:
                 soup = BeautifulSoup(response.content, "xml")
 
@@ -318,10 +375,17 @@ class NewsSearch:
                         continue
         except Exception as e:
             logger.warning(f"Google News search error: {e}")
+            # 失败信号：供适配器在空结果时汇总写入 last_error（锁内 append）
+            with _LAST_NEWS_ERRORS_LOCK:
+                LAST_NEWS_ERRORS.append(f"Google News: {type(e).__name__}")
         return results
 
     def search(self, query: str, max_results: int = 10) -> List[Dict]:
         results = []
+        # 清空上一轮的子源失败摘要（锁内原子清空），保证本轮信号不串味；
+        # 在提交并发子检索之前清空，避免与各子线程的 append 竞争。
+        with _LAST_NEWS_ERRORS_LOCK:
+            LAST_NEWS_ERRORS.clear()
 
         with ThreadPoolExecutor(max_workers=4) as executor:
             futures = []
@@ -353,6 +417,12 @@ class NewsSearch:
             if url and url not in seen_urls:
                 seen_urls.add(url)
                 unique_results.append(r)
+
+        # 失败口径：任一子检索产出过原始结果即属正常检索（部分子源失败是常态，
+        # 如慢速 RSS 超时），清空错误信号；仅当「全部子源零产出」时才保留供适配器聚合。
+        if unique_results:
+            with _LAST_NEWS_ERRORS_LOCK:
+                LAST_NEWS_ERRORS.clear()
 
         return unique_results[:max_results * 3]
 

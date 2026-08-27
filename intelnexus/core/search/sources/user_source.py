@@ -73,6 +73,7 @@ class UserSource(BaseSearchSource):
                 return []
         except Exception as e:
             logger.warning(f"UserSource[{self.name}] 检索失败: {e}")
+            self.last_error = f"{type(e).__name__}: {e}"[:200]
             return []
 
         results = []
@@ -200,6 +201,9 @@ class UserSource(BaseSearchSource):
             resp = session.get(search_url, timeout=30)
         except Exception as e:
             logger.warning(f"UserSource onion 访问失败: {e}")
+            # 内部吞异常会让外层 search() 的 except 收不到信号：
+            # 直接写 last_error，保证空结果时失败可见（返回语义不变）
+            self.last_error = f"onion: {type(e).__name__}: {e}"[:200]
             return []
 
         results = []

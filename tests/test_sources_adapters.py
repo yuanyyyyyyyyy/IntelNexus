@@ -17,6 +17,30 @@ def test_web_adapter_normalizes():
     assert out[0]["source"] == "Bing"
 
 
+def test_web_adapter_records_last_error_on_exception():
+    """底层 get_web_results 抛异常：适配器返回 [] 且 last_error 非空（含异常类型）。"""
+    with patch("intelnexus.core.search.sources.web_source.get_web_results",
+               side_effect=RuntimeError("proxy unreachable")):
+        src = WebSearchSource()
+        out = src.search("query", max_results=25)
+    assert out == []
+    assert src.last_error
+    assert "RuntimeError" in src.last_error
+    assert len(src.last_error) <= 200
+
+
+def test_web_adapter_aggregates_engine_errors_on_empty():
+    """空结果且引擎有失败记录：汇总写入 last_error（截断 200 字符）。"""
+    with patch("intelnexus.core.search.sources.web_source.get_web_results", return_value=[]), \
+         patch("intelnexus.core.search.sources.web_source.LAST_WEB_ERRORS",
+               ["Bing: ConnectionError", "Baidu: Timeout"]):
+        src = WebSearchSource()
+        out = src.search("query")
+    assert out == []
+    assert "Bing: ConnectionError" in src.last_error
+    assert len(src.last_error) <= 200
+
+
 def test_news_adapter_normalizes():
     raw = [{"title": "N", "url": "http://n.com", "description": "d", "source": "TechCrunch"}]
     with patch("intelnexus.core.search.sources.news_source.get_news_results", return_value=raw):
@@ -25,6 +49,42 @@ def test_news_adapter_normalizes():
     assert len(out) == 1
     assert out[0]["url"] == "http://n.com"  
     assert out[0]["category"] == "news"
+
+
+def test_news_adapter_records_last_error_on_exception():
+    """底层 get_news_results 抛异常：适配器返回 [] 且 last_error 非空（含异常类型）。
+    news 模式下 News 常为唯一源，全失败必须可辨识，不得误报「无结果」。
+    """
+    with patch("intelnexus.core.search.sources.news_source.get_news_results",
+               side_effect=RuntimeError("rss unreachable")):
+        src = NewsSearchSource(api_key="k")
+        out = src.search("query")
+    assert out == []
+    assert src.last_error
+    assert "RuntimeError" in src.last_error
+    assert len(src.last_error) <= 200
+
+
+def test_news_adapter_aggregates_subsource_errors_on_empty():
+    """空结果且子源有失败记录：锁内聚合写入 last_error（截断 200 字符）。"""
+    with patch("intelnexus.core.search.sources.news_source.get_news_results", return_value=[]), \
+         patch("intelnexus.core.search.sources.news_source.LAST_NEWS_ERRORS",
+               ["TechCrunch RSS: Timeout", "Bing News: HTTP 403"]):
+        src = NewsSearchSource(api_key="k")
+        out = src.search("query")
+    assert out == []
+    assert "TechCrunch RSS: Timeout" in src.last_error
+    assert len(src.last_error) <= 200
+
+
+def test_news_adapter_empty_without_errors_is_not_failure():
+    """空结果且无失败记录（正常无结果）：last_error 保持 None，不误判失败。"""
+    with patch("intelnexus.core.search.sources.news_source.get_news_results", return_value=[]), \
+         patch("intelnexus.core.search.sources.news_source.LAST_NEWS_ERRORS", []):
+        src = NewsSearchSource(api_key="k")
+        out = src.search("query")
+    assert out == []
+    assert src.last_error is None
 
 
 def test_darkweb_adapter_respects_availability():

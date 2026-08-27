@@ -41,6 +41,7 @@ class HackerNewsSource(BaseSearchSource):
             return self._parse_results(data.get("hits", []))
         except Exception as e:
             logger.warning(f"HackerNewsSource 检索失败: {e}")
+            self.last_error = f"{type(e).__name__}: {e}"[:200]
             return []
 
     def _parse_results(self, hits: list) -> List[Dict]:

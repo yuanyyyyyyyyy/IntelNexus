@@ -47,5 +47,7 @@ class DarkWebSource(BaseSearchSource):
                 self.tor_port, self.ui_sites)
         except Exception as e:
             logger.warning(f"DarkWebSource 检索失败: {e}")
+            self.last_error = f"{type(e).__name__}: {e}"[:200]
             return []
+        self.last_error = None
         return self.normalize_results(raw)

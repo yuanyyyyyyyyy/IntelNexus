@@ -4,6 +4,44 @@ from unittest.mock import patch, MagicMock
 
 
 # ============================================================
+# Test: zero-results failure judgment (_zero_results_is_failure)
+# ============================================================
+
+class TestZeroResultsIsFailure:
+    """纯函数分支覆盖：含 ok 源不判失败；全非 ok 判失败；空统计不判失败。"""
+
+    def test_ok_source_not_failure(self):
+        from intelnexus.ui.search_pipeline import _zero_results_is_failure
+        stats = {"Web": {"status": "ok", "count": 3},
+                 "News": {"status": "timeout", "count": 0}}
+        assert _zero_results_is_failure(stats) is False
+
+    def test_ok_with_zero_count_not_failure(self):
+        from intelnexus.ui.search_pipeline import _zero_results_is_failure
+        stats = {"Web": {"status": "ok", "count": 0}}
+        assert _zero_results_is_failure(stats) is False
+
+    def test_error_and_timeout_only_is_failure(self):
+        from intelnexus.ui.search_pipeline import _zero_results_is_failure
+        stats = {"Web": {"status": "error", "count": 0},
+                 "News": {"status": "timeout", "count": 0}}
+        assert _zero_results_is_failure(stats) is True
+
+    def test_no_proxy_only_is_failure(self):
+        from intelnexus.ui.search_pipeline import _zero_results_is_failure
+        stats = {"DarkWeb": {"status": "no_proxy", "count": 0}}
+        assert _zero_results_is_failure(stats) is True
+
+    def test_empty_stats_not_failure(self):
+        from intelnexus.ui.search_pipeline import _zero_results_is_failure
+        assert _zero_results_is_failure({}) is False
+
+    def test_none_stats_not_failure(self):
+        from intelnexus.ui.search_pipeline import _zero_results_is_failure
+        assert _zero_results_is_failure(None) is False
+
+
+# ============================================================
 # Test: vision model detection
 # ============================================================
 

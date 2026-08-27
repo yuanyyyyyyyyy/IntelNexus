@@ -100,6 +100,7 @@ class ArxivSource(BaseSearchSource):
             return results
         except Exception as e:
             logger.warning(f"ArxivSource 检索失败: {e}")
+            self.last_error = f"{type(e).__name__}: {e}"[:200]
             return []
 
     def _get_category(self, query: str) -> str:

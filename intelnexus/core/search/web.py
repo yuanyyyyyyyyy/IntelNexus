@@ -8,7 +8,7 @@ from urllib3.util.retry import Retry
 from urllib.parse import quote, urlencode
 
 from intelnexus.core.logger import get_logger
-from intelnexus.core.search import USER_AGENTS, get_http_proxies, is_blocked_domain, relevance_passes, get_session as _get_shared_session
+from intelnexus.core.search import USER_AGENTS, get_http_proxies_for, is_blocked_domain, relevance_passes, get_session as _get_shared_session
 
 logger = get_logger(__name__)
 
@@ -28,6 +28,8 @@ ENGINE_CONFIGS = {
         "desc_selector": "p",
         "requires_http": True,
         "filter_bing": True,
+        # 国内可直连：强制直连，避免被幽灵代理拽入不可达链路（代理收口）
+        "requires_proxy": False,
     },
     "DuckDuckGo": {
         "url": "https://html.duckduckgo.com/html/?q={query}&b={offset}",
@@ -35,6 +37,7 @@ ENGINE_CONFIGS = {
         "item_selector": "div.result",
         "title_selector": "a.result__a",
         "desc_selector": "a.result__snippet",
+        "requires_proxy": True,
     },
     "Yahoo": {
         "url": "https://search.yahoo.com/search?p={query}&b={offset}",
@@ -42,6 +45,7 @@ ENGINE_CONFIGS = {
         "item_selector": "div.algo",
         "title_selector": None,
         "desc_selector": "p",
+        "requires_proxy": True,
     },
     "Yandex": {
         "url": "https://yandex.com/search/?text={query}&page={offset}",
@@ -49,6 +53,7 @@ ENGINE_CONFIGS = {
         "item_selector": "li.serp-item",
         "title_selector": "a.serp-item__title",
         "desc_selector": "div.serp-item__text",
+        "requires_proxy": True,
     },
     "Baidu": {
         "url": "https://www.baidu.com/s?wd={query}&pn={offset}",
@@ -56,6 +61,7 @@ ENGINE_CONFIGS = {
         "item_selector": "div.result",
         "title_selector": None,
         "desc_selector": None,
+        "requires_proxy": False,
     },
 }
 
@@ -70,10 +76,22 @@ import threading
 _session_lock = threading.Lock()
 _shared_session = None
 
+# 最近一次网页检索各引擎的失败摘要；get_web_results 入口清空，
+# 供适配器在空结果时汇总写入 last_error。读写经 _LAST_WEB_ERRORS_LOCK 保护：
+# clear 与「读取聚合」为原子段（append 在锁内执行）。
+# 已知局限：并发多次调用 get_web_results 时（共享模块级列表），错误文案可能跨检索串味；
+# 当前架构下同一时刻只有一次检索在跑，可接受。
+LAST_WEB_ERRORS: list = []
+_LAST_WEB_ERRORS_LOCK = threading.Lock()
 
-def get_session():
-    """复用 core.search 顶层的共享 session 工厂（全局代理配置）。"""
-    return _get_shared_session(get_http_proxies())
+
+def get_session(requires_proxy: bool = False):
+    """复用 core.search 顶层的共享 session 工厂（代理收口）。
+
+    requires_proxy=False（国内引擎 Bing/Baidu）强制直连，绝不经过任何代理；
+    requires_proxy=True 时才返回实际代理配置（未配置则为直连会话）。
+    """
+    return _get_shared_session(get_http_proxies_for(requires_proxy))
 
 
 def _fetch_engine(engine_name: str, query: str, page: int = 0):
@@ -88,10 +106,14 @@ def _fetch_engine(engine_name: str, query: str, page: int = 0):
         offset = cfg["offset_fn"](page)
         url = cfg["url"].format(query=encoded_query, offset=offset)
         headers = {"User-Agent": random.choice(USER_AGENTS)}
-        session = get_session()
+        session = get_session(cfg.get("requires_proxy", False))
         response = session.get(url, headers=headers, timeout=(8, 15))
 
         if response.status_code != 200:
+            # 非 200 也记失败：全部引擎被反爬拦截（403/429）时不应误判为成功无结果。
+            # 慢速引擎在国内被墙属预期失败，同样如实记录，由上层口径决定是否采信。
+            with _LAST_WEB_ERRORS_LOCK:
+                LAST_WEB_ERRORS.append(f"{engine_name}: HTTP {response.status_code}")
             return results
 
         soup = BeautifulSoup(response.text, "html.parser")
@@ -145,6 +167,9 @@ def _fetch_engine(engine_name: str, query: str, page: int = 0):
             logger.debug(f"{engine_name} search error (expected in CN): {type(e).__name__}")
         else:
             logger.warning(f"{engine_name} search error: {e}")
+        # 失败信号：供适配器在空结果时汇总写入 last_error（锁内 append，与 clear/读取互斥）
+        with _LAST_WEB_ERRORS_LOCK:
+            LAST_WEB_ERRORS.append(f"{engine_name}: {type(e).__name__}")
     return results
 
 
@@ -194,6 +219,9 @@ def _dedup_results(results):
 def get_web_results(query, max_workers: int = 5, max_results: int = 50) -> list:
     results = []
     pages_per_engine = 2
+    # 清空上一轮的引擎失败摘要，保证本次检索的失败信号不被串味（锁内原子清空）
+    with _LAST_WEB_ERRORS_LOCK:
+        LAST_WEB_ERRORS.clear()
 
     if isinstance(query, list):
         queries = query
@@ -216,7 +244,7 @@ def get_web_results(query, max_workers: int = 5, max_results: int = 50) -> list:
 
     unique_so_far = _dedup_results(results)
     if len(unique_so_far) < 20:
-        if not get_http_proxies():
+        if not get_http_proxies_for(True):
             logger.info("快速引擎结果不足，但无代理配置，跳过慢速引擎（DuckDuckGo/Yahoo/Yandex）避免无效超时")
         else:
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -234,6 +262,13 @@ def get_web_results(query, max_workers: int = 5, max_results: int = 50) -> list:
         logger.info(f"快速引擎已返回 {len(unique_so_far)} 条结果，跳过慢速引擎")
 
     unique_results = _dedup_results(results)
+
+    # 失败口径：只要有引擎成功产出过原始结果（过滤前非空），就属于「正常检索」，
+    # 即使结果全被相关性/黑名单过滤掉也不是失败；慢速引擎在国内失败属预期。
+    # 仅当「所有引擎零产出」时才保留错误信号供适配器聚合。
+    if unique_results:
+        with _LAST_WEB_ERRORS_LOCK:
+            LAST_WEB_ERRORS.clear()
 
     filtered = []
     for r in unique_results[:max_results]:
