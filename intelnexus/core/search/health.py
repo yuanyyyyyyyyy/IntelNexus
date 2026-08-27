@@ -156,6 +156,49 @@ def update_health(source_name: str, result_count: int, latency_ms: float,
         save_health(health)
 
 
+def record_probe_result(source_name: str, success: bool, latency_ms: float,
+                        error: Optional[str] = None):
+    """记录一次主动连通性探测（如数据源管理面板的批量测试）结果。
+
+    与 update_health 的差异：探测是用户主动发起的连通性结论，不是被动
+    采集的旁路观测，因此失败时绕过被动积累（攒满 3 次才 degraded），
+    单次探测失败立即降级。
+
+    探测失败置 "degraded" 而非 "down"，down 仅由被动连续失败阈值产生：
+    - registry.get_sources_by_mode() 会跳过 status=="down" 的源，一次用户点击遇到
+      瞬时网络抖动即会把源从搜索管线整体剔除，且被剔除后无自愈路径；
+    - 状态经 _update_status() 统一推导（与 record_failure 同一推导路径），保证探测与
+      被动失败的后续状态演化自洽（不会一次被动失败就翻回 healthy）。
+
+    - 成功：record_success（累计 success_count、滑动平均延迟、刷新
+      last_success、清零 consecutive_failures、status 恢复 healthy）；
+    - 失败：fail_count +1、consecutive_failures 抬升至至少 DEGRADE_THRESHOLD、
+      但封顶于 DOWN_THRESHOLD - 1（被动失败已累计到 5 时，一次探测失败不得把源
+      推入 down——与「探测失败置 degraded 而非 down」语义一致）、
+      更新 last_error（截断 200），_update_status() 推导为 degraded，
+      last_success 保持不变。
+    两种路径均 save_health 落盘。全程持锁；全异常兜底（只记日志不抛出）。
+    """
+    try:
+        with _health_lock:
+            health = get_health(source_name)
+            if success:
+                health.record_success(latency_ms)
+            else:
+                health.fail_count += 1
+                # 封顶到阈值下沿：探测失败最多推到 degraded，绝不一步到 down；
+                # 否则被动失败已累计到 5 时，一次探测失败即抬到 6 → 推导为 down，
+                # 与 docstring「探测失败置 degraded 而非 down」矛盾。
+                health.consecutive_failures = min(
+                    max(health.consecutive_failures + 1, DEGRADE_THRESHOLD),
+                    DOWN_THRESHOLD - 1)
+                health.last_error = (error or "")[:200]
+                health._update_status()
+            save_health(health)
+    except Exception as e:
+        logger.warning(f"记录探测结果失败 [{source_name}]: {e}")
+
+
 def purge_stale_entries(active_source_names) -> int:
     """清理健康表中不属于任何当前注册源的残留条目。
 

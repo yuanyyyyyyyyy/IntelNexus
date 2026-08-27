@@ -47,6 +47,18 @@ def _extract_tldr_card(report: str) -> str:
     return m.group(1).strip() if m else ""
 
 
+def _zero_results_is_failure(stats) -> bool:
+    """零结果是否属于「全源失败」。
+
+    stats 非空且无任何 status=="ok" 的源 → 判定为检索整体失败（区别于
+    「源都正常但确实没命中」的合法空结果）。空/无统计时不判失败，
+    维持原有 no_results 提示。模块级纯函数，便于单测。
+    """
+    if not stats:
+        return False
+    return not any((s or {}).get("status") == "ok" for s in stats.values())
+
+
 @st.cache_data(ttl=200, show_spinner=False)
 def cached_search(mode, refined_query, threads, advanced_mode=False, tor_port=DEFAULT_TOR_PORT, ui_sites=None):
     """按 mode 遍历注册表并发检索（统一源抽象，无硬编码分支）。
@@ -172,6 +184,14 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
                 st.session_state.source_stats = _get_reg().last_search_stats
             except Exception as e:
                 logger.debug(f"读取源级统计失败: {e}")
+            # 失败结果不固化缓存：全源失败的空结果立即从 st.cache_data 清除，
+            # 避免 200s TTL 内重试同查询时反复命中失败缓存。
+            if not st.session_state.results and \
+                    _zero_results_is_failure(st.session_state.get("source_stats")):
+                try:
+                    cached_search.clear()
+                except Exception as e:
+                    logger.debug(f"清除失败检索缓存异常: {e}")
             search_st.update(label=get_text("search_done").format(count=len(st.session_state.results)), state="complete")
     except Exception as e:
         logger.error(f"检索失败 [{type(e).__name__}]: {e}", exc_info=True)
@@ -235,9 +255,13 @@ def run_search_pipeline(query, search_mode, model, threads, status_slot):
     if _ran_at < _search_started_at:
         st.caption(get_text("cache_hit_note"))
 
-    # 无结果：提前提示，但仍保留 results 空列表，下面结果区会显示“无结果”而不是整页空白
+    # 无结果：提前提示，但仍保留 results 空列表，下面结果区会显示“无结果”而不是整页空白。
+    # 全源失败（无任何 ok 源）时升级为 error 提示，引导用户检查代理/网络。
     if results_count == 0:
-        status_slot.warning(get_text("no_results"))
+        if _zero_results_is_failure(st.session_state.get("source_stats")):
+            status_slot.error(get_text("search_all_failed"))
+        else:
+            status_slot.warning(get_text("no_results"))
         st.session_state.filtered = []
         st.session_state.search_completed = True
         st.session_state.report_timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")

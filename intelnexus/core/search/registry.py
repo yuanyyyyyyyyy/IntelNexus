@@ -42,6 +42,10 @@ from config import (
 
 logger = get_logger(__name__)
 
+# 全局超时后的宽限期（秒）：给已在跑的慢源最后机会收割晚到的成功结果，
+# 避免 shutdown(cancel_futures=True) 直接丢弃即将完成的检索。
+_GRACE_PERIOD = 15
+
 # 模块级注册表实例缓存（按构造参数维度），避免每次 collect 都重建并读盘
 _registry_cache: Dict[tuple, "SearchSourceRegistry"] = {}
 _registry_cache_lock = None
@@ -288,10 +292,28 @@ class SearchSourceRegistry:
             try:
                 # 单源超时 = 全局剩余时间的一半
                 remaining = max(5, int((global_timeout - (time.time() - t0)) / 2))
+                # 先清残留失败信号：保证随后读到的 last_error 只属于本次调用，
+                # 防上一轮超时后台线程晚归写入的信号被本轮误消费（桩可能无此属性）。
+                setattr(src, "last_error", None)
                 results = src.search(q, min(mr, 30))  # 限制单源结果数
                 elapsed = (time.time() - t_start) * 1000
-                update_health(src.name, len(results or []), elapsed)
-                _mark(src.name, "ok", len(results or []))
+                if results:
+                    # 非空结果路径：成功，同时清掉残留的失败信号（桩可能无此属性，setattr 防御）
+                    setattr(src, "last_error", None)
+                    update_health(src.name, len(results), elapsed)
+                    _mark(src.name, "ok", len(results))
+                else:
+                    # 空结果 + last_error 非空 → 判定为失败：适配器吞异常返回 []
+                    # 时既有错误边界永不触发，靠失败信号通道补记健康统计。
+                    err = getattr(src, "last_error", None)
+                    if err:
+                        update_health(src.name, 0, elapsed, error=err)
+                        _mark(src.name, "error")
+                        setattr(src, "last_error", None)
+                        logger.warning(f"源 {src.name} 检索失败: {err}")
+                        return []
+                    update_health(src.name, 0, elapsed)
+                    _mark(src.name, "ok", 0)
                 # 为每个结果添加源名称和权重
                 source_weight = self._source_weights.get(src.name, 1.0)
                 for r in (results or []):
@@ -303,6 +325,8 @@ class SearchSourceRegistry:
                 update_health(src.name, 0, 0, error=str(e))
                 logger.warning(f"源 {src.name} 检索异常: {e}")
                 _mark(src.name, "error")
+                # 异常边界同样清残留信号，保持失败信号通道的单轮生命周期语义
+                setattr(src, "last_error", None)
                 return []
 
         executor = ThreadPoolExecutor(max_workers=max(1, min(threads, len(sources) or 1)))
@@ -310,36 +334,66 @@ class SearchSourceRegistry:
             executor.submit(_timed_search, src, query, max_results): src
             for src in sources
         }
+        # 主循环已收割的 future 集合：超时统一收割时据此去重，避免重复条目。
+        collected = set()
+
+        def _harvest():
+            """统一收割：先收已完成 future，再给未完成 future 宽限期。
+
+            覆盖两条超时退出路径：as_completed 抛 FuturesTimeoutError（路径 A）
+            与循环体内超时检查 break（路径 B）；collected 集合排除主循环已收割的。
+            """
+            for f in future_map:
+                if f in collected:
+                    continue
+                if f.done():
+                    collected.add(f)
+                    try:
+                        raw.extend(f.result() or [])
+                    except Exception:
+                        pass
+            # 宽限期收割：给仍在跑的源最后 _GRACE_PERIOD 秒，避免
+            # shutdown(cancel_futures=True) 丢弃晚到的成功结果；宽限期超时则放弃。
+            pending = [f for f in future_map if f not in collected and not f.done()]
+            if pending:
+                try:
+                    for f in as_completed(pending, timeout=_GRACE_PERIOD):
+                        collected.add(f)
+                        try:
+                            raw.extend(f.result() or [])
+                        except Exception as e:
+                            logger.warning(f"宽限期收割源异常: {e}")
+                except FuturesTimeoutError:
+                    logger.info(f"宽限期 ({_GRACE_PERIOD}s) 超时，放弃收割未完成的源")
+
         try:
             for f in as_completed(future_map, timeout=global_timeout):
+                collected.add(f)
                 try:
                     raw.extend(f.result() or [])
                 except Exception as e:
                     logger.warning(f"源检索异常: {e}")
 
-                # 检查全局超时
+                # 检查全局超时（路径 B）：同样走统一宽限收割，避免晚到成功结果被丢弃
                 if time.time() - t0 > global_timeout:
                     logger.info(f"全局超时，停止收集剩余结果")
+                    _harvest()
                     break
         except FuturesTimeoutError:
             logger.info(f"全局超时 ({global_timeout}s)，收集已完成的结果")
-            # 收集已完成的 futures
-            for f in future_map:
-                if f.done():
-                    try:
-                        raw.extend(f.result() or [])
-                    except Exception:
-                        pass
+            # 路径 A：与路径 B 共用同一收割逻辑，口径一致且不重复收集。
+            _harvest()
         finally:
             # 不等待仍在跑的慢线程：with-block 的隐式 shutdown(wait=True) 会把
             # 全局超时形同虚设（调用方墙钟时间被最慢单源拖满）。
             # cancel_futures 撤销尚未启动的任务；运行中的任务由各自请求超时兜底。
             executor.shutdown(wait=False, cancel_futures=True)
 
-        # F6：未被收集到的源（撤销/超时未完成）标记 skipped，避免统计缺口
+        # F6：未被收集到的源（撤销/超时未完成）标记 timeout，避免统计缺口；
+        # 与 _timed_search 内全局超时跳过分支的语义对齐，供 UI 透明度条展示。
         for src in sources:
             if src.name not in source_stats:
-                source_stats[src.name] = {"status": "skipped", "count": 0}
+                source_stats[src.name] = {"status": "timeout", "count": 0}
         self.last_search_stats = source_stats
 
         # 出口统一收口：跨源去重（URL 精确去重 + 归一化标题键 + 受控模糊比对）

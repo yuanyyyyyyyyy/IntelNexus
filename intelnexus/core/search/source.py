@@ -50,6 +50,9 @@ class BaseSearchSource(ABC):
             self.category = category
         self.enabled = enabled
         self.requires_proxy = requires_proxy
+        # 失败信号通道：非空表示最近一次检索失败（适配器吞异常返回 [] 时补写），
+        # 成功路径应清空。调度层（registry._timed_search）以 getattr 防御性读取。
+        self.last_error: Optional[str] = None
 
     @abstractmethod
     def search(self, query, max_results: int = 20) -> List[Dict]:

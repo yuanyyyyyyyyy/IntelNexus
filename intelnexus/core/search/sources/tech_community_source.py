@@ -53,6 +53,7 @@ class TechCommunitySource(BaseSearchSource):
             return results[:max_results]
         except Exception as e:
             logger.warning(f"TechCommunitySource 检索失败: {e}")
+            self.last_error = f"{type(e).__name__}: {e}"[:200]
             return []
 
     def _fetch_rss(self, session, source: dict, query: str) -> List[Dict]:

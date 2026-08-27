@@ -7,7 +7,7 @@
 from typing import Dict, List
 
 from intelnexus.core.logger import get_logger
-from intelnexus.core.search.web import get_web_results
+from intelnexus.core.search.web import get_web_results, LAST_WEB_ERRORS, _LAST_WEB_ERRORS_LOCK
 from intelnexus.core.search.source import BaseSearchSource, CATEGORY_WEB
 
 logger = get_logger(__name__)
@@ -27,5 +27,15 @@ class WebSearchSource(BaseSearchSource):
             raw = get_web_results(query, self.max_workers, max_results)
         except Exception as e:
             logger.warning(f"WebSearchSource 检索失败: {e}")
+            self.last_error = f"{type(e).__name__}: {e}"[:200]
             return []
+        if raw:
+            # 成功路径：清空失败信号（正常检索返回空与检索失败必须可区分）
+            self.last_error = None
+        else:
+            # 空结果：锁内原子读取聚合（与 web.py 的 clear/append 互斥），
+            # 有引擎失败记录才写 last_error，否则维持成功语义。
+            with _LAST_WEB_ERRORS_LOCK:
+                summary = "; ".join(LAST_WEB_ERRORS)
+            self.last_error = summary[:200] if summary else None
         return self.normalize_results(raw)

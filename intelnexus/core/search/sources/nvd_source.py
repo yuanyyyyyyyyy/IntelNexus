@@ -77,6 +77,7 @@ class NVDSearchSource(BaseSearchSource):
             return results
         except Exception as e:
             logger.warning(f"NVDSearchSource 检索失败: {e}")
+            self.last_error = f"{type(e).__name__}: {e}"[:200]
             return []
 
     def search_recent_critical(self, days: int = 7, max_results: int = 20) -> List[Dict]:

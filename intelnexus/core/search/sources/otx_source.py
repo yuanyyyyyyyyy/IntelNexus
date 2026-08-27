@@ -37,6 +37,7 @@ class AlienVaultOTXSource(BaseSearchSource):
             return self._parse_results(data.get("results", []))
         except Exception as e:
             logger.warning(f"AlienVaultOTXSource 检索失败: {e}")
+            self.last_error = f"{type(e).__name__}: {e}"[:200]
             return []
 
     def _parse_results(self, pulses: list) -> List[Dict]:

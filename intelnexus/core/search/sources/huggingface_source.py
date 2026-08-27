@@ -87,4 +87,5 @@ class HuggingFaceSource(BaseSearchSource):
             return results
         except Exception as e:
             logger.warning(f"HuggingFaceSource 检索失败: {e}")
+            self.last_error = f"{type(e).__name__}: {e}"[:200]
             return []
