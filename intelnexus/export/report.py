@@ -65,22 +65,30 @@ def _format_content_for_pdf(content: str) -> str:
 
 
 def export_markdown(content: str, query: str, output_path: str) -> str:
-    """Export to Markdown format with enhanced structure."""
-    # 清理内容，移除所有特殊字符
-    content = _clean_content(content)
-    
+    """Export to Markdown format.
+
+    如果 content 已经是 10 板块结构化报告（以 "=" 开头），直接写入；
+    否则回退到旧版包装格式（向后兼容）。
+    """
+    is_structured = content.startswith("=")
+
     with open(output_path, 'w', encoding='utf-8') as f:
-        f.write("# IntelNexus 智能情报报告\n\n")
-        f.write(f"## 报告信息\n\n")
-        f.write(f"- **查询内容**: {query}\n")
-        f.write(f"- **生成时间**: {datetime.now().strftime('%Y年%m月%d日 %H:%M:%S')}\n")
-        f.write(f"- **报告类型**: 多源网络情报分析\n\n")
-        f.write("---\n\n")
-        f.write("## 分析结果\n\n")
-        f.write(content)
-        f.write("\n\n---\n\n")
-        f.write(f"*报告生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n")
-        f.write("*© 2026 IntelNexus Platform - 多源网络情报分析平台*\n")
+        if is_structured:
+            # 新版 10 板块结构化报告，直接写入
+            f.write(content)
+        else:
+            # 旧版 LLM 原始输出，包装为简单报告
+            f.write("# IntelNexus 智能情报报告\n\n")
+            f.write(f"## 报告信息\n\n")
+            f.write(f"- **查询内容**: {query}\n")
+            f.write(f"- **生成时间**: {datetime.now().strftime('%Y年%m月%d日 %H:%M:%S')}\n")
+            f.write(f"- **报告类型**: 多源网络情报分析\n\n")
+            f.write("---\n\n")
+            f.write("## 分析结果\n\n")
+            f.write(_clean_content(content))
+            f.write("\n\n---\n\n")
+            f.write(f"*报告生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n")
+            f.write("*© 2026 IntelNexus Platform - 多源网络情报分析平台*\n")
     return output_path
 
 
@@ -329,29 +337,31 @@ def export_pdf(content: str, query: str, output_path: str) -> str:
     
     story = []
     
-    # Title
-    story.append(Paragraph("IntelNexus Intelligence Report", styles["title"]))
-    story.append(Spacer(1, 10))
-    story.append(Paragraph("<hr />", styles["normal"]))
-    story.append(Spacer(1, 10))
+    is_structured = content.startswith("=")
     
-    # Report Info
-    story.append(Paragraph("Report Information", styles["heading"]))
-    info_data = [
-        ("Query:", clean_query),
-        ("Generated:", datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
-        ("Platform:", "IntelNexus v1.0"),
-        ("Type:", "Multi-Source Network Intelligence Analysis")
-    ]
-    for label, value in info_data:
-        story.append(Paragraph(f"<b>{label}</b> {value}", styles["normal"]))
-    
-    story.append(Spacer(1, 15))
-    story.append(Paragraph("<hr />", styles["normal"]))
-    story.append(Spacer(1, 10))
-    
-    # Analysis Results
-    story.append(Paragraph("Analysis Results", styles["heading"]))
+    if not is_structured:
+        # 旧版格式：添加标题和报告信息
+        story.append(Paragraph("IntelNexus Intelligence Report", styles["title"]))
+        story.append(Spacer(1, 10))
+        story.append(Paragraph("<hr />", styles["normal"]))
+        story.append(Spacer(1, 10))
+        
+        story.append(Paragraph("Report Information", styles["heading"]))
+        info_data = [
+            ("Query:", clean_query),
+            ("Generated:", datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+            ("Platform:", "IntelNexus v1.0"),
+            ("Type:", "Multi-Source Network Intelligence Analysis")
+        ]
+        for label, value in info_data:
+            story.append(Paragraph(f"<b>{label}</b> {value}", styles["normal"]))
+        
+        story.append(Spacer(1, 15))
+        story.append(Paragraph("<hr />", styles["normal"]))
+        story.append(Spacer(1, 10))
+        
+        story.append(Paragraph("Analysis Results", styles["heading"]))
+    # 新版结构化报告：内容已包含完整标题和信息，直接渲染
     
     max_length = 15000
     if len(content) > max_length:
@@ -453,37 +463,37 @@ def export_word(content: str, query: str, output_path: str) -> str:
     except Exception as e:
         logger.debug(f"Word east-asian font setup skipped: {e}")
     
-    # 标题
-    title = doc.add_heading('IntelNexus 智能情报分析报告', 0)
-    title_format = title.paragraph_format
-    title_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    # 标题 + 报告信息（仅旧版格式需要，新版结构化报告已包含）
+    is_structured = content.startswith("=")
     
-    # 报告信息
-    info_heading = doc.add_heading('报告信息', level=1)
-    
-    info_table = doc.add_table(rows=4, cols=2)
-    info_table.style = 'Light Grid Accent 1'
-    
-    info_data = [
-        ('查询内容', query if query else '[No query]'),
-        ('生成时间', datetime.now().strftime('%Y年%m月%d日 %H:%M:%S')),
-        ('平台版本', 'IntelNexus v1.0'),
-        ('报告类型', '多源网络情报分析')
-    ]
-    
-    for i, (key, value) in enumerate(info_data):
-        cells = info_table.rows[i].cells
-        cells[0].text = key
-        cells[1].text = str(value)
-        # 设置格式
-        for paragraph in cells[0].paragraphs:
-            for run in paragraph.runs:
-                run.font.bold = True
-    
-    doc.add_paragraph()  # 空行
-    
-    # 分析结果
-    result_heading = doc.add_heading('分析结果', level=1)
+    if not is_structured:
+        title = doc.add_heading('IntelNexus 智能情报分析报告', 0)
+        title_format = title.paragraph_format
+        title_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        info_heading = doc.add_heading('报告信息', level=1)
+        
+        info_table = doc.add_table(rows=4, cols=2)
+        info_table.style = 'Light Grid Accent 1'
+        
+        info_data = [
+            ('查询内容', query if query else '[No query]'),
+            ('生成时间', datetime.now().strftime('%Y年%m月%d日 %H:%M:%S')),
+            ('平台版本', 'IntelNexus v1.0'),
+            ('报告类型', '多源网络情报分析')
+        ]
+        
+        for i, (key, value) in enumerate(info_data):
+            cells = info_table.rows[i].cells
+            cells[0].text = key
+            cells[1].text = str(value)
+            for paragraph in cells[0].paragraphs:
+                for run in paragraph.runs:
+                    run.font.bold = True
+        
+        doc.add_paragraph()  # 空行
+        
+        result_heading = doc.add_heading('分析结果', level=1)
     
     # 清理内容，移除所有特殊字符
     content = _clean_content(content)
@@ -628,43 +638,49 @@ def export_excel(content: str, query: str, output_path: str) -> str:
         bottom=Side(style='thin')
     )
     
-    # 标题行
-    ws.merge_cells('A1:B1')
-    ws['A1'] = 'IntelNexus 智能情报分析报告'
-    ws['A1'].font = header_font
-    ws['A1'].fill = header_fill
-    ws['A1'].alignment = header_alignment
-    ws.row_dimensions[1].height = 30
+    # 标题行 + 报告信息（仅旧版格式需要）
+    is_structured = content.startswith("=")
+    start_row = 1
     
-    # 报告信息
-    ws['A3'] = '查询内容'
-    ws['B3'] = query if query else '[无查询内容]'
-    ws['A4'] = '生成时间'
-    ws['B4'] = datetime.now().strftime('%Y年%m月%d日 %H:%M:%S')
-    ws['A5'] = '平台版本'
-    ws['B5'] = 'IntelNexus v1.0'
-    ws['A6'] = '报告类型'
-    ws['B6'] = '多源网络情报分析'
-    
-    for row in range(3, 7):
-        ws[f'A{row}'].font = title_font
-        ws[f'A{row}'].fill = title_fill
-        ws[f'A{row}'].border = thin_border
-        ws[f'B{row}'].border = thin_border
-        ws[f'B{row}'].alignment = wrap_alignment
-    
-    # 分析结果标题
-    ws['A8'] = '分析结果'
-    ws['A8'].font = title_font
-    ws['A8'].fill = title_fill
-    ws.merge_cells('A8:B8')
-    ws['A8'].alignment = Alignment(horizontal='center', vertical='center')
-    ws['A8'].border = thin_border
-    ws['B8'].border = thin_border
-    ws.row_dimensions[8].height = 25
+    if not is_structured:
+        ws.merge_cells('A1:B1')
+        ws['A1'] = 'IntelNexus 智能情报分析报告'
+        ws['A1'].font = header_font
+        ws['A1'].fill = header_fill
+        ws['A1'].alignment = header_alignment
+        ws.row_dimensions[1].height = 30
+        
+        ws['A3'] = '查询内容'
+        ws['B3'] = query if query else '[无查询内容]'
+        ws['A4'] = '生成时间'
+        ws['B4'] = datetime.now().strftime('%Y年%m月%d日 %H:%M:%S')
+        ws['A5'] = '平台版本'
+        ws['B5'] = 'IntelNexus v1.0'
+        ws['A6'] = '报告类型'
+        ws['B6'] = '多源网络情报分析'
+        
+        for row in range(3, 7):
+            ws[f'A{row}'].font = title_font
+            ws[f'A{row}'].fill = title_fill
+            ws[f'A{row}'].border = thin_border
+            ws[f'B{row}'].border = thin_border
+            ws[f'B{row}'].alignment = wrap_alignment
+        
+        ws['A8'] = '分析结果'
+        ws['A8'].font = title_font
+        ws['A8'].fill = title_fill
+        ws.merge_cells('A8:B8')
+        ws['A8'].alignment = Alignment(horizontal='center', vertical='center')
+        ws['A8'].border = thin_border
+        ws['B8'].border = thin_border
+        ws.row_dimensions[8].height = 25
+        
+        start_row = 9
+    else:
+        # 新版结构化报告：从第一行开始
+        start_row = 1
     
     # 解析内容并添加到 Excel
-    start_row = 9
     current_row = start_row
     
     # 清理内容中的markdown标题标记
