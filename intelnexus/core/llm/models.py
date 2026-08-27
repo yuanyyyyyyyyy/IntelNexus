@@ -272,6 +272,98 @@ def test_model_connection(model_type: str, config: Dict) -> tuple:
         return False, f"连接失败: {translated}\n{error_msg}"
 
 
+def test_provider_connection(base_url: str, api_key: str = "", api_format: str = "openai") -> tuple:
+    """
+    测试供应商连接速度和可用性。
+
+    Args:
+        base_url: 供应商 API 端点
+        api_key: API 密钥（可选）
+        api_format: API 格式 (openai/anthropic/custom)
+
+    Returns:
+        tuple: (success: bool, message: str)
+    """
+    import time
+    import requests
+
+    if not base_url:
+        return False, "请填写请求地址"
+
+    try:
+        headers = {"Content-Type": "application/json"}
+        if api_key:
+            if api_format == "anthropic":
+                headers["x-api-key"] = api_key
+                headers["anthropic-version"] = "2023-06-01"
+            else:
+                headers["Authorization"] = f"Bearer {api_key}"
+
+        test_payload = {"model": "test", "messages": [{"role": "user", "content": "hi"}], "max_tokens": 1}
+
+        url = base_url.rstrip("/")
+        
+        # 构建候选 URL 列表：先尝试原始 URL，再尝试拼接后的 URL
+        candidate_urls = [url]
+        
+        if api_format == "anthropic":
+            if not url.endswith("/messages") and not url.endswith("/v1/messages"):
+                if "/v1" in url:
+                    candidate_urls.append(url + "/messages")
+                else:
+                    candidate_urls.append(url + "/v1/messages")
+        else:
+            if not url.endswith("/chat/completions") and not url.endswith("/completions"):
+                if "/v1" in url:
+                    candidate_urls.append(url + "/chat/completions")
+                else:
+                    candidate_urls.append(url + "/v1/chat/completions")
+        
+        last_error = None
+        for test_url in candidate_urls:
+            try:
+                start_time = time.time()
+                response = requests.post(test_url, json=test_payload, headers=headers, timeout=10)
+                latency_ms = int((time.time() - start_time) * 1000)
+                
+                # 如果得到任何响应（包括错误响应），说明连接成功
+                if response.status_code in (200, 201):
+                    return True, f"连接成功 ({latency_ms}ms)"
+                elif response.status_code == 401:
+                    return False, f"认证失败 (401) - API Key 无效"
+                elif response.status_code == 403:
+                    return False, f"访问被拒绝 (403)"
+                elif response.status_code == 404:
+                    last_error = f"地址不存在 (404)"
+                    continue  # 尝试下一个 URL
+                elif response.status_code == 429:
+                    return False, f"请求过于频繁 (429)"
+                elif response.status_code == 405:
+                    return True, f"连接成功 ({latency_ms}ms) - 方法不允许但服务器可达"
+                else:
+                    return True, f"连接成功 ({latency_ms}ms) - 状态码: {response.status_code}"
+            except requests.exceptions.Timeout:
+                last_error = "连接超时 (10s)"
+                continue
+            except requests.exceptions.ConnectionError as e:
+                last_error = f"连接错误"
+                continue
+            except Exception as e:
+                error_msg = str(e)
+                if len(error_msg) > 200:
+                    error_msg = error_msg[:200] + "..."
+                last_error = f"连接失败: {error_msg}"
+                continue
+        
+        return False, last_error or "无法访问目标地址"
+
+    except Exception as e:
+        error_msg = str(e)
+        if len(error_msg) > 200:
+            error_msg = error_msg[:200] + "..."
+        return False, f"连接失败: {error_msg}"
+
+
 # ============================================================================
 # Custom Providers Management
 # ============================================================================

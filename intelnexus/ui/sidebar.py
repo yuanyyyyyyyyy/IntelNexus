@@ -13,6 +13,7 @@ from intelnexus.core.llm.models import (
     get_custom_models, get_model_config, update_custom_model, test_model_connection,
     add_custom_provider, get_custom_providers, remove_custom_provider,
     get_custom_provider_names, get_provider_config, update_custom_provider,
+    test_provider_connection,
 )
 from intelnexus.search_app.darkweb import is_available as darkweb_available
 
@@ -589,7 +590,7 @@ def _render_custom_providers():
 
             # 按钮行
             if is_editing:
-                btn_save, btn_cancel = st.columns(2)
+                btn_save, btn_cancel, btn_test = st.columns(3)
                 with btn_save:
                     if st.button(get_text("save_changes"), key=f"save_provider_{pname}", type="primary"):
                         new_config = {
@@ -610,8 +611,19 @@ def _render_custom_providers():
                     if st.button(get_text("cancel_edit"), key=f"cancel_provider_{pname}"):
                         st.session_state[editing_key] = False
                         st.rerun()
+                with btn_test:
+                    if st.button(get_text("test_connection"), key=f"test_provider_{pname}"):
+                        test_url = st.session_state.get(f"edit_provider_url_{pname}", "")
+                        test_key = st.session_state.get(f"edit_provider_api_key_{pname}", "")
+                        test_format = st.session_state.get(f"edit_provider_api_format_{pname}", "openai")
+                        with st.spinner(get_text("testing_connection")):
+                            ok, msg = test_provider_connection(test_url, test_key, test_format)
+                            if ok:
+                                st.success(msg)
+                            else:
+                                st.error(msg)
             else:
-                btn_edit, btn_del = st.columns(2)
+                btn_edit, btn_del, btn_test = st.columns(3)
                 with btn_edit:
                     if st.button(get_text("edit_provider"), key=f"edit_provider_{pname}"):
                         pconfig = get_provider_config(pname)
@@ -629,6 +641,18 @@ def _render_custom_providers():
                         if remove_custom_provider(pname):
                             st.success(get_text("provider_deleted"))
                             st.rerun()
+                with btn_test:
+                    if st.button(get_text("test_connection"), key=f"test_provider_list_{pname}"):
+                        with st.spinner(get_text("testing_connection")):
+                            ok, msg = test_provider_connection(
+                                provider.get("base_url", ""),
+                                provider.get("api_key", ""),
+                                provider.get("api_format", "openai"),
+                            )
+                            if ok:
+                                st.success(msg)
+                            else:
+                                st.error(msg)
 
             # 编辑表单
             if is_editing:
@@ -730,7 +754,7 @@ def _render_custom_providers():
                 value="Authorization",
             )
 
-        btn_add, btn_cancel = st.columns(2)
+        btn_add, btn_cancel, btn_test = st.columns(3)
         with btn_add:
             if st.button(get_text("add_provider"), type="primary"):
                 if provider_name:
@@ -753,6 +777,14 @@ def _render_custom_providers():
             if st.button(get_text("cancel_add"), key="cancel_add_provider"):
                 st.session_state["show_add_provider"] = False
                 st.rerun()
+        with btn_test:
+            if st.button(get_text("test_connection"), key="test_new_provider"):
+                with st.spinner(get_text("testing_connection")):
+                    ok, msg = test_provider_connection(provider_url, provider_api_key, provider_api_format)
+                    if ok:
+                        st.success(msg)
+                    else:
+                        st.error(msg)
 
 
 def render_sidebar():
