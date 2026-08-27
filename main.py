@@ -410,5 +410,9 @@ _register_search_commands()
 _register_briefing_commands()
 
 
+# EXE 双击启动：无参数时默认进入 Web UI（与 run.bat 行为一致）
+if getattr(sys, "frozen", False) and len(sys.argv) == 1:
+    sys.argv.append("ui")
+
 if __name__ == "__main__":
     intelnexus()
