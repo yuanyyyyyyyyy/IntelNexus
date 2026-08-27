@@ -226,7 +226,19 @@ def test_model_connection(model_type: str, config: Dict) -> tuple:
                 "google_api_key": config.get("api_key"),
             }
         else:
-            return False, f"不支持的模型类型: {model_type}"
+            # 尝试作为自定义供应商处理（使用 OpenAI 兼容格式）
+            custom_providers = get_custom_providers()
+            provider_names = [p["name"].lower() for p in custom_providers]
+            if type_lower in provider_names:
+                from langchain_openai import ChatOpenAI
+                llm_class = ChatOpenAI
+                constructor_params = {
+                    "model_name": temp_model,
+                    "base_url": config.get("base_url", ""),
+                    "api_key": config.get("api_key"),
+                }
+            else:
+                return False, f"不支持的模型类型: {model_type}"
 
         # Build params: disable streaming for test
         params = {**constructor_params}
