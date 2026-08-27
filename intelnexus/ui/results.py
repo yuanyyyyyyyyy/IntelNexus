@@ -1,7 +1,33 @@
 import os
+import html
+from urllib.parse import quote, urlparse
 import streamlit as st
 from intelnexus.ui.i18n import get_text
 from intelnexus.ui.icons import icon, status_icon
+
+
+def _esc(value) -> str:
+    """外部/模型产出的字符串渲染前统一 HTML 转义（防 XSS/markdown 注入）。"""
+    return html.escape(str(value if value is not None else ""), quote=True)
+
+
+def _safe_md_url(url) -> str:
+    """外部 URL 拼入 markdown 链接前的安全处理。
+
+    方案说明（简单稳妥）：
+    - 先剔除不可打印字符/换行，防止链接被截断或注入多行内容；
+    - 仅 http/https 且主机名非空时才允许作为链接，否则返回空串，
+      由调用方降级为转义纯文本（阻断 javascript:/data: 等伪协议）；
+    - quote 时不把 ``)``、反引号、尖括号等会破坏 markdown 链接语法/结构的字符
+      列入 safe，使其被百分号编码，防止裸 ``)`` 造成链接逃逸注入。
+    """
+    u = "".join(ch for ch in (url or "") if ch.isprintable()).strip()
+    if not u:
+        return ""
+    parsed = urlparse(u)
+    if parsed.scheme not in ("http", "https") or not parsed.hostname:
+        return ""
+    return quote(u, safe=":/?#[]@!$&'*+,;=%-_.~")
 
 
 def _cred_label(score: float) -> str:
@@ -39,7 +65,7 @@ def render_results_panels():
         rows = []
         for s in cred['scores'][:20]:
             rows.append(
-                f"| {s['name']} | {s['score']:.2f} | {_cred_label(s['score'])} | {s['reason']} |")
+                f"| {_esc(s['name'])} | {s['score']:.2f} | {_cred_label(s['score'])} | {_esc(s['reason'])} |")
         if rows:
             header = (f"| {get_text('col_source')} | {get_text('col_credibility')} | "
                       f"{get_text('col_level')} | {get_text('col_reason')} |\n"
@@ -54,12 +80,12 @@ def render_results_panels():
             sev = c.get("severity", 0.5)
             sev_label = _cred_label(sev)
             with st.expander(f"[{sev_label}] {c.get('description', '')[:80]}", expanded=sev >= 0.7):
-                st.markdown(f"**{get_text('label_type')}**: {c.get('type')} | "
+                st.markdown(f"**{get_text('label_type')}**: {_esc(c.get('type'))} | "
                             f"**{get_text('label_severity')}**: {sev:.2f}")
                 st.markdown(f"**{get_text('label_involved_sources')}**:")
                 for src in c.get("sources", []):
                     val = src.get('value', '')
-                    st.markdown(f"- {src.get('name', '?')}: _{val}_")
+                    st.markdown(f"- {_esc(src.get('name', '?'))}: _{_esc(val)}_")
 
     kg_path = st.session_state.get("kg_html_path", "")
     if kg_path and os.path.exists(kg_path):
@@ -68,7 +94,7 @@ def render_results_panels():
         entities = st.session_state.get("kg_entities", [])
         if entities:
             st.markdown(f"**{get_text('label_key_entities')}**: " +
-                        ", ".join([f"{e['name']}({e['type']})" for e in entities[:8]]))
+                        ", ".join([f"{_esc(e['name'])}({_esc(e['type'])})" for e in entities[:8]]))
         # 重内容折叠：600px iframe 默认收起，需要时再展开
         with st.expander(get_text("kg_details_expander")):
             with open(kg_path, 'r', encoding='utf-8') as f:
@@ -83,15 +109,21 @@ def render_results_panels():
         with st.expander(get_text("evidence_details_expander")):
             for claim in ev["claims"][:10]:
                 if claim["is_unsupported"]:
-                    st.markdown(f"{icon('error', 'sm', 'error')} _{claim['text'][:80]}..._ "
+                    st.markdown(f"{icon('error', 'sm', 'error')} _{_esc(claim['text'][:80])}..._ "
                                 f"— **{get_text('label_no_direct_evidence')}**",
                                 unsafe_allow_html=True)
                 else:
                     best = claim["evidence"][0]
-                    st.markdown(f"{icon('success', 'sm', 'sage')} _{claim['text'][:80]}..._",
+                    st.markdown(f"{icon('success', 'sm', 'sage')} _{_esc(claim['text'][:80])}..._",
                                 unsafe_allow_html=True)
+                    # 外部 url 先过安全处理；不合法/伪协议时降级为转义纯文本，不渲染链接
+                    safe_url = _safe_md_url(best.get('url', ''))
+                    if safe_url:
+                        link_part = f"[{get_text('link_view_original')}]({safe_url})"
+                    else:
+                        link_part = f"{_esc(best.get('url', ''))} ({get_text('link_view_original')})"
                     st.markdown(f" → {get_text('label_confidence')} {best['confidence']:.2f} | "
-                                f"[{get_text('link_view_original')}]({best['url']})")
+                                f"{link_part}")
 
     # 行动项清单面板
     actions = st.session_state.get("action_items", [])
@@ -115,5 +147,5 @@ def render_results_panels():
                                      get_text("priority_suggested"))
             dl = deadline_labels.get(a.get("deadline", "this_month"),
                                      get_text("deadline_this_month"))
-            st.markdown(f"- {pi} **[{pl}]** {a.get('action', '')} "
+            st.markdown(f"- {pi} **[{pl}]** {_esc(a.get('action', ''))} "
                         f"*({get_text('label_deadline')}: {dl})*", unsafe_allow_html=True)

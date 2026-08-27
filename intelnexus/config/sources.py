@@ -73,7 +73,18 @@ def add_source(source_type: str, name: str, url: str, category: str,
     if not name or not url:
         return False
 
-    # URL 格式校验
+    # 统一安全校验（SSRF 防御）：拒绝非法协议与内网/回环/链路本地目标。
+    # 校验器自身不可用时记录日志并回退到下方本地基础校验，不阻塞正常流程。
+    try:
+        from intelnexus.core.security.url_guard import validate_external_url
+        guard_ok, guard_reason = validate_external_url(url)
+        if not guard_ok:
+            logger.warning(f"数据源 URL 被安全校验拒绝 ({guard_reason}): {url}")
+            return False
+    except Exception as e:
+        logger.warning(f"URL 校验器不可用，回退本地基础校验: {e}")
+
+    # URL 格式校验（本地兜底：协议与内网前缀基础检查）
     from urllib.parse import urlparse
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https"):
@@ -166,9 +177,21 @@ def update_source(source_id: str, updates: Dict) -> bool:
         updates: 要更新的字段
 
     Returns:
-        bool: 是否更新成功
+        bool: 是否更新成功（updates 含非法 url 时拒绝并返回 False）
     """
     _ensure_sources_file()
+
+    # url 字段变更走与新增同款的入库安全校验；校验器不可用时放行原流程（仅记日志）
+    new_url = updates.get("url") if isinstance(updates, dict) else None
+    if new_url:
+        try:
+            from intelnexus.core.security.url_guard import validate_external_url
+            guard_ok, guard_reason = validate_external_url(new_url)
+            if not guard_ok:
+                logger.warning(f"数据源 URL 更新被安全校验拒绝 ({guard_reason}): {new_url}")
+                return False
+        except Exception as e:
+            logger.warning(f"URL 校验器不可用，跳过校验: {e}")
 
     data = safe_read_json(SOURCES_FILE)
     if not data:

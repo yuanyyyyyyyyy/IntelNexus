@@ -20,6 +20,26 @@ CUSTOM_MODELS_FILE = "data/custom_models.json"
 _SENSITIVE_KEYS = ("api_key", "password", "secret")
 
 
+def _base_url_guard_ok(base_url) -> bool:
+    """入库前安全校验模型/供应商 base_url（SSRF 防御）。
+
+    - 仅强制协议与主机名合法性；回环/私网地址放行（allow_local=True），
+      因 Ollama 默认 http://127.0.0.1:11434 与局域网自建推理服务是内置支持场景；
+    - 校验器不可用/自身异常时放行原流程（仅记日志），不阻塞正常功能。
+    """
+    if not base_url:
+        return True  # 空值交由上层必填校验处理（部分类型可不填）
+    try:
+        from intelnexus.core.security.url_guard import validate_external_url
+        ok, reason = validate_external_url(base_url, allow_local=True)
+        if not ok:
+            logger.warning(f"模型/供应商 base_url 被安全校验拒绝 ({reason}): {base_url}")
+        return ok
+    except Exception as e:
+        logger.warning(f"URL 校验器不可用，放行原流程: {e}")
+        return True
+
+
 def _ensure_custom_models_file():
     """Ensure the custom models file exists."""
     Path("data").mkdir(exist_ok=True)
@@ -72,6 +92,9 @@ def add_custom_model(name: str, model_type: str, config: Dict) -> bool:
         True if successful, False otherwise
     """
     if not name or not model_type:
+        return False
+
+    if not _base_url_guard_ok(config.get("base_url", "") if isinstance(config, dict) else ""):
         return False
 
     _ensure_custom_models_file()
@@ -139,6 +162,9 @@ def update_custom_model(name: str, model_type: str, config: Dict) -> bool:
         True if successful, False otherwise
     """
     if not name or not model_type:
+        return False
+
+    if not _base_url_guard_ok(config.get("base_url", "") if isinstance(config, dict) else ""):
         return False
 
     _ensure_custom_models_file()
@@ -459,6 +485,9 @@ def add_custom_provider(
     if not name:
         return False
 
+    if not _base_url_guard_ok(base_url):
+        return False
+
     _ensure_custom_providers_file()
 
     data = safe_read_json(CUSTOM_PROVIDERS_FILE)
@@ -543,6 +572,9 @@ def update_custom_provider(
         True if successful, False otherwise
     """
     if not name:
+        return False
+
+    if not _base_url_guard_ok(base_url):
         return False
 
     _ensure_custom_providers_file()
