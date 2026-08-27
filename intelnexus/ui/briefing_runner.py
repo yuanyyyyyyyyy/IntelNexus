@@ -188,6 +188,11 @@ def _start_background_pipeline(key_prefix: str, model: str, selected_cats: list,
     if ok:
         # 记录 key_prefix 供 fragment 渲染结果时写入正确的 session_state 键
         st.session_state[f"{_BRIEFING_TASK_ID}_key_prefix"] = key_prefix
+        # 启动后立即触发整页 rerun：让导航锁、按钮文字、侧边栏提示等
+        # 在按钮点击前渲染的组件能读到「任务已运行」的最新状态。
+        # 不 rerun 的话，这些组件在本次执行中已计算完毕（状态为旧值），
+        # 只有 fragment 能实时更新，用户必须切换页面才能看到完整状态。
+        st.rerun()
     else:
         st.info(get_text("briefing_running"))
 

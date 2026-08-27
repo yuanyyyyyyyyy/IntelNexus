@@ -71,6 +71,8 @@ def _start_search_task(query: str, search_mode: str, model: str, threads: int):
                    "source_stats", "source_counts", "source_info"]:
             st.session_state.pop(k, None)
         st.session_state.search_completed = False
+        # 同简报：启动后立即 rerun，让导航锁和侧边栏提示立即生效
+        st.rerun()
 
 
 def run_search_pipeline(query: str, search_mode: str, model: str, threads: int, status_slot):
