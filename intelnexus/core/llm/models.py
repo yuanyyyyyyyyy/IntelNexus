@@ -19,6 +19,30 @@ CUSTOM_MODELS_FILE = "data/custom_models.json"
 
 _SENSITIVE_KEYS = ("api_key", "password", "secret")
 
+# 代理类连接错误的展示占位符：由 UI 层（intelnexus.ui.i18n.localize_llm_test_error）
+# 按当前界面语言替换为中英成对的提示词条，core 层不依赖 streamlit。
+PROXY_REFUSED_MARKER = "[[llm_proxy_refused]]"
+
+
+def _looks_like_proxy_error(exc: Exception) -> bool:
+    """判断异常是否由「请求被路由到（不可用的）代理」引起。
+
+    覆盖两类信号：异常文本含代理连接失败关键字；异常链中存在
+    httpx/httpx2/httpcore/httpcore2 的 ProxyError 类型。
+    """
+    msg = str(exc).lower()
+    markers = ("proxyerror", "proxy connection", "proxy_connection", "proxy connect")
+    if any(m in msg for m in markers):
+        return True
+    cur = exc
+    seen = set()
+    while cur is not None and id(cur) not in seen:
+        seen.add(id(cur))
+        if "proxyerror" in type(cur).__name__.lower():
+            return True
+        cur = getattr(cur, "__cause__", None) or getattr(cur, "__context__", None)
+    return False
+
 
 def _base_url_guard_ok(base_url) -> bool:
     """入库前安全校验模型/供应商 base_url（SSRF 防御）。
@@ -268,6 +292,11 @@ def test_model_connection(model_type: str, config: Dict) -> tuple:
             else:
                 return False, f"不支持的模型类型: {model_type}（未配置 base_url）"
 
+        # 代理隔离：LLM 客户端不继承搜索/采集用的 HTTP(S)_PROXY 环境变量
+        # （未配置代理时为无操作；避免请求被路由到未运行的本地代理而连接失败）
+        from intelnexus.core.llm.utils import _apply_direct_connection_params
+        constructor_params = _apply_direct_connection_params(llm_class, constructor_params)
+
         # Build params: disable streaming for test
         params = {**constructor_params}
         params["temperature"] = 0
@@ -288,6 +317,11 @@ def test_model_connection(model_type: str, config: Dict) -> tuple:
         error_msg = str(e)
         if len(error_msg) > 500:
             error_msg = error_msg[:500] + "..."
+
+        # 代理类错误优先：用占位符交给 UI 层按语言本地化（见 i18n llm_proxy_refused_hint），
+        # 提示用户「代理连接被拒绝」这一可操作原因，而非裸露的 Connection error。
+        if _looks_like_proxy_error(e):
+            return False, f"连接失败: {PROXY_REFUSED_MARKER}\n{error_msg}"
 
         ERROR_TRANSLATIONS = {
             "Connection error": "连接错误",
