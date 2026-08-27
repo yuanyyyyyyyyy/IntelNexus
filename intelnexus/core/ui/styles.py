@@ -1043,6 +1043,16 @@ def render_hermes_theme_css():
         accent-color: var(--accent-orange);
     }
 
+    /* Main area Progress Bar — 淡蓝色发光 */
+    .stProgress > div > div > div > div {
+        background: linear-gradient(90deg, #7EB8FF, #4A9EFF) !important;
+        box-shadow: 0 0 8px rgba(74,158,255,0.5), 0 0 16px rgba(74,158,255,0.2) !important;
+    }
+    .stProgress > div > div {
+        background: rgba(74,158,255,0.08) !important;
+        border-radius: 4px !important;
+    }
+
     /* Main area Divider / Horizontal Rule */
     hr {
         border-color: var(--border-light) !important;
@@ -1328,6 +1338,32 @@ def render_hermes_theme_css():
     div[data-testid="stSelectboxVirtualDropdown"] [role="option"][aria-selected="true"] {
         background-color: #F0F0F0 !important;
         color: #1A1A1A !important;
+    }
+
+    /* --- 9b. Multiselect dropdown panel (global — rendered at body level) --- */
+    div[data-testid="stMultiSelectVirtualDropdown"] {
+        background-color: #FFFFFF !important;
+        border-color: #E0E0E0 !important;
+    }
+    div[data-testid="stMultiSelectVirtualDropdown"] [role="option"] {
+        background-color: #FFFFFF !important;
+        color: #1A1A1A !important;
+    }
+    div[data-testid="stMultiSelectVirtualDropdown"] [role="option"]:hover,
+    div[data-testid="stMultiSelectVirtualDropdown"] [data-focused] {
+        background-color: rgba(74,158,255,0.08) !important;
+    }
+    div[data-testid="stMultiSelectVirtualDropdown"] [role="option"][aria-selected="true"] {
+        background-color: rgba(74,158,255,0.12) !important;
+        color: #0055FF !important;
+    }
+    /* Multiselect 选中标签（pill）*/
+    div[data-testid="stMultiSelect"] [data-testid="stMarkdownContainer"] span,
+    div[data-testid="stMultiSelect"] .stMultiSelectSelectedOption,
+    div[data-testid="stMultiSelect"] div[role="listbox"] > div > div > div > div > div {
+        background-color: rgba(74,158,255,0.12) !important;
+        color: #0055FF !important;
+        border-color: rgba(74,158,255,0.3) !important;
     }
 
     /* --- 10. Sidebar Expander --- */
