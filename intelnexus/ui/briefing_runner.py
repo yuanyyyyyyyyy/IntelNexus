@@ -211,11 +211,43 @@ def _briefing_progress_fragment(key_prefix: str, compact: bool):
     status = state["status"]
 
     if status == "running":
-        # 进度显示
+        # 进度显示（卡片式，与搜索进度 UI 一致）
         progress_pct = state.get("progress", 0.0)
         message = state.get("message", get_text("briefing_generating"))
+        phase = state.get("phase", "")
+
+        # 阶段图标映射
+        phase_icons = {
+            "starting": "\u23f3",
+            "collect_start": "\U0001f4e1",
+            "collect_done": "\u2705",
+            "credibility_overview": "\U0001f6e1\ufe0f",
+            "knowledge_graph": "\U0001f578\ufe0f",
+            "kb_recall": "\U0001f4da",
+            "generate_start": "\u270d\ufe0f",
+            "generate_progress": "\u270d\ufe0f",
+            "llm_error": "\u26a0\ufe0f",
+            "llm_skipped": "\u26a0\ufe0f",
+            "summary": "\U0001f4dd",
+            "save": "\U0001f4be",
+            "save_entries": "\U0001f4be",
+            "push": "\U0001f4e4",
+            "push_done": "\u2705",
+            "push_no_subs": "\u2705",
+            "push_skipped": "\u2705",
+        }
+        phase_emoji = phase_icons.get(phase, "\u23f3")
+
         st.progress(min(1.0, max(0.0, progress_pct)))
-        st.status(message, expanded=True, state="running")
+        st.markdown(
+            f'<div class="result-card">'
+            f'<div class="section-header">{get_text("briefing_generating")}</div>'
+            f'<div style="padding:8px 0;">'
+            f'{phase_emoji} <strong>{message}</strong>'
+            f' <span style="float:right;color:var(--wb-text-secondary);">{int(progress_pct*100)}%</span>'
+            f'</div></div>',
+            unsafe_allow_html=True,
+        )
         # fragment 将 auto_rerun 继续轮询
         return
 
