@@ -838,18 +838,142 @@ def _render_custom_providers():
                         st.error(msg)
 
 
+def _render_proxy_settings():
+    """网络代理设置：自动检测系统代理 + 手动覆盖 + 连接测试"""
+    with st.expander(get_text("proxy_settings"), expanded=False):
+        try:
+            from intelnexus.config.proxy_settings import (
+                get_proxy_settings, save_proxy_settings,
+                detect_system_proxy, test_proxy_connection, _normalize_proxy_url,
+            )
+        except Exception as e:
+            logger.warning(f"代理设置模块不可用: {e}")
+            return
+
+        current = get_proxy_settings()
+        source_labels = {
+            "manual": get_text("proxy_source_manual"),
+            "system": get_text("proxy_source_system"),
+            "env": get_text("proxy_source_env"),
+            "none": get_text("proxy_source_none"),
+        }
+        source_label = source_labels.get(current["source"], current["source"])
+        current_url = current.get("proxy_url", "")
+
+        # 当前状态展示
+        if current_url:
+            st.caption(f"{get_text('proxy_current_source')}: **{source_label}** — `{current_url}`")
+        else:
+            st.caption(f"{get_text('proxy_current_source')}: **{source_label}**")
+
+        # 自动检测开关
+        auto_detect = st.checkbox(
+            get_text("proxy_auto_detect"),
+            value=current.get("auto_detect", True),
+            help=get_text("proxy_auto_detect_hint"),
+            key="proxy_auto_detect_cb",
+        )
+
+        # 系统代理实时检测值（只读展示）
+        sys_proxy = detect_system_proxy()
+        if sys_proxy:
+            st.caption(f"🔍 {get_text('proxy_source_system')}: `{sys_proxy}`")
+
+        # 手动输入
+        manual_url = st.text_input(
+            get_text("proxy_manual_url"),
+            value="" if current["source"] != "manual" else current_url,
+            placeholder=get_text("proxy_manual_placeholder"),
+            key="proxy_manual_input",
+        )
+        st.caption(get_text("proxy_manual_hint"))
+
+        # 操作按钮
+        col_save, col_test, col_clear = st.columns([1, 1, 1])
+        with col_save:
+            if st.button(get_text("proxy_save_btn"), key="proxy_save_btn"):
+                save_proxy_settings({
+                    "proxy_url": manual_url.strip(),
+                    "auto_detect": auto_detect,
+                })
+                st.success(get_text("proxy_saved"))
+                st.rerun()
+        with col_test:
+            test_url = _normalize_proxy_url(manual_url.strip()) if manual_url.strip() else current_url
+            if st.button(get_text("proxy_test_btn"), key="proxy_test_btn"):
+                if test_url:
+                    with st.spinner(get_text("proxy_testing")):
+                        ok, msg = test_proxy_connection(test_url)
+                    if ok:
+                        st.success(f"{get_text('proxy_test_ok')}: {msg}")
+                    else:
+                        st.error(f"{get_text('proxy_test_fail')}: {msg}")
+                else:
+                    st.warning(get_text("proxy_source_none"))
+        with col_clear:
+            if st.button(get_text("proxy_clear_btn"), key="proxy_clear_btn"):
+                save_proxy_settings({"proxy_url": "", "auto_detect": auto_detect})
+                st.info(get_text("proxy_cleared"))
+                st.rerun()
+
+
+def _render_task_status_indicator():
+    """侧边栏后台任务状态指示器。
+
+    搜索或简报任务运行期间显示可见的进度信息，
+    让用户知道后台有任务在运行（即使他们已切换到其他 Tab）。
+    无任务时不渲染任何内容。
+    """
+    try:
+        from intelnexus.core.task_runner import get_task_runner
+        runner = get_task_runner()
+    except ImportError:
+        return
+
+    search_state = runner.get_snapshot("search")
+    briefing_state = runner.get_snapshot("briefing")
+
+    tasks = []
+    if search_state["status"] == "running":
+        tasks.append(("search", search_state))
+    if briefing_state["status"] == "running":
+        tasks.append(("briefing", briefing_state))
+
+    if not tasks:
+        return
+
+    for task_id, state in tasks:
+        phase = state.get("phase", "")
+        message = state.get("message", "")
+        progress = state.get("progress", 0.0)
+        task_label = get_text(f"task_{task_id}_running")
+        st.markdown(
+            f'<div style="background:var(--bg-card, #f5f5f5);border-radius:6px;'
+            f'padding:8px 12px;margin-bottom:8px;border-left:3px solid var(--accent-blue, #4a90d9);">'
+            f'<div style="font-size:12px;color:var(--wb-text-secondary,#666);">{task_label}</div>'
+            f'<div style="font-size:13px;font-weight:500;margin-top:2px;">{message}</div>'
+            f'<div style="background:#e0e0e0;border-radius:3px;height:4px;margin-top:4px;">'
+            f'<div style="background:var(--accent-blue, #4a90d9);height:100%;border-radius:3px;'
+            f'width:{int(progress*100)}%;transition:width 0.3s;"></div></div></div>',
+            unsafe_allow_html=True,
+        )
+
+
 def render_sidebar():
     """
     Sidebar: cold-gray workbench style.
 
     Structure:
-      Brand → Search Mode → Model → [Advanced Settings]
+      Brand → Task Status → Search Mode → Model → [Advanced Settings]
 
     简报业务（数据源/订阅者/生成）已收拢至简报 Tab，侧边栏仅保留全局设置。
     """
     with st.sidebar:
         # Brand
         st.markdown(f'<div class="sidebar-title">{get_text("title")}</div>', unsafe_allow_html=True)
+
+        # 后台任务状态指示器（搜索/简报运行期间显示进度）
+        _render_task_status_indicator()
 
         # Core: Search Mode
         search_mode = _render_search_mode()
@@ -859,6 +983,9 @@ def render_sidebar():
 
         # Search service settings (NewsAPI key)
         _render_search_service_settings()
+
+        # Network proxy settings
+        _render_proxy_settings()
 
         # Core: Model Settings
         model = _render_model_settings()

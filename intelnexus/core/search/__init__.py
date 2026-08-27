@@ -99,14 +99,17 @@ def get_session(proxies: Optional[dict] = None):
 def get_http_proxies():
     """
     返回 {'http':..., 'https':...} 或 None。
-    优先读取 HTTP_PROXY/HTTPS_PROXY 环境变量（大小写不敏感），
-    其次若 USE_TOR=true 则走本地 Tor SOCKS5 代理。
+    统一代理来源：UI 手动设置 > 系统代理自动检测 > .env 环境变量 > Tor。
     返回 None 时调用方不传 proxies，行为与未配置代理时完全一致（零开销）。
     """
-    http = os.getenv("HTTP_PROXY") or os.getenv("http_proxy")
-    https = os.getenv("HTTPS_PROXY") or os.getenv("https_proxy")
-    if http or https:
-        return {"http": http or https, "https": https or http}
+    try:
+        from intelnexus.config.proxy_settings import get_effective_proxy
+        proxy = get_effective_proxy()
+        if proxy:
+            return proxy
+    except Exception:
+        pass
+    # 兜底：USE_TOR=true 走本地 Tor SOCKS5
     if os.getenv("USE_TOR", "").lower() == "true":
         port = get_tor_proxy_port()
         p = f"socks5h://127.0.0.1:{port}"

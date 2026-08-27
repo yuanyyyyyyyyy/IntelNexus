@@ -422,12 +422,18 @@ _BRIEFING_ZH = {
     "deadline_this_month": "本月",
     # 简报流水线状态
     "briefing_generating": "正在生成简报...",
+    "briefing_running": "任务执行中...",
     "briefing_done": "简报生成完成",
     "briefing_ok": "简报生成成功",
     "briefing_failed": "简报生成失败",
     "briefing_partial": "部分板块生成失败（{n} 个警告）",
     "briefing_no_category": "请至少选择一个关注点",
     "generate_push_enabled": "推送给订阅者",
+    # 后台任务状态
+    "task_running_nav_lock": "任务执行中，请等待完成后再切换页面...",
+    "task_running_sidebar_hint": "任务执行中，设置暂时不可用",
+    "task_search_running": "搜索中...",
+    "task_briefing_running": "生成简报中...",
     # 统计面板标签
     "briefing_stat_collected": "采集数",
     "briefing_stat_words": "字数",
@@ -567,6 +573,26 @@ _BRIEFING_ZH = {
     "sec_url_dns_failed": "域名解析失败，请检查 URL 是否正确",
     "sec_url_blocked_internal": "出于安全考虑，不允许指向回环/内网/链路本地地址（如 127.0.0.1、192.168.*、169.254.*）",
     "sec_url_rejected": "URL 未通过安全校验，未保存修改",
+    # ---- 代理设置 ----
+    "proxy_settings": "网络代理",
+    "proxy_auto_detect": "自动检测系统代理",
+    "proxy_auto_detect_hint": "开启后自动读取 Windows 系统代理设置，绝大多数梯子工具开启后会自动写入",
+    "proxy_manual_url": "手动设置代理地址",
+    "proxy_manual_placeholder": "如 127.0.0.1:7890",
+    "proxy_manual_hint": "留空则使用自动检测；填写后优先使用手动地址",
+    "proxy_current_source": "当前代理来源",
+    "proxy_source_manual": "手动设置",
+    "proxy_source_system": "系统代理",
+    "proxy_source_env": ".env 环境变量",
+    "proxy_source_none": "无代理（直连）",
+    "proxy_test_btn": "测试连接",
+    "proxy_testing": "正在测试...",
+    "proxy_test_ok": "代理可用",
+    "proxy_test_fail": "代理不可用",
+    "proxy_save_btn": "保存",
+    "proxy_saved": "代理设置已保存",
+    "proxy_cleared": "已清除手动代理，回退到自动检测",
+    "proxy_clear_btn": "清除手动",
 }
 
 _BRIEFING_EN = {
@@ -978,12 +1004,18 @@ _BRIEFING_EN = {
     "deadline_this_month": "This Month",
     # Briefing pipeline status
     "briefing_generating": "Generating briefing...",
+    "briefing_running": "Task running...",
     "briefing_done": "Briefing complete",
     "briefing_ok": "Briefing generated successfully",
     "briefing_failed": "Briefing generation failed",
     "briefing_partial": "Partial generation failed ({n} warnings)",
     "briefing_no_category": "Please select at least one category",
     "generate_push_enabled": "Push to subscribers",
+    # Background task status
+    "task_running_nav_lock": "Task running, please wait before switching pages...",
+    "task_running_sidebar_hint": "Task running, settings temporarily unavailable",
+    "task_search_running": "Searching...",
+    "task_briefing_running": "Generating briefing...",
     # Stats panel labels
     "briefing_stat_collected": "Collected",
     "briefing_stat_words": "Words",
@@ -1123,6 +1155,26 @@ _BRIEFING_EN = {
     "sec_url_dns_failed": "DNS resolution failed, please check the URL",
     "sec_url_blocked_internal": "For security, URLs pointing to loopback/private/link-local addresses (e.g. 127.0.0.1, 192.168.*, 169.254.*) are not allowed",
     "sec_url_rejected": "URL failed security validation; changes were not saved",
+    # ---- Proxy settings ----
+    "proxy_settings": "Network Proxy",
+    "proxy_auto_detect": "Auto-detect system proxy",
+    "proxy_auto_detect_hint": "When enabled, automatically reads Windows system proxy settings. Most VPN/proxy tools write to system proxy when activated",
+    "proxy_manual_url": "Manual proxy address",
+    "proxy_manual_placeholder": "e.g. 127.0.0.1:7890",
+    "proxy_manual_hint": "Leave empty to use auto-detection; manual address takes priority when filled",
+    "proxy_current_source": "Current proxy source",
+    "proxy_source_manual": "Manual",
+    "proxy_source_system": "System proxy",
+    "proxy_source_env": ".env environment variable",
+    "proxy_source_none": "None (direct connection)",
+    "proxy_test_btn": "Test",
+    "proxy_testing": "Testing...",
+    "proxy_test_ok": "Proxy works",
+    "proxy_test_fail": "Proxy unavailable",
+    "proxy_save_btn": "Save",
+    "proxy_saved": "Proxy settings saved",
+    "proxy_cleared": "Manual proxy cleared, falling back to auto-detection",
+    "proxy_clear_btn": "Clear manual",
 }
 
 
