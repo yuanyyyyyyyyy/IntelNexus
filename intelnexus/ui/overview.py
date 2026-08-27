@@ -285,14 +285,23 @@ def render_overview() -> None:
     # ---- 问候区 ----
     _render_greeting(segment, briefings_today)
 
+    # ---- 问候区与指标卡之间的呼吸间距 ----
+    st.markdown('<div style="height:24px"></div>', unsafe_allow_html=True)
+
     # ---- 指标卡片区 ----
     try:
         _render_metric_cards(metrics)
     except Exception:
         st.markdown(get_text("ov_greet_fallback"))
 
+    # ---- 区域分隔线 ----
+    st.markdown('<div style="border-top:1px solid var(--border-light,#e8e8e8);margin:20px 0"></div>', unsafe_allow_html=True)
+
     # ---- 数据源状态点阵 ----
     _render_source_status_bar()
+
+    # ---- 区域分隔线 ----
+    st.markdown('<div style="border-top:1px solid var(--border-light,#e8e8e8);margin:20px 0"></div>', unsafe_allow_html=True)
 
     # ---- 主操作入口 ----
     _render_action_buttons()

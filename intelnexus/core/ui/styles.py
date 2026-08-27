@@ -257,7 +257,7 @@ def render_hermes_theme_css():
         color: var(--text-primary) !important;
         letter-spacing: -0.02em !important;
         line-height: 1.2 !important;
-        margin-bottom: 4px !important;
+        margin-bottom: 8px !important;
     }
     .main-subtitle {
         font-size: 15px !important;
@@ -1928,23 +1928,23 @@ def render_workbench_css():
     .hc-card {
         background: var(--bg-card);
         border: 1px solid var(--border-light);
-        border-left: 4px solid var(--text-tertiary);
+        border-left: 3px solid var(--border-light);
         border-radius: var(--radius-sm);
         padding: 14px 18px 8px;
         margin: 12px 0;
         transition: border-color 0.15s ease;
     }
-    .hc-card--healthy { border-left-color: var(--accent-green); }
-    .hc-card--degraded { border-left-color: var(--accent-orange); }
-    .hc-card--down { border-left-color: var(--accent-red); }
+    .hc-card--healthy { border-left-color: rgba(74,222,128,0.35); }
+    .hc-card--degraded { border-left-color: rgba(251,146,60,0.35); }
+    .hc-card--down { border-left-color: rgba(239,68,68,0.35); }
     section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .hc-card {
         background: var(--wb-surface);
         border-color: var(--wb-border);
         box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
-    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .hc-card--healthy { border-left-color: var(--accent-green); }
-    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .hc-card--degraded { border-left-color: var(--accent-orange); }
-    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .hc-card--down { border-left-color: var(--accent-red); }
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .hc-card--healthy { border-left-color: rgba(74,222,128,0.35); }
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .hc-card--degraded { border-left-color: rgba(251,146,60,0.35); }
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .hc-card--down { border-left-color: rgba(239,68,68,0.35); }
 
     /* ============================================================
        今日概览首页（任务5 · intelnexus/ui/overview.py）
@@ -1960,70 +1960,71 @@ def render_workbench_css():
         font-size: 15px !important;
         font-weight: 400;
         color: var(--text-secondary) !important;
-        margin-top: 4px;
+        margin-top: 8px;
         line-height: 1.6;
     }
     .ov-date {
         font-size: 12px !important;
         color: var(--text-tertiary) !important;
         letter-spacing: 0.04em;
-        margin-top: 2px;
+        margin-top: 6px;
     }
 
-    /* 指标卡片区：纸白表面 + 等高对齐 + 左侧色条 */
+    /* 指标卡片区：纸白表面 + 等高对齐 + 左侧微弱色条 */
     .ov-card {
         flex: 1 !important;
         background: var(--bg-card);
         border: 1px solid var(--border-light) !important;
-        border-left: 4px solid var(--text-tertiary) !important;
+        border-left: 3px solid var(--border-light) !important;
         border-radius: var(--radius-sm) !important;
         box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-        min-height: 120px;
+        min-height: 140px;
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        padding: 14px 18px 10px;
-        margin: 12px 0;
+        gap: 10px;
+        padding: 20px 22px 14px;
+        margin: 20px 0;
     }
     .ov-card.hc-card--healthy {
-        border-left-color: var(--accent-green) !important;
+        border-left-color: rgba(74,222,128,0.35) !important;
     }
     .ov-card.hc-card--degraded {
-        border-left-color: var(--accent-orange) !important;
+        border-left-color: rgba(251,146,60,0.35) !important;
     }
     .ov-card.hc-card--down {
-        border-left-color: var(--accent-red) !important;
+        border-left-color: rgba(239,68,68,0.35) !important;
     }
     .ov-card:hover {
         box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
     .ov-card__tag {
-        font-size: 12px !important;
-        font-weight: 700 !important;
+        font-size: 11px !important;
+        font-weight: 600 !important;
         text-transform: uppercase;
-        letter-spacing: 0.06em;
+        letter-spacing: 0.08em;
         color: var(--text-tertiary) !important;
     }
     .ov-card__value {
-        font-size: 20px !important;
-        font-weight: 700 !important;
+        font-size: 18px !important;
+        font-weight: 600 !important;
         color: var(--text-primary) !important;
         line-height: 1.35;
         overflow-wrap: anywhere;
     }
     .ov-card__sub {
-        font-size: 13px !important;
+        font-size: 12px !important;
         color: var(--text-secondary) !important;
-        margin-top: 6px;
+        margin-top: 8px;
     }
 
-    /* 数据源状态点阵：一行彩色圆点 + 短名称，快速定位故障源 */
+    /* 数据源状态点阵：一行彩色圆点 + 短名称，快速定位故障源（视觉降级） */
     .ov-status-bar {
         display: flex;
         flex-wrap: wrap;
         gap: 6px 14px;
-        padding: 6px 0;
-        margin: 4px 0 8px;
+        padding: 12px 0;
+        margin: 16px 0 20px;
+        opacity: 0.75;
     }
     .ov-status-dot {
         display: inline-flex;
@@ -2032,17 +2033,17 @@ def render_workbench_css():
         cursor: default;
     }
     .ov-status-dot .status-dot {
-        width: 8px;
-        height: 8px;
+        width: 6px;
+        height: 6px;
         flex-shrink: 0;
     }
     .ov-status-label {
-        font-size: 12px !important;
+        font-size: 11px !important;
         color: var(--text-secondary) !important;
         white-space: nowrap;
     }
 
-    /* 主操作入口按钮 — 白底 + 蓝色阴影（匹配搜索按钮风格）。 */
+    /* 主操作入口按钮 — 白底 + 柔和蓝色阴影 */
     section[data-testid="stMain"]:has(.ov-scope) div[data-testid="stButton"] > button {
         background: #FFFFFF !important;
         color: #1A1A1A !important;
@@ -2052,14 +2053,14 @@ def render_workbench_css():
         font-weight: 600 !important;
         padding: 14px 24px !important;
         min-height: 48px !important;
-        box-shadow: 0 4px 12px rgba(0,85,255,0.45) !important;
+        box-shadow: 0 2px 8px rgba(0,85,255,0.15) !important;
         transition: all 0.2s ease !important;
         letter-spacing: 0.01em !important;
     }
     section[data-testid="stMain"]:has(.ov-scope) div[data-testid="stButton"] > button:hover {
         background: #F5F5F5 !important;
         border-color: #CCCCCC !important;
-        box-shadow: 0 4px 16px rgba(0,85,255,0.4) !important;
+        box-shadow: 0 4px 12px rgba(0,85,255,0.2) !important;
         transform: translateY(-1px) !important;
     }
     section[data-testid="stMain"]:has(.ov-scope) div[data-testid="stButton"] > button:active {
