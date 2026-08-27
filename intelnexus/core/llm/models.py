@@ -307,7 +307,12 @@ def test_provider_connection(base_url: str, api_key: str = "", api_format: str =
 
         logger.info("[PROVIDER TEST] 请求头: %s", {k: v[:20] + "..." if len(v) > 20 else v for k, v in headers.items()})
 
-        test_payload = {"model": "test", "messages": [{"role": "user", "content": "hi"}], "max_tokens": 1}
+        # 使用真实模型名称进行测试（"test" 模型在大多数 API 中不存在）
+        if api_format == "anthropic":
+            test_model = "claude-3-haiku-20240307"
+        else:
+            test_model = "qwen-turbo"
+        test_payload = {"model": test_model, "messages": [{"role": "user", "content": "hi"}], "max_tokens": 1}
         logger.info("[PROVIDER TEST] 请求体: %s", test_payload)
 
         url = base_url.rstrip("/")
