@@ -1123,9 +1123,26 @@ class AIBriefingAnalyzer:
             # 校验LLM输出（attack_analysis 附带来源文本做反编造抽查）
             source_text = search_summary if prompt_name == "attack_analysis" else ""
             if not self._validate_llm_output(result, prompt_name, source_text=source_text):
-                logger.warning(f"{label}: LLM输出校验失败，回退到降级模式")
-                self._add_warning(label, "LLM输出校验失败，使用降级内容")
-                return self._get_fallback_content(prompt_name, results)
+                # 输出过短时自动重试一次：追加明确字数要求再调 LLM
+                if len(result) < 80:
+                    logger.info(f"{label}: LLM输出过短({len(result)}字符)，追加字数要求重试")
+                    retry_prompt = prompt + (
+                        "\n\n【重要补充要求】你的上一次输出过短（不足80字），不符合情报简报的质量标准。"
+                        "请重新生成，确保：\n"
+                        "1. 每个有内容的子类别至少包含 2 条完整条目\n"
+                        "2. 每条事件描述不少于 40 字，包含具体细节\n"
+                        "3. 整体输出不少于 200 字\n"
+                        "请基于搜索结果中的事实重新生成完整内容。"
+                    )
+                    result = chain.invoke({"prompt": retry_prompt})
+                    if not self._validate_llm_output(result, prompt_name, source_text=source_text):
+                        logger.warning(f"{label}: 重试后LLM输出仍校验失败，回退到降级模式")
+                        self._add_warning(label, "LLM输出校验失败，使用降级内容")
+                        return self._get_fallback_content(prompt_name, results)
+                else:
+                    logger.warning(f"{label}: LLM输出校验失败，回退到降级模式")
+                    self._add_warning(label, "LLM输出校验失败，使用降级内容")
+                    return self._get_fallback_content(prompt_name, results)
 
             # 后处理清洗
             result = self._clean_llm_output(result)
