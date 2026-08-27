@@ -993,4 +993,9 @@ def render_sidebar():
         # Advanced: Threads, Language, Custom Models
         threads = _render_advanced_settings()
 
+        # 底部：使用帮助按钮（常驻，任何页面可点击打开帮助弹窗）
+        st.divider()
+        from intelnexus.ui.help_dialog import render_sidebar_help_button
+        render_sidebar_help_button()
+
     return search_mode, model, threads

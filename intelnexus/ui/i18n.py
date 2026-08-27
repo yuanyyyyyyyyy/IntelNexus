@@ -593,6 +593,73 @@ _BRIEFING_ZH = {
     "proxy_saved": "代理设置已保存",
     "proxy_cleared": "已清除手动代理，回退到自动检测",
     "proxy_clear_btn": "清除手动",
+    # ---- 帮助弹窗 ----
+    "help_title": "使用帮助",
+    "help_btn": "使用帮助",
+    "help_first_time_tag": "第一次使用？",
+    "help_first_time_btn": "查看快速指南",
+    "help_tab_quick": "快速开始",
+    "help_tab_search": "搜索指南",
+    "help_tab_briefing": "简报指南",
+    "help_tab_model": "模型配置",
+    "help_tab_faq": "常见问题",
+    "help_quick_step1": "**1. 配置 AI 模型**（必须）\n\n侧边栏 → 添加自定义模型 → 选择提供商 → 填入 API Key → 保存\n\n或使用本地 Ollama 模型（免费）：安装 [Ollama](https://ollama.com) 后拉取模型即可",
+    "help_quick_step2": "**2. 搜索情报**\n\n首页输入关键词 → 选择搜索模式 → 点击搜索\n\n支持网页、新闻、暗网等多源同时检索，AI 自动分析并生成报告",
+    "help_quick_step3": "**3. 生成简报**\n\n进入「简报中心」→ 选择关注点 → 点击生成\n\nAI 自动采集、分析并生成结构化情报简报",
+    "help_quick_step4": "**4. 定时推送**（可选）\n\n简报中心 → 订阅管理 → 添加订阅者 → 设置推送时间\n\n支持邮件、企业微信、钉钉多渠道推送",
+    "help_search_title": "🔍 情报搜索",
+    "help_search_desc": "在搜索页输入关键词，选择搜索模式后点击搜索。系统会：\n\n"
+        "- **多源检索**：同时搜索网页（Bing/DDG/Yahoo 等）、新闻、暗网\n"
+        "- **语义排序**：AI 按相关性排序结果，过滤弱相关条目\n"
+        "- **内容抓取**：自动抓取网页全文\n"
+        "- **可信度评估**：对每条来源进行可信度打分\n"
+        "- **报告生成**：AI 综合分析后生成专业情报报告\n"
+        "- **证据链追踪**：标注报告中的关键证据来源",
+    "help_search_modes": "**搜索模式说明**\n\n"
+        "- **智能模式**（推荐）：自动按查询主题路由到最合适的数据源\n"
+        "- **网页**：通用网页搜索（Bing/DDG/Yahoo/Yandex/Baidu）\n"
+        "- **新闻**：Google News + Bing News + RSS\n"
+        "- **暗网**：Ahmia（无需 Tor）+ OnionLink/TorDex（需 Tor）\n"
+        "- **全部**：同时搜索所有来源",
+    "help_search_tips": "**使用技巧**\n\n"
+        "- 搜索完成后可一键导出 Markdown / PDF / Word / Excel\n"
+        "- 点击「存入简报」可将搜索结果推送到简报草稿\n"
+        "- 搜索关键词可一键固化为 Topic，驱动简报自动巡防",
+    "help_briefing_title": "📋 简报生成",
+    "help_briefing_desc": "简报系统自动采集、分析并推送情报简报：\n\n"
+        "- **自动采集**：从多个情报源收集最新信息\n"
+        "- **AI 分析**：LLM 生成结构化简报（亮点 + 详情 + 趋势）\n"
+        "- **增量感知**：对比历史存档，标注新增/消失条目\n"
+        "- **知识图谱**：自动提取实体关系，生成缩略图",
+    "help_briefing_steps": "**操作步骤**\n\n"
+        "1. 进入「简报中心」\n"
+        "2. 选择关注点类别（可多选）\n"
+        "3. 可选：开启推送（发送给订阅者）\n"
+        "4. 点击「生成简报」\n"
+        "5. 等待生成完成（通常 1-3 分钟）\n"
+        "6. 查看结果 / 推送 / 导出",
+    "help_model_title": "🤖 模型配置",
+    "help_model_local": "**本地模型（推荐，免费）**\n\n"
+        "1. 下载安装 [Ollama](https://ollama.com)\n"
+        "2. 打开命令提示符，运行：`ollama pull qwen2.5:7b`\n"
+        "3. 回到 IntelNexus，侧边栏自动检测到模型",
+    "help_model_custom": "**自定义模型（需 API Key）**\n\n"
+        "1. 侧边栏 → 添加自定义模型\n"
+        "2. 选择提供商（OpenAI / Anthropic / Google / DeepSeek 等）\n"
+        "3. 填入模型名称和 API Key\n"
+        "4. 点击「测试连接」验证 → 「保存并启用」",
+    "help_faq_title": "常见问题",
+    "help_faq_q1": "**Q: 搜索/简报执行中可以切换页面吗？**",
+    "help_faq_a1": "任务执行期间导航会暂时锁定，防止中断后台任务。完成后自动解锁。",
+    "help_faq_q2": "**Q: 模型连接失败怎么办？**",
+    "help_faq_a2": "本地模型：确认 Ollama 已启动（任务栏有图标）\n\n在线模型：检查 API Key 是否正确、是否过期",
+    "help_faq_q3": "**Q: 如何导出搜索结果？**",
+    "help_faq_a3": "搜索完成后，在结果下方选择导出格式（Markdown/PDF/Word/Excel），点击下载按钮即可。",
+    "help_faq_q4": "**Q: 如何接收定时推送？**",
+    "help_faq_a4": "简报中心 → 订阅管理 → 添加订阅者 → 配置邮件/企微/钉钉 → 设置推送时间。",
+    "help_faq_q5": "**Q: 暗网搜索不可用？**",
+    "help_faq_a5": "Ahmia 模式无需 Tor 可直接使用。OnionLink/TorDex 需要安装并启动 Tor 代理。",
+    "help_footer": "更多帮助请查看 [USER_GUIDE.md](USER_GUIDE.md) 或访问 [GitHub](https://github.com/yuanyyyyyyyyy/IntelNexus)",
 }
 
 _BRIEFING_EN = {
@@ -1175,6 +1242,73 @@ _BRIEFING_EN = {
     "proxy_saved": "Proxy settings saved",
     "proxy_cleared": "Manual proxy cleared, falling back to auto-detection",
     "proxy_clear_btn": "Clear manual",
+    # ---- Help dialog ----
+    "help_title": "Help",
+    "help_btn": "Help",
+    "help_first_time_tag": "First time here?",
+    "help_first_time_btn": "Quick start guide",
+    "help_tab_quick": "Quick Start",
+    "help_tab_search": "Search Guide",
+    "help_tab_briefing": "Briefing Guide",
+    "help_tab_model": "Model Setup",
+    "help_tab_faq": "FAQ",
+    "help_quick_step1": "**1. Configure AI Model** (required)\n\nSidebar → Add custom model → Select provider → Enter API Key → Save\n\nOr use local Ollama model (free): Install [Ollama](https://ollama.com) and pull a model",
+    "help_quick_step2": "**2. Search Intelligence**\n\nEnter keywords on the home page → Select search mode → Click search\n\nSupports multi-source search across web, news, and dark web with AI-powered analysis",
+    "help_quick_step3": "**3. Generate Briefing**\n\nGo to 'Briefing Center' → Select categories → Click generate\n\nAI collects, analyzes, and generates structured intelligence briefings",
+    "help_quick_step4": "**4. Scheduled Push** (optional)\n\nBriefing Center → Subscriber Management → Add subscriber → Set push time\n\nSupports email, WeCom, and DingTalk multi-channel push",
+    "help_search_title": "🔍 Intelligence Search",
+    "help_search_desc": "Enter keywords on the search page, select a search mode, and click search. The system will:\n\n"
+        "- **Multi-source search**: Search web (Bing/DDG/Yahoo etc.), news, and dark web simultaneously\n"
+        "- **Semantic ranking**: AI ranks results by relevance, filtering weak matches\n"
+        "- **Content scraping**: Automatically scrape full web page content\n"
+        "- **Credibility scoring**: Rate each source's credibility\n"
+        "- **Report generation**: AI generates a professional intelligence report\n"
+        "- **Evidence tracing**: Annotate key evidence sources in the report",
+    "help_search_modes": "**Search Modes**\n\n"
+        "- **Smart Mode** (recommended): Auto-route to the best data source by topic\n"
+        "- **Web**: General web search (Bing/DDG/Yahoo/Yandex/Baidu)\n"
+        "- **News**: Google News + Bing News + RSS\n"
+        "- **Dark Web**: Ahmia (no Tor needed) + OnionLink/TorDex (requires Tor)\n"
+        "- **All**: Search all sources simultaneously",
+    "help_search_tips": "**Tips**\n\n"
+        "- Export results to Markdown / PDF / Word / Excel with one click\n"
+        "- Click 'Save to Briefing' to push search results to briefing drafts\n"
+        "- Pin search keywords as a Topic to drive automated briefing patrols",
+    "help_briefing_title": "📋 Briefing Generation",
+    "help_briefing_desc": "The briefing system automatically collects, analyzes, and pushes intelligence briefings:\n\n"
+        "- **Auto collection**: Gather latest information from multiple intelligence sources\n"
+        "- **AI analysis**: LLM generates structured briefings (highlights + details + trends)\n"
+        "- **Delta awareness**: Compare with archives, mark new/removed items\n"
+        "- **Knowledge graph**: Auto-extract entity relationships, generate thumbnails",
+    "help_briefing_steps": "**Steps**\n\n"
+        "1. Go to 'Briefing Center'\n"
+        "2. Select categories (multi-select)\n"
+        "3. Optional: Enable push (send to subscribers)\n"
+        "4. Click 'Generate Briefing'\n"
+        "5. Wait for completion (usually 1-3 minutes)\n"
+        "6. View results / Push / Export",
+    "help_model_title": "🤖 Model Configuration",
+    "help_model_local": "**Local Model (recommended, free)**\n\n"
+        "1. Download and install [Ollama](https://ollama.com)\n"
+        "2. Open command prompt, run: `ollama pull qwen2.5:7b`\n"
+        "3. Return to IntelNexus, sidebar auto-detects the model",
+    "help_model_custom": "**Custom Model (requires API Key)**\n\n"
+        "1. Sidebar → Add custom model\n"
+        "2. Select provider (OpenAI / Anthropic / Google / DeepSeek etc.)\n"
+        "3. Enter model name and API Key\n"
+        "4. Click 'Test Connection' to verify → 'Save and Enable'",
+    "help_faq_title": "FAQ",
+    "help_faq_q1": "**Q: Can I switch pages during search/briefing?**",
+    "help_faq_a1": "Navigation is temporarily locked during task execution to prevent interrupting background tasks. It unlocks automatically when done.",
+    "help_faq_q2": "**Q: Model connection failed?**",
+    "help_faq_a2": "Local model: Make sure Ollama is running (icon in taskbar)\n\nOnline model: Check if the API Key is correct and not expired",
+    "help_faq_q3": "**Q: How to export search results?**",
+    "help_faq_a3": "After search completes, select export format (Markdown/PDF/Word/Excel) below the results and click download.",
+    "help_faq_q4": "**Q: How to receive scheduled pushes?**",
+    "help_faq_a4": "Briefing Center → Subscriber Management → Add subscriber → Configure email/WeCom/DingTalk → Set push time.",
+    "help_faq_q5": "**Q: Dark web search not available?**",
+    "help_faq_a5": "Ahmia mode works without Tor. OnionLink/TorDex require Tor proxy to be installed and running.",
+    "help_footer": "For more help, see [USER_GUIDE.md](USER_GUIDE.md) or visit [GitHub](https://github.com/yuanyyyyyyyyy/IntelNexus)",
 }
 
 
