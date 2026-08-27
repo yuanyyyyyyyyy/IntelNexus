@@ -1,8 +1,8 @@
-"""TL;DR 速览卡测试（真引用生产函数 intelnexus.ui.search_pipeline._extract_tldr_card）。"""
+"""TL;DR 速览卡测试（真引用生产函数 intelnexus.ui.search_worker._extract_tldr_card）。"""
 import pytest
 
 from intelnexus.core.llm.core import _build_system_prompt
-from intelnexus.ui.search_pipeline import _extract_tldr_card
+from intelnexus.ui.search_worker import _extract_tldr_card
 
 
 class TestTLDRCard:

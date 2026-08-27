@@ -35,7 +35,7 @@ from config import (
 )
 from intelnexus.ui.sidebar import render_sidebar
 from intelnexus.ui.icons import icon
-from intelnexus.ui.search_pipeline import run_search_pipeline
+from intelnexus.ui.search_pipeline import run_search_pipeline, _search_progress_fragment
 from intelnexus.ui.results import render_results_panels
 from intelnexus.ui.download import render_download_section
 from intelnexus.ui.results_detail import render_results_detail
@@ -43,6 +43,7 @@ from intelnexus.ui.briefing_viewer import render_briefing_center
 from intelnexus.ui.onboarding import render_onboarding
 from intelnexus.ui.knowledge_base import render_knowledge_base
 from intelnexus.ui import main_tabs
+from intelnexus.core.task_runner import get_task_runner
 
 # --- Inject config for shared modules ---
 set_config({
@@ -144,6 +145,12 @@ if not onboarding_active:
     # --- 主导航（横向 radio 代替 st.tabs：支持编程式跳页 + 互斥渲染） ---
     nav_tab_keys = [main_tabs.TAB_HOME, main_tabs.TAB_SEARCH, main_tabs.TAB_BRIEFING, main_tabs.TAB_KB]
 
+    # 导航锁：任务运行期间阻止用户切换 Tab（防止 rerun 中断后台任务的结果渲染）
+    _runner = get_task_runner()
+    _search_running = _runner.is_running("search")
+    _briefing_running = _runner.is_running("briefing")
+    _any_task_running = _search_running or _briefing_running
+
     # 激活页计算：优先消费一次性跳转旗标（取证深查等编程式跳页）。
     # radio 选项值直接用 tab 键（显示标签由 format_func 按 i18n 映射），
     # 保证 session_state.main_nav_radio 存的始终是键而非标签文本。
@@ -151,12 +158,32 @@ if not onboarding_active:
         st.session_state.get("main_nav_radio") or main_tabs.TAB_HOME,
         st.session_state,
     )
+
+    # 导航锁：任务运行期间锁定在当前 Tab（不允许切换到其他页面）
+    if _any_task_running:
+        _prev_tab = st.session_state.get("_locked_tab", active)
+        if active != _prev_tab:
+            # 用户试图切换 Tab → 强制回到锁定的 Tab
+            active = _prev_tab
+            st.session_state.main_nav_radio = active
+        # 显示任务运行提示
+        _task_msg = []
+        if _search_running:
+            _task_msg.append(get_text("task_search_running"))
+        if _briefing_running:
+            _task_msg.append(get_text("task_briefing_running"))
+        st.info(f"{' / '.join(_task_msg)} {get_text('task_running_nav_lock')}")
+    else:
+        st.session_state["_locked_tab"] = active
+
     # 被编程跳转改写时，在下一次渲染前同步 radio 选中态（不传 index，避免每次 rerun 重置）
     if st.session_state.get("main_nav_radio") != active:
         st.session_state.main_nav_radio = active
 
     # 隐藏 marker：供 CSS 把导航 radio 渲染成横向 tab 外观（见 styles.py）
     st.markdown('<div class="main-nav-marker" style="display:none"></div>', unsafe_allow_html=True)
+    # 任务运行期间禁用导航 radio 交互
+    _nav_disabled = _any_task_running
     st.radio(
         "main navigation",
         nav_tab_keys,
@@ -164,6 +191,7 @@ if not onboarding_active:
         label_visibility="collapsed",
         key="main_nav_radio",
         format_func=lambda key: get_text(f"nav_{key}"),
+        disabled=_nav_disabled,
     )
 
     # 隐藏作用域 marker：主区稳定锚点，替代旧 div[role="tabpanel"] 选择器外层前缀（见 styles.py）
@@ -227,6 +255,9 @@ if not onboarding_active:
             # 兜底：点了搜索但关键词为空，给出可见提示而非静默无反应
             status_slot.warning(get_text("search_placeholder"))
 
+        # 搜索进度轮询 fragment（后台任务运行时显示进度，完成时渲染结果）
+        _search_progress_fragment()
+
         # 搜索→简报订阅提示：检查当前查询是否已订阅为Topic
         if effective_query:
             from intelnexus.topics.store import find_by_query, add_topic
@@ -257,12 +288,14 @@ if not onboarding_active:
                                 st.success(get_text("topic_subscribe_success"))
                                 st.rerun()
 
-        render_results_panels()
-        render_download_section()
-        render_results_detail()
+        # 结果面板（session_state 有数据时渲染，由 fragment 完成后写入）
+        if st.session_state.get("filtered") is not None:
+            render_results_panels()
+            render_download_section()
+            render_results_detail()
 
-        # 搜→报飞轮：一键将当前全部搜索结果存入简报草稿
-        _render_bulk_collect_button()
+            # 搜→报飞轮：一键将当前全部搜索结果存入简报草稿
+            _render_bulk_collect_button()
 
     # =====================
     #  Briefing Tab
