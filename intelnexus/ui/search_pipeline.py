@@ -18,8 +18,8 @@ from datetime import datetime, timedelta
 
 from intelnexus.core.logger import get_logger
 from intelnexus.core.task_runner import get_task_runner
-from intelnexus.ui.i18n import get_text
 from intelnexus.ui.icons import icon
+from intelnexus.ui.i18n import get_text
 
 logger = get_logger(__name__)
 
@@ -115,22 +115,30 @@ def _search_progress_fragment(status_slot_key: str = ""):
         message = state.get("message", "搜索中...")
         phase = state.get("phase", "")
 
-        # 阶段图标映射
-        phase_icons = {
-            "preflight": "🔍", "refining": "🧠", "searching": "🌐",
-            "ranking": "📊", "scraping": "📄", "kb_retrieval": "📚",
-            "analyzing": "⚖️", "generating": "✍️", "evidence": "🔗",
-            "finalizing": "🏁", "done": "✅",
+        # 阶段 SVG 图标映射 (icon_name, color)
+        _SEARCH_PHASE_ICONS = {
+            "preflight":     ("target",    "blue"),
+            "refining":      ("diamond",   "blue"),
+            "searching":     ("globe",     "blue"),
+            "ranking":       ("bar_chart", "blue"),
+            "scraping":      ("doc_scan",  "blue"),
+            "kb_retrieval":  ("kb",        "blue"),
+            "analyzing":     ("analysis",  "blue"),
+            "generating":    ("pen",       "blue"),
+            "evidence":      ("link",      "blue"),
+            "finalizing":    ("flag",      "blue"),
+            "done":          ("check",     "sage"),
         }
-        phase_emoji = phase_icons.get(phase, "⏳")
+        _ic, _cc = _SEARCH_PHASE_ICONS.get(phase, ("loader", "gray"))
+        phase_svg = icon(_ic, size="sm", color=_cc)
 
         st.progress(min(1.0, max(0.0, progress_pct)))
         st.markdown(
             f'<div class="result-card">'
             f'<div class="section-header">{get_text("searching")}</div>'
-            f'<div style="padding:8px 0;">'
-            f'{phase_emoji} <strong>{message}</strong>'
-            f' <span style="float:right;color:var(--wb-text-secondary);">{int(progress_pct*100)}%</span>'
+            f'<div class="progress-phase-row">'
+            f'{phase_svg} <strong>{message}</strong>'
+            f' <span style="margin-left:auto;color:var(--wb-text-secondary);">{int(progress_pct*100)}%</span>'
             f'</div></div>',
             unsafe_allow_html=True,
         )

@@ -1053,6 +1053,17 @@ def render_hermes_theme_css():
         border-radius: 4px !important;
     }
 
+    /* Progress phase row: icon + text alignment */
+    .progress-phase-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 0;
+    }
+    .progress-phase-row .in-icon {
+        flex-shrink: 0;
+    }
+
     /* Main area Divider / Horizontal Rule */
     hr {
         border-color: var(--border-light) !important;

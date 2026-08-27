@@ -18,6 +18,7 @@ from datetime import timedelta
 
 from intelnexus.briefing.pipeline import run_briefing_pipeline
 from intelnexus.briefing.config import get_all_categories
+from intelnexus.ui.icons import icon
 from intelnexus.core.task_runner import get_task_runner
 from intelnexus.ui.i18n import get_text
 from intelnexus.core.llm.utils import get_model_choices
@@ -216,35 +217,36 @@ def _briefing_progress_fragment(key_prefix: str, compact: bool):
         message = state.get("message", get_text("briefing_generating"))
         phase = state.get("phase", "")
 
-        # 阶段图标映射
-        phase_icons = {
-            "starting": "\u23f3",
-            "collect_start": "\U0001f4e1",
-            "collect_done": "\u2705",
-            "credibility_overview": "\U0001f6e1\ufe0f",
-            "knowledge_graph": "\U0001f578\ufe0f",
-            "kb_recall": "\U0001f4da",
-            "generate_start": "\u270d\ufe0f",
-            "generate_progress": "\u270d\ufe0f",
-            "llm_error": "\u26a0\ufe0f",
-            "llm_skipped": "\u26a0\ufe0f",
-            "summary": "\U0001f4dd",
-            "save": "\U0001f4be",
-            "save_entries": "\U0001f4be",
-            "push": "\U0001f4e4",
-            "push_done": "\u2705",
-            "push_no_subs": "\u2705",
-            "push_skipped": "\u2705",
+        # 阶段 SVG 图标映射 (icon_name, color)
+        _BRIEF_PHASE_ICONS = {
+            "starting":            ("loader",   "gray"),
+            "collect_start":       ("satellite","blue"),
+            "collect_done":        ("check",    "sage"),
+            "credibility_overview": ("shield",  "blue"),
+            "knowledge_graph":     ("graph",    "blue"),
+            "kb_recall":           ("kb",       "blue"),
+            "generate_start":      ("pen",      "blue"),
+            "generate_progress":   ("pen",      "blue"),
+            "llm_error":           ("warning",  "terracotta"),
+            "llm_skipped":         ("warning",  "terracotta"),
+            "summary":             ("summary",  "blue"),
+            "save":                ("disk",     "blue"),
+            "save_entries":        ("disk",     "blue"),
+            "push":                ("upload",   "blue"),
+            "push_done":           ("check",    "sage"),
+            "push_no_subs":        ("check",    "sage"),
+            "push_skipped":        ("check",    "sage"),
         }
-        phase_emoji = phase_icons.get(phase, "\u23f3")
+        _ic, _cc = _BRIEF_PHASE_ICONS.get(phase, ("loader", "gray"))
+        phase_svg = icon(_ic, size="sm", color=_cc)
 
         st.progress(min(1.0, max(0.0, progress_pct)))
         st.markdown(
             f'<div class="result-card">'
             f'<div class="section-header">{get_text("briefing_generating")}</div>'
-            f'<div style="padding:8px 0;">'
-            f'{phase_emoji} <strong>{message}</strong>'
-            f' <span style="float:right;color:var(--wb-text-secondary);">{int(progress_pct*100)}%</span>'
+            f'<div class="progress-phase-row">'
+            f'{phase_svg} <strong>{message}</strong>'
+            f' <span style="margin-left:auto;color:var(--wb-text-secondary);">{int(progress_pct*100)}%</span>'
             f'</div></div>',
             unsafe_allow_html=True,
         )
