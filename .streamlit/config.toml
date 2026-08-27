@@ -3,6 +3,9 @@
 # 且本地部署不需要 runOnSave 热重载（本就是 false）
 fileWatcherType = "none"
 runOnSave = false
+# 开启 static/ 目录静态服务：[[theme.fontFaces]] 的自托管字体经此路由
+# （/app/static/...）下发，关闭时字体文件 404、字体注册无效。
+enableStaticServing = true
 
 # Material Icons 连字字体（fonts.gstatic.com）在国内被墙，失败时折叠面板
 # 图标显示为原始英文文本（keyboard_arrow_right）叠在中文标题上。
@@ -11,17 +14,71 @@ runOnSave = false
 toolbarMode = "minimal"
 
 # [theme] 说明（2026-08-26 Hermes "纸白与石墨" 风格）：
-# Streamlit 原生部件（按钮/输入框/下拉/expander）的色源在启动时静态确定，
-# 不支持运行时切换；而自定义 CSS 主题通过 styles.py 注入的 JS 按 data-theme
-# 属性实时切换。因此这里的值保持与「默认主题 hermes-paper」一致，保证：
-#   1) 未选主题时原生部件与自定义 CSS 观感统一；
-#   2) 切到其他主题后，原生部件仍为浅色——这是已知限制，
-#      暗色适配的部件级覆盖见 styles.py 后续迭代。
-# 若要全局换默认主题：改这里 + 改 sidebar._THEMES 默认项，两处同步。
+# 项目仅单一浅色主题，无主题切换；下方取值即全局唯一主题配置，
+# 与 styles.py 注入的自定义 CSS 观感统一。
+# 字体方案（自托管，勿改用在线字体——国内网络下 Google Fonts 不可达）：
+#   西文 Inter（正文/标题）+ 中文 HarmonyOS Sans SC（兜底走 CSS 字体栈，
+#   见 styles.py 的 --font-ui）+ 等宽 JetBrains Mono（代码/哈希）。
+#   fontFaces 的 url 是相对应用根的路径，静态目录经 /app/static/ 前缀路由，
+#   故形如 "app/static/fonts/..."；fontFaces 变更需重启服务器才生效。
+[[theme.fontFaces]]
+family = "Inter"
+url = "app/static/fonts/inter/Inter-Regular.woff2"
+weight = 400
+
+[[theme.fontFaces]]
+family = "Inter"
+url = "app/static/fonts/inter/Inter-Medium.woff2"
+weight = 500
+
+[[theme.fontFaces]]
+family = "Inter"
+url = "app/static/fonts/inter/Inter-SemiBold.woff2"
+weight = 600
+
+[[theme.fontFaces]]
+family = "Inter"
+url = "app/static/fonts/inter/Inter-Bold.woff2"
+weight = 700
+
+[[theme.fontFaces]]
+family = "HarmonyOS Sans SC"
+url = "app/static/fonts/harmonyos/HarmonyOSSansSC-Regular.woff2"
+weight = 400
+
+[[theme.fontFaces]]
+family = "HarmonyOS Sans SC"
+url = "app/static/fonts/harmonyos/HarmonyOSSansSC-Medium.woff2"
+weight = 500
+
+[[theme.fontFaces]]
+family = "HarmonyOS Sans SC"
+url = "app/static/fonts/harmonyos/HarmonyOSSansSC-Bold.woff2"
+weight = 700
+
+[[theme.fontFaces]]
+family = "JetBrains Mono"
+url = "app/static/fonts/jetbrains-mono/JetBrainsMono-Regular.woff2"
+weight = 400
+
+[[theme.fontFaces]]
+family = "JetBrains Mono"
+url = "app/static/fonts/jetbrains-mono/JetBrainsMono-Bold.woff2"
+weight = 700
+
 [theme]
 base = "light"
 primaryColor = "#1A1A1A"
 backgroundColor = "#FAFAFA"
 secondaryBackgroundColor = "#FFFFFF"
 textColor = "#1A1A1A"
-font = "sans serif"
+font = "Inter"
+headingFont = "Inter"
+codeFont = "JetBrains Mono"
+
+# 排版层级：正文 400；标题 h1=700、h2/h3=600、h4 起回落到 500。
+baseFontWeight = 400
+codeFontSize = "13px"
+codeFontWeight = 400
+headingFontSizes = ["2rem", "1.625rem", "1.375rem", "1.125rem", "1rem", "0.875rem"]
+headingFontWeights = [700, 600, 600, 500, 500, 500]

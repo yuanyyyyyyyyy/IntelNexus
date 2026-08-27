@@ -19,6 +19,10 @@ import networkx as nx
 _shared_extractor = None
 _extractor_lock = threading.Lock()
 
+# 知识图谱节点标签中文字体族（CSS 字体栈，依赖浏览器本地字体回落，
+# 不引入任何在线字体依赖，保持离线部署能力）
+_GRAPH_CJK_FONT_FACE = "'HarmonyOS Sans SC', 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif"
+
 
 def get_entity_extractor():
     """获取进程内复用的 EntityExtractor 单例（双检锁）。"""
@@ -213,6 +217,10 @@ class IntelligenceGraph:
                 height="600px", width="100%",
                 bgcolor="#FAFAFA", font_color="#1A1A1A"
             )
+            # 全局节点标签中文字体。直接赋 dict 型 options（pyvis 会 json.dumps 原样渲染）；
+            # 不能用 set_options：其 Options.set 会剔除字符串内全部空格，
+            # 导致 'HarmonyOS Sans SC' 这类含空格的字体名损坏。
+            net.options = {"nodes": {"font": {"face": _GRAPH_CJK_FONT_FACE}}}
 
             type_colors = {
                 "PERSON": "#1A1A1A", "ORG": "#0055FF", "GPE": "#4ADE80",
