@@ -4,7 +4,7 @@ import html
 import json
 import os
 from intelnexus.core.logger import get_logger
-from intelnexus.ui.i18n import get_text
+from intelnexus.ui.i18n import get_text, localize_llm_test_error
 from intelnexus.ui.icons import icon
 from intelnexus.core.ui.helpers import SEARCH_MODES, DEFAULT_TOR_PORT, check_tor_status
 from intelnexus.core.llm.utils import get_model_choices, is_vision_model
@@ -471,7 +471,7 @@ def _render_custom_models():
                                         if ok:
                                             st.success(get_text("connection_success"))
                                         else:
-                                            st.error(msg)
+                                            st.error(localize_llm_test_error(msg))
                         with btn_del:
                             if st.button(get_text("delete"), key=f"delete_{mname}", width="stretch"):
                                 if remove_custom_model(mname):
@@ -538,7 +538,7 @@ def _render_custom_models():
                                 if ok:
                                     st.success(get_text("connection_success"))
                                 else:
-                                    st.error(msg)
+                                    st.error(localize_llm_test_error(msg))
 
                 # 条目分隔线：标准 st.divider()，由 5c CSS 通过 .st-key-cm_list 容器锚定（4px 紧凑 margin）
                 st.divider()
@@ -600,7 +600,7 @@ def _render_custom_models():
                         if ok:
                             st.success(msg)
                         else:
-                            st.error(msg)
+                            st.error(localize_llm_test_error(msg))
                 else:
                     st.error(get_text("fill_fields"))
 

@@ -1,8 +1,10 @@
+import os
+
 import requests
 from urllib.parse import urljoin
 from langchain_openai import ChatOpenAI
 from langchain_ollama import ChatOllama
-from typing import Callable, Optional, List
+from typing import Callable, Dict, Optional, List
 from langchain_core.callbacks.base import BaseCallbackHandler
 from intelnexus.core.settings import get as get_config
 
@@ -39,6 +41,67 @@ _common_llm_params = {
     "request_timeout": 120,
     "max_retries": 3,
 }
+
+# 本地 Ollama 探测使用的「无代理」配置：本地服务必须直连，
+# 否则 requests 会继承 HTTP(S)_PROXY 环境变量，把 127.0.0.1 的请求也路由给代理。
+_NO_PROXY = {"http": None, "https": None}
+
+# ---------------------------------------------------------------------------
+# LLM 直连（代理隔离）
+# ---------------------------------------------------------------------------
+# .env 中的 HTTP(S)_PROXY 是为搜索/采集管线设计的（见 core.search.get_http_proxies
+# 与 .env 注释「LLM API 直连，不走代理」）。但 httpx（含 openai SDK 3.x 引入的
+# 重命名包 httpx2）默认 trust_env=True，构造客户端时会自动继承代理环境变量：
+# 当 LLM 端点域名不在 NO_PROXY 白名单内（如阿里云百炼 MaaS 专属域名
+# llm-*.maas.aliyuncs.com），请求会被路由到可能未运行的本地代理（如 127.0.0.1:2080）
+# 并被积极拒绝（[WinError 10061] / ProxyError）。统一对策：为 LLM 客户端注入显式
+# 直连传输（trust_env=False），不再读取代理环境变量。
+
+_PROXY_ENV_KEYS = ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy")
+
+
+def _llm_proxy_env_active() -> bool:
+    """当前环境是否存在 HTTP(S)_PROXY 代理环境变量（无代理时不做任何注入）。"""
+    return any(os.getenv(k) for k in _PROXY_ENV_KEYS)
+
+
+def _build_direct_http_clients():
+    """构造一对（同步/异步）不读取代理环境变量的直连 HTTP 客户端。
+
+    优先 httpx2（openai SDK 3.x 使用重命名包），缺失时回退 httpx；
+    依赖缺失或构造失败返回 (None, None)，调用方保持既有行为，不因隔离失败阻塞主流程。
+    """
+    try:
+        try:
+            import httpx2 as _httpx
+        except ImportError:
+            import httpx as _httpx
+        return _httpx.Client(trust_env=False), _httpx.AsyncClient(trust_env=False)
+    except Exception as e:
+        logger.debug("构造直连 HTTP 客户端失败，保持默认行为: %s", e)
+        return None, None
+
+
+def _apply_direct_connection_params(llm_class, constructor_params: Dict) -> Dict:
+    """为 LLM 类构造参数注入「绕过环境代理」的直连传输。
+
+    仅当存在代理环境变量且目标类实际声明了对应字段时才注入（pydantic
+    model_fields 探测，兼容无 http_client 字段的旧版 langchain）；
+    ChatOllama 经 client_kwargs 透传 trust_env=False 到底层 httpx.Client。
+    """
+    if not _llm_proxy_env_active():
+        return constructor_params
+    fields = getattr(llm_class, "model_fields", None) or {}
+    sync_client, async_client = _build_direct_http_clients()
+    if sync_client is not None and "http_client" in fields:
+        constructor_params.setdefault("http_client", sync_client)
+    if async_client is not None and "http_async_client" in fields:
+        constructor_params.setdefault("http_async_client", async_client)
+    if "client_kwargs" in fields:
+        merged = dict(constructor_params.get("client_kwargs") or {})
+        merged.setdefault("trust_env", False)
+        constructor_params["client_kwargs"] = merged
+    return constructor_params
 
 
 def _get_config_values():
@@ -104,7 +167,8 @@ def fetch_ollama_models() -> List[str]:
         return _ollama_models_cache["models"]
 
     try:
-        resp = requests.get(urljoin(base_url, "api/tags"), timeout=3)
+        # 本地 Ollama 必须直连：显式禁用代理，避免环境代理把本机请求转给不可用的代理
+        resp = requests.get(urljoin(base_url, "api/tags"), timeout=3, proxies=_NO_PROXY)
         resp.raise_for_status()
         models = resp.json().get("models", [])
         available = []
@@ -146,7 +210,7 @@ def check_ollama_model_available(model: str, timeout: float = 3.0) -> tuple[bool
         return False, "未配置 OLLAMA_BASE_URL，无法连接本地模型服务。"
 
     try:
-        resp = requests.get(urljoin(base_url, "api/tags"), timeout=timeout)
+        resp = requests.get(urljoin(base_url, "api/tags"), timeout=timeout, proxies=_NO_PROXY)
         resp.raise_for_status()
     except requests.exceptions.ConnectionError:
         return False, "无法连接 Ollama 服务，请确认 Ollama 已启动。"
@@ -232,7 +296,9 @@ def resolve_model_config(model_choice: str):
         if _normalize_model_name(ollama_model) == model_choice_lower:
             return {
                 "class": ChatOllama,
-                "constructor_params": {"model": ollama_model, "base_url": get_config("OLLAMA_BASE_URL", "")},
+                "constructor_params": _apply_direct_connection_params(ChatOllama, {
+                    "model": ollama_model, "base_url": get_config("OLLAMA_BASE_URL", ""),
+                }),
             }
 
     try:
@@ -247,29 +313,29 @@ def resolve_model_config(model_choice: str):
                     if model_type == "openai":
                         return {
                             "class": ChatOpenAI,
-                            "constructor_params": {
+                            "constructor_params": _apply_direct_connection_params(ChatOpenAI, {
                                 "model_name": config_params.get("model_name", custom_model_name),
                                 "base_url": config_params.get("base_url"),
                                 "api_key": config_params.get("api_key"),
-                            }
+                            }),
                         }
                     elif model_type == "azure openai":
                         return {
                             "class": ChatOpenAI,
-                            "constructor_params": {
+                            "constructor_params": _apply_direct_connection_params(ChatOpenAI, {
                                 "model_name": config_params.get("model_name", custom_model_name),
                                 "azure_endpoint": config_params.get("base_url"),
                                 "api_key": config_params.get("api_key"),
                                 "api_version": "2024-02-01",
-                            }
+                            }),
                         }
                     elif model_type == "ollama":
                         return {
                             "class": ChatOllama,
-                            "constructor_params": {
+                            "constructor_params": _apply_direct_connection_params(ChatOllama, {
                                 "model": config_params.get("model_name", custom_model_name),
                                 "base_url": config_params.get("base_url", get_config("OLLAMA_BASE_URL", "")),
-                            }
+                            }),
                         }
                     elif model_type == "anthropic":
                         return {
@@ -311,11 +377,11 @@ def resolve_model_config(model_choice: str):
                             }
                         return {
                             "class": ChatOpenAI,
-                            "constructor_params": {
+                            "constructor_params": _apply_direct_connection_params(ChatOpenAI, {
                                 "model_name": config_params.get("model_name", custom_model_name),
                                 "base_url": base_url,
                                 "api_key": config_params.get("api_key"),
-                            }
+                            }),
                         }
                     else:
                         # 未知类型兜底：当作 OpenAI 兼容接口处理
@@ -323,11 +389,11 @@ def resolve_model_config(model_choice: str):
                         if base_url:
                             return {
                                 "class": ChatOpenAI,
-                                "constructor_params": {
+                                "constructor_params": _apply_direct_connection_params(ChatOpenAI, {
                                     "model_name": config_params.get("model_name", custom_model_name),
                                     "base_url": base_url,
                                     "api_key": config_params.get("api_key"),
-                                }
+                                }),
                             }
     except ImportError:
         pass

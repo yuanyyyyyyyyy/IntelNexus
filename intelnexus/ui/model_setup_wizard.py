@@ -10,7 +10,7 @@
 """
 import streamlit as st
 
-from intelnexus.ui.i18n import get_text
+from intelnexus.ui.i18n import get_text, localize_llm_test_error
 from intelnexus.core.llm.utils import get_model_choices
 
 
@@ -79,7 +79,7 @@ def render_model_setup_hint() -> None:
                     if ok:
                         st.success(get_text("ms_test_ok"))
                     else:
-                        st.error(f"{get_text('ms_test_fail')}: {msg}")
+                        st.error(f"{get_text('ms_test_fail')}: {localize_llm_test_error(msg)}")
 
             if do_save:
                 if not (model_name.strip() and api_key.strip()):
