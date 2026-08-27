@@ -1260,6 +1260,16 @@ def render_hermes_theme_css():
         margin-top: 0 !important;
         margin-bottom: 0 !important;
     }
+    /* --- 5b-2. 中和框架对 markdown 容器的补偿性负 margin ---
+       Streamlit 给 [data-testid="stMarkdownContainer"] 内置 margin-bottom: -1rem，
+       用于抵消内部 p 的默认 1rem 下边距；但上面 5b 已把 p 的 margin 清零，
+       若不中和该 -1rem，名称行的盒子会向上收缩 16px，叠加条目容器 gap 时
+       按钮行将侵蚀/覆盖文字（实测：gap=None 时名称行与按钮行重叠 -16px）。
+       仅限定在自定义模型/供应商列表内，不影响侧边栏其他 markdown。 */
+    section[data-testid="stSidebar"] .st-key-cm_list [data-testid="stMarkdownContainer"],
+    section[data-testid="stSidebar"] .st-key-cp_list [data-testid="stMarkdownContainer"] {
+        margin-bottom: 0 !important;
+    }
     /* --- 5c. 侧边栏自定义模型/供应商列表（紧凑间距） ---
        锚定框架对 keyed container 生成的包装类（.st-key-cm_list / .st-key-cp_list，
        由前端 Block 组件直接渲染，不经过 markdown 净化器，不会被剥离）；
