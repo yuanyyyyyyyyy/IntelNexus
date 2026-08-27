@@ -1259,11 +1259,17 @@ def render_hermes_theme_css():
     }
 
     /* --- 5b. Custom Model/Provider Action Buttons (compact) --- */
+    .custom-model-actions [data-testid="column"],
+    .custom-provider-actions [data-testid="column"] {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
     section[data-testid="stSidebar"] .custom-model-actions .stButton > button,
     section[data-testid="stSidebar"] .custom-provider-actions .stButton > button {
-        padding: 4px 10px !important;
+        padding: 4px 8px !important;
         font-size: 12px !important;
         min-height: 28px !important;
+        width: 100% !important;
     }
 
     /* --- 6. Sidebar Slider (RAC) --- */
