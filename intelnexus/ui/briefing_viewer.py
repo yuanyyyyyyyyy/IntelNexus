@@ -610,9 +610,10 @@ def load_briefing_for_preview(filename: str, html_filename: str = None):
             html_content = get_briefing_history().load_briefing(html_filename)
             st.session_state.current_briefing_html = html_content
         st.session_state.show_briefing_history = False
-        # sync the toggle widget state (else switch shows ON while list is hidden)
-        if "bf_history_toggle" in st.session_state:
-            st.session_state.bf_history_toggle = False
+        # 不能在 widget 实例化后直接修改其 key（bf_history_toggle），
+        # 改用 _pending_toggle_override 中间变量，在下次 rerun 时
+        # widget 实例化前消费，驱动 toggle 回到 OFF 状态。
+        st.session_state._pending_toggle_override = False
         st.rerun()
 
 
@@ -1617,11 +1618,15 @@ def render_briefing_center():
     render_briefing_entries()
 
     # 历史记录常驻入口（toggle 替代原隐藏 session_state 开关）
+    # 消费 load_briefing_for_preview 设置的 pending override：
+    # 在 widget 实例化前注入默认值，避免实例化后修改 widget key 报错。
+    _pending = st.session_state.pop("_pending_toggle_override", None)
+    _toggle_default = _pending if _pending is not None else st.session_state.get("show_briefing_history", False)
     col_hist_toggle, _ = st.columns([2, 4])
     with col_hist_toggle:
         show_hist = st.toggle(
             get_text("show_history"),
-            value=st.session_state.get("show_briefing_history", False),
+            value=_toggle_default,
             key="bf_history_toggle",
         )
         st.session_state.show_briefing_history = show_hist
