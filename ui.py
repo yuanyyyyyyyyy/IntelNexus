@@ -142,6 +142,10 @@ if not onboarding_active:
     # --- Sidebar (serves both search mode + briefing management) ---
     search_mode, model, threads = render_sidebar()
 
+    # --- 帮助弹窗触发检查（侧边栏/首页按钮设置旗标后 rerun，此处消费旗标并弹窗）---
+    from intelnexus.ui.help_dialog import check_and_show_auto_help
+    check_and_show_auto_help()
+
     # --- 主导航（横向 radio 代替 st.tabs：支持编程式跳页 + 互斥渲染） ---
     nav_tab_keys = [main_tabs.TAB_HOME, main_tabs.TAB_SEARCH, main_tabs.TAB_BRIEFING, main_tabs.TAB_KB]
 

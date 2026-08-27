@@ -267,7 +267,7 @@ def _render_action_buttons() -> None:
 # ---------------------------------------------------------------------------
 
 def render_overview() -> None:
-    """今日概览首页：问候区 → 指标卡片区 → 主操作入口。"""
+    """今日概览首页：问候区 → 指标卡片区 → 主操作入口 → 首次引导卡。"""
     # 隐藏 marker：供 styles.py 以 :has(.ov-scope) 作用域挂载首页专属 CSS
     st.markdown('<div class="ov-scope" style="display:none"></div>', unsafe_allow_html=True)
 
@@ -296,3 +296,7 @@ def render_overview() -> None:
 
     # ---- 主操作入口 ----
     _render_action_buttons()
+
+    # ---- 首次使用引导卡 ----
+    from intelnexus.ui.help_dialog import render_first_time_help_card
+    render_first_time_help_card()
