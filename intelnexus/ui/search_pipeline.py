@@ -149,8 +149,11 @@ def _search_progress_fragment(status_slot_key: str = ""):
         if result:
             _apply_search_results(result)
             _render_search_results_ui(result)
-        # 重置任务状态
+        # 重置任务状态并触发整页 rerun：
+        # fragment auto_rerun 只 rerun 自身，父页面的 is_running() 不会自动刷新，
+        # 导致导航锁持续显示、结果卡片被覆盖。st.rerun() 让父页面重新评估状态。
         runner.reset(_SEARCH_TASK_ID)
+        st.rerun()
         return
 
     if status == "failed":
@@ -158,6 +161,7 @@ def _search_progress_fragment(status_slot_key: str = ""):
         st.error(f"{get_text('search_failed')}: {error_msg}")
         st.session_state.search_completed = False
         runner.reset(_SEARCH_TASK_ID)
+        st.rerun()
         return
 
     # idle：不显示任何内容（fragment 不应在空闲时 auto_rerun）
