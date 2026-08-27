@@ -22,8 +22,7 @@ SOURCES_FILE = os.path.join(get_data_dir(), "sources.json")
 
 def _ensure_sources_file():
     """确保数据源配置文件存在"""
-    data_dir = Path("data")
-    data_dir.mkdir(exist_ok=True)
+    Path(get_data_dir()).mkdir(parents=True, exist_ok=True)
 
     if not os.path.exists(SOURCES_FILE):
         initial_data = {
