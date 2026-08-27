@@ -320,14 +320,16 @@ def _render_search_service_settings():
 
 def _render_model_settings():
     """模型选择（核心设置）"""
-    st.markdown('<div class="sb-section"><span class="sb-section__label">Model</span></div>', unsafe_allow_html=True)
+    # 单行带图标区块标题：与 sidebar_mode_label 同风格（英文 · 中文，i18n 单键）
+    st.markdown(f'<div class="sb-section"><span class="sb-section__label">{icon("ai_model", "sm", "blue")} {get_text("sidebar_model_label")}</span></div>', unsafe_allow_html=True)
 
     model_options = get_model_choices()
     if not model_options:
         st.info(get_text("no_model_hint"))
         model = None
     else:
-        model = st.selectbox(get_text("llm_model"), model_options, index=0)
+        # 标题已含「AI模型」文案，折叠 selectbox 标签避免第二行重复（与参照区 radio 的 label_visibility 处理一致）
+        model = st.selectbox(get_text("llm_model"), model_options, index=0, label_visibility="collapsed")
         if is_vision_model(model):
             st.warning(get_text("vision_model_warning").format(model=model))
 
@@ -357,7 +359,7 @@ def _render_advanced_settings():
 
 def _render_custom_models():
     """自定义模型管理：添加 / 编辑 / 测试连接 / 删除"""
-    st.markdown('<div class="sb-section"><span class="sb-section__label">Custom Models</span></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="sb-section"><span class="sb-section__label">{icon("layers", "sm", "blue")} {get_text("sidebar_custom_models_label")}</span></div>', unsafe_allow_html=True)
 
     MODEL_TYPES = [
         "OpenAI", "Azure OpenAI", "Anthropic", "Google", "Cohere",
@@ -404,9 +406,10 @@ def _render_custom_models():
             DEFAULT_BASE_URLS[pname] = provider.get("base_url", "")
 
     # ---- 已有模型列表 ----
+    # 列表标题已并入区块单行标题（sidebar_custom_models_label），不再单独渲染一行加粗文案；
+    # 列表本体（紧凑间距容器 + 等宽等距按钮行）保持不变。
     custom_models = get_custom_models()
     if custom_models:
-        st.markdown(f"**{get_text('custom_models_list')}**")
         # 外层容器统一小间距，压缩模型条目之间的垂直留白（替代侧边栏默认 1rem gap）；
         # key="cm_list" 使框架渲染 .st-key-cm_list 包装类，供 5c CSS 锚定条目分隔线（净化器无法剥离）
         with st.container(gap="small", key="cm_list"):
@@ -416,9 +419,9 @@ def _render_custom_models():
                 editing_key = f"editing_{mname}"
                 is_editing = st.session_state.get(editing_key, False)
 
-                # 信息+按钮行整体包入容器归组（紧凑行距同时依赖 5b 的 margin 清零规则，
-                # 不再用未闭合 div hack 制造空元素）
-                with st.container(gap=None):
+                # 信息+按钮行整体包入容器归组；gap=8 保证名称行与按钮行之间恒定的 8px
+                # 垂直间隔（gap=None 会因框架对 markdown 容器的 -1rem 补偿 margin 导致按钮行上移侵蚀文字）
+                with st.container(gap=8):
                     # 模型信息
                     st.markdown(f"**{mname}** ` `{mtype}` `")
 
@@ -607,12 +610,12 @@ def _render_custom_models():
 
 def _render_custom_providers():
     """自定义供应商管理：添加 / 编辑 / 删除"""
-    st.markdown('<div class="sb-section"><span class="sb-section__label">Custom Providers</span></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="sb-section"><span class="sb-section__label">{icon("plug", "sm", "blue")} {get_text("sidebar_custom_providers_label")}</span></div>', unsafe_allow_html=True)
 
     # ---- 已有供应商列表 ----
+    # 列表标题已并入区块单行标题（sidebar_custom_providers_label），不再单独渲染一行加粗文案。
     custom_providers = get_custom_providers()
     if custom_providers:
-        st.markdown(f"**{get_text('custom_providers')}**")
         # 外层容器统一小间距，压缩供应商条目之间的垂直留白（与模型列表保持一致）；
         # key="cp_list" 使框架渲染 .st-key-cp_list 包装类，供 5c CSS 锚定条目分隔线（净化器无法剥离）
         with st.container(gap="small", key="cp_list"):
@@ -623,9 +626,9 @@ def _render_custom_providers():
                 editing_key = f"editing_provider_{pname}"
                 is_editing = st.session_state.get(editing_key, False)
 
-                # 信息+按钮行整体包入容器归组（紧凑行距同时依赖 5b 的 margin 清零规则，
-                # 不再用未闭合 div hack）
-                with st.container(gap=None):
+                # 信息+按钮行整体包入容器归组；gap=8 保证名称行与按钮行之间恒定的 8px 垂直间隔
+                # （与模型列表一致；详见 _render_custom_models 内同类注释）
+                with st.container(gap=8):
                     # 供应商信息
                     display_text = f"**{pname}**"
                     if premark:
