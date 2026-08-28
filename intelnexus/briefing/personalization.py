@@ -193,14 +193,14 @@ def filter_briefing_by_engagement(briefing_content: str, subscriber_id: str) -> 
 
 
 def _extract_category_from_title(title: str) -> str:
-    """从标题提取分类"""
+    """从标题提取分类（适配 10 板块结构化新名称）"""
     category_keywords = {
-        "ai_gov_usage": ["政府", "机构", "gov", "government"],
+        "ai_gov_usage": ["政府", "机构", "gov", "government", "ai技术动态"],
         "ai_china_narrative": ["中国", "涉华", "china"],
-        "ai_legislation": ["法规", "法案", "legislation", "law"],
+        "ai_legislation": ["法规", "法案", "legislation", "law", "政策法规"],
         "ai_data_leak": ["泄露", "数据", "leak", "breach"],
-        "cyber_vuln": ["漏洞", "vulnerability", "vuln"],
-        "cyber_attack": ["攻击", "attack", "cyber"],
+        "cyber_vuln": ["漏洞", "vulnerability", "vuln", "威胁区"],
+        "cyber_attack": ["攻击", "attack", "cyber", "网络安全"],
     }
     
     for category, keywords in category_keywords.items():

@@ -10,7 +10,7 @@ import html
 import re
 
 
-# ========== Markdown简报模板 ==========
+# ========== Markdown简报模板（10板块结构化） ==========
 MARKDOWN_TEMPLATE = """
 # AI 与网络安全每日情报简报
 
@@ -19,69 +19,63 @@ MARKDOWN_TEMPLATE = """
 {producer_unit_cover}
 ---
 
-## 今日要点
+## 简报概览
+
+{overview_content}
+
+---
+
+## 今日核心摘要
 
 {summary_content}
 
 ---
 
-## 近日要闻 TOP3
+## TOP3 重点情报
 
 {top3_content}
 
 ---
 
-## 本期增量速览（对比上期）
+## 增量变化
 
 {delta_content}
 
 ---
 
-## AI 领域动态
+## 分类情报详情
 
-{ai_dynamic_content}
-
----
-
-## 网络安全动态
-
-{cyber_dynamic_content}
+{category_intel_content}
 
 ---
 
-## 近日新增安全漏洞预警
+## 网络安全威胁区
 
-{cve_table_content}
-
----
-
-## 政策法规动态
-
-{policy_content}
+{cyber_threat_content}
 
 ---
 
-## 攻击事件深度分析
-
-{attack_analysis_content}
-
----
-
-## 防护建议与厂商方案
-
-{protection_content}
-
----
-
-## 趋势研判与防护建议
+## 热点趋势分析
 
 {insights_content}
 
 ---
 
-## 重要链接
+## 实体关系变化
 
-{links_content}
+{kg_changes_content}
+
+---
+
+## 风险提醒
+
+{risk_alert_content}
+
+---
+
+## 推荐关注
+
+{recommend_content}
 
 ---
 <!-- FOOTER -->
@@ -96,7 +90,7 @@ MARKDOWN_TEMPLATE = """
 """
 
 
-# ========== 邮件HTML模板（table布局，兼容Gmail/Outlook） ==========
+# ========== 邮件HTML模板（table布局，兼容Gmail/Outlook）10板块结构化） ==========
 EMAIL_HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
@@ -111,58 +105,58 @@ EMAIL_HTML_TEMPLATE = """
 <p style="color:#666;font-size:14px;margin:10px 0 0;">{generated_date}</p>
 <p style="color:#888;font-size:12px;margin:5px 0 0;">{org_name}{producer_unit_header}</p>
 </td></tr>
-<!-- TOP3 -->
-<tr><td style="padding:25px 30px;">
-<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">近日要闻 TOP3</h2>
+<!-- 简报概览 -->
+<tr><td style="padding:25px 30px 0;">
+<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">简报概览</h2>
+{overview_html}
+</td></tr>
+<!-- 今日核心摘要 -->
+<tr><td style="padding:15px 30px 0;">
+<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">今日核心摘要</h2>
+{summary_html}
+</td></tr>
+<!-- TOP3 重点情报 -->
+<tr><td style="padding:15px 30px 0;">
+<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">TOP3 重点情报</h2>
 {top3_html}
 </td></tr>
-<!-- 本期增量速览 -->
-<tr><td style="padding:0 30px 25px;">
-<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">本期增量速览（对比上期）</h2>
+<!-- 增量变化 -->
+<tr><td style="padding:15px 30px 0;">
+<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">增量变化</h2>
 {delta_html}
 </td></tr>
-<!-- AI 领域动态 -->
-<tr><td style="padding:0 30px 25px;">
-<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">AI 领域动态</h2>
-{ai_dynamic_html}
+<!-- 分类情报详情 -->
+<tr><td style="padding:15px 30px 0;">
+<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">分类情报详情</h2>
+{category_intel_html}
 </td></tr>
-<!-- 网络安全动态 -->
-<tr><td style="padding:0 30px 25px;">
-<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">网络安全动态</h2>
-{cyber_dynamic_html}
+<!-- 网络安全威胁区 -->
+<tr><td style="padding:15px 30px 0;">
+<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">网络安全威胁区</h2>
+{cyber_threat_html}
 </td></tr>
-<!-- 近日新增安全漏洞预警 -->
-<tr><td style="padding:0 30px 25px;">
-<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">近日新增安全漏洞预警</h2>
-{cve_table_html}
-</td></tr>
-<!-- 政策法规动态 -->
-<tr><td style="padding:0 30px 25px;">
-<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">政策法规动态</h2>
-{policy_html}
-</td></tr>
-<!-- 攻击事件深度分析 -->
-<tr><td style="padding:0 30px 25px;">
-<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">攻击事件深度分析</h2>
-{attack_analysis_html}
-</td></tr>
-<!-- 防护建议与厂商方案 -->
-<tr><td style="padding:0 30px 25px;">
-<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">防护建议与厂商方案</h2>
-{protection_html}
-</td></tr>
-<!-- 趋势研判与防护建议 -->
-<tr><td style="padding:0 30px 25px;">
-<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">趋势研判与防护建议</h2>
+<!-- 热点趋势分析 -->
+<tr><td style="padding:15px 30px 0;">
+<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">热点趋势分析</h2>
 {insights_html}
 </td></tr>
-<!-- 重要链接 -->
-<tr><td style="padding:0 30px 25px;">
-<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">重要链接</h2>
-{links_html}
+<!-- 实体关系变化 -->
+<tr><td style="padding:15px 30px 0;">
+<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">实体关系变化</h2>
+{kg_changes_html}
+</td></tr>
+<!-- 风险提醒 -->
+<tr><td style="padding:15px 30px 0;">
+<h2 style="color:#D32F2F;border-left:4px solid #D32F2F;padding-left:10px;font-size:18px;margin:0 0 15px;">⚠ 风险提醒</h2>
+{risk_alert_html}
+</td></tr>
+<!-- 推荐关注 -->
+<tr><td style="padding:15px 30px 0;">
+<h2 style="color:#1F4E88;border-left:4px solid #1F4E88;padding-left:10px;font-size:18px;margin:0 0 15px;">推荐关注</h2>
+{recommend_html}
 </td></tr>
 <!-- Footer -->
-<tr><td style="padding:20px 30px;border-top:1px solid #ddd;text-align:center;color:#888;font-size:12px;">
+<tr><td style="padding:20px 30px;border-top:1px solid #ddd;text-align:center;color:#888;font-size:12px;margin-top:15px;">
 <p style="margin:5px 0;">— 简报结束 —</p>
 <p style="margin:5px 0;">{disclaimer}</p>
 {footer_qr_html}
@@ -328,18 +322,17 @@ def render_markdown_briefing(
     organization: dict,
     top3_content: str,
     summary_content: str = "",
+    overview_content: str = "",
     delta_content: str = "",
-    ai_dynamic_content: str = "",
-    cyber_dynamic_content: str = "",
-    cve_table_content: str = "",
-    policy_content: str = "",
-    attack_analysis_content: str = "",
-    protection_content: str = "",
+    category_intel_content: str = "",
+    cyber_threat_content: str = "",
     insights_content: str = "",
-    links_content: str = ""
+    kg_changes_content: str = "",
+    risk_alert_content: str = "",
+    recommend_content: str = ""
 ) -> str:
     """
-    渲染Markdown格式的简报
+    渲染Markdown格式的简报（10板块结构化）
 
     Args:
         generated_date: 中文星期日期
@@ -366,17 +359,16 @@ def render_markdown_briefing(
         generated_date=generated_date,
         org_name=org_name,
         producer_unit_cover=producer_unit_cover,
+        overview_content=overview_content,
         summary_content=summary_content,
         top3_content=top3_content,
         delta_content=delta_content,
-        ai_dynamic_content=ai_dynamic_content,
-        cyber_dynamic_content=cyber_dynamic_content,
-        cve_table_content=cve_table_content,
-        policy_content=policy_content,
-        attack_analysis_content=attack_analysis_content,
-        protection_content=protection_content,
+        category_intel_content=category_intel_content,
+        cyber_threat_content=cyber_threat_content,
         insights_content=insights_content,
-        links_content=links_content,
+        kg_changes_content=kg_changes_content,
+        risk_alert_content=risk_alert_content,
+        recommend_content=recommend_content,
         disclaimer=disclaimer,
         footer_qr_block=footer_qr_block,
         org_name_footer=org_name,
@@ -390,19 +382,19 @@ def render_markdown_briefing(
 def render_email_html(
     generated_date: str,
     organization: dict,
-    top3_html: str,
+    top3_html: str = "",
+    overview_html: str = "",
+    summary_html: str = "",
     delta_html: str = "",
-    ai_dynamic_html: str = "",
-    cyber_dynamic_html: str = "",
-    cve_table_html: str = "",
-    policy_html: str = "",
-    attack_analysis_html: str = "",
-    protection_html: str = "",
+    category_intel_html: str = "",
+    cyber_threat_html: str = "",
     insights_html: str = "",
-    links_html: str = ""
+    kg_changes_html: str = "",
+    risk_alert_html: str = "",
+    recommend_html: str = ""
 ) -> str:
     """
-    渲染HTML格式的邮件简报
+    渲染HTML格式的邮件简报（10板块结构化）
 
     Args:
         generated_date: 中文星期日期
@@ -426,16 +418,16 @@ def render_email_html(
         generated_date=generated_date,
         org_name=org_name,
         producer_unit_header=producer_unit_header,
+        overview_html=overview_html,
+        summary_html=summary_html,
         top3_html=top3_html,
         delta_html=delta_html,
-        ai_dynamic_html=ai_dynamic_html,
-        cyber_dynamic_html=cyber_dynamic_html,
-        cve_table_html=cve_table_html,
-        policy_html=policy_html,
-        attack_analysis_html=attack_analysis_html,
-        protection_html=protection_html,
+        category_intel_html=category_intel_html,
+        cyber_threat_html=cyber_threat_html,
         insights_html=insights_html,
-        links_html=links_html,
+        kg_changes_html=kg_changes_html,
+        risk_alert_html=risk_alert_html,
+        recommend_html=recommend_html,
         disclaimer=html.escape(disclaimer),
         footer_qr_html=footer_qr_html,
         producer_unit_footer_html=producer_unit_footer_html,
@@ -444,30 +436,26 @@ def render_email_html(
 
 
 SECTION_MAP = {
-    "近日要闻 TOP3": "top3_html",
-    "本期增量速览（对比上期）": "delta_html",
-    "AI 领域动态": "ai_dynamic_html",
-    "网络安全动态": "cyber_dynamic_html",
-    "近日新增安全漏洞预警": "cve_table_html",
-    "政策法规动态": "policy_html",
-    "攻击事件深度分析": "attack_analysis_html",
-    "防护建议与厂商方案": "protection_html",
-    "趋势研判与防护建议": "insights_html",
-    "重要链接": "links_html",
+    "TOP3 重点情报": "top3_html",
+    "增量变化": "delta_html",
+    "分类情报详情": "category_intel_html",
+    "网络安全威胁区": "cyber_threat_html",
+    "热点趋势分析": "insights_html",
+    "实体关系变化": "kg_changes_html",
+    "风险提醒": "risk_alert_html",
+    "推荐关注": "recommend_html",
 }
 
 # 关键词模糊匹配映射（用于标题不完全一致时的回退匹配）
 SECTION_KEYWORDS = {
-    "top3_html": ["要闻", "TOP3", "Top3", "top3"],
-    "delta_html": ["增量", "速览", "对比上期"],
-    "ai_dynamic_html": ["AI", "人工智能", "领域动态"],
-    "cyber_dynamic_html": ["网络安全", "安全动态", "漏洞", "攻击"],
-    "cve_table_html": ["CVE", "漏洞预警", "安全漏洞"],
-    "policy_html": ["政策", "法规", "合规"],
-    "attack_analysis_html": ["攻击事件", "深度分析", "攻击链"],
-    "protection_html": ["防护建议", "厂商方案", "防护"],
-    "insights_html": ["趋势研判", "趋势", "研判"],
-    "links_html": ["重要链接", "链接", "参考"],
+    "top3_html": ["要闻", "TOP3", "Top3", "top3", "重点情报"],
+    "delta_html": ["增量", "变化", "对比上期"],
+    "category_intel_html": ["分类情报", "领域动态", "AI 领域", "政策法规"],
+    "cyber_threat_html": ["威胁区", "Threat", "CVE", "漏洞预警", "安全漏洞"],
+    "insights_html": ["趋势", "研判", "热点趋势"],
+    "kg_changes_html": ["实体关系", "知识图谱", "关系变化"],
+    "risk_alert_html": ["风险提醒", "风险警告", "高风险"],
+    "recommend_html": ["推荐关注", "推荐 Topic", "新增 Topic"],
 }
 
 
@@ -612,6 +600,40 @@ BRIEFING_STANDALONE_HTML = """<!DOCTYPE html>
             margin-bottom: 16px;
         }}
 
+        .section.risk-alert {{
+            border-left: 4px solid #D32F2F;
+        }}
+
+        .section.risk-alert h2 {{
+            color: #D32F2F;
+            border-left-color: #D32F2F;
+        }}
+
+        .overview-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin: 12px 0;
+        }}
+
+        .overview-item {{
+            background: #f0f4fa;
+            border-radius: 6px;
+            padding: 12px;
+            text-align: center;
+        }}
+
+        .overview-item .label {{
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }}
+
+        .overview-item .value {{
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: var(--accent);
+        }}
+
         .section h3 {{
             font-size: 1.1rem;
             color: #495057;
@@ -648,53 +670,53 @@ BRIEFING_STANDALONE_HTML = """<!DOCTYPE html>
         </div>
 
         <div class="section">
-            <h2>近日要闻 TOP3</h2>
+            <h2>简报概览</h2>
+            {overview_content}
+        </div>
+
+        <div class="section">
+            <h2>今日核心摘要</h2>
+            {summary_content}
+        </div>
+
+        <div class="section">
+            <h2>TOP3 重点情报</h2>
             {top3_content}
         </div>
 
         <div class="section">
-            <h2>本期增量速览（对比上期）</h2>
+            <h2>增量变化</h2>
             {delta_content}
         </div>
 
         <div class="section">
-            <h2>AI 领域动态</h2>
-            {ai_dynamic_content}
+            <h2>分类情报详情</h2>
+            {category_intel_content}
         </div>
 
         <div class="section">
-            <h2>网络安全动态</h2>
-            {cyber_dynamic_content}
+            <h2>网络安全威胁区</h2>
+            {cyber_threat_content}
         </div>
 
         <div class="section">
-            <h2>近日新增安全漏洞预警</h2>
-            {cve_table_content}
-        </div>
-
-        <div class="section">
-            <h2>政策法规动态</h2>
-            {policy_content}
-        </div>
-
-        <div class="section">
-            <h2>攻击事件深度分析</h2>
-            {attack_analysis_content}
-        </div>
-
-        <div class="section">
-            <h2>防护建议与厂商方案</h2>
-            {protection_content}
-        </div>
-
-        <div class="section">
-            <h2>趋势研判与防护建议</h2>
+            <h2>热点趋势分析</h2>
             {insights_content}
         </div>
 
         <div class="section">
-            <h2>重要链接</h2>
-            {links_content}
+            <h2>实体关系变化</h2>
+            {kg_changes_content}
+        </div>
+
+        <div class="section risk-alert">
+            <h2>⚠ 风险提醒</h2>
+            {risk_alert_content}
+        </div>
+
+        <div class="section">
+            <h2>推荐关注</h2>
+            {recommend_content}
         </div>
 
         <div class="footer">
@@ -713,18 +735,18 @@ BRIEFING_STANDALONE_HTML = """<!DOCTYPE html>
 def render_standalone_html(
     generated_date: str,
     organization: dict,
-    top3_content: str,
+    top3_content: str = "",
+    overview_content: str = "",
+    summary_content: str = "",
     delta_content: str = "",
-    ai_dynamic_content: str = "",
-    cyber_dynamic_content: str = "",
-    cve_table_content: str = "",
-    policy_content: str = "",
-    attack_analysis_content: str = "",
-    protection_content: str = "",
+    category_intel_content: str = "",
+    cyber_threat_content: str = "",
     insights_content: str = "",
-    links_content: str = ""
+    kg_changes_content: str = "",
+    risk_alert_content: str = "",
+    recommend_content: str = ""
 ) -> str:
-    """渲染简报独立HTML（浏览器/PDF用）"""
+    """渲染简报独立HTML（浏览器/PDF用）——10板块结构化"""
     org_name = organization.get("name", "")
     producer_unit = organization.get("producer_unit", "")
     contact = organization.get("contact", "")
@@ -742,16 +764,16 @@ def render_standalone_html(
         generated_date=generated_date,
         org_name=org_name,
         producer_unit_header=producer_unit_header,
+        overview_content=overview_content,
+        summary_content=summary_content,
         top3_content=top3_content,
         delta_content=delta_content,
-        ai_dynamic_content=ai_dynamic_content,
-        cyber_dynamic_content=cyber_dynamic_content,
-        cve_table_content=cve_table_content,
-        policy_content=policy_content,
-        attack_analysis_content=attack_analysis_content,
-        protection_content=protection_content,
+        category_intel_content=category_intel_content,
+        cyber_threat_content=cyber_threat_content,
         insights_content=insights_content,
-        links_content=links_content,
+        kg_changes_content=kg_changes_content,
+        risk_alert_content=risk_alert_content,
+        recommend_content=recommend_content,
         disclaimer=html.escape(disclaimer),
         footer_qr_html=footer_qr_html,
         producer_unit_footer_html=producer_unit_footer_html,

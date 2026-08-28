@@ -64,11 +64,17 @@ def test_summary_no_false_domestic_policy_claim(analyzer):
     assert "国内AI/网络安全政策动态" not in summary
 
 
-def test_summary_claims_domestic_policy_only_when_items_exist(analyzer):
-    policy_full = "### 国内政策\n• [新规] 某办法发布（来源：X / 2026-08-01）"
-    contents = {"top3": "", "cve_table": "", "insights": "", "policy": policy_full}
-    summary = analyzer._generate_summary(contents, {"cyber_vuln": [{"title": "t"}]})
-    assert "国内AI/网络安全政策动态" in summary
+def test_summary_includes_star_distribution(analyzer):
+    """新版今日核心摘要必须包含星级分布统计。"""
+    summary = analyzer._generate_summary(
+        {"top3": "", "cyber_threat": "", "insights": ""},
+        {"cyber_vuln": [{"title": "t1", "credibility_score": 0.9}],
+         "ai_gov_usage": [{"title": "t2", "credibility_score": 0.3}]}
+    )
+    assert "今日共发现" in summary
+    assert "★★★★★" in summary
+    assert "★★★★" in summary
+    assert "★★★" in summary
 
 
 # ---- 冲突提示去重 ----
