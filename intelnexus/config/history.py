@@ -24,8 +24,17 @@ class SearchHistory:
         self.storage_dir.mkdir(exist_ok=True)
         self.reports_dir.mkdir(exist_ok=True)
     
-    def add_search(self, query: str, mode: str, results_count: int, model: str) -> Dict:
-        """Add a new search to history."""
+    def add_search(self, query: str, mode: str, results_count: int, model: str,
+                   selected_url: str = "") -> Dict:
+        """Add a new search to history.
+
+        Args:
+            query: 搜索查询
+            mode: 搜索模式
+            results_count: 结果数量
+            model: 使用的模型
+            selected_url: 用户选择的结果 URL（可选）
+        """
         entry = {
             "id": self._generate_id(),
             "query": query,
@@ -33,7 +42,8 @@ class SearchHistory:
             "results_count": results_count,
             "model": model,
             "timestamp": datetime.now().isoformat(),
-            "status": "completed"
+            "status": "completed",
+            "selected_url": selected_url,  # 新增：用户点击的结果 URL
         }
         
         history = self.get_history()
