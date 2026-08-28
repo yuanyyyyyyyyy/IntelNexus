@@ -54,6 +54,12 @@ def _extract_llm_section(llm_output: str, key: str) -> str:
     if not pattern or not llm_output:
         return ""
     m = pattern.search(llm_output)
+    if m:
+        logger.debug(f"[_extract_llm_section] 成功提取 '{key}': {len(m.group(1))} chars")
+    else:
+        # 调试：输出前 200 chars 查看实际格式
+        preview = llm_output[:200].replace('\n', '\\n')
+        logger.warning(f"[_extract_llm_section] 未匹配 '{key}'，LLM 输出预览: {preview}")
     return m.group(1).strip() if m else ""
 
 
