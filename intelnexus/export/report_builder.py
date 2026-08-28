@@ -129,10 +129,11 @@ def build_executive_summary(llm_sections: Dict[str, str]) -> str:
     return content.strip()
 
 
-def build_event_profile(results: List[dict], llm_sections: Dict[str, str]) -> str:
+def build_event_profile(results: List[dict], llm_sections: Dict[str, str], query: str = "") -> str:
     """板块 03：事件画像（程序化 + LLM 辅助）。
 
     从搜索结果中提取事件基本信息，形成事件卡片。
+    只统计与查询主题相关的结果（标题或摘要包含查询关键词）。
     """
     lines = ["## 三、事件画像", ""]
 
@@ -140,12 +141,29 @@ def build_event_profile(results: List[dict], llm_sections: Dict[str, str]) -> st
         lines.append("> 无有效数据生成事件画像")
         return "\n".join(lines)
 
-    # 提取时间范围
+    # 过滤相关结果（标题或摘要包含查询关键词）
+    if query:
+        query_lower = query.lower()
+        query_keywords = set(query_lower.split())
+        relevant_results = []
+        for r in results:
+            title = r.get("title", "").lower()
+            snippet = r.get("snippet", "").lower()
+            # 至少有一个关键词匹配
+            if any(kw in title or kw in snippet for kw in query_keywords if len(kw) >= 2):
+                relevant_results.append(r)
+        # 如果没有匹配结果，使用全部结果（避免空数据）
+        if relevant_results:
+            results = relevant_results
+
+    # 提取时间范围（只取标准日期格式 YYYY-MM-DD）
     dates = []
     for r in results:
         pub = r.get("published_at", "")
         if pub:
-            dates.append(pub[:10] if len(pub) >= 10 else pub)
+            # 只接受 YYYY-MM-DD 格式（长度 >= 10 且以数字开头）
+            if len(pub) >= 10 and pub[0:4].isdigit():
+                dates.append(pub[:10])
 
     if dates:
         dates.sort()
@@ -406,11 +424,19 @@ def build_evidence_chain(results: List[dict],
         if credibility_data.get("scores"):
             lines.append("### 来源证据详情")
             lines.append("")
-            scores = sorted(credibility_data["scores"], key=lambda x: -x.get("score", 0))[:10]
-            for s in scores:
+            # 按来源聚合评分（同一来源取最高分）
+            source_scores = {}
+            for s in credibility_data["scores"]:
                 name = s.get("name", "Unknown")
                 score = s.get("score", 0.5)
                 reason = s.get("reason", "")
+                if name not in source_scores or score > source_scores[name]["score"]:
+                    source_scores[name] = {"score": score, "reason": reason}
+            
+            sorted_sources = sorted(source_scores.items(), key=lambda x: -x[1]["score"])[:10]
+            for name, data in sorted_sources:
+                score = data["score"]
+                reason = data["reason"]
                 strength = "★" * int(score * 5) + "☆" * (5 - int(score * 5))
                 lines.append(f"- **{name}**：{strength} ({score:.0%}) — {reason}")
             lines.append("")
@@ -485,6 +511,47 @@ def build_entity_graph(kg_entities: List[dict],
     return "\n".join(lines)
 
 
+def _normalize_date(date_str: str) -> str:
+    """将各种日期格式标准化为 YYYY-MM-DD。
+    
+    支持的格式：
+    - 2026-08-20T00:17:57Z (ISO)
+    - 2026-08-20 (标准)
+    - Fri, 28 Aug 2026 (RFC 2822)
+    - Wed, 26 Au (截断格式，尝试解析)
+    
+    返回标准化日期字符串，无法解析则返回原字符串。
+    """
+    if not date_str:
+        return date_str
+    
+    # 已经是标准格式
+    if len(date_str) >= 10 and date_str[0:4].isdigit() and date_str[4] == '-':
+        return date_str[:10]
+    
+    # 尝试解析常见格式
+    from datetime import datetime
+    date_formats = [
+        "%Y-%m-%dT%H:%M:%SZ",      # ISO 8601
+        "%Y-%m-%d",                   # 标准
+        "%a, %d %b %Y",              # RFC 2822
+        "%a, %d %b",                  # 截断格式（无年份）
+    ]
+    
+    for fmt in date_formats:
+        try:
+            parsed = datetime.strptime(date_str.strip(), fmt)
+            # 如果是截断格式（无年份），假设是当前年份
+            if parsed.year == 1900:
+                parsed = parsed.replace(year=2026)
+            return parsed.strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    
+    # 无法解析，返回原字符串
+    return date_str
+
+
 def build_event_evolution(results: List[dict],
                           llm_sections: Dict[str, str] = None) -> str:
     """板块 08：事件演化时间线（程序化 + 可选 AI 总结）。"""
@@ -494,16 +561,19 @@ def build_event_evolution(results: List[dict],
         lines.append("> 无有效时间数据")
         return "\n".join(lines)
 
+    # 标准化日期后收集
     dated_items = []
     for r in results:
         pub = r.get("published_at", "")
         if pub:
-            dated_items.append((pub, r.get("title", "无标题"), r.get("source", "")))
+            normalized = _normalize_date(pub)
+            dated_items.append((normalized, r.get("title", "无标题"), r.get("source", "")))
 
     if not dated_items:
         lines.append("> 搜索结果中未检测到有效日期信息")
         return "\n".join(lines)
 
+    # 按标准化日期排序
     dated_items.sort(key=lambda x: x[0])
 
     by_date = OrderedDict()
@@ -786,7 +856,7 @@ def build_intelligence_report(
         "---",
         "",
         # 程序化板块
-        build_event_profile(results, llm_sections),
+        build_event_profile(results, llm_sections, query),
         "",
         "---",
         "",
