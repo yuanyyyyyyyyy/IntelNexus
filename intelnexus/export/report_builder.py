@@ -636,12 +636,22 @@ def build_event_evolution(results: List[dict],
     # 标准化日期后收集（只保留可解析的日期）
     dated_items = []
     for r in results:
+        title = r.get("title", "无标题")
+        source = r.get("source", "")
+        
+        # 过滤 SEO 垃圾站点（Mshale 等带有随机标签的条目）
+        if re.search(r'\([A-Za-z0-9]{8,}\)', title):
+            continue
+        # 过滤已知垃圾源
+        if source.lower() in ('mshale', ):
+            continue
+        
         pub = r.get("published_at", "")
         if pub:
             normalized = _normalize_date(pub)
             # 只保留成功解析的日期（YYYY-MM-DD 格式）
             if normalized and len(normalized) == 10 and normalized[0:4].isdigit():
-                dated_items.append((normalized, r.get("title", "无标题"), r.get("source", "")))
+                dated_items.append((normalized, title, source))
 
     if not dated_items:
         lines.append("> 搜索结果中未检测到有效日期信息")

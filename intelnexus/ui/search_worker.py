@@ -430,13 +430,22 @@ def run_search_computation(
         scores = [r.get("credibility_score", 0.5) for r in results_list if r.get("credibility_score")]
         avg_score = sum(scores) / len(scores) if scores else 0.5
 
-        # 从 LLM 输出推断身份状态
+        # 从 LLM 输出推断身份状态（LLM 空白时回退到搜索结果标题/摘要）
         llm_out = result.get("llm_raw_output", "").lower()
-        if any(kw in llm_out for kw in ("确认", "confirmed", "证实", "z.ai", "zai")):
+        # 如果 LLM 输出太短，也从搜索结果中查找线索
+        search_text = llm_out
+        if len(search_text) < 200:
+            titles_and_snippets = []
+            for r in results_list:
+                titles_and_snippets.append(r.get("title", ""))
+                titles_and_snippets.append(r.get("snippet", ""))
+            search_text += " ".join(titles_and_snippets).lower()
+        
+        if any(kw in search_text for kw in ("确认", "confirmed", "证实", "z.ai", "zai", "智谱", "glm")):
             identity_status = "confirmed"
-        elif any(kw in llm_out for kw in ("疑似", "suspected", "可能", "推测")):
+        elif any(kw in search_text for kw in ("疑似", "suspected", "可能", "推测")):
             identity_status = "suspected"
-        elif any(kw in llm_out for kw in ("争议", "disputed", "质疑")):
+        elif any(kw in search_text for kw in ("争议", "disputed", "质疑")):
             identity_status = "disputed"
         else:
             identity_status = "unknown"
