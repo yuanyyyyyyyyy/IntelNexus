@@ -647,6 +647,13 @@ def generate_summary(llm, query, content, search_mode="all",
                      credibility_context="", kg_context="", conflicts_context="", kb_context=""):
     """生成情报报告，根据搜索模式调整分析重点"""
 
+    logger.info(f"[generate_summary] 开始生成报告: query='{query[:50]}...', mode={search_mode}, llm={type(llm).__name__}")
+    
+    # 检查 LLM 实例是否有效
+    if llm is None:
+        logger.error("[generate_summary] LLM 实例为 None，无法生成报告")
+        return ""
+    
     logger.debug(f"Content type: {type(content)}")
     if isinstance(content, dict):
         logger.debug(f"Content keys count: {len(content)}")
