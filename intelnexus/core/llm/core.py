@@ -152,13 +152,62 @@ _SECURITY_HINTS = (
     "网络攻击", "安全事件", "威胁情报", "后门", "挂马", "webshell",
 )
 
+# 否定词列表：用于过滤误判（如"没有漏洞"、"防范攻击"）
+_NEGATION_WORDS = (
+    "没有", "无", "非", "不", "未", "避免", "防范", "防止", "预防", "抵御",
+    "no", "not", "without", "prevent", "avoid", "protect",
+)
+
+# 白名单：明确的非安全场景（即使包含安全关键词）
+_GENERAL_WHITELIST = (
+    "营销", "策略", "案例", "研究", "分析", "报告", "教程", "指南",
+    "marketing", "strategy", "case study", "tutorial", "guide",
+)
+
 
 def classify_query_topic(query: str) -> str:
-    """返回 'security' 或 'general'。规则匹配，零 LLM 开销。"""
+    """返回 'security' 或 'general'。规则匹配，零 LLM 开销。
+    
+    判断逻辑：
+    1. 否定词过滤：如果包含否定词 + 安全关键词，判定为 general
+       （如"没有漏洞"、"防范攻击"属于安全教育/讨论，不是安全事件）
+    2. 白名单过滤：如果包含明确的非安全场景词，判定为 general
+       （如"营销策略"、"案例研究"即使包含"攻击"也不是安全话题）
+    3. 多关键词阈值：至少 2 个安全关键词才判定为 security
+       （避免单关键词误判，如"攻击性营销"）
+    4. 单关键词 + 极短查询：如果是极短查询（<=10字符），更可能是安全相关
+    """
     if not query:
         return "general"
+    
     q = query.lower()
-    return "security" if any(h in q for h in _SECURITY_HINTS) else "general"
+    
+    # 1. 否定词过滤
+    has_negation = any(neg in q for neg in _NEGATION_WORDS)
+    
+    # 2. 白名单过滤
+    has_whitelist = any(wl in q for wl in _GENERAL_WHITELIST)
+    
+    # 3. 统计安全关键词数量
+    match_count = sum(1 for h in _SECURITY_HINTS if h in q)
+    
+    # 4. 综合判断
+    if has_negation or has_whitelist:
+        # 有否定词或白名单词，判定为 general
+        return "general"
+    elif match_count >= 2:
+        # 至少 2 个安全关键词，判定为 security
+        return "security"
+    elif match_count == 1:
+        # 单个关键词时，检查查询长度
+        # 极短查询（<=10字符）更可能是安全相关，长查询更可能是综合讨论
+        if len(q) <= 10:
+            return "security"
+        else:
+            return "general"
+    else:
+        # 无安全关键词
+        return "general"
 
 
 _ADAPTIVE_DIMENSIONS = """
