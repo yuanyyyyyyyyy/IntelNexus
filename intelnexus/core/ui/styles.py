@@ -423,13 +423,17 @@ def render_hermes_theme_css():
         background: var(--bg-card);
         border: 1px solid var(--border-light);
         border-radius: var(--radius-md);
-        padding: 10px 16px;
         margin-bottom: 8px;
         transition: all 0.2s ease;
+        overflow: hidden;
     }
     [class*="st-key-sh_entry_"]:hover {
         border-color: var(--text-tertiary);
         box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    /* 容器内列布局：添加内边距让内容不贴边 */
+    [class*="st-key-sh_entry_"] > div > div[data-testid="column"] {
+        padding: 10px 16px;
     }
     /* 搜索历史面板内按钮：紧凑小按钮 */
     [class*="st-key-sh_entry_"] .stButton > button {
