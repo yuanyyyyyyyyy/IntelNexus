@@ -83,6 +83,14 @@ os.environ.setdefault("LANGCHAIN_OPENAI_TCP_KEEPALIVE", "0")
 logging.getLogger("langchain").setLevel(logging.ERROR)
 logging.getLogger("langchain_openai").setLevel(logging.ERROR)
 logging.getLogger("langchain_core").setLevel(logging.ERROR)
+# 抑制 briefing scheduler 的 LLM 不可用警告（对小白用户无意义）
+logging.getLogger("intelnexus.briefing.scheduler").setLevel(logging.ERROR)
+logging.getLogger("intelnexus.briefing.scheduler_registry").setLevel(logging.ERROR)
+# 抑制 Streamlit 内部配置警告（如 [server] config update 提示）
+logging.getLogger("streamlit.config").setLevel(logging.ERROR)
+# 抑制 uvicorn 的 INFO 级别启动日志（我们已有自定义启动提示）
+logging.getLogger("uvicorn").setLevel(logging.WARNING)
+logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
 
 # Ensure root project dir resolves first so root-level config.py and the
 # intelnexus/ package are importable. The single-package layout removes the
@@ -417,38 +425,42 @@ def _start_ai_scheduler():
         pass
 
 
-def _auto_open_browser(port: int, delay: float = 2.0) -> None:
+def _auto_open_browser(port: int, delay: float = 3.0) -> None:
     """后台线程：等待 Streamlit 服务器就绪后自动打开浏览器。
 
     对非技术用户最关键的一步——双击 EXE 后浏览器自动弹出，
-    无需手动输入地址。轮询 localhost 直到收到 HTTP 200 响应
-    且响应体包含 Streamlit 标记，超时 30 秒放弃。
+    无需手动输入地址。先轮询 /_stcore/health 确认服务器进程存活，
+    再额外等待确保 app 完全初始化，最后打开浏览器到根路径。
+    超时 30 秒放弃。
     """
     import time
     import urllib.request
     import urllib.error
-    url = f"http://localhost:{port}/"
+    health_url = f"http://localhost:{port}/_stcore/health"
+    app_url = f"http://localhost:{port}/"
     deadline = time.monotonic() + 30
     time.sleep(delay)  # 给 Streamlit 足够启动时间
+    
+    # 阶段 1：等待健康检查端点响应（确认服务器进程存活）
     while time.monotonic() < deadline:
         try:
-            resp = urllib.request.urlopen(url, timeout=3)
+            req = urllib.request.Request(health_url)
+            resp = urllib.request.urlopen(req, timeout=2)
             if resp.status == 200:
-                body = resp.read(4096).decode("utf-8", errors="ignore")
-                # Streamlit 就绪标志：页面包含 __stNext 或 streamlit 相关标记
-                if "streamlit" in body.lower() or resp.status == 200:
-                    # 额外等 0.5 秒确保 WebSocket 通道也建好
-                    time.sleep(0.5)
-                    webbrowser.open(url)
-                    return
-        except urllib.error.HTTPError as e:
-            # 收到 HTTP 错误码（如 404），说明服务器在跑但 app 未就绪
-            if e.code == 404:
-                pass  # 继续等待
-            else:
-                time.sleep(0.5)
+                body = resp.read(512).decode("utf-8", errors="ignore")
+                if '"status"' in body or 'ok' in body.lower():
+                    break  # 服务器存活，进入阶段 2
         except Exception:
-            time.sleep(0.5)
+            pass
+        time.sleep(0.5)
+    else:
+        return  # 超时，放弃
+    
+    # 阶段 2：额外等待 2 秒确保 app 完全初始化（UI 脚本加载、组件注册等）
+    time.sleep(2.0)
+    
+    # 阶段 3：打开浏览器
+    webbrowser.open(app_url)
 
 
 @intelnexus.command()
