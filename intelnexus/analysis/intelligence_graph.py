@@ -70,6 +70,10 @@ _ENTITY_BLACKLIST = frozenset({
     '首页', '返回', '下一页', '上一页', '页面', '登录', '退出',
     '搜索', '提交', '取消', '确定', '是', '否', '点击', '按钮',
     '链接', '表单', '输入', '选择', '选项',
+    # 通用概念词（不是具体实体）
+    'clear', 'model', 'rating', 'terms', 'privacy', 'support',
+    'documentation', 'about', 'contact', 'blog', 'careers',
+    'elo rating', 'stealth model terms', 'zero data retention generous',
 })
 
 # 噪声实体正则模式：匹配纯数字、纯符号、过短文本等
@@ -79,6 +83,7 @@ _NOISE_PATTERNS = [
     re.compile(r'^[A-Z]$'),              # 单个大写字母
     re.compile(r'^\d{4}$'),              # 纯四位数字（年份误判）
     re.compile(r'^v\d+\.\d+', re.I),     # 版本号 v1.0, v2.3
+    re.compile(r'^[\w-]+/[\w-]+$'),       # URL 路径片段（如 stealth/ox-alpha）
 ]
 
 

@@ -518,12 +518,12 @@ def _normalize_date(date_str: str) -> str:
     - 2026-08-20T00:17:57Z (ISO)
     - 2026-08-20 (标准)
     - Fri, 28 Aug 2026 (RFC 2822)
-    - Wed, 26 Au (截断格式，尝试解析)
+    - Fri, 28 Au (截断格式，尝试解析)
     
-    返回标准化日期字符串，无法解析则返回原字符串。
+    返回标准化日期字符串，无法解析则返回空字符串。
     """
     if not date_str:
-        return date_str
+        return ""
     
     # 已经是标准格式
     if len(date_str) >= 10 and date_str[0:4].isdigit() and date_str[4] == '-':
@@ -548,12 +548,35 @@ def _normalize_date(date_str: str) -> str:
         except ValueError:
             continue
     
-    # 无法解析，返回原字符串
-    return date_str
+    # 尝试处理截断的月份名（如 "Au" → "Aug"）
+    import re
+    m = re.match(r'\w+,\s*(\d+)\s+(\w+)', date_str.strip())
+    if m:
+        day = m.group(1)
+        month_abbr = m.group(2)
+        # 尝试补全月份名（至少 3 字符）
+        month_map = {
+            'ja': 'Jan', 'fe': 'Feb', 'ma': 'Mar', 'ap': 'Apr',
+            'au': 'Aug', 'se': 'Sep', 'oc': 'Oct', 'no': 'Nov', 'de': 'Dec',
+        }
+        if len(month_abbr) < 3:
+            prefix = month_abbr.lower()[:2]
+            if prefix in month_map:
+                month_abbr = month_map[prefix]
+        # 尝试解析
+        try:
+            parsed = datetime.strptime(f"{day} {month_abbr} 2026", "%d %b %Y")
+            return parsed.strftime("%Y-%m-%d")
+        except ValueError:
+            pass
+    
+    # 无法解析，返回空字符串（而非原字符串，避免污染时间线）
+    return ""
 
 
 def build_event_evolution(results: List[dict],
-                          llm_sections: Dict[str, str] = None) -> str:
+                          llm_sections: Dict[str, str] = None,
+                          query: str = "") -> str:
     """板块 08：事件演化时间线（程序化 + 可选 AI 总结）。"""
     lines = ["## 八、事件演化", ""]
 
@@ -561,13 +584,28 @@ def build_event_evolution(results: List[dict],
         lines.append("> 无有效时间数据")
         return "\n".join(lines)
 
-    # 标准化日期后收集
+    # 过滤相关结果（标题或摘要包含查询关键词）
+    if query:
+        query_lower = query.lower()
+        query_keywords = set(query_lower.split())
+        filtered = []
+        for r in results:
+            title = r.get("title", "").lower()
+            snippet = r.get("snippet", "").lower()
+            if any(kw in title or kw in snippet for kw in query_keywords if len(kw) >= 2):
+                filtered.append(r)
+        if filtered:
+            results = filtered
+
+    # 标准化日期后收集（只保留可解析的日期）
     dated_items = []
     for r in results:
         pub = r.get("published_at", "")
         if pub:
             normalized = _normalize_date(pub)
-            dated_items.append((normalized, r.get("title", "无标题"), r.get("source", "")))
+            # 只保留成功解析的日期（YYYY-MM-DD 格式）
+            if normalized and len(normalized) == 10 and normalized[0:4].isdigit():
+                dated_items.append((normalized, r.get("title", "无标题"), r.get("source", "")))
 
     if not dated_items:
         lines.append("> 搜索结果中未检测到有效日期信息")
@@ -876,7 +914,7 @@ def build_intelligence_report(
         "",
         "---",
         "",
-        build_event_evolution(results, llm_sections),
+        build_event_evolution(results, llm_sections, query),
         "",
         "---",
         "",
