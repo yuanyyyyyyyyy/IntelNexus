@@ -12,6 +12,7 @@
 import streamlit as st
 
 from intelnexus.ui.i18n import get_text
+from intelnexus.ui.icons import icon
 
 
 @st.dialog("IntelNexus Help", width="large")
@@ -36,7 +37,7 @@ def _help_dialog():
         st.markdown(get_text("help_quick_step4"))
 
     with tab_search:
-        st.markdown(f"### {get_text('help_search_title')}")
+        st.markdown(f"### {icon('search', color='blue', size='sm')} {get_text('help_search_title')}", unsafe_allow_html=True)
         st.markdown(get_text("help_search_desc"))
         st.divider()
         st.markdown(get_text("help_search_modes"))
@@ -44,13 +45,13 @@ def _help_dialog():
         st.markdown(get_text("help_search_tips"))
 
     with tab_briefing:
-        st.markdown(f"### {get_text('help_briefing_title')}")
+        st.markdown(f"### {icon('briefing', color='blue', size='sm')} {get_text('help_briefing_title')}", unsafe_allow_html=True)
         st.markdown(get_text("help_briefing_desc"))
         st.divider()
         st.markdown(get_text("help_briefing_steps"))
 
     with tab_model:
-        st.markdown(f"### {get_text('help_model_title')}")
+        st.markdown(f"### {icon('ai_model', color='gray', size='sm')} {get_text('help_model_title')}", unsafe_allow_html=True)
         st.markdown(get_text("help_model_local"))
         st.divider()
         st.markdown(get_text("help_model_custom"))
@@ -98,7 +99,7 @@ def render_first_time_help_card():
         st.markdown(
             f'<div style="font-size:13px;color:var(--wb-text-secondary,#666);'
             f'margin-top:8px;">'
-            f'💡 {get_text("help_first_time_tag")}'
+            f'{icon("info", color="blue", size="sm")} {get_text("help_first_time_tag")}'
             f'</div>',
             unsafe_allow_html=True,
         )
@@ -119,7 +120,7 @@ def render_sidebar_help_button():
     常驻显示，任何页面都可点击打开帮助弹窗。
     """
     if st.button(
-        f"❓ {get_text('help_btn')}",
+        f"{icon('info', color='gray', size='sm')} {get_text('help_btn')}",
         key="sidebar_help_btn",
         use_container_width=True,
     ):

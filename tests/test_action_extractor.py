@@ -34,6 +34,6 @@ class TestActionExtractor:
         ]
         result = format_actions(actions)
         assert "行动项清单" in result
-        assert "🔴" in result
-        assert "🟢" in result
+        assert "in-icon--terracotta" in result  # high priority SVG icon
+        assert "in-icon--light" in result  # low priority SVG icon
         assert "修复漏洞" in result

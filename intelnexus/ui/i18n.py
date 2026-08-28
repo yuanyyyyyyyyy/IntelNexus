@@ -613,7 +613,7 @@ _BRIEFING_ZH = {
     "help_quick_step2": "**2. 搜索情报**\n\n首页输入关键词 → 选择搜索模式 → 点击搜索\n\n支持网页、新闻、暗网等多源同时检索，AI 自动分析并生成报告",
     "help_quick_step3": "**3. 生成简报**\n\n进入「简报中心」→ 选择关注点 → 点击生成\n\nAI 自动采集、分析并生成结构化情报简报",
     "help_quick_step4": "**4. 定时推送**（可选）\n\n简报中心 → 订阅管理 → 添加订阅者 → 设置推送时间\n\n支持邮件、企业微信、钉钉多渠道推送",
-    "help_search_title": "🔍 情报搜索",
+    "help_search_title": "情报搜索",
     "help_search_desc": "在搜索页输入关键词，选择搜索模式后点击搜索。系统会：\n\n"
         "- **多源检索**：同时搜索网页（Bing/DDG/Yahoo 等）、新闻、暗网\n"
         "- **语义排序**：AI 按相关性排序结果，过滤弱相关条目\n"
@@ -631,7 +631,7 @@ _BRIEFING_ZH = {
         "- 搜索完成后可一键导出 Markdown / PDF / Word / Excel\n"
         "- 点击「存入简报」可将搜索结果推送到简报草稿\n"
         "- 搜索关键词可一键固化为 Topic，驱动简报自动巡防",
-    "help_briefing_title": "📋 简报生成",
+    "help_briefing_title": "简报生成",
     "help_briefing_desc": "简报系统自动采集、分析并推送情报简报：\n\n"
         "- **自动采集**：从多个情报源收集最新信息\n"
         "- **AI 分析**：LLM 生成结构化简报（亮点 + 详情 + 趋势）\n"
@@ -644,7 +644,7 @@ _BRIEFING_ZH = {
         "4. 点击「生成简报」\n"
         "5. 等待生成完成（通常 1-3 分钟）\n"
         "6. 查看结果 / 推送 / 导出",
-    "help_model_title": "🤖 模型配置",
+    "help_model_title": "模型配置",
     "help_model_local": "**本地模型（推荐，免费）**\n\n"
         "1. 下载安装 [Ollama](https://ollama.com)\n"
         "2. 打开命令提示符，运行：`ollama pull qwen2.5:7b`\n"
@@ -1268,7 +1268,7 @@ _BRIEFING_EN = {
     "help_quick_step2": "**2. Search Intelligence**\n\nEnter keywords on the home page → Select search mode → Click search\n\nSupports multi-source search across web, news, and dark web with AI-powered analysis",
     "help_quick_step3": "**3. Generate Briefing**\n\nGo to 'Briefing Center' → Select categories → Click generate\n\nAI collects, analyzes, and generates structured intelligence briefings",
     "help_quick_step4": "**4. Scheduled Push** (optional)\n\nBriefing Center → Subscriber Management → Add subscriber → Set push time\n\nSupports email, WeCom, and DingTalk multi-channel push",
-    "help_search_title": "🔍 Intelligence Search",
+    "help_search_title": "Intelligence Search",
     "help_search_desc": "Enter keywords on the search page, select a search mode, and click search. The system will:\n\n"
         "- **Multi-source search**: Search web (Bing/DDG/Yahoo etc.), news, and dark web simultaneously\n"
         "- **Semantic ranking**: AI ranks results by relevance, filtering weak matches\n"
@@ -1286,7 +1286,7 @@ _BRIEFING_EN = {
         "- Export results to Markdown / PDF / Word / Excel with one click\n"
         "- Click 'Save to Briefing' to push search results to briefing drafts\n"
         "- Pin search keywords as a Topic to drive automated briefing patrols",
-    "help_briefing_title": "📋 Briefing Generation",
+    "help_briefing_title": "Briefing Generation",
     "help_briefing_desc": "The briefing system automatically collects, analyzes, and pushes intelligence briefings:\n\n"
         "- **Auto collection**: Gather latest information from multiple intelligence sources\n"
         "- **AI analysis**: LLM generates structured briefings (highlights + details + trends)\n"
@@ -1299,7 +1299,7 @@ _BRIEFING_EN = {
         "4. Click 'Generate Briefing'\n"
         "5. Wait for completion (usually 1-3 minutes)\n"
         "6. View results / Push / Export",
-    "help_model_title": "🤖 Model Configuration",
+    "help_model_title": "Model Configuration",
     "help_model_local": "**Local Model (recommended, free)**\n\n"
         "1. Download and install [Ollama](https://ollama.com)\n"
         "2. Open command prompt, run: `ollama pull qwen2.5:7b`\n"

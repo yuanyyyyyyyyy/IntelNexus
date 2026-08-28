@@ -18,6 +18,7 @@ from intelnexus.briefing.templates import (
     format_news_item
 )
 from intelnexus.core.logger import get_logger
+from intelnexus.ui.icons import icon
 
 logger = get_logger(__name__)
 
@@ -904,7 +905,7 @@ class AIBriefingAnalyzer:
 
             # 利用状态
             in_kev = data.get("in_kev", False)
-            exploit_status = "🔴 在野利用" if in_kev else "暂无在野利用"
+            exploit_status = f"{icon('high', color='terracotta', size='sm')} 在野利用" if in_kev else "暂无在野利用"
 
             # 建议措施（根据漏洞类型和利用状态差异化）
             if in_kev:
@@ -1530,7 +1531,7 @@ class AIBriefingAnalyzer:
         if cyber_threat:
             kev_cves = re.findall(r'(CVE-\d{4}-\d+).*?在野利用', cyber_threat)
             for c in kev_cves[:2]:
-                lines.append(f"- ⚠️ {c}：已发现在野利用，需立即处置")
+                lines.append(f"- {icon('warning', color='warning', size='sm')} {c}：已发现在野利用，需立即处置")
 
         # 从趋势研判提取核心观点
         insights = contents.get("insights", "")
@@ -1538,7 +1539,7 @@ class AIBriefingAnalyzer:
             insight_titles = re.findall(r'\*\*(.+?)\*\*', insights)
             for t in insight_titles[:2]:
                 if t and len(t) > 5:
-                    lines.append(f"- 📊 {t}")
+                    lines.append(f"- {icon('chart', color='blue', size='sm')} {t}")
 
         if len(lines) <= 7:
             lines.append("本日暂无特别需要关注的要点。")
@@ -1727,11 +1728,11 @@ class AIBriefingAnalyzer:
 
         # 风险等级判定
         if high_risk_count >= 3:
-            risk_level = "🔴 高"
+            risk_level = f"{icon('high', color='terracotta', size='sm')} 高"
         elif high_risk_count >= 1:
-            risk_level = "🟡 中等"
+            risk_level = f"{icon('medium', color='warm', size='sm')} 中等"
         else:
-            risk_level = "🟢 低"
+            risk_level = f"{icon('low', color='sage', size='sm')} 低"
 
         lines = [
             f"**覆盖范围：** {coverage}",
@@ -1749,14 +1750,14 @@ class AIBriefingAnalyzer:
         # 1. 从 TOP3 中提取 🔴 紧急事件
         if top3_content:
             # 查找包含 🔴 的段落
-            urgent_blocks = re.findall(r'🔴.*?(?=\n\n|\Z)', top3_content, re.DOTALL)
+            urgent_blocks = re.findall(r'(?:\U0001f534|' + re.escape(icon("high", color="terracotta", size="sm")) + r').*?(?=\\n\\n|\\Z)', top3_content, re.DOTALL)
             if urgent_blocks:
                 # 提取标题
                 titles = re.findall(r'\*\*(.+?)\*\*', top3_content)
                 for title in titles[:3]:
                     if title and len(title) > 5:
                         alerts.append({
-                            "level": "⚠ 高风险",
+                            "level": f"{icon('warning', color='warning', size='sm')} 高风险",
                             "event": title,
                             "risk": "该事件已被标记为紧急，需立即关注",
                             "action": "评估影响范围，启动应急响应流程",
@@ -1775,7 +1776,7 @@ class AIBriefingAnalyzer:
                 cvss_float = 0
             if cvss_float >= 9.0 or in_kev:
                 alerts.append({
-                    "level": "⚠ 高风险",
+                    "level": f"{icon('warning', color='warning', size='sm')} 高风险",
                     "event": f"{cve_id}（CVSS {cvss_float}{' | 在野利用' if in_kev else ''}）",
                     "risk": "高危漏洞，可能导致远程代码执行或大规模影响",
                     "action": "立即升级至安全版本，前置 WAF/IPS 规则",
@@ -1789,7 +1790,7 @@ class AIBriefingAnalyzer:
                 title = self._clean_search_title(item.get("title", ""))
                 if title:
                     alerts.append({
-                        "level": "⚠ 重要",
+                        "level": f"{icon('warning', color='warning', size='sm')} 重要",
                         "event": title,
                         "risk": "涉及高危安全事件，需持续关注",
                         "action": "检查相关资产暴露面，加强监控",

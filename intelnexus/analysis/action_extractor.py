@@ -8,6 +8,7 @@ import re
 from typing import Dict, List, Optional
 
 from intelnexus.core.logger import get_logger
+from intelnexus.ui.icons import icon, status_icon
 
 logger = get_logger(__name__)
 
@@ -93,15 +94,14 @@ def format_actions(actions: List[Dict]) -> str:
     if not actions:
         return ""
 
-    priority_icons = {"high": "🔴", "medium": "🟡", "low": "🟢"}
     priority_labels = {"high": "紧急", "medium": "重要", "low": "建议"}
     deadline_labels = {"immediate": "立即", "this_week": "本周", "this_month": "本月"}
 
     lines = ["## 行动项清单\n"]
     for a in actions:
-        icon = priority_icons.get(a["priority"], "⚪")
+        svg_icon = status_icon(a["priority"], size="sm")
         label = priority_labels.get(a["priority"], "建议")
         deadline = deadline_labels.get(a["deadline"], "本月")
-        lines.append(f"- {icon} **[{label}]** {a['action']} *(时限: {deadline})*")
+        lines.append(f"- {svg_icon} **[{label}]** {a['action']} *(时限：{deadline})*")
 
     return "\n".join(lines)
