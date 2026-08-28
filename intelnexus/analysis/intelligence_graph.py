@@ -122,12 +122,13 @@ class EntityExtractor:
                 return True
         return False
 
-    def extract(self, scraped_content):
+    def extract(self, scraped_content, search_results=None):
         """
         Extract entities and relations from all scraped content.
 
         Args:
             scraped_content: dict of {url: scraped_text}
+            search_results: optional list of search result dicts (for fallback)
 
         Returns:
             dict with keys:
@@ -138,8 +139,9 @@ class EntityExtractor:
         all_relations = []
         spacy_used = False
 
+        # 降低最小长度要求，允许短标题/摘要参与抽取
         for url, text in scraped_content.items():
-            if not text or len(text) < 50:
+            if not text or len(text) < 20:
                 continue
 
             lang = self._detect_lang(text)
@@ -150,6 +152,16 @@ class EntityExtractor:
             else:
                 # Fallback: regex-based entity extraction
                 self._extract_regex(text, url, all_entities, all_relations)
+
+        # 如果抓取内容未找到实体，尝试从搜索结果标题/摘要中抽取
+        if not all_entities and search_results:
+            logger.info("从搜索结果标题/摘要中抽取实体（降级方案）")
+            for r in search_results:
+                title = r.get('title', '')
+                snippet = r.get('snippet', '')
+                text = f"{title}. {snippet}" if snippet else title
+                if len(text) >= 15:
+                    self._extract_regex(text, r.get('url', ''), all_entities, all_relations)
 
         # If spaCy was never used and we still have no entities, try search result titles
         if not spacy_used and not all_entities:
