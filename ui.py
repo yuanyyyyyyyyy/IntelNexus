@@ -35,7 +35,7 @@ from config import (
 )
 from intelnexus.ui.sidebar import render_sidebar
 from intelnexus.ui.icons import icon
-from intelnexus.ui.search_pipeline import run_search_pipeline, _search_progress_fragment
+from intelnexus.ui.search_pipeline import run_search_pipeline, _search_progress_fragment, render_search_report
 from intelnexus.ui.results import render_results_panels
 from intelnexus.ui.download import render_download_section
 from intelnexus.ui.results_detail import render_results_detail
@@ -294,6 +294,7 @@ if not onboarding_active:
 
         # 结果面板（session_state 有数据时渲染，由 fragment 完成后写入）
         if st.session_state.get("filtered") is not None:
+            render_search_report()          # 报告/TL;DR/完成提示（从 session_state 持久渲染）
             render_results_panels()
             render_download_section()
             render_results_detail()
