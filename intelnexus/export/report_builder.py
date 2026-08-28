@@ -4,15 +4,15 @@
 将搜索结果、分析数据与 LLM 输出组装为结构化情报报告。
 
 架构：混合生成模式
-- 程序化生成：板块 01/03/04/05/06/07/13/14（确定性高、零 LLM 成本）
-- LLM 生成：板块 02/08/09/10/11/12（需要语义理解）
+- 程序化生成：板块 01/03/04/05/06/07/14/15（确定性高、零 LLM 成本）
+- LLM 生成：板块 02/08/09/10/11/12/13（需要语义理解）
 
-14 板块结构：
+15 板块结构：
  01. 报告概览          02. 核心摘要(LLM)       03. 事件画像
  04. 来源分析          05. 关键情报            06. 证据链分析(LLM)
  07. 实体关系图谱      08. 事件演化时间线      09. 舆情趋势(LLM)
- 10. 影响评估(LLM)     11. 风险评估(LLM)       12. 情报判断(LLM)
- 13. 历史关联          14. 原始证据
+ 10. 影响评估(LLM)     11. 风险评估(LLM)       12. 攻击面分析(LLM)
+ 13. 情报判断(LLM)     14. 历史关联            15. 原始证据
 """
 
 import re
@@ -42,9 +42,9 @@ _SECTION_PATTERNS = {
     "risk_assessment": re.compile(
         r'##\s*(?:十 [、.]?\s*)?风险评估\s*\n(.*?)(?=\n##\s)', re.DOTALL | re.IGNORECASE),
     "attack_surface": re.compile(
-        r'##\s*(?:十 [、.]?\s*)?攻击面分析\s*\n(.*?)(?=\n##\s)', re.DOTALL | re.IGNORECASE),
+        r'##\s*(?:十二 [、.]?\s*)?攻击面分析\s*\n(.*?)(?=\n##\s)', re.DOTALL | re.IGNORECASE),
     "intelligence_judgment": re.compile(
-        r'##\s*(?:十二 [、.]?\s*)?情报判断 (?:与后续关注)?\s*\n(.*?)(?=\n##\s|\Z)', re.DOTALL | re.IGNORECASE),
+        r'##\s*(?:十三 [、.]?\s*)?情报判断 (?:与后续关注)?\s*\n(.*?)(?=\n##\s|\Z)', re.DOTALL | re.IGNORECASE),
 }
 
 
@@ -795,7 +795,7 @@ def build_event_history(event_changes: Optional[dict] = None,
 
     展示与历史搜索的对比变化，体现系统的"记忆"能力。
     """
-    lines = ["## 十三、历史关联与变化检测", ""]
+    lines = ["## 十四、历史关联与变化检测", ""]
 
     if not event_changes:
         lines.append("*首次搜索该主题，暂无历史对比数据。后续搜索将自动检测变化。*")
@@ -857,7 +857,7 @@ def build_event_history(event_changes: Optional[dict] = None,
 def build_evidence_appendix(scraped: Dict[str, str],
                             results: List[dict] = None) -> str:
     """板块 14：原始证据（程序化生成）。"""
-    lines = ["## 十四、原始证据", ""]
+    lines = ["## 十五、原始证据", ""]
 
     if not scraped and not results:
         lines.append("> 无可用证据材料")
@@ -1000,13 +1000,13 @@ def build_intelligence_report(
         "",
         "---",
         "",
-        "## 十一、攻击面分析",
+        "## 十二、攻击面分析",
         "",
         build_attack_surface(llm_sections),
         "",
         "---",
         "",
-        "## 十二、情报判断与后续关注",
+        "## 十三、情报判断与后续关注",
         "",
         build_intelligence_judgment(llm_sections),
         "",
