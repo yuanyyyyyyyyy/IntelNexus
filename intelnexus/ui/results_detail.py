@@ -1,9 +1,20 @@
 import html
+import re
 
 import streamlit as st
 from intelnexus.ui.i18n import get_text
 from intelnexus.ui.icons import icon
 from intelnexus.config.briefing_drafts import add_draft, get_drafts
+
+
+def _strip_html_tags(text: str) -> str:
+    """剥离文本中的 HTML 标签，防止 html.escape 后将标签源码暴露给用户。"""
+    return re.sub(r'<[^>]+>', '', text)
+
+
+def _safe_text(value) -> str:
+    """外部不可信文本：先剥离 HTML 标签再转义，兼顾安全与可读性。"""
+    return html.escape(_strip_html_tags(str(value if value is not None else "")))
 
 
 def _render_collect_button(item: dict, key_suffix: str):
@@ -136,11 +147,10 @@ def render_results_detail():
         with st.expander(get_text("results_from_source").format(source=source, count=len(items)), expanded=False):
             for i, item in enumerate(items):
                 actual_idx = start_idx + i + 1
-                # 外部源的标题/描述属不可信输入，进 unsafe_allow_html 前必须转义（防存储型 XSS，
-                # 与 briefing_viewer.render_briefing_entries 同一规范）
-                safe_title = html.escape(str(item.get('title', '') or '')) or get_text("no_title")
-                safe_desc = html.escape(str(item.get('description', '') or ''))
-                safe_summary = html.escape(str(item.get('summary', '') or ''))
+                # 外部源的标题/描述属不可信输入，先剥离 HTML 标签再转义（防存储型 XSS + 避免标签源码暴露）
+                safe_title = _safe_text(item.get('title', '') or '') or get_text("no_title")
+                safe_desc = _safe_text(item.get('description', '') or '')
+                safe_summary = _safe_text(item.get('summary', '') or '')
                 st.markdown(f"**{actual_idx}. {safe_title[:150]}**")
                 if item.get('description'):
                     st.markdown(f"{icon('entry', 'sm', 'gray')} {safe_desc[:500]}...", unsafe_allow_html=True)
@@ -151,7 +161,8 @@ def render_results_detail():
                     st.markdown(get_text("view_original").format(link=link))
                 # 收藏到简报草稿（搜→报飞轮闭环）
                 # key 必须全局唯一：i 是组内索引会重复，故用 source+全局序号组合
-                # 三个按钮横向同行，避免各占一整行
+                # 三个按钮横向同行，避免各占一整行；.result-btn-row 控制紧凑间距
+                st.markdown('<div class="result-btn-row">', unsafe_allow_html=True)
                 _btn_cols = st.columns(3)
                 with _btn_cols[0]:
                     _render_collect_button(item, f"{source}_{actual_idx}")
@@ -159,6 +170,7 @@ def render_results_detail():
                     _render_useful_button(item, f"{source}_{actual_idx}")
                 with _btn_cols[2]:
                     _render_save_to_kb_button(item, f"{source}_{actual_idx}")
+                st.markdown('</div>', unsafe_allow_html=True)
                 st.markdown("---")
 
     # 弱相关结果（被语义相关性过滤降权，不进报告/KG 主干，但保留可追溯）
@@ -172,10 +184,10 @@ def render_results_detail():
             st.caption(get_text("weak_related_hint"))
             for wi, item in enumerate(weak_items):
                 wkey = f"weak_{wi}"
-                # 不可信外部输入先转义再进 unsafe 渲染（同上，防存储型 XSS）
-                safe_title = html.escape(str(item.get('title', '') or '')) or get_text("no_title")
-                safe_desc = html.escape(str(item.get('description', '') or ''))
-                safe_summary = html.escape(str(item.get('summary', '') or ''))
+                # 不可信外部输入先剥离 HTML 标签再转义（防存储型 XSS + 避免标签源码暴露）
+                safe_title = _safe_text(item.get('title', '') or '') or get_text("no_title")
+                safe_desc = _safe_text(item.get('description', '') or '')
+                safe_summary = _safe_text(item.get('summary', '') or '')
                 st.markdown(f"**{safe_title[:150]}**")
                 if item.get('description'):
                     st.markdown(f"{icon('entry', 'sm', 'gray')} {safe_desc[:500]}...", unsafe_allow_html=True)
@@ -185,5 +197,13 @@ def render_results_detail():
                     link = item.get('link') or item.get('url')
                     st.markdown(get_text("view_original").format(link=link))
                 # key 加 weak_ 前缀，与主列表的 source_actual_idx 区分，避免 DuplicateWidgetID
-                _render_collect_button(item, f"weak_{wkey}")
+                st.markdown('<div class="result-btn-row">', unsafe_allow_html=True)
+                _wbtn_cols = st.columns(3)
+                with _wbtn_cols[0]:
+                    _render_collect_button(item, f"weak_{wkey}")
+                with _wbtn_cols[1]:
+                    _render_useful_button(item, f"weak_{wkey}")
+                with _wbtn_cols[2]:
+                    _render_save_to_kb_button(item, f"weak_{wkey}")
+                st.markdown('</div>', unsafe_allow_html=True)
                 st.markdown("---")

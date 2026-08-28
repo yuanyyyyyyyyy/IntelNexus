@@ -1292,6 +1292,21 @@ def render_hermes_theme_css():
         overflow: hidden !important;
         text-overflow: ellipsis !important;
     }
+
+    /* --- 5b-2. 搜索结果条目下方三按钮紧凑布局 ---
+       收藏/有用/知识库三个按钮在 st.columns(3) 中均分全宽导致间距过大。
+       通过 .result-btn-row 包装器的列容器缩窄 + 按钮宽度限制，使按钮更靠近。 */
+    .result-btn-row [data-testid="column"] {
+        padding-left: 4px !important;
+        padding-right: 4px !important;
+        max-width: 160px !important;
+    }
+    .result-btn-row [data-testid="column"] .stButton > button {
+        width: 100% !important;
+        padding: 4px 10px !important;
+        font-size: 12px !important;
+        white-space: nowrap !important;
+    }
     section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
         margin-top: 0 !important;
         margin-bottom: 0 !important;
