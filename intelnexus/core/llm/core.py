@@ -682,11 +682,17 @@ def generate_summary(llm, query, content, search_mode="all",
     try:
         output = chain.invoke({"content": augmented_content})
         
+        # 调试日志：输出 LLM 原始响应长度
+        logger.info(f"LLM 原始输出长度: {len(output)} chars")
+        if len(output) < 500:
+            logger.debug(f"LLM 原始输出预览: {output[:500]}")
+        
         # 验证输出格式
         section_count = _validate_llm_output(output)
         # general 模式要求 >=2 个板块，security 模式要求 >=3 个板块
         topic = classify_query_topic(query)
         min_sections = 2 if topic == "general" else 3
+        logger.info(f"LLM 输出验证: {section_count} 个板块 (topic={topic}, 期望>={min_sections})")
         if section_count >= min_sections:
             return output
         
@@ -709,7 +715,7 @@ def generate_summary(llm, query, content, search_mode="all",
             return retry_output
         
         # 重试仍失败，返回板块更多的那个
-        logger.warning(f"重试仍仅 {retry_count}/6 板块，返回较长的输出")
+        logger.warning(f"重试仍仅 {retry_count} 个板块 (期望>={min_sections})，返回较长的输出 (output={len(output)} chars, retry={len(retry_output)} chars)")
         return output if len(output) >= len(retry_output) else retry_output
         
     except Exception as e:
