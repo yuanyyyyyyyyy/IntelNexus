@@ -339,8 +339,32 @@ def _render_model_settings():
         st.info(get_text("no_model_hint"))
         model = None
     else:
+        # 加载上次选择的模型（持久化到 data/ui_settings.json）
+        from intelnexus.config.paths import get_data_dir
+        from intelnexus.core.settings.file_lock import safe_read_json, safe_write_json
+        ui_settings_file = os.path.join(get_data_dir(), "ui_settings.json")
+        ui_settings = safe_read_json(ui_settings_file) or {}
+        saved_model = ui_settings.get("last_model", "")
+        
+        # 计算默认索引：优先使用上次选择的模型，否则用第一个
+        default_index = 0
+        if saved_model and saved_model in model_options:
+            default_index = model_options.index(saved_model)
+        
         # 标题已含「AI模型」文案，折叠 selectbox 标签避免第二行重复（与参照区 radio 的 label_visibility 处理一致）
-        model = st.selectbox(get_text("llm_model"), model_options, index=0, label_visibility="collapsed")
+        model = st.selectbox(
+            get_text("llm_model"),
+            model_options,
+            index=default_index,
+            label_visibility="collapsed",
+            key="model_selectbox",
+        )
+        
+        # 保存选择（仅当模型变化时）
+        if model != saved_model:
+            ui_settings["last_model"] = model
+            safe_write_json(ui_settings_file, ui_settings)
+        
         if is_vision_model(model):
             st.warning(get_text("vision_model_warning").format(model=model))
 
