@@ -88,8 +88,9 @@ def render_knowledge_base():
     if not items:
         st.info(get_text("kb_no_items"))
     else:
-        for item in items:
-            _render_kb_item(item)
+        with st.container(key="kb-items"):
+            for item in items:
+                _render_kb_item(item)
     
     st.markdown('</div>', unsafe_allow_html=True)
 
