@@ -149,6 +149,9 @@ LANG = {
         "search_history_ago_min": "{n} 分钟前",
         "search_history_ago_hour": "{n} 小时前",
         "search_history_ago_day": "{n} 天前",
+        "search_history_purged": "已清除 {n} 条已删除记录",
+        "search_history_deleted": "记录已删除",
+        "search_history_restored": "记录已恢复",
     },
     "en": {
         "title": "IntelNexus",
@@ -298,6 +301,9 @@ LANG = {
         "search_history_ago_min": "{n} min ago",
         "search_history_ago_hour": "{n} hours ago",
         "search_history_ago_day": "{n} days ago",
+        "search_history_purged": "Purged {n} deleted records",
+        "search_history_deleted": "Record deleted",
+        "search_history_restored": "Record restored",
     }
 }
 
