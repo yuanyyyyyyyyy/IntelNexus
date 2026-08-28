@@ -53,10 +53,7 @@ WATCH_CATEGORIES = {
         "search_queries": [
             f"Pentagon artificial intelligence {YEAR}",
             f"NATO AI strategy implementation {YEAR}",
-            f"EU AI Act government agencies {YEAR}",
-            f"US intelligence community AI tools {YEAR}",
             f"military AI applications news {YEAR}",
-            f"AI model deployment government {YEAR}",
             f"federal AI procurement contract {YEAR}"
         ]
     },
@@ -82,10 +79,7 @@ WATCH_CATEGORIES = {
         "search_queries": [
             f"China AI chip export controls {YEAR}",
             f"Chinese AI companies global expansion {YEAR}",
-            f"US restrictions China AI technology {YEAR}",
-            f"DeepSeek AI model capabilities {YEAR}",
             f"China artificial intelligence news {YEAR}",
-            f"Baidu Alibaba AI model {YEAR}",
             f"Huawei AI chip Ascend {YEAR}"
         ]
     },
@@ -111,17 +105,7 @@ WATCH_CATEGORIES = {
             f"EU AI Act implementation {YEAR}",
             f"US AI regulation new bill {YEAR}",
             f"AI legislation affecting China {YEAR}",
-            f"artificial intelligence governance policy {YEAR}",
-            f"AI regulation news {YEAR}",
-            f"AI safety standards {YEAR}",
-            f"generative AI compliance requirement {YEAR}",
-            f"中国 人工智能 法案 {YEAR}",
-            f"网信办 人工智能 监管 {YEAR}",
-            f"工信部 人工智能 政策 {YEAR}",
-            f"中国 AI 监管 合规 {YEAR}",
-            f"生成式AI 管理办法 {YEAR}",
-            f"算法备案 管理规定 {YEAR}",
-            f"数据安全 个人信息保护 AI {YEAR}",
+            f"AI regulation news {YEAR}"
         ]
     },
     "ai_data_leak": {
@@ -147,10 +131,7 @@ WATCH_CATEGORIES = {
             f"AI data breach incident {YEAR}",
             f"large language model security vulnerability {YEAR}",
             f"AI powered cyber attack news {YEAR}",
-            f"training data privacy breach AI {YEAR}",
-            f"AI security incident news {YEAR}",
-            f"LLM jailbreak vulnerability {YEAR}",
-            f"AI model extraction attack {YEAR}"
+            f"training data privacy breach AI {YEAR}"
         ]
     },
     "cyber_vuln": {
@@ -174,8 +155,7 @@ WATCH_CATEGORIES = {
             f"critical vulnerability disclosed {YEAR}",
             f"zero-day exploit in the wild {YEAR}",
             f"CISA known exploited vulnerabilities update {YEAR}",
-            f"RCE vulnerability patch released {YEAR}",
-            f"new vulnerability research disclosure {YEAR}"
+            f"RCE vulnerability patch released {YEAR}"
         ]
     },
     "cyber_attack": {
@@ -197,8 +177,7 @@ WATCH_CATEGORIES = {
             f"major data breach disclosed {YEAR}",
             f"ransomware attack incident news {YEAR}",
             f"dark web database for sale {YEAR}",
-            f"cybersecurity regulation policy update {YEAR}",
-            f"government cybersecurity compliance news {YEAR}"
+            f"cybersecurity regulation policy update {YEAR}"
         ]
     }
 }
