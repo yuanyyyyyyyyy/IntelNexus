@@ -60,6 +60,7 @@ class EntityExtractor:
         """
         all_entities = {}
         all_relations = []
+        spacy_used = False
 
         for url, text in scraped_content.items():
             if not text or len(text) < 50:
@@ -67,49 +68,16 @@ class EntityExtractor:
 
             lang = self._detect_lang(text)
             nlp = self._load_nlp(lang)
-            if nlp is None:
-                continue
+            if nlp is not None:
+                spacy_used = True
+                self._extract_spacy(nlp, text, url, all_entities, all_relations)
+            else:
+                # Fallback: regex-based entity extraction
+                self._extract_regex(text, url, all_entities, all_relations)
 
-            doc = nlp(text[:5000])
-
-            for ent in doc.ents:
-                if ent.label_ in ('PERSON', 'ORG', 'GPE', 'LOC', 'EVENT',
-                                  'DATE', 'PRODUCT', 'MONEY', 'NORP', 'LAW'):
-                    eid = self._canonical_id(ent.text)
-                    if eid not in all_entities:
-                        all_entities[eid] = {
-                            "id": eid,
-                            "name": ent.text,
-                            "type": ent.label_,
-                            "mentions": [],
-                            "importance": 0
-                        }
-                    ctx_start = max(0, ent.start_char - 40)
-                    ctx_end = min(len(text), ent.end_char + 40)
-                    all_entities[eid]["mentions"].append({
-                        "source_url": url,
-                        "context": text[ctx_start:ctx_end],
-                        "sentence": doc[ent.sent.start:ent.sent.end].text
-                    })
-
-            for sent in doc.sents:
-                sent_entities = [
-                    e for e in sent.ents
-                    if e.label_ in ('PERSON', 'ORG', 'GPE', 'PRODUCT')
-                ]
-                if len(sent_entities) >= 2:
-                    for i in range(len(sent_entities)):
-                        for j in range(i + 1, len(sent_entities)):
-                            src_id = self._canonical_id(sent_entities[i].text)
-                            tgt_id = self._canonical_id(sent_entities[j].text)
-                            if src_id and tgt_id and src_id != tgt_id:
-                                all_relations.append({
-                                    "subject_id": src_id,
-                                    "predicate": "co_occur",
-                                    "object_id": tgt_id,
-                                    "confidence": 0.5,
-                                    "sources": [url]
-                                })
+        # If spaCy was never used and we still have no entities, try search result titles
+        if not spacy_used and not all_entities:
+            logger.info("spaCy models unavailable, using regex fallback for entity extraction")
 
         seen_rels = set()
         unique_rels = []
@@ -131,6 +99,149 @@ class EntityExtractor:
             ),
             "relations": unique_rels
         }
+
+    def _extract_spacy(self, nlp, text, url, all_entities, all_relations):
+        """Extract entities using spaCy NLP pipeline."""
+        doc = nlp(text[:5000])
+
+        for ent in doc.ents:
+            if ent.label_ in ('PERSON', 'ORG', 'GPE', 'LOC', 'EVENT',
+                              'DATE', 'PRODUCT', 'MONEY', 'NORP', 'LAW'):
+                eid = self._canonical_id(ent.text)
+                if eid not in all_entities:
+                    all_entities[eid] = {
+                        "id": eid,
+                        "name": ent.text,
+                        "type": ent.label_,
+                        "mentions": [],
+                        "importance": 0
+                    }
+                ctx_start = max(0, ent.start_char - 40)
+                ctx_end = min(len(text), ent.end_char + 40)
+                all_entities[eid]["mentions"].append({
+                    "source_url": url,
+                    "context": text[ctx_start:ctx_end],
+                    "sentence": doc[ent.sent.start:ent.sent.end].text
+                })
+
+        for sent in doc.sents:
+            sent_entities = [
+                e for e in sent.ents
+                if e.label_ in ('PERSON', 'ORG', 'GPE', 'PRODUCT')
+            ]
+            if len(sent_entities) >= 2:
+                for i in range(len(sent_entities)):
+                    for j in range(i + 1, len(sent_entities)):
+                        src_id = self._canonical_id(sent_entities[i].text)
+                        tgt_id = self._canonical_id(sent_entities[j].text)
+                        if src_id and tgt_id and src_id != tgt_id:
+                            all_relations.append({
+                                "subject_id": src_id,
+                                "predicate": "co_occur",
+                                "object_id": tgt_id,
+                                "confidence": 0.5,
+                                "sources": [url]
+                            })
+
+    def _extract_regex(self, text, url, all_entities, all_relations):
+        """Fallback regex-based entity extraction when spaCy is unavailable.
+
+        Extracts:
+        - Quoted names: "Entity Name" or 'Entity Name'
+        - Capitalized multi-word phrases (English)
+        - Known patterns: company suffixes, product names
+        - Chinese organization/person patterns
+        """
+        # Pattern 1: Quoted entities
+        for m in re.finditer(r'[""\']([^""\'\']{2,30})[""\'\']', text[:5000]):
+            name = m.group(1).strip()
+            if len(name) >= 2:
+                eid = self._canonical_id(name)
+                if eid not in all_entities:
+                    etype = self._guess_entity_type(name)
+                    all_entities[eid] = {
+                        "id": eid, "name": name, "type": etype,
+                        "mentions": [{"source_url": url, "context": "", "sentence": ""}],
+                        "importance": 0
+                    }
+                else:
+                    all_entities[eid]["mentions"].append(
+                        {"source_url": url, "context": "", "sentence": ""})
+
+        # Pattern 2: English capitalized phrases (multi-word)
+        for m in re.finditer(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\b', text[:5000]):
+            name = m.group(1).strip()
+            # Filter out common false positives
+            if name.lower() in ('the', 'this', 'that', 'with', 'from', 'have', 'been',
+                                'will', 'would', 'could', 'should', 'their', 'there'):
+                continue
+            eid = self._canonical_id(name)
+            if eid not in all_entities:
+                etype = self._guess_entity_type(name)
+                all_entities[eid] = {
+                    "id": eid, "name": name, "type": etype,
+                    "mentions": [{"source_url": url, "context": "", "sentence": ""}],
+                    "importance": 0
+                }
+            else:
+                all_entities[eid]["mentions"].append(
+                    {"source_url": url, "context": "", "sentence": ""})
+
+        # Pattern 3: Chinese organization patterns (XX公司, XX科技, etc.)
+        zh_patterns = [
+            r'([\u4e00-\u9fff]{2,8}(?:公司|集团|科技|技术|网络|安全|实验室|中心|研究院))',
+            r'([\u4e00-\u9fff]{2,6}(?:漏洞|攻击|恶意软件|勒索|钓鱼|木马))',
+        ]
+        for pattern in zh_patterns:
+            for m in re.finditer(pattern, text[:5000]):
+                name = m.group(1).strip()
+                eid = self._canonical_id(name)
+                if eid not in all_entities:
+                    etype = "ORG" if "公司" in name or "集团" in name else "PRODUCT"
+                    all_entities[eid] = {
+                        "id": eid, "name": name, "type": etype,
+                        "mentions": [{"source_url": url, "context": "", "sentence": ""}],
+                        "importance": 0
+                    }
+                else:
+                    all_entities[eid]["mentions"].append(
+                        {"source_url": url, "context": "", "sentence": ""})
+
+        # Pattern 4: Build relations from co-occurrence in paragraphs
+        paragraphs = re.split(r'\n\s*\n', text[:5000])
+        entity_ids_in_para = []
+        for para in paragraphs:
+            para_entities = []
+            for eid in all_entities:
+                name = all_entities[eid]["name"]
+                if name.lower() in para.lower():
+                    para_entities.append(eid)
+            if len(para_entities) >= 2:
+                for i in range(len(para_entities)):
+                    for j in range(i + 1, len(para_entities)):
+                        entity_ids_in_para.append(
+                            (para_entities[i], para_entities[j], url))
+
+        for src_id, tgt_id, src_url in entity_ids_in_para[:50]:
+            all_relations.append({
+                "subject_id": src_id,
+                "predicate": "co_occur",
+                "object_id": tgt_id,
+                "confidence": 0.4,
+                "sources": [src_url]
+            })
+
+    def _guess_entity_type(self, name: str) -> str:
+        """Guess entity type from name patterns."""
+        org_suffixes = ('Inc', 'Corp', 'Ltd', 'LLC', 'Company', 'Group',
+                        '公司', '集团', '科技', '实验室')
+        if any(name.endswith(s) for s in org_suffixes):
+            return "ORG"
+        if any(kw in name for kw in ('AI', 'Model', 'OS', 'API', 'SDK', 'GPT', 'LLM')):
+            return "PRODUCT"
+        if any(kw in name for kw in ('漏洞', '攻击', 'CVE', 'exploit')):
+            return "EVENT"
+        return "ORG"  # Default to ORG for capitalized phrases
 
     def _detect_lang(self, text):
         return 'zh' if any('\u4e00' <= c <= '\u9fff' for c in text[:200]) else 'en'

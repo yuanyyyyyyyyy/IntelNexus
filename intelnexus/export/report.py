@@ -72,7 +72,8 @@ def export_markdown(content: str, query: str, output_path: str) -> str:
     """
     is_structured = (content.startswith("# IntelNexus") or
                      content.startswith("=") or
-                     "## 二、核心摘要" in content[:500])
+                     "## 二、核心摘要" in content[:500] or
+                     "## 三、事件画像" in content[:1000])
 
     with open(output_path, 'w', encoding='utf-8') as f:
         if is_structured:
@@ -341,7 +342,8 @@ def export_pdf(content: str, query: str, output_path: str) -> str:
     
     is_structured = (content.startswith("# IntelNexus") or
                      content.startswith("=") or
-                     "## 二、核心摘要" in content[:500])
+                     "## 二、核心摘要" in content[:500] or
+                     "## 三、事件画像" in content[:1000])
     
     if not is_structured:
         # 旧版格式：添加标题和报告信息
@@ -470,7 +472,8 @@ def export_word(content: str, query: str, output_path: str) -> str:
     # 标题 + 报告信息（仅旧版格式需要，新版结构化报告已包含）
     is_structured = (content.startswith("# IntelNexus") or
                      content.startswith("=") or
-                     "## 二、核心摘要" in content[:500])
+                     "## 二、核心摘要" in content[:500] or
+                     "## 三、事件画像" in content[:1000])
     
     if not is_structured:
         title = doc.add_heading('IntelNexus 智能情报分析报告', 0)
@@ -647,7 +650,8 @@ def export_excel(content: str, query: str, output_path: str) -> str:
     # 标题行 + 报告信息（仅旧版格式需要）
     is_structured = (content.startswith("# IntelNexus") or
                      content.startswith("=") or
-                     "## 二、核心摘要" in content[:500])
+                     "## 二、核心摘要" in content[:500] or
+                     "## 三、事件画像" in content[:1000])
     start_row = 1
     
     if not is_structured:
