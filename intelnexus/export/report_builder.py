@@ -36,7 +36,7 @@ _SECTION_PATTERNS = {
     "evidence_chain": re.compile(
         r'##\s*(?:六[、.]\s*)?证据链\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
     "sentiment_analysis": re.compile(
-        r'##\s*(?:八[、.]\s*)?舆情趋势 (?:分析)?\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
+        r'##\s*(?:八[、.]\s*)?舆情趋势(?: 分析)?\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
     "impact_assessment": re.compile(
         r'##\s*(?:九[、.]\s*)?影响评估\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
     "risk_assessment": re.compile(
