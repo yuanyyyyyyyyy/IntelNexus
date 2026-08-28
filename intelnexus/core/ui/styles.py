@@ -466,6 +466,14 @@ def render_hermes_theme_css():
         min-height: 28px !important;
         line-height: 1.2 !important;
     }
+    /* 知识库条目按钮：紧凑小按钮 */
+    .st-key-kb-items .stButton > button,
+    .st-key-kb-items a.stLinkButton {
+        padding: 4px 12px !important;
+        font-size: 12px !important;
+        min-height: 28px !important;
+        line-height: 1.2 !important;
+    }
 
     /* ============================================================
        BUTTONS
