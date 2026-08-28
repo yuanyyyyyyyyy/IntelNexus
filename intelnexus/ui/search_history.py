@@ -237,42 +237,43 @@ def render_search_history():
             rel_time = _relative_time(entry.get("timestamp", ""))
             entry_id = entry.get("id", "")
 
-            st.markdown('<div class="sh-entry">', unsafe_allow_html=True)
-            sel_col, info_col, act_col = st.columns([0.5, 4, 2])
-            with sel_col:
-                st.checkbox("\u00A0", key=f"sh_sel_{entry_id}", label_visibility="collapsed")
-            with info_col:
-                time_label = f"{date_str} {time_str}".strip()
-                st.markdown(
-                    f'<div class="sh-entry__time">{html.escape(time_label)}'
-                    f' <span style="color:var(--text-tertiary);font-size:12px;">({html.escape(rel_time)})</span>'
-                    f'</div>',
-                    unsafe_allow_html=True,
-                )
-                st.markdown(
-                    f'<div class="sh-entry__meta">'
-                    f'<span class="sh-entry__query">{html.escape(query_text)}</span>'
-                    f'<span class="sh-entry__sep">&middot;</span>'
-                    f'<span class="sh-entry__badge">{html.escape(mode_lbl)}</span>'
-                    f'<span class="sh-entry__sep">&middot;</span>'
-                    f'<span class="sh-entry__count">{get_text("search_history_results").format(count=count)}</span>'
-                    f'</div>',
-                    unsafe_allow_html=True,
-                )
-            with act_col:
-                r_col, d_col = st.columns(2)
-                with r_col:
-                    if st.button(get_text("search_history_rerun"), key=f"sh_rerun_{entry_id}",
-                                 use_container_width=True):
-                        st.session_state.query_input = query_text
-                        st.session_state["_sh_pending_query"] = query_text
-                        st.rerun()
-                with d_col:
-                    if _delete_with_confirm(entry_id, use_container_width=True):
-                        history_mgr.delete_entry(entry_id)
-                        st.toast(get_text("search_history_deleted"))
-                        st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
+            # 单条记录用 st.container 包裹，避免开/闭 div 分次渲染产生间隙
+            with st.container(key=f"sh_entry_{entry_id}"):
+                row_cols = st.columns([0.5, 4, 2])
+                sel_col, info_col, act_col = row_cols
+                with sel_col:
+                    st.checkbox("\u00A0", key=f"sh_sel_{entry_id}", label_visibility="collapsed")
+                with info_col:
+                    time_label = f"{date_str} {time_str}".strip()
+                    st.markdown(
+                        f'<div class="sh-entry__time">{html.escape(time_label)}'
+                        f' <span style="color:var(--text-tertiary);font-size:12px;">({html.escape(rel_time)})</span>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+                    st.markdown(
+                        f'<div class="sh-entry__meta">'
+                        f'<span class="sh-entry__query">{html.escape(query_text)}</span>'
+                        f'<span class="sh-entry__sep">&middot;</span>'
+                        f'<span class="sh-entry__badge">{html.escape(mode_lbl)}</span>'
+                        f'<span class="sh-entry__sep">&middot;</span>'
+                        f'<span class="sh-entry__count">{get_text("search_history_results").format(count=count)}</span>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+                with act_col:
+                    r_col, d_col = st.columns(2)
+                    with r_col:
+                        if st.button(get_text("search_history_rerun"), key=f"sh_rerun_{entry_id}",
+                                     use_container_width=True):
+                            st.session_state.query_input = query_text
+                            st.session_state["_sh_pending_query"] = query_text
+                            st.rerun()
+                    with d_col:
+                        if _delete_with_confirm(entry_id, use_container_width=True):
+                            history_mgr.delete_entry(entry_id)
+                            st.toast(get_text("search_history_deleted"))
+                            st.rerun()
 
         # ---- 已删除条目恢复区 ----
         if deleted:

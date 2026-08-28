@@ -418,6 +418,35 @@ def render_hermes_theme_css():
         font-size: 12px;
         color: var(--text-secondary);
     }
+    /* st.container 替代旧 .sh-entry div，保持相同视觉 */
+    [class*="st-key-sh_entry_"] {
+        background: var(--bg-card);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-md);
+        padding: 10px 16px;
+        margin-bottom: 8px;
+        transition: all 0.2s ease;
+    }
+    [class*="st-key-sh_entry_"]:hover {
+        border-color: var(--text-tertiary);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    /* 搜索历史面板内按钮：紧凑小按钮 */
+    [class*="st-key-sh_entry_"] .stButton > button {
+        padding: 4px 10px !important;
+        font-size: 12px !important;
+        min-height: 28px !important;
+        line-height: 1.2 !important;
+    }
+    /* 删除确认区按钮同样紧凑 */
+    [class*="st-key-sh_delbtn_"] .stButton > button,
+    [class*="st-key-sh_delyes_"] .stButton > button,
+    [class*="st-key-sh_delno_"] .stButton > button {
+        padding: 4px 10px !important;
+        font-size: 12px !important;
+        min-height: 28px !important;
+        line-height: 1.2 !important;
+    }
 
     /* ============================================================
        BUTTONS
