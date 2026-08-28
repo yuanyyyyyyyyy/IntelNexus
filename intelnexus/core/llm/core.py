@@ -179,10 +179,122 @@ _ADAPTIVE_DIMENSIONS = """
 def _build_system_prompt(query, search_mode):
     """Build the system prompt for the LLM.
 
-    新策略：LLM 只生成需要语义理解的 6 个分析板块，
-    其余 7 个板块由程序化生成（零 LLM 成本、确定性高）。
+    新策略：LLM 只生成需要语义理解的板块，
+    其余板块由程序化生成（零 LLM 成本、确定性高）。
+    
+    根据查询主题分类动态切换模板：
+    - security: 完整安全情报模板（8 个板块，含攻击面/风险等）
+    - general: 简化通用模板（4 个板块，去掉安全专属内容）
     """
+    topic = classify_query_topic(query)
     mode_desc = _get_mode_description(search_mode)
+    
+    if topic == "general":
+        return _build_general_prompt(query, mode_desc)
+    else:
+        return _build_security_prompt(query, mode_desc)
+
+
+def _build_general_prompt(query, mode_desc):
+    """通用查询的简化 prompt（非安全类话题）。
+    
+    移除安全专属板块（风险评估、攻击面分析），保留核心分析框架。
+    """
+    return f"""
+你是一位高级信息分析师。基于以下搜索结果和分析数据，请生成一份分析报告的**核心分析板块**。
+
+查询主题：{query}
+数据来源：{mode_desc}
+
+重要要求：
+1. 直接输出以下 4 个板块，不要输出其他内容
+2. 每个板块必须严格使用指定的标题格式（## 二、... 等）
+3. 内容必须基于提供的搜索结果和分析数据，不得编造
+4. 使用 Markdown 格式
+5. 如果某个板块没有足够信息支撑，简要说明原因而非编造
+6. **语言降温原则**：结论强度不得超过证据支撑。禁止使用绝对化表达：
+   - 禁止：「全球前沿水平」「颠覆性」「碾压式领先」
+   - 替换为：「达到竞争水平」「在部分评测中表现突出」「可能产生影响」
+   - 对未发生的事件，必须使用条件语气：「若...则可能...」「市场预期...」
+
+请严格按以下顺序和标题输出 4 个板块：
+
+## TL;DR 情报速览
+
+用 1 段话（不超过 100 字）概括本次分析的核心内容，面向忙碌的决策者，30 秒内可读完。
+
+格式要求：
+- 必须包含：主题、关键事实、核心结论
+- 禁止使用列表，全部段落叙述
+- 语言简练，信息密度高
+
+
+## 二、核心摘要
+
+面向决策者的 2 分钟版摘要，**必须严格区分事实、分析判断和推测**，分三段输出（每段以粗体小标题开头）：
+
+**【事实】**：围绕"{query}"的可验证核心事实（2-3 句，含时间/主体/事件，仅陈述已确认信息）。
+**【分析判断】**：基于上述事实的推理结论（2-3 句，说明影响面与意义）。
+**【推测】**：基于现有信息的合理推断（1-2 句，明确标注不确定性，如"若...则可能..."）。
+
+硬性约束：
+1. 【事实】段只能包含搜索结果中明确提及的信息，不得加入推理
+2. 【分析判断】段必须标注推理依据（如"基于 X 来源的报道"）
+3. 【推测】段必须使用"可能""若...则"等不确定性措辞
+4. 禁止使用列表，全部段落叙述
+
+
+## 八、舆情趋势
+
+基于搜索结果，分析公众/行业对该主题的态度分布：
+
+**舆情比例**：
+- 正面：[XX]%
+- 中性：[XX]%
+- 负面：[XX]%
+（三项之和必须为 100%）
+
+**样本规模**：[基于搜索结果数量估算]
+
+**方法论声明**：以上比例基于抓取样本人工/模型分类估算，不代表总体观点。
+
+**正面观点**：
++ [具体正面观点1]
++ [具体正面观点2]
+
+**负面观点**：
+- [具体负面观点1]
+- [具体负面观点2]
+
+**总体舆情**：[正面偏积极 / 中性偏积极 / 中性 / 中性偏消极 / 负面]（一句话总结）
+
+（必须基于搜索结果中的实际表述，不得编造不存在的观点；比例必须量化）
+
+
+## 九、影响评估
+
+从三个维度评估该事件/主题的影响：
+
+**技术影响**：[★★★★☆] [1-2句分析]
+**产业影响**：[★★★★☆] [1-2句分析]
+**用户影响**：[★★★★☆] [1-2句分析]
+
+**影响对象矩阵**：
+| 对象 | 影响程度 | 说明 |
+|------|---------|------|
+| 开发者/技术社区 | [★★★★★] | [1句说明] |
+| 企业用户/采购方 | [★★★☆☆] | [1句说明] |
+| 普通消费者 | [★★★☆☆] | [1句说明] |
+
+**关键判断**：[一句话概括最核心的影响判断]
+
+
+搜索结果内容将在用户消息中提供。请直接生成上述 4 个板块，不要有任何对话或提问。
+"""
+
+
+def _build_security_prompt(query, mode_desc):
+    """安全情报的完整 prompt（含攻击面/风险等专属板块）。"""
     return f"""
 你是一位高级网络情报分析师。基于以下搜索结果和分析数据，请生成一份情报分析报告的**分析板块**。
 
@@ -391,7 +503,7 @@ confidence 取值范围 0-1，facts 必须≥0.8，analyses 0.5-0.8，speculatio
 **建议观察窗口**：[X天]
 
 
-搜索结果内容将在用户消息中提供。请直接生成上述 6 个板块，不要有任何对话或提问。
+搜索结果内容将在用户消息中提供。请直接生成上述 8 个板块，不要有任何对话或提问。
 """
 
 
@@ -454,15 +566,27 @@ def _truncate_augmented_content(content: str, max_chars: int = 30000) -> str:
 def _validate_llm_output(output: str) -> int:
     """验证 LLM 输出包含多少个预期板块标题。
     
-    返回找到的板块数量（0-6）。
+    返回找到的板块数量（0-8）。
+    - security 模式：最多 8 个板块
+    - general 模式：最多 4 个板块
     """
     if not output or len(output) < 100:
         return 0
     
-    expected_sections = [
-        "核心摘要", "证据链", "舆情趋势", "影响评估", "风险评估", "情报判断"
-    ]
-    return sum(1 for s in expected_sections if s in output)
+    # 通用板块（两种模式都有）
+    common_sections = ["核心摘要", "舆情趋势", "影响评估"]
+    
+    # 安全专属板块
+    security_sections = ["证据链", "风险评估", "攻击面分析", "情报判断"]
+    
+    found_common = sum(1 for s in common_sections if s in output)
+    found_security = sum(1 for s in security_sections if s in output)
+    
+    # 如果找到安全板块，按 security 模式计数；否则按 general 模式
+    if found_security > 0:
+        return found_common + found_security
+    else:
+        return found_common
 
 
 def _build_simplified_prompt(query, search_mode):
@@ -560,11 +684,14 @@ def generate_summary(llm, query, content, search_mode="all",
         
         # 验证输出格式
         section_count = _validate_llm_output(output)
-        if section_count >= 3:
+        # general 模式要求 >=2 个板块，security 模式要求 >=3 个板块
+        topic = classify_query_topic(query)
+        min_sections = 2 if topic == "general" else 3
+        if section_count >= min_sections:
             return output
         
         # 输出格式不符，使用简化 prompt 重试
-        logger.warning(f"LLM 输出仅包含 {section_count}/6 个板块，使用简化 prompt 重试")
+        logger.warning(f"LLM 输出仅包含 {section_count} 个板块（期望>={min_sections}），使用简化 prompt 重试")
         
         # 小模型重试时也截断输入
         retry_content = _truncate_augmented_content(augmented_content, 20000) if is_small else augmented_content
@@ -577,8 +704,8 @@ def generate_summary(llm, query, content, search_mode="all",
         retry_output = retry_chain.invoke({"content": retry_content})
         
         retry_count = _validate_llm_output(retry_output)
-        if retry_count >= 3:
-            logger.info(f"简化 prompt 重试成功（{retry_count}/6 板块）")
+        if retry_count >= min_sections:
+            logger.info(f"简化 prompt 重试成功（{retry_count} 板块）")
             return retry_output
         
         # 重试仍失败，返回板块更多的那个
