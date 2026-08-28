@@ -32,19 +32,19 @@ logger = get_logger(__name__)
 
 _SECTION_PATTERNS = {
     "executive_summary": re.compile(
-        r'##\s*(?:二 [、.]?\s*)?核心摘要\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
+        r'##\s*(?:二[、.]\s*)?核心摘要\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
     "evidence_chain": re.compile(
-        r'##\s*(?:六 [、.]?\s*)?证据链\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
+        r'##\s*(?:六[、.]\s*)?证据链\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
     "sentiment_analysis": re.compile(
-        r'##\s*(?:八 [、.]?\s*)?舆情趋势 (?:分析)?\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
+        r'##\s*(?:八[、.]\s*)?舆情趋势 (?:分析)?\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
     "impact_assessment": re.compile(
-        r'##\s*(?:九 [、.]?\s*)?影响评估\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
+        r'##\s*(?:九[、.]\s*)?影响评估\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
     "risk_assessment": re.compile(
-        r'##\s*(?:十 [、.]?\s*)?风险评估\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
+        r'##\s*(?:十[、.]\s*)?风险评估\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
     "attack_surface": re.compile(
-        r'##\s*(?:十二 [、.]?\s*)?攻击面分析\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
+        r'##\s*(?:十二[、.]\s*)?攻击面分析\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
     "intelligence_judgment": re.compile(
-        r'##\s*(?:十三 [、.]?\s*)?情报判断 (?:与后续关注)?\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
+        r'##\s*(?:十三[、.]\s*)?情报判断 (?:与后续关注)?\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
 }
 
 
@@ -56,10 +56,20 @@ def _extract_llm_section(llm_output: str, key: str) -> str:
     m = pattern.search(llm_output)
     if m:
         logger.debug(f"[_extract_llm_section] 成功提取 '{key}': {len(m.group(1))} chars")
+        # 输出匹配到的内容预览
+        preview = m.group(1)[:200].replace('\n', '\\n')
+        logger.debug(f"[_extract_llm_section] '{key}' 内容预览: {preview}")
     else:
         # 调试：输出前 200 chars 查看实际格式
         preview = llm_output[:200].replace('\n', '\\n')
         logger.warning(f"[_extract_llm_section] 未匹配 '{key}'，LLM 输出预览: {preview}")
+        # 额外调试：尝试简单匹配
+        simple_pattern = re.compile(r'##.*?' + re.escape(key.split('_')[0]) if '_' in key else key, re.IGNORECASE)
+        simple_m = simple_pattern.search(llm_output)
+        if simple_m:
+            logger.warning(f"[_extract_llm_section] 简单匹配找到标题位置: {simple_m.start()}-{simple_m.end()}")
+        else:
+            logger.warning(f"[_extract_llm_section] 连简单匹配都找不到关键词")
     return m.group(1).strip() if m else ""
 
 
