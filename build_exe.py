@@ -191,8 +191,49 @@ coll = COLLECT(
     return SPEC_FILE
 
 
+def _copy_post_build_assets():
+    """Copy launcher, docs, and create a quick-start README in dist/."""
+    dist_root = DIST_DIR / "IntelNexus"
+    if not dist_root.exists():
+        print("WARNING: dist/IntelNexus not found, skipping post-build assets.")
+        return
+
+    # 1. Copy launcher.bat (EXE distribution entry point)
+    launcher_src = ROOT / "launcher.bat"
+    if launcher_src.exists():
+        shutil.copy2(launcher_src, dist_root / "launcher.bat")
+        print("  Copied launcher.bat")
+
+    # 2. Copy USER_GUIDE.md (non-technical user documentation)
+    guide_src = ROOT / "USER_GUIDE.md"
+    if guide_src.exists():
+        shutil.copy2(guide_src, dist_root / "USER_GUIDE.md")
+        print("  Copied USER_GUIDE.md")
+
+    # 3. Create a quick-start README in the dist folder
+    readme_content = """IntelNexus - AI Multi-Source Intelligence Platform
+================================================
+
+Quick Start:
+  1. Double-click "launcher.bat" to start
+  2. Browser will open automatically
+  3. Follow the on-screen guide to configure AI model
+
+First Time Setup:
+  - You need an AI model (cloud API or local Ollama)
+  - Cloud API (recommended for beginners): DeepSeek / Moonshot / Qwen
+  - Local model (free): Install Ollama from https://ollama.com
+
+For detailed instructions, see USER_GUIDE.md
+
+Project: https://github.com/yuanyyyyyyyyy/IntelNexus
+"""
+    (dist_root / "README.txt").write_text(readme_content, encoding="utf-8")
+    print("  Created README.txt")
+
+
 def build(spec_file: Path):
-    """运行 PyInstaller 构建。"""
+    """Run PyInstaller build."""
     cmd = [
         sys.executable, "-m", "PyInstaller",
         "--noconfirm",
@@ -214,6 +255,11 @@ def build(spec_file: Path):
     else:
         print(f"\nWARNING: Expected output not found at {exe_path}")
         print("Check build output above for errors.")
+        return
+
+    # Copy post-build assets (launcher, docs, README)
+    print("\nCopying post-build assets...")
+    _copy_post_build_assets()
 
 
 def main():
