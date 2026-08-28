@@ -329,6 +329,94 @@ def render_hermes_theme_css():
     }
 
     /* ============================================================
+       SEARCH HISTORY PANEL
+       ============================================================ */
+    .sh-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border-light);
+    }
+    .sh-title-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .sh-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    .sh-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 6px;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--accent-orange);
+        background: rgba(0, 85, 255, 0.08);
+        border-radius: 10px;
+    }
+    .sh-empty {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 24px 16px;
+        color: var(--text-tertiary);
+        font-size: 14px;
+        justify-content: center;
+    }
+    .sh-entry {
+        background: var(--bg-card);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-md);
+        padding: 12px 16px;
+        margin-bottom: 8px;
+        transition: all 0.2s ease;
+    }
+    .sh-entry:hover {
+        border-color: var(--text-tertiary);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .sh-entry-query {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 6px;
+        word-break: break-all;
+    }
+    .sh-entry-meta {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .sh-entry-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--accent-orange);
+        background: rgba(0, 85, 255, 0.06);
+        border-radius: 4px;
+        white-space: nowrap;
+    }
+    .sh-entry-count {
+        font-size: 12px;
+        color: var(--text-secondary);
+    }
+    .sh-entry-time {
+        font-size: 12px;
+        color: var(--text-tertiary);
+        margin-left: auto;
+    }
+
+    /* ============================================================
        BUTTONS
        ============================================================ */
     .stButton > button {
