@@ -684,8 +684,10 @@ def generate_summary(llm, query, content, search_mode="all",
         
         # 调试日志：输出 LLM 原始响应长度
         logger.info(f"LLM 原始输出长度: {len(output)} chars")
-        if len(output) < 500:
-            logger.debug(f"LLM 原始输出预览: {output[:500]}")
+        if len(output) < 1000:
+            logger.info(f"LLM 原始输出预览:\n{output}")
+        else:
+            logger.info(f"LLM 原始输出预览 (前 1000 chars):\n{output[:1000]}")
         
         # 验证输出格式
         section_count = _validate_llm_output(output)
