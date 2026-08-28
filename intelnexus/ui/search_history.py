@@ -109,10 +109,10 @@ def _parse_timestamp(ts: str):
 # ---------------------------------------------------------------------------
 
 def render_search_preview():
-    """渲染搜索历史预览区域。
+    """渲染搜索历史预览区域（对齐简报中心 render_briefing_preview）。
 
     守卫条件：st.session_state.current_search_view 存在且非空
-    显示内容：搜索详情 + 取消按钮
+    显示内容：完整搜索报告 + 关闭按钮
     """
     view = st.session_state.get("current_search_view")
     if not view:
@@ -126,65 +126,69 @@ def render_search_preview():
             st.session_state.current_search_view = None
             st.rerun()
 
-    with st.container(key="sh-output"):
-        query_text = view.get("query", "")
-        mode_lbl = _mode_label(view.get("mode", ""))
-        model = view.get("model", "")
-        count = view.get("results_count", 0)
-        ts = view.get("timestamp", "")
-        date_str, time_str = _parse_timestamp(ts)
-        rel_time = _relative_time(ts)
+    report_content = view.get("report_content", "")
 
-        st.markdown(
-            f'<div class="sh-preview__row">'
-            f'<span class="sh-preview__label">{get_text("search_history_query")}:</span>'
-            f'<span class="sh-preview__value">{html.escape(query_text)}</span>'
-            f'</div>',
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            f'<div class="sh-preview__row">'
-            f'<span class="sh-preview__label">{get_text("search_history_mode")}:</span>'
-            f'<span class="sh-preview__badge">{html.escape(mode_lbl)}</span>'
-            f'</div>',
-            unsafe_allow_html=True,
-        )
-        if model:
+    with st.container(key="sh-output"):
+        if report_content:
+            # 显示完整报告内容（对齐简报中心 st.markdown(current_briefing)）
+            st.markdown(report_content)
+        else:
+            # 旧记录无报告内容，回退显示元数据
+            query_text = view.get("query", "")
+            mode_lbl = _mode_label(view.get("mode", ""))
+            model = view.get("model", "")
+            count = view.get("results_count", 0)
+            ts = view.get("timestamp", "")
+            date_str, time_str = _parse_timestamp(ts)
+            rel_time = _relative_time(ts)
+
             st.markdown(
                 f'<div class="sh-preview__row">'
-                f'<span class="sh-preview__label">{get_text("search_history_model")}:</span>'
-                f'<span class="sh-preview__value">{html.escape(model)}</span>'
+                f'<span class="sh-preview__label">{get_text("search_history_query")}:</span>'
+                f'<span class="sh-preview__value">{html.escape(query_text)}</span>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
-        st.markdown(
-            f'<div class="sh-preview__row">'
-            f'<span class="sh-preview__label">{get_text("search_history_time")}:</span>'
-            f'<span class="sh-preview__value">{date_str} {time_str} ({html.escape(rel_time)})</span>'
-            f'</div>',
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            f'<div class="sh-preview__row">'
-            f'<span class="sh-preview__label">{get_text("search_history_results_label")}:</span>'
-            f'<span class="sh-preview__value">{count}</span>'
-            f'</div>',
-            unsafe_allow_html=True,
-        )
+            st.markdown(
+                f'<div class="sh-preview__row">'
+                f'<span class="sh-preview__label">{get_text("search_history_mode")}:</span>'
+                f'<span class="sh-preview__badge">{html.escape(mode_lbl)}</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+            if model:
+                st.markdown(
+                    f'<div class="sh-preview__row">'
+                    f'<span class="sh-preview__label">{get_text("search_history_model")}:</span>'
+                    f'<span class="sh-preview__value">{html.escape(model)}</span>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+            st.markdown(
+                f'<div class="sh-preview__row">'
+                f'<span class="sh-preview__label">{get_text("search_history_time")}:</span>'
+                f'<span class="sh-preview__value">{date_str} {time_str} ({html.escape(rel_time)})</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                f'<div class="sh-preview__row">'
+                f'<span class="sh-preview__label">{get_text("search_history_results_label")}:</span>'
+                f'<span class="sh-preview__value">{count}</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
-        # 操作按钮
-        btn_cols = st.columns(3)
+        # 操作按钮：重新搜索（不再放关闭按钮，头部已有关闭）
+        btn_cols = st.columns(2)
         with btn_cols[0]:
+            query_text = view.get("query", "")
             if st.button(get_text("search_history_rerun"), key="sh_preview_rerun", use_container_width=True):
                 st.session_state.query_input = query_text
                 st.session_state.search_mode = view.get("mode", "all")
                 st.session_state["_sh_pending_query"] = query_text
                 st.session_state.current_search_view = None
                 main_tabs.request_tab(st.session_state, main_tabs.TAB_SEARCH)
-                st.rerun()
-        with btn_cols[1]:
-            if st.button(get_text("close"), key="sh_preview_cancel", use_container_width=True):
-                st.session_state.current_search_view = None
                 st.rerun()
 
 

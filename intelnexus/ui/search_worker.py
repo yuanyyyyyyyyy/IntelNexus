@@ -567,7 +567,10 @@ def run_search_computation(
     # 记录搜索历史
     try:
         from intelnexus.config.history import get_history_manager
-        get_history_manager().add_search(query, search_mode, results_count, model or "")
+        get_history_manager().add_search(
+            query, search_mode, results_count, model or "",
+            report_content=result.get("streamed_summary", ""),
+        )
     except Exception as e:
         logger.debug(f"记录搜索历史失败: {e}")
 
