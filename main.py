@@ -7,6 +7,8 @@ Unified CLI composing intel-search and intel-briefing sub-projects.
 import os
 import sys
 import logging
+import threading
+import webbrowser
 from typing import Dict, List
 
 # Suppress the harmless torch.classes probe warning emitted during Streamlit
@@ -415,11 +417,33 @@ def _start_ai_scheduler():
         pass
 
 
+def _auto_open_browser(port: int, delay: float = 1.5) -> None:
+    """后台线程：等待 Streamlit 服务器就绪后自动打开浏览器。
+
+    对非技术用户最关键的一步——双击 EXE 后浏览器自动弹出，
+    无需手动输入地址。轮询 localhost 直到收到 HTTP 响应，
+    超时 30 秒放弃（避免无限阻塞）。
+    """
+    import time
+    import urllib.request
+    url = f"http://localhost:{port}"
+    deadline = time.monotonic() + 30
+    time.sleep(delay)  # 给 Streamlit 一点启动时间
+    while time.monotonic() < deadline:
+        try:
+            urllib.request.urlopen(url, timeout=2)
+            webbrowser.open(url)
+            return
+        except Exception:
+            time.sleep(0.5)
+
+
 @intelnexus.command()
 @click.option("--ui-port", default=8501, show_default=True, type=int, help="Port for Streamlit UI")
 @click.option("--ui-host", default="localhost", show_default=True, type=str, help="Host for Streamlit UI")
 @click.option("--no-scheduler", is_flag=True, help="Disable AI briefing scheduler")
-def ui(ui_port, ui_host, no_scheduler):
+@click.option("--no-browser", is_flag=True, help="Disable auto-open browser")
+def ui(ui_port, ui_host, no_scheduler, no_browser):
     """Run IntelNexus in Web UI mode."""
     from streamlit.web import cli as stcli
 
@@ -430,6 +454,16 @@ def ui(ui_port, ui_host, no_scheduler):
 
     if not no_scheduler:
         _start_ai_scheduler()
+
+    # 自动打开浏览器：对 EXE 用户（非技术人员）最关键，
+    # 源码模式也受益（省去手动输入地址的步骤）。
+    if not no_browser:
+        t = threading.Thread(
+            target=_auto_open_browser,
+            args=(ui_port,),
+            daemon=True,
+        )
+        t.start()
 
     ui_script = os.path.join(base, "ui.py")
     # 用环境变量传 server 配置，避免 CLI --server.* 参数与 config.toml

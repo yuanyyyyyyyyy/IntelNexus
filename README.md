@@ -71,54 +71,51 @@ IntelNexus/
 
 ### 前置要求
 
-- Python 3.10+
+- Python 3.10+（源码版需要；EXE 版不需要）
 - Ollama (本地模型，可选): https://ollama.com
 - Tor (暗网搜索，可选): https://torproject.org
 
 ### 快速开始
+
+#### EXE 版本（推荐，无需安装 Python）
+
+1. 从 [Releases](https://github.com/yuanyyyyyyyyy/IntelNexus/releases) 下载 `IntelNexus-Windows-*.zip`
+2. 解压后双击 **`launcher.bat`**
+3. 浏览器自动打开，按界面引导配置 AI 模型即可
+
+#### 源码版本
 
 ```bash
 # 1. 克隆项目
 git clone <your-repo>
 cd IntelNexus
 
-# 2. 安装依赖
+# 2. 一键启动（自动安装依赖）
+start.bat              # Windows：双击即可
+# 或手动安装：
 pip install -r requirements.txt
-
-# 3. 配置 (可选)
-cp .env.example .env
-# 编辑 .env 填入API密钥
-
-# 4. 运行
-python main.py ui          # Web界面 -> http://localhost:8501
-python main.py search -q "关键词" -m qwen2.5:7b  # CLI模式
+python main.py ui      # Web界面 -> http://localhost:8501
 ```
 
-### 推荐：双击脚本一键启动（Windows，已入库）
+`start.bat` 自动检测是否需要首次安装依赖，完成后启动 Web 界面并自动打开浏览器。
 
-项目提供通用 Windows 脚本（自动创建隔离的 `.venv` 虚拟环境，不污染系统 Python）：
-
-```bash
-setup.bat              # 一键初始化：创建 .venv -> 安装核心依赖 -> 生成 .env 模板（只需一次）
-run.bat                # 之后每次启动：双击即可启动 Web 界面
-run.bat search -q "关键词"   # CLI模式
-```
-
-`setup.bat` 自动探测系统 Python（3.10+），在项目目录创建独立 `.venv` 并安装 `requirements.txt` 核心依赖；可选扩展（Anthropic/Gemini SDK、语义分析、NLP）见 `requirements-extras.txt`，缺失时相关功能自动降级。国内网络安装慢可按脚本提示使用清华镜像。
-
-`run.bat` 优先使用 `.venv`，缺失时回退系统 Python；启动前自检核心依赖，未安装会提示先运行 `setup.bat`。
+> 也保留传统的 `setup.bat` + `run.bat` 两步方式，适合需要更细粒度控制的场景。
 
 **纯命令行等价操作**（适用于非 Windows）：
 
 ```bash
 python -m venv .venv                    # 创建虚拟环境（可选但推荐）
-.venv\Scripts\activate                  # Windows 激活 / source .venv/bin/activate (Linux/macOS)
+.venv/Scripts/activate                  # Windows 激活 / source .venv/bin/activate (Linux/macOS)
 pip install -r requirements.txt         # 安装核心依赖
 copy .env.example .env                  # 生成环境配置模板（全可留空）
-python main.py ui                       # 启动 Web 界面
+python main.py ui                       # 启动 Web 界面（自动打开浏览器）
 ```
 
-**分发给别人**：运行 `make_release.bat` 生成干净的分发 zip——自动排除你的 `.env`（密钥）、`data/`（订阅者隐私与历史简报）、`.venv`、`.git`，并在打包前扫描密钥泄露。
+### 分发给别人
+
+**EXE 分发**（推荐）：从 Releases 下载构建好的 EXE 包，或本地运行 `python build_exe.py` 构建。接收者双击 `launcher.bat` 即可使用。
+
+**源码分发**：运行 `make_release.bat` 生成干净的源码 zip——自动排除 `.env`（密钥）、`data/`（隐私数据）、`.venv`、`.git`，校验关键资源完整性，并在打包前扫描密钥泄露。接收者双击 `start.bat` 一键启动。
 
 ### 安全说明
 

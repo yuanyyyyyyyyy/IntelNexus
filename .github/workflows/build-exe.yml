@@ -5,6 +5,11 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g. v1.0.0)'
+        required: false
+        default: 'dev'
 
 permissions:
   contents: write
@@ -27,24 +32,93 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
+      - name: Determine version
+        id: version
+        shell: pwsh
+        run: |
+          if ("${{ github.ref }}" -like "refs/tags/v*") {
+            $ver = "${{ github.ref }}" -replace "refs/tags/v", ""
+          } elseif ("${{ github.event.inputs.version }}" -ne "") {
+            $ver = "${{ github.event.inputs.version }}"
+          } else {
+            $ver = "dev-" + (Get-Date -Format "yyyyMMdd")
+          }
+          echo "version=$ver" >> $env:GITHUB_OUTPUT
+          echo "Building version: $ver"
+
       - name: Build EXE
         run: python build_exe.py
 
-      - name: Create ZIP archive
+      - name: Create EXE ZIP archive
         run: |
-          Compress-Archive -Path dist\IntelNexus\* -DestinationPath dist\IntelNexus-Windows.zip
+          Compress-Archive -Path dist\IntelNexus\* -DestinationPath dist\IntelNexus-Windows-v${{ steps.version.outputs.version }}.zip
 
-      - name: Upload artifact
+      - name: Create Source ZIP archive
+        run: |
+          # Create a clean source distribution (excludes secrets and build artifacts)
+          $sourceFiles = Get-ChildItem -Path . -Exclude .git,.venv,__pycache__,.pytest_cache,dist,build,data,docs,node_modules,.env,.env.local
+          $tempDir = "$env:TEMP\intelnexus-source-${{ steps.version.outputs.version }}"
+          New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+          foreach ($item in $sourceFiles) {
+            Copy-Item -Path $item.FullName -Destination $tempDir -Recurse -Force
+          }
+          Compress-Archive -Path "$tempDir\*" -DestinationPath "dist\IntelNexus-Source-v${{ steps.version.outputs.version }}.zip" -Force
+          Remove-Item -Path $tempDir -Recurse -Force
+
+      - name: Generate checksums
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem dist\*.zip
+          $checksums = @()
+          foreach ($f in $files) {
+            $hash = (Get-FileHash -Path $f.FullName -Algorithm SHA256).Hash
+            $checksums += "$hash  $($f.Name)"
+          }
+          $checksums | Out-File -FilePath dist\checksums.txt -Encoding utf8
+          Get-Content dist\checksums.txt
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: IntelNexus-Windows
-          path: dist/IntelNexus-Windows.zip
+          name: IntelNexus-v${{ steps.version.outputs.version }}
+          path: |
+            dist/*.zip
+            dist/checksums.txt
+          retention-days: 30
 
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/IntelNexus-Windows.zip
+          files: |
+            dist/*.zip
+            dist/checksums.txt
           generate_release_notes: true
           draft: false
           prerelease: false
+          body: |
+            ## IntelNexus v${{ steps.version.outputs.version }}
+
+            ### Downloads
+
+            | File | Description |
+            |------|-------------|
+            | `IntelNexus-Windows-v${{ steps.version.outputs.version }}.zip` | Windows EXE (recommended for most users) |
+            | `IntelNexus-Source-v${{ steps.version.outputs.version }}.zip` | Source code (requires Python 3.10+) |
+
+            ### Quick Start (EXE)
+            1. Download and extract `IntelNexus-Windows-*.zip`
+            2. Double-click `launcher.bat`
+            3. Browser opens automatically
+            4. Follow the on-screen guide to configure AI model
+
+            ### Quick Start (Source)
+            1. Download and extract `IntelNexus-Source-*.zip`
+            2. Double-click `start.bat` (auto-installs dependencies on first run)
+            3. Browser opens automatically
+
+            ### Verification
+            Use `checksums.txt` to verify file integrity:
+            ```
+            certutil -hashfile IntelNexus-Windows-v${{ steps.version.outputs.version }}.zip SHA256
+            ```
