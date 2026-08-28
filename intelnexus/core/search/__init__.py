@@ -147,9 +147,15 @@ BLOCKED_DOMAINS = [
 ]
 
 _STOPWORDS = {
+    # 英文停用词
     "a", "an", "the", "of", "to", "in", "on", "for", "and", "or", "is", "are",
     "was", "were", "with", "how", "what", "why", "news", "update", "latest",
     "incident", "disclosure", "report", "reports",
+    # 中文停用词（结构助词 / 语气词 / 代词 / 疑问词）
+    "的", "了", "是", "在", "和", "与", "对", "等", "有", "也", "还", "很",
+    "最", "一个", "这个", "那个", "什么", "怎么", "为什么", "哪", "几",
+    "多少", "吧", "呢", "啊", "呀", "哦", "嗯", "嘛", "呗", "其", "之",
+    "而", "且", "或", "但", "如果", "因为", "所以", "虽然", "但是",
 }
 
 
@@ -299,13 +305,19 @@ def relevance_passes(result: dict, query) -> bool:
     description = result.get("description") or ""
     text = f"{title} {description}"
 
-    # 计算关键词匹配分数（支持同义词）
+    # 计算关键词匹配分数：分母用原始 token 数（不含同义词扩展），
+    # 避免扩展词稀释评分导致高质量结果被误杀。
+    # 扩展词仍参与匹配计数（增加命中机会），但不惩罚分母。
     matched = 0
+    matched_original = 0
     for t in expanded_tokens:
         if t in text.lower():
             matched += 1
+    for t in tokens:
+        if t in text.lower():
+            matched_original += 1
 
-    keyword_score = matched / len(expanded_tokens) if expanded_tokens else 0.0
+    keyword_score = matched_original / len(tokens) if tokens else 0.0
 
     # 计算BM25评分
     bm25_score = _calculate_bm25_score(text, expanded_tokens)
