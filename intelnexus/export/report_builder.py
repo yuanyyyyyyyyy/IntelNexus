@@ -32,19 +32,19 @@ logger = get_logger(__name__)
 
 _SECTION_PATTERNS = {
     "executive_summary": re.compile(
-        r'##\s*(?:二 [、.]?\s*)?核心摘要\s*\n(.*?)(?=\n##\s)', re.DOTALL | re.IGNORECASE),
+        r'##\s*(?:二 [、.]?\s*)?核心摘要\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
     "evidence_chain": re.compile(
-        r'##\s*(?:六 [、.]?\s*)?证据链\s*\n(.*?)(?=\n##\s)', re.DOTALL | re.IGNORECASE),
+        r'##\s*(?:六 [、.]?\s*)?证据链\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
     "sentiment_analysis": re.compile(
-        r'##\s*(?:八 [、.]?\s*)?舆情趋势 (?:分析)?\s*\n(.*?)(?=\n##\s|\Z)', re.DOTALL | re.IGNORECASE),
+        r'##\s*(?:八 [、.]?\s*)?舆情趋势 (?:分析)?\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
     "impact_assessment": re.compile(
-        r'##\s*(?:九 [、.]?\s*)?影响评估\s*\n(.*?)(?=\n##\s)', re.DOTALL | re.IGNORECASE),
+        r'##\s*(?:九 [、.]?\s*)?影响评估\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
     "risk_assessment": re.compile(
-        r'##\s*(?:十 [、.]?\s*)?风险评估\s*\n(.*?)(?=\n##\s)', re.DOTALL | re.IGNORECASE),
+        r'##\s*(?:十 [、.]?\s*)?风险评估\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
     "attack_surface": re.compile(
-        r'##\s*(?:十二 [、.]?\s*)?攻击面分析\s*\n(.*?)(?=\n##\s)', re.DOTALL | re.IGNORECASE),
+        r'##\s*(?:十二 [、.]?\s*)?攻击面分析\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
     "intelligence_judgment": re.compile(
-        r'##\s*(?:十三 [、.]?\s*)?情报判断 (?:与后续关注)?\s*\n(.*?)(?=\n##\s|\Z)', re.DOTALL | re.IGNORECASE),
+        r'##\s*(?:十三 [、.]?\s*)?情报判断 (?:与后续关注)?\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
 }
 
 
