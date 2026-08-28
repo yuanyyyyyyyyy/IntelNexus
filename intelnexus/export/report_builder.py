@@ -21,6 +21,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from intelnexus.core.logger import get_logger
+from intelnexus.ui.icons import icon
 
 logger = get_logger(__name__)
 
@@ -485,7 +486,7 @@ def build_evidence_chain(results: List[dict],
             severity = c.get("severity", 0)
             desc = c.get("description", "")
             ctype = c.get("type", "未知")
-            lines.append(f"- ⚠️ [{ctype}] {desc}（严重度：{severity:.0%}）")
+            lines.append(f"- {icon('warning', color='warning', size='sm')} [{ctype}] {desc}（严重度：{severity:.0%}）")
         lines.append("")
 
     return "\n".join(lines)
@@ -813,7 +814,7 @@ def build_event_history(event_changes: Optional[dict] = None,
     heat_change = event_changes.get("heat_change")
     if heat_change:
         has_changes = True
-        arrow = "📈" if heat_change.startswith("+") else "📉"
+        arrow = icon('trend', color='sage' if heat_change.startswith('+') else 'terracotta', size='sm')
         lines.append(f"**热度变化**：{arrow} {heat_change}")
         lines.append("")
 

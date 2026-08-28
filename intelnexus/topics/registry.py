@@ -23,7 +23,7 @@ class Topic:
     search_queries: List[str] = field(default_factory=list)
     keywords_en: List[str] = field(default_factory=list)
     keywords_zh: List[str] = field(default_factory=list)
-    icon: str = "🔎"
+    icon: str = "search"
     sources: List[str] = field(default_factory=lambda: ["web", "news"])
     subscribers: List[str] = field(default_factory=list)
     threshold: float = 0.0
@@ -65,7 +65,7 @@ def topic_from_category(cat_id: str, cat: Dict, origin: str = "preset") -> "Topi
         search_queries=cat.get("search_queries", []),
         keywords_en=cat.get("keywords_en", []),
         keywords_zh=cat.get("keywords_zh", []),
-        icon=cat.get("icon", "🔎"),
+        icon=cat.get("icon", "search"),
         origin=origin,
         created_at=datetime.now().isoformat(),
     )
