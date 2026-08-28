@@ -420,32 +420,7 @@ def run_search_computation(
     except Exception:
         result["tldr_card"] = ""
 
-    # ---- 11. 组装 13 板块结构化报告 ----
-    progress_callback("finalizing", "组装结构化报告...", 0.95)
-    try:
-        from intelnexus.export.report_builder import build_intelligence_report
-        assembled = build_intelligence_report(
-            query=query,
-            search_mode=search_mode,
-            model=model,
-            llm_output=result.get("llm_raw_output", ""),
-            results=result.get("results", []),
-            source_counts=result.get("source_counts", {}),
-            source_stats=result.get("source_stats", {}),
-            credibility_data=result.get("credibility_data"),
-            kg_entities=result.get("kg_entities", []),
-            kg_relations=result.get("kg_relations", []),
-            conflicts=result.get("conflicts", []),
-            action_items=result.get("action_items", []),
-            scraped=result.get("scraped", {}),
-            event_changes=result.get("event_changes"),
-        )
-        result["streamed_summary"] = assembled
-    except Exception as e:
-        logger.warning(f"结构化报告组装失败，回退到 LLM 原始输出: {e}")
-        # 回退：保持 streamed_summary 为 LLM 原始输出
-
-    # ---- 12. 事件存储与增量变化检测 ----
+    # ---- 11. 事件存储与增量变化检测（必须在报告组装之前） ----
     try:
         from intelnexus.analysis.event_store import get_event_store
         store = get_event_store()
@@ -499,6 +474,31 @@ def run_search_computation(
     except Exception as e:
         logger.debug(f"事件存储失败: {e}")
         result["event_changes"] = None
+
+    # ---- 12. 组装 14 板块结构化报告 ----
+    progress_callback("finalizing", "组装结构化报告...", 0.95)
+    try:
+        from intelnexus.export.report_builder import build_intelligence_report
+        assembled = build_intelligence_report(
+            query=query,
+            search_mode=search_mode,
+            model=model,
+            llm_output=result.get("llm_raw_output", ""),
+            results=result.get("results", []),
+            source_counts=result.get("source_counts", {}),
+            source_stats=result.get("source_stats", {}),
+            credibility_data=result.get("credibility_data"),
+            kg_entities=result.get("kg_entities", []),
+            kg_relations=result.get("kg_relations", []),
+            conflicts=result.get("conflicts", []),
+            action_items=result.get("action_items", []),
+            scraped=result.get("scraped", {}),
+            event_changes=result.get("event_changes"),
+        )
+        result["streamed_summary"] = assembled
+    except Exception as e:
+        logger.warning(f"结构化报告组装失败，回退到 LLM 原始输出: {e}")
+        # 回退：保持 streamed_summary 为 LLM 原始输出
 
     # 记录搜索历史
     try:
