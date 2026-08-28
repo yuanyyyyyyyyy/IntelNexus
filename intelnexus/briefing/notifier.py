@@ -25,15 +25,15 @@ logger = get_logger(__name__)
 # 默认 + 用户覆盖文件）→ 简报板块。新增关注点只要带 section 即自动参与
 # 推送过滤，无需再改本文件（修复：原静态映射导致新关注点被当通用板块全量下发）。
 _LEGACY_TOPIC_TO_SECTION = {
-    "ai_gov_usage": "AI 领域动态",
-    "ai_china_narrative": "AI 领域动态",
-    "ai_legislation": "政策法规动态",  # 修正：映射到政策法规动态
-    "ai_data_leak": "网络安全动态",
-    "cyber_vuln": "网络安全动态",
-    "cyber_attack": "网络安全动态",
+    "ai_gov_usage": "分类情报详情",
+    "ai_china_narrative": "分类情报详情",
+    "ai_legislation": "分类情报详情",
+    "ai_data_leak": "网络安全威胁区",
+    "cyber_vuln": "网络安全威胁区",
+    "cyber_attack": "网络安全威胁区",
 }
-_CVE_SECTION = "近日新增安全漏洞预警"
-_CYBER_SECTION = "网络安全动态"
+_CVE_SECTION = "网络安全威胁区"
+_CYBER_SECTION = "网络安全威胁区"
 
 
 def _get_topic_to_section() -> Dict[str, str]:

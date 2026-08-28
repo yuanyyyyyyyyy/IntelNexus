@@ -71,26 +71,16 @@ PROTECTION_CATS = ["cyber_vuln", "cyber_attack", "ai_data_leak"]
 GENERATION_SECTIONS = [
     ("top3", "_generate_top3"),
     ("delta", "_generate_delta"),
-    ("ai_dynamic", "_generate_ai_dynamic"),
-    ("cyber_dynamic", "_generate_cyber_dynamic"),
-    ("cve_table", "_generate_cve_table"),
-    ("policy", "_generate_policy"),
-    ("attack_analysis", "_generate_attack_analysis"),
-    ("protection", "_generate_protection"),
+    ("category_intel", "_generate_category_intel"),
+    ("cyber_threat", "_generate_cyber_threat"),
     ("insights", "_generate_insights"),
-    ("links", "_generate_links"),
 ]
 SECTION_LABELS = {
-    "top3": "近日要闻 TOP3",
-    "delta": "本期增量速览（对比上期）",
-    "ai_dynamic": "AI 领域动态",
-    "cyber_dynamic": "网络安全动态",
-    "cve_table": "近日新增安全漏洞预警",
-    "policy": "政策法规动态",
-    "attack_analysis": "攻击事件深度分析",
-    "protection": "防护建议与厂商方案",
-    "insights": "趋势研判与防护建议",
-    "links": "重要链接",
+    "top3": "TOP3 重点情报",
+    "delta": "增量变化",
+    "category_intel": "分类情报详情",
+    "cyber_threat": "网络安全威胁区",
+    "insights": "热点趋势分析",
 }
 
 
@@ -256,16 +246,14 @@ class AIBriefingAnalyzer:
         on_progress("kb_recall", "正在关联历史收藏...", 0.39)
         self._kb_context = self._build_kb_recall_context(collected_data)
 
-        # 逐板块生成：top3 先行（CVE 表格依赖其编号去重），其余板块并行
+        # 逐板块生成：top3 先行，其余板块并行
         contents: Dict[str, str] = {}
         total = len(GENERATION_SECTIONS)
-        top3_cve_ids: set = set()
 
-        # ---- Step 1: top3（串行，后续 CVE 表格需要其编号）----
+        # ---- Step 1: top3（串行）----
         label = SECTION_LABELS["top3"]
         on_progress("generate_progress", f"正在生成：{label}（1/{total}）", 0.4)
         contents["top3"] = self._generate_top3(collected_data, llm)
-        top3_cve_ids = set(re.findall(r'CVE-\d{4}-\d+', contents["top3"]))
 
         # ---- Step 2: 其余板块并行（ThreadPoolExecutor）----
         remaining = [(k, m) for k, m in GENERATION_SECTIONS if k != "top3"]
@@ -275,14 +263,10 @@ class AIBriefingAnalyzer:
 
         def _run_section(key: str, method_name: str) -> tuple:
             """执行单个板块生成，返回 (key, content)"""
-            if key == "cve_table":
-                content = getattr(self, method_name)(collected_data, llm,
-                                                     skip_cve_ids=top3_cve_ids)
-            else:
-                content = getattr(self, method_name)(collected_data, llm)
+            content = getattr(self, method_name)(collected_data, llm)
             return key, content
 
-        with ThreadPoolExecutor(max_workers=min(4, remaining_total)) as executor:
+        with ThreadPoolExecutor(max_workers=min(4, remaining_total or 1)) as executor:
             future_to_key = {
                 executor.submit(_run_section, k, m): k
                 for k, m in remaining
@@ -305,18 +289,30 @@ class AIBriefingAnalyzer:
                         pct,
                     )
 
-        # 知识图谱链接追加到「重要链接」板块（绝对路径：外发/邮件场景下
-        # 相对路径 data\briefings\… 无法打开）
+        # 程序化生成板块
+        on_progress("overview", "正在生成简报概览...", 0.90)
+        overview_content = self._build_overview(collected_data)
+
+        # 实体关系变化（独立板块）
+        kg_changes_content = ""
         if kg_path:
             kg_display = os.path.abspath(kg_path)
-            contents["links"] = (contents.get("links", "") or "") + \
-                f"\n\n• [图谱] 本期实体关系图谱：{kg_display}"
+            kg_changes_content = f"本期知识图谱已更新，新增实体与关系请查看：\n\n• [图谱] 本期实体关系图谱：{kg_display}"
+        elif credibility_overview:
+            kg_changes_content = credibility_overview
 
-        # 生成执行摘要（今日要点）
-        on_progress("summary", "正在生成执行摘要...", 0.92)
+        # 风险提醒（程序化）
+        on_progress("risk_alert", "正在生成风险提醒...", 0.93)
+        risk_alert_content = self._build_risk_alert(collected_data, contents.get("top3", ""))
+
+        # 推荐关注（程序化）
+        recommend_content = self._build_topic_recommendation(collected_data)
+
+        # 生成今日核心摘要（依赖其他板块结果）
+        on_progress("summary", "正在生成今日核心摘要...", 0.95)
         summary_content = self._generate_summary(contents, collected_data)
 
-        # 可信度概览作为简报首个板块（拼接到 top3 之前，复用现有模板签名）
+        # 可信度概览拼接到 top3 之前
         top3_with_overview = credibility_overview + "\n\n---\n\n" + contents["top3"] \
             if credibility_overview else contents["top3"]
 
@@ -324,17 +320,16 @@ class AIBriefingAnalyzer:
         briefing = render_markdown_briefing(
             generated_date=generated_date,
             organization=org,
+            overview_content=overview_content,
             summary_content=summary_content,
             top3_content=top3_with_overview,
             delta_content=contents.get("delta", ""),
-            ai_dynamic_content=contents["ai_dynamic"],
-            cyber_dynamic_content=contents["cyber_dynamic"],
-            cve_table_content=contents["cve_table"],
-            policy_content=contents.get("policy", ""),
-            attack_analysis_content=contents.get("attack_analysis", ""),
-            protection_content=contents.get("protection", ""),
-            insights_content=contents["insights"],
-            links_content=contents["links"]
+            category_intel_content=contents.get("category_intel", ""),
+            cyber_threat_content=contents.get("cyber_threat", ""),
+            insights_content=contents.get("insights", ""),
+            kg_changes_content=kg_changes_content,
+            risk_alert_content=risk_alert_content,
+            recommend_content=recommend_content,
         )
 
         if with_warnings:
@@ -568,6 +563,147 @@ class AIBriefingAnalyzer:
         return self._run_prompt("cyber_dynamic", results, llm,
                                  "你是一位网络安全情报分析师，请生成'网络安全动态'部分。",
                                  label="网络安全动态")
+
+    def _generate_category_intel(self, collected_data: Dict[str, List[Dict]], llm) -> str:
+        """生成分类情报详情：合并 AI动态 + 网安动态 + 政策 + 攻击分析 + 防护建议。
+
+        使用统一 prompt 让 LLM 一次性生成 5 个子板块，每个子板块头部加统计行。
+        降级模式下回退到分板块调用旧方法拼接。
+        """
+        # 合并全部类目数据
+        all_cats = list(collected_data.keys())
+        all_results = self._collect(all_cats, collected_data)
+
+        if not all_results:
+            self._add_warning("分类情报详情", "未采集到任何情报数据")
+            return self._get_fallback_content("category_intel", [])
+        if llm is None:
+            self._add_warning("分类情报详情", "LLM 不可用，使用分板块降级内容")
+            return self._build_category_intel_fallback(collected_data)
+
+        try:
+            max_results = BRIEFING_CONFIG["search"].get("max_results_for_sections", 15)
+            used_results = all_results[:max_results * 2]  # 分类情报用更多数据
+            search_summary = self._format_results_for_prompt(used_results)
+            prompt = get_prompt("category_intel", search_results=search_summary,
+                                kb_context=self._kb_context)
+
+            from langchain_core.prompts import ChatPromptTemplate
+            from langchain_core.output_parsers import StrOutputParser
+
+            system_prompt = "你是一位高级AI与网络安全情报分析师。请按分类整理情报并添加统计信息。"
+            prompt_template = ChatPromptTemplate(
+                [("system", system_prompt), ("user", "{prompt}")]
+            )
+            chain = prompt_template | llm | StrOutputParser()
+            result = chain.invoke({"prompt": prompt})
+
+            if result and result.strip() and len(result) > 200:
+                return result
+
+            self._add_warning("分类情报详情", "LLM输出过短，使用分板块降级内容")
+            return self._build_category_intel_fallback(collected_data)
+        except Exception as e:
+            logger.error(f"Error generating category_intel: {e}")
+            self._add_warning("分类情报详情", f"生成异常：{e}")
+            return self._build_category_intel_fallback(collected_data)
+
+    def _build_category_intel_fallback(self, collected_data: Dict[str, List[Dict]]) -> str:
+        """分类情报降级：分板块调用旧方法拼接"""
+        blocks = []
+        # AI技术动态
+        ai_results = self._collect(AI_DYNAMIC_CATS, collected_data)
+        ai_content = self._get_fallback_content("ai_dynamic", ai_results)
+        blocks.append(f"### AI技术动态\n发现 {len(ai_results)} 条\n\n{ai_content}")
+        # 网络安全动态
+        cyber_results = self._collect(CYBER_DYNAMIC_CATS, collected_data)
+        cyber_content = self._get_fallback_content("cyber_dynamic", cyber_results)
+        blocks.append(f"### 网络安全动态\n发现 {len(cyber_results)} 条\n\n{cyber_content}")
+        # 政策法规动态
+        policy_results = self._collect(POLICY_CATS, collected_data)
+        policy_content = self._get_fallback_content("policy", policy_results)
+        blocks.append(f"### 政策法规动态\n发现 {len(policy_results)} 条\n\n{policy_content}")
+        # 攻击事件分析
+        attack_results = self._collect(ATTACK_CATS, collected_data)
+        attack_content = self._get_fallback_content("attack_analysis", attack_results)
+        blocks.append(f"### 攻击事件分析\n{attack_content}")
+        # 防护建议
+        protection_results = self._collect(PROTECTION_CATS, collected_data)
+        protection_content = self._get_fallback_content("protection", protection_results)
+        blocks.append(f"### 防护建议\n{protection_content}")
+        return "\n\n".join(blocks)
+
+    def _generate_cyber_threat(self, collected_data: Dict[str, List[Dict]], llm) -> str:
+        """生成网络安全威胁区：提取高危 CVE + 暗网威胁 + 在野利用情报，卡片式展示。"""
+        results = self._collect(CVE_CATS, collected_data)
+        threat_items = []
+
+        # 1. 提取高危 CVE（CVSS >= 7.0 或 KEV 在野利用）
+        for item in results:
+            metadata = item.get("metadata", {})
+            cvss = metadata.get("cvss_score", "")
+            try:
+                cvss_float = float(cvss) if cvss else 0
+            except (ValueError, TypeError):
+                cvss_float = 0
+            in_kev = metadata.get("in_kev", False)
+            if cvss_float >= 7.0 or in_kev:
+                threat_items.append({
+                    "type": "漏洞",
+                    "title": metadata.get("cve_id", item.get("title", "未知漏洞")),
+                    "source": "NVD/CISA KEV" if in_kev else "NVD",
+                    "credibility": f"{min(cvss_float / 10 * 100, 95):.0f}%",
+                    "impact": f"CVSS {cvss_float}{' | 在野利用' if in_kev else ''}",
+                    "suggestion": "立即升级至安全版本" if not in_kev else "按 CISA 要求紧急处置",
+                })
+
+        # 2. 提取暗网来源条目
+        for item in results:
+            url = item.get("url", "")
+            if ".onion" in url or "dark" in item.get("source", "").lower():
+                title = self._clean_search_title(item.get("title", ""))
+                if title:
+                    threat_items.append({
+                        "type": "暗网威胁",
+                        "title": title,
+                        "source": "暗网论坛",
+                        "credibility": "63%",
+                        "impact": item.get("description", "")[:100],
+                        "suggestion": "加强监控相关资产",
+                    })
+
+        # 3. 提取带高危标签的条目
+        for item in results:
+            tags = item.get("metadata", {}).get("tags", [])
+            if any(t in tags for t in ["高危", "在野利用", "数据泄露", "重大事件"]):
+                title = self._clean_search_title(item.get("title", ""))
+                if title and not any(ti["title"] == title for ti in threat_items):
+                    threat_items.append({
+                        "type": "安全事件",
+                        "title": title,
+                        "source": item.get("source", "未知来源"),
+                        "credibility": f"{item.get('credibility_score', 0.5) * 100:.0f}%",
+                        "impact": item.get("description", "")[:100],
+                        "suggestion": "参考下方防护建议",
+                    })
+
+        if not threat_items:
+            self._add_warning("网络安全威胁区", "未检测到高危威胁")
+            return "本日暂未检测到高危安全威胁。建议持续关注漏洞披露与暗网动态。"
+
+        # 构建卡片式输出
+        lines = [f"发现威胁：{len(threat_items)}", f"高风险：{sum(1 for t in threat_items if '在野利用' in t.get('impact', '') or '漏洞' == t['type'])}", ""]
+        for i, item in enumerate(threat_items[:8], 1):
+            lines.append(f"---")
+            lines.append(f"")
+            lines.append(f"**{i}. [{item['type']}] {item['title']}**")
+            lines.append(f"")
+            lines.append(f"来源：{item['source']} | 可信度：{item['credibility']}")
+            lines.append(f"影响：{item['impact']}")
+            lines.append(f"建议：{item['suggestion']}")
+            lines.append(f"")
+
+        return "\n".join(lines)
 
     def _generate_cve_table(self, collected_data: Dict[str, List[Dict]], llm,
                             skip_cve_ids: set = None) -> str:
@@ -1087,6 +1223,14 @@ class AIBriefingAnalyzer:
                 "   **建议：** 跟踪相关政策动态，确保业务合规。"
             ),
             "links": "暂无重要链接。",
+            "category_intel": (
+                "### AI技术动态\n发现 0 条\n本日暂无相关动态。\n\n"
+                "### 网络安全动态\n发现 0 条\n本日暂无相关动态。\n\n"
+                "### 政策法规动态\n发现 0 条\n本日暂无相关动态。\n\n"
+                "### 攻击事件分析\n本日暂无重大安全事件需要深度分析。\n\n"
+                "### 防护建议\n本日暂无可整理的防护建议。"
+            ),
+            "cyber_threat": "本日暂未检测到高危安全威胁。建议持续关注漏洞披露与暗网动态。",
         }
         return fallback_map.get(prompt_name, "本日暂无相关动态。")
 
@@ -1301,23 +1445,56 @@ class AIBriefingAnalyzer:
         return "\n\n".join(blocks)
 
     def _generate_summary(self, contents: Dict[str, str], collected_data: Dict[str, List[Dict]]) -> str:
-        """生成执行摘要（今日要点），从各板块提取关键信息"""
-        bullets = []
+        """生成今日核心摘要：星级分布 + 今日重点 3 条"""
+        # 统计星级分布（基于 credibility_score + topic_relevance）
+        all_items = []
+        for items in collected_data.values():
+            all_items.extend(items)
 
-        # 从 TOP3 提取关键事件
+        high_attention = 0  # ★★★★★
+        important = 0       # ★★★★
+        normal = 0          # ★★★
+        for item in all_items:
+            cred = item.get("credibility_score", 0.5)
+            rel = _topic_relevance(item.get("title", ""), item.get("description", ""))
+            score = cred * 0.6 + rel * 0.4
+            if score >= 0.7:
+                high_attention += 1
+            elif score >= 0.4:
+                important += 1
+            else:
+                normal += 1
+
+        total = len(all_items)
+        lines = [
+            f"今日共发现：**{total} 条**新增情报",
+            "",
+            f"★★★★★ 高关注：**{high_attention} 条**",
+            f"★★★★ 重要：**{important} 条**",
+            f"★★★ 普通：**{normal} 条**",
+            "",
+            "今日重点：",
+        ]
+
+        # 从 TOP3 提取重点事件
         top3 = contents.get("top3", "")
         if top3:
             titles = re.findall(r'\*\*(.+?)\*\*', top3)
-            for t in titles[:3]:
-                if t and len(t) > 5:
-                    bullets.append(f"- 🔴 {t}")
+            focus_count = 0
+            for t in titles:
+                if t and len(t) > 5 and not t.startswith("事件类型") and not t.startswith("重要程度") \
+                        and not t.startswith("为什么关注") and not t.startswith("影响范围"):
+                    focus_count += 1
+                    lines.append(f"{focus_count}. {t}")
+                    if focus_count >= 3:
+                        break
 
-        # 从漏洞表格提取高危CVE
-        cve = contents.get("cve_table", "")
-        if cve:
-            kev_cves = re.findall(r'(CVE-\d{4}-\d+).*?在野利用', cve)
+        # 从威胁区提取高危 CVE
+        cyber_threat = contents.get("cyber_threat", "")
+        if cyber_threat:
+            kev_cves = re.findall(r'(CVE-\d{4}-\d+).*?在野利用', cyber_threat)
             for c in kev_cves[:2]:
-                bullets.append(f"- ⚠️ {c}：已发现在野利用，需立即处置")
+                lines.append(f"- ⚠️ {c}：已发现在野利用，需立即处置")
 
         # 从趋势研判提取核心观点
         insights = contents.get("insights", "")
@@ -1325,29 +1502,12 @@ class AIBriefingAnalyzer:
             insight_titles = re.findall(r'\*\*(.+?)\*\*', insights)
             for t in insight_titles[:2]:
                 if t and len(t) > 5:
-                    bullets.append(f"- 📊 {t}")
+                    lines.append(f"- 📊 {t}")
 
-        # 从政策动态提取重要法规——检测「### 国内政策」子板块下是否有实际
-        # 条目行（旧实现 `"国内政策" in policy` 恒真：子板块标题本身包含
-        # 该子串，导致「今日有国内政策动态」与正文的「本日暂无」自相矛盾）。
-        policy = contents.get("policy", "")
-        if policy:
-            domestic_items = 0
-            in_domestic = False
-            for line in policy.split("\n"):
-                stripped = line.strip()
-                if stripped.startswith("### "):
-                    in_domestic = "国内" in stripped
-                    continue
-                if in_domestic and stripped.startswith("•"):
-                    domestic_items += 1
-            if domestic_items > 0:
-                bullets.append("- 📋 今日有国内AI/网络安全政策动态（详见政策法规板块）")
+        if len(lines) <= 7:
+            lines.append("本日暂无特别需要关注的要点。")
 
-        if not bullets:
-            return "本日暂无特别需要关注的要点。"
-
-        return "\n".join(bullets[:8])  # 最多8条要点
+        return "\n".join(lines)
 
     def _generate_insights(self, collected_data: Dict[str, List[Dict]], llm) -> str:
         """生成趋势研判与防护建议"""
@@ -1491,6 +1651,183 @@ class AIBriefingAnalyzer:
         except Exception as e:
             logger.warning(f"知识图谱生成失败，降级跳过: {e}")
             return ""
+
+    def _build_overview(self, collected_data: Dict[str, List[Dict]]) -> str:
+        """程序化生成简报概览仪表盘：覆盖范围/数据来源/新增情报数/重大事件数/风险等级"""
+        # 覆盖范围：从 categories 提取
+        cat_names = []
+        for cat_id in collected_data:
+            cat_info = WATCH_CATEGORIES.get(cat_id, {})
+            name = cat_info.get("name", cat_id)
+            if name not in cat_names:
+                cat_names.append(name)
+        coverage = "、".join(cat_names) if cat_names else "全部类目"
+
+        # 数据来源：从 source 字段提取
+        sources = set()
+        total_items = 0
+        high_risk_count = 0
+        for cat_id, items in collected_data.items():
+            for item in items:
+                total_items += 1
+                source = item.get("source", "")
+                url = item.get("url", "")
+                if ".onion" in url or "dark" in source.lower():
+                    sources.add("Dark Web")
+                elif "news" in source.lower() or "news" in url.lower():
+                    sources.add("News")
+                else:
+                    sources.add("Web")
+                # 统计重大事件（CVSS >= 9.0 或紧急程度 🔴）
+                metadata = item.get("metadata", {})
+                try:
+                    cvss = float(metadata.get("cvss_score", 0) or 0)
+                except (ValueError, TypeError):
+                    cvss = 0
+                if cvss >= 9.0 or metadata.get("in_kev", False):
+                    high_risk_count += 1
+
+        source_str = "、".join(sorted(sources)) if sources else "Web"
+
+        # 风险等级判定
+        if high_risk_count >= 3:
+            risk_level = "🔴 高"
+        elif high_risk_count >= 1:
+            risk_level = "🟡 中等"
+        else:
+            risk_level = "🟢 低"
+
+        lines = [
+            f"**覆盖范围：** {coverage}",
+            f"**数据来源：** {source_str}",
+            f"**本期新增情报：** {total_items} 条",
+            f"**重大事件：** {high_risk_count} 条",
+            f"**风险等级：** {risk_level}",
+        ]
+        return "\n".join(lines)
+
+    def _build_risk_alert(self, collected_data: Dict[str, List[Dict]], top3_content: str = "") -> str:
+        """程序化生成风险提醒：从 TOP3 + CVE 高危项 + 网安动态中提取紧急事件"""
+        alerts = []
+
+        # 1. 从 TOP3 中提取 🔴 紧急事件
+        if top3_content:
+            # 查找包含 🔴 的段落
+            urgent_blocks = re.findall(r'🔴.*?(?=\n\n|\Z)', top3_content, re.DOTALL)
+            if urgent_blocks:
+                # 提取标题
+                titles = re.findall(r'\*\*(.+?)\*\*', top3_content)
+                for title in titles[:3]:
+                    if title and len(title) > 5:
+                        alerts.append({
+                            "level": "⚠ 高风险",
+                            "event": title,
+                            "risk": "该事件已被标记为紧急，需立即关注",
+                            "action": "评估影响范围，启动应急响应流程",
+                        })
+
+        # 2. 从 CVE 中提取 CVSS >= 9.0 或在野利用的漏洞
+        all_items = self._collect(CVE_CATS, collected_data)
+        for item in all_items:
+            metadata = item.get("metadata", {})
+            cve_id = metadata.get("cve_id", "")
+            cvss = metadata.get("cvss_score", "")
+            in_kev = metadata.get("in_kev", False)
+            try:
+                cvss_float = float(cvss) if cvss else 0
+            except (ValueError, TypeError):
+                cvss_float = 0
+            if cvss_float >= 9.0 or in_kev:
+                alerts.append({
+                    "level": "⚠ 高风险",
+                    "event": f"{cve_id}（CVSS {cvss_float}{' | 在野利用' if in_kev else ''}）",
+                    "risk": "高危漏洞，可能导致远程代码执行或大规模影响",
+                    "action": "立即升级至安全版本，前置 WAF/IPS 规则",
+                })
+
+        # 3. 从网安动态中提取 [高危]/[在野利用]/[数据泄露] 标签条目
+        cyber_items = self._collect(CYBER_DYNAMIC_CATS, collected_data)
+        for item in cyber_items:
+            tags = item.get("metadata", {}).get("tags", [])
+            if any(t in tags for t in ["高危", "在野利用", "数据泄露"]):
+                title = self._clean_search_title(item.get("title", ""))
+                if title:
+                    alerts.append({
+                        "level": "⚠ 重要",
+                        "event": title,
+                        "risk": "涉及高危安全事件，需持续关注",
+                        "action": "检查相关资产暴露面，加强监控",
+                    })
+
+        if not alerts:
+            return "本日暂无需要特别关注的风险提醒。建议保持常规安全防护措施。"
+
+        # 去重（按 event 字段）
+        seen_events = set()
+        unique_alerts = []
+        for alert in alerts:
+            if alert["event"] not in seen_events:
+                seen_events.add(alert["event"])
+                unique_alerts.append(alert)
+
+        lines = []
+        for alert in unique_alerts[:5]:
+            lines.append(f"**{alert['level']}**")
+            lines.append(f"事件：{alert['event']}")
+            lines.append(f"风险：{alert['risk']}")
+            lines.append(f"建议：{alert['action']}")
+            lines.append("")
+
+        return "\n".join(lines)
+
+    def _build_topic_recommendation(self, collected_data: Dict[str, List[Dict]]) -> str:
+        """程序化生成推荐关注 Topic：基于用户行为 + 本期采集数据推荐新关注点"""
+        try:
+            # 读取用户行为数据
+            import json
+            user_behavior_path = os.path.join("data", "user_behavior.json")
+            user_keywords = set()
+            if os.path.exists(user_behavior_path):
+                with open(user_behavior_path, "r", encoding="utf-8") as f:
+                    behavior = json.load(f)
+                searches = behavior.get("searches", [])
+                for s in searches[-20:]:  # 最近 20 条搜索
+                    query = s.get("query", "") if isinstance(s, dict) else str(s)
+                    user_keywords.update(query.split())
+
+            # 从本期采集数据提取高频关键词
+            topic_freq = {}
+            for items in collected_data.values():
+                for item in items:
+                    title = item.get("title", "")
+                    desc = item.get("description", "")
+                    text = f"{title} {desc}".lower()
+                    # 检查与已知关注点的匹配
+                    for cat_id, cat_info in WATCH_CATEGORIES.items():
+                        for kw in cat_info.get("keywords_en", [])[:5]:
+                            if kw.lower() in text:
+                                topic_freq[cat_id] = topic_freq.get(cat_id, 0) + 1
+
+            if not topic_freq and not user_keywords:
+                return "暂无推荐。系统将根据您的搜索行为自动推荐关注点。"
+
+            # 找出本期热度最高但用户可能未关注的 Topic
+            sorted_topics = sorted(topic_freq.items(), key=lambda x: x[1], reverse=True)
+            lines = []
+            for cat_id, count in sorted_topics[:3]:
+                cat_info = WATCH_CATEGORIES.get(cat_id, {})
+                cat_name = cat_info.get("name", cat_id)
+                lines.append(f"**建议关注：** {cat_name}")
+                lines.append(f"原因：本期采集到 {count} 条相关情报")
+                lines.append("")
+
+            if not lines:
+                return "暂无新增推荐关注。您已覆盖主要关注点。"
+
+            return "根据近期搜索行为与本期采集数据：\n\n" + "\n".join(lines)
+        except Exception as e:
+            logger.warning(f"推荐关注 Topic 生成失败: {e}")
+            return "暂无推荐。系统将根据您的搜索行为自动推荐关注点。"
 
     def _format_results_for_prompt(self, results: List[Dict]) -> str:
         """将搜索结果格式化为提示词可用的格式"""
