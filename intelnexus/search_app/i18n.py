@@ -152,6 +152,12 @@ LANG = {
         "search_history_purged": "已清除 {n} 条已删除记录",
         "search_history_deleted": "记录已删除",
         "search_history_restored": "记录已恢复",
+        "search_history_preview": "搜索详情",
+        "search_history_query": "搜索词",
+        "search_history_mode": "搜索模式",
+        "search_history_model": "使用模型",
+        "search_history_time": "搜索时间",
+        "search_history_results_label": "结果数量",
     },
     "en": {
         "title": "IntelNexus",
@@ -304,6 +310,12 @@ LANG = {
         "search_history_purged": "Purged {n} deleted records",
         "search_history_deleted": "Record deleted",
         "search_history_restored": "Record restored",
+        "search_history_preview": "Search Details",
+        "search_history_query": "Query",
+        "search_history_mode": "Mode",
+        "search_history_model": "Model",
+        "search_history_time": "Time",
+        "search_history_results_label": "Results",
     }
 }
 

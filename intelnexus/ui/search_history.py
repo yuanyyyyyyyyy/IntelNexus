@@ -105,6 +105,90 @@ def _parse_timestamp(ts: str):
 
 
 # ---------------------------------------------------------------------------
+# 预览渲染（对齐简报中心 render_briefing_preview）
+# ---------------------------------------------------------------------------
+
+def render_search_preview():
+    """渲染搜索历史预览区域。
+
+    守卫条件：st.session_state.current_search_view 存在且非空
+    显示内容：搜索详情 + 取消按钮
+    """
+    view = st.session_state.get("current_search_view")
+    if not view:
+        return
+
+    header_cols = st.columns([5, 1])
+    with header_cols[0]:
+        st.markdown(f'<div class="sh-output__header">{get_text("search_history_preview")}</div>', unsafe_allow_html=True)
+    with header_cols[1]:
+        if st.button(get_text("close"), key="sh_preview_close", use_container_width=True):
+            st.session_state.current_search_view = None
+            st.rerun()
+
+    with st.container(key="sh-output"):
+        query_text = view.get("query", "")
+        mode_lbl = _mode_label(view.get("mode", ""))
+        model = view.get("model", "")
+        count = view.get("results_count", 0)
+        ts = view.get("timestamp", "")
+        date_str, time_str = _parse_timestamp(ts)
+        rel_time = _relative_time(ts)
+
+        st.markdown(
+            f'<div class="sh-preview__row">'
+            f'<span class="sh-preview__label">{get_text("search_history_query")}:</span>'
+            f'<span class="sh-preview__value">{html.escape(query_text)}</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            f'<div class="sh-preview__row">'
+            f'<span class="sh-preview__label">{get_text("search_history_mode")}:</span>'
+            f'<span class="sh-preview__badge">{html.escape(mode_lbl)}</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        if model:
+            st.markdown(
+                f'<div class="sh-preview__row">'
+                f'<span class="sh-preview__label">{get_text("search_history_model")}:</span>'
+                f'<span class="sh-preview__value">{html.escape(model)}</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        st.markdown(
+            f'<div class="sh-preview__row">'
+            f'<span class="sh-preview__label">{get_text("search_history_time")}:</span>'
+            f'<span class="sh-preview__value">{date_str} {time_str} ({html.escape(rel_time)})</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            f'<div class="sh-preview__row">'
+            f'<span class="sh-preview__label">{get_text("search_history_results_label")}:</span>'
+            f'<span class="sh-preview__value">{count}</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+        # 操作按钮
+        btn_cols = st.columns(3)
+        with btn_cols[0]:
+            if st.button(get_text("search_history_rerun"), key="sh_preview_rerun", use_container_width=True):
+                st.session_state.query_input = query_text
+                st.session_state.search_mode = view.get("mode", "all")
+                st.session_state["_sh_pending_query"] = query_text
+                st.session_state.current_search_view = None
+                main_tabs.request_tab(st.session_state, main_tabs.TAB_SEARCH)
+                st.rerun()
+        with btn_cols[1]:
+            if st.button(get_text("close"), key="sh_preview_cancel", use_container_width=True):
+                st.session_state.current_search_view = None
+                st.rerun()
+
+
+# ---------------------------------------------------------------------------
 # 主渲染
 # ---------------------------------------------------------------------------
 
@@ -115,6 +199,9 @@ def render_search_history():
     """
     if not st.session_state.get("show_search_history"):
         return
+
+    # 先渲染预览（如果有正在查看的条目）
+    render_search_preview()
 
     from intelnexus.config.history import get_history_manager
     history_mgr = get_history_manager()
@@ -240,7 +327,7 @@ def render_search_history():
 
             # 单条记录用 st.container 包裹，避免开/闭 div 分次渲染产生间隙
             with st.container(key=f"sh_entry_{entry_id}"):
-                row_cols = st.columns([4, 2])
+                row_cols = st.columns([4, 3])
                 info_col, act_col = row_cols
                 with info_col:
                     time_label = f"{date_str} {time_str}".strip()
@@ -250,19 +337,10 @@ def render_search_history():
                         f'</div>',
                         unsafe_allow_html=True,
                     )
-                    # query 作为可点击按钮（伪装成纯文本），点击即填入搜索框并触发搜索
-                    if st.button(
-                        html.escape(query_text),
-                        key=f"sh_view_{entry_id}",
-                        use_container_width=True,
-                    ):
-                        st.session_state.query_input = query_text
-                        st.session_state.search_mode = entry.get("mode", "all")
-                        st.session_state["_sh_pending_query"] = query_text
-                        main_tabs.request_tab(st.session_state, main_tabs.TAB_SEARCH)
-                        st.rerun()
                     st.markdown(
                         f'<div class="sh-entry__meta">'
+                        f'<span class="sh-entry__query">{html.escape(query_text)}</span>'
+                        f'<span class="sh-entry__sep">&middot;</span>'
                         f'<span class="sh-entry__badge">{html.escape(mode_lbl)}</span>'
                         f'<span class="sh-entry__sep">&middot;</span>'
                         f'<span class="sh-entry__count">{get_text("search_history_results").format(count=count)}</span>'
@@ -270,7 +348,12 @@ def render_search_history():
                         unsafe_allow_html=True,
                     )
                 with act_col:
-                    r_col, d_col = st.columns(2)
+                    v_col, r_col, d_col = st.columns(3)
+                    with v_col:
+                        if st.button(get_text("view"), key=f"sh_view_{entry_id}",
+                                     use_container_width=True):
+                            st.session_state.current_search_view = entry
+                            st.rerun()
                     with r_col:
                         if st.button(get_text("search_history_rerun"), key=f"sh_rerun_{entry_id}",
                                      use_container_width=True):

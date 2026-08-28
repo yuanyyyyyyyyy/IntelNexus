@@ -418,6 +418,40 @@ def render_hermes_theme_css():
         font-size: 12px;
         color: var(--text-secondary);
     }
+    /* 搜索历史预览区 */
+    .sh-output__header {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border-light);
+    }
+    .sh-preview__row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 0;
+        border-bottom: 1px solid var(--border-light);
+    }
+    .sh-preview__label {
+        font-size: 12px;
+        color: var(--text-tertiary);
+        min-width: 70px;
+    }
+    .sh-preview__value {
+        font-size: 13px;
+        color: var(--text-primary);
+    }
+    .sh-preview__badge {
+        display: inline-block;
+        padding: 2px 8px;
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--accent-orange);
+        background: rgba(0, 85, 255, 0.06);
+        border-radius: 4px;
+    }
     /* st.container 替代旧 .sh-entry div，保持相同视觉 */
     [class*="st-key-sh_entry_"] {
         background: var(--bg-card);
