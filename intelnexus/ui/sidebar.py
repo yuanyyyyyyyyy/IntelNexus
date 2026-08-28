@@ -912,7 +912,11 @@ def _render_proxy_settings():
         # 系统代理实时检测值（只读展示）
         sys_proxy = detect_system_proxy()
         if sys_proxy:
-            st.caption(f"{icon('search', size='sm', color='gray')} {get_text('proxy_source_system')}: `{sys_proxy}`")
+            st.markdown(
+                f"<div class='stCaption'>{icon('search', size='sm', color='gray')} "
+                f"{get_text('proxy_source_system')}: <code>{sys_proxy}</code></div>",
+                unsafe_allow_html=True,
+            )
 
         # 手动输入
         manual_url = st.text_input(
