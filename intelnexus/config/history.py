@@ -25,7 +25,7 @@ class SearchHistory:
         self.reports_dir.mkdir(exist_ok=True)
     
     def add_search(self, query: str, mode: str, results_count: int, model: str,
-                   selected_url: str = "") -> Dict:
+                   selected_url: str = "", report_content: str = "") -> Dict:
         """Add a new search to history.
 
         Args:
@@ -34,6 +34,7 @@ class SearchHistory:
             results_count: 结果数量
             model: 使用的模型
             selected_url: 用户选择的结果 URL（可选）
+            report_content: 结构化报告内容（可选，用于查看历史时显示完整内容）
         """
         entry = {
             "id": self._generate_id(),
@@ -43,7 +44,8 @@ class SearchHistory:
             "model": model,
             "timestamp": datetime.now().isoformat(),
             "status": "completed",
-            "selected_url": selected_url,  # 新增：用户点击的结果 URL
+            "selected_url": selected_url,
+            "report_content": report_content,
         }
         
         history = self.get_history(include_deleted=False)
