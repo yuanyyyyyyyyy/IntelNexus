@@ -495,6 +495,10 @@ def ui(ui_port, ui_host, no_scheduler, no_browser):
     # [server] 段冲突触发 "An update to the [server] config option..." 警告。
     os.environ["STREAMLIT_SERVER_PORT"] = str(ui_port)
     os.environ["STREAMLIT_SERVER_ADDRESS"] = ui_host
+    # 禁止 Streamlit 内置的自动打开浏览器行为（headless=false 时它会在服务器
+    # 启动后立即开一个标签页），与下方 _auto_open_browser 线程冲突导致双标签页。
+    # 我们的自定义函数带健康检查 + 延迟，确保 app 完全就绪后才打开。
+    os.environ["STREAMLIT_SERVER_HEADLESS"] = "true"
     sys.argv = [
         "streamlit", "run", ui_script,
         "--global.developmentMode=false",
