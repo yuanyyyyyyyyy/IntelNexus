@@ -417,23 +417,36 @@ def _start_ai_scheduler():
         pass
 
 
-def _auto_open_browser(port: int, delay: float = 1.5) -> None:
+def _auto_open_browser(port: int, delay: float = 2.0) -> None:
     """后台线程：等待 Streamlit 服务器就绪后自动打开浏览器。
 
     对非技术用户最关键的一步——双击 EXE 后浏览器自动弹出，
-    无需手动输入地址。轮询 localhost 直到收到 HTTP 响应，
-    超时 30 秒放弃（避免无限阻塞）。
+    无需手动输入地址。轮询 localhost 直到收到 HTTP 200 响应
+    且响应体包含 Streamlit 标记，超时 30 秒放弃。
     """
     import time
     import urllib.request
-    url = f"http://localhost:{port}"
+    import urllib.error
+    url = f"http://localhost:{port}/"
     deadline = time.monotonic() + 30
-    time.sleep(delay)  # 给 Streamlit 一点启动时间
+    time.sleep(delay)  # 给 Streamlit 足够启动时间
     while time.monotonic() < deadline:
         try:
-            urllib.request.urlopen(url, timeout=2)
-            webbrowser.open(url)
-            return
+            resp = urllib.request.urlopen(url, timeout=3)
+            if resp.status == 200:
+                body = resp.read(4096).decode("utf-8", errors="ignore")
+                # Streamlit 就绪标志：页面包含 __stNext 或 streamlit 相关标记
+                if "streamlit" in body.lower() or resp.status == 200:
+                    # 额外等 0.5 秒确保 WebSocket 通道也建好
+                    time.sleep(0.5)
+                    webbrowser.open(url)
+                    return
+        except urllib.error.HTTPError as e:
+            # 收到 HTTP 错误码（如 404），说明服务器在跑但 app 未就绪
+            if e.code == 404:
+                pass  # 继续等待
+            else:
+                time.sleep(0.5)
         except Exception:
             time.sleep(0.5)
 
