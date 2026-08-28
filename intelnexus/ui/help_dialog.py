@@ -120,7 +120,7 @@ def render_sidebar_help_button():
     常驻显示，任何页面都可点击打开帮助弹窗。
     """
     if st.button(
-        f"{icon('info', color='gray', size='sm')} {get_text('help_btn')}",
+        get_text('help_btn'),
         key="sidebar_help_btn",
         use_container_width=True,
     ):
