@@ -11,6 +11,7 @@ import streamlit as st
 
 from intelnexus.ui.i18n import get_text
 from intelnexus.ui.icons import icon
+from intelnexus.ui import main_tabs
 
 
 # ---------------------------------------------------------------------------
@@ -239,10 +240,8 @@ def render_search_history():
 
             # 单条记录用 st.container 包裹，避免开/闭 div 分次渲染产生间隙
             with st.container(key=f"sh_entry_{entry_id}"):
-                row_cols = st.columns([0.5, 4, 2])
-                sel_col, info_col, act_col = row_cols
-                with sel_col:
-                    st.checkbox("\u00A0", key=f"sh_sel_{entry_id}", label_visibility="collapsed")
+                row_cols = st.columns([4, 2])
+                info_col, act_col = row_cols
                 with info_col:
                     time_label = f"{date_str} {time_str}".strip()
                     st.markdown(
@@ -251,10 +250,19 @@ def render_search_history():
                         f'</div>',
                         unsafe_allow_html=True,
                     )
+                    # query 作为可点击按钮（伪装成纯文本），点击即填入搜索框并触发搜索
+                    if st.button(
+                        html.escape(query_text),
+                        key=f"sh_view_{entry_id}",
+                        use_container_width=True,
+                    ):
+                        st.session_state.query_input = query_text
+                        st.session_state.search_mode = entry.get("mode", "all")
+                        st.session_state["_sh_pending_query"] = query_text
+                        main_tabs.request_tab(st.session_state, main_tabs.TAB_SEARCH)
+                        st.rerun()
                     st.markdown(
                         f'<div class="sh-entry__meta">'
-                        f'<span class="sh-entry__query">{html.escape(query_text)}</span>'
-                        f'<span class="sh-entry__sep">&middot;</span>'
                         f'<span class="sh-entry__badge">{html.escape(mode_lbl)}</span>'
                         f'<span class="sh-entry__sep">&middot;</span>'
                         f'<span class="sh-entry__count">{get_text("search_history_results").format(count=count)}</span>'
@@ -267,7 +275,9 @@ def render_search_history():
                         if st.button(get_text("search_history_rerun"), key=f"sh_rerun_{entry_id}",
                                      use_container_width=True):
                             st.session_state.query_input = query_text
+                            st.session_state.search_mode = entry.get("mode", "all")
                             st.session_state["_sh_pending_query"] = query_text
+                            main_tabs.request_tab(st.session_state, main_tabs.TAB_SEARCH)
                             st.rerun()
                     with d_col:
                         if _delete_with_confirm(entry_id, use_container_width=True):
