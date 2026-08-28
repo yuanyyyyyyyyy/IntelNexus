@@ -361,19 +361,49 @@ def _build_augmented_content(content, credibility_context="", kg_context="", con
     return augmented_content
 
 
-def _validate_llm_output(output: str) -> bool:
-    """验证 LLM 输出是否包含预期的板块标题。
+def _is_small_model(model_name: str) -> bool:
+    """检测是否为小参数模型（≤32B），需要简化输入和 prompt。"""
+    if not model_name:
+        return False
+    name = model_name.lower()
+    # 参数量标识：27b, 14b, 7b, 3b 等
+    small_params = ['3b', '7b', '8b', '14b', '27b', '1.5b', '0.5b']
+    if any(p in name for p in small_params):
+        return True
+    # 已知小模型系列
+    small_series = ['qwen2.5-', 'qwen3.', 'phi-', 'gemma-', 'llama-3.2-8b', 'llama-3.1-8b']
+    if any(s in name for s in small_series):
+        # 检查是否没有大参数标识
+        large_params = ['72b', '110b', '405b', 'gpt-4', 'gpt-5', 'claude', 'deepseek-v3', 'deepseek-r1']
+        if not any(l in name for l in large_params):
+            return True
+    return False
+
+
+def _truncate_augmented_content(content: str, max_chars: int = 30000) -> str:
+    """截断增强内容，防止小模型输入过长。"""
+    if len(content) <= max_chars:
+        return content
+    # 保留前 max_chars 字符，但确保在完整来源边界截断
+    truncated = content[:max_chars]
+    last_source = truncated.rfind('\n---\n来源:')
+    if last_source > max_chars // 2:
+        truncated = truncated[:last_source]
+    return truncated + '\n\n[... 其余来源已截断 ...]'
+
+
+def _validate_llm_output(output: str) -> int:
+    """验证 LLM 输出包含多少个预期板块标题。
     
-    至少需要包含 3 个板块标题才认为输出有效。
+    返回找到的板块数量（0-6）。
     """
     if not output or len(output) < 100:
-        return False
+        return 0
     
     expected_sections = [
         "核心摘要", "证据链", "舆情趋势", "影响评估", "风险评估", "情报判断"
     ]
-    found = sum(1 for s in expected_sections if s in output)
-    return found >= 3
+    return sum(1 for s in expected_sections if s in output)
 
 
 def _build_simplified_prompt(query, search_mode):
@@ -383,32 +413,41 @@ def _build_simplified_prompt(query, search_mode):
     """
     mode_desc = _get_mode_description(search_mode)
     return f"""
-你是一位高级网络情报分析师。基于以下搜索结果，请生成一份简洁的情报分析报告。
+你是情报分析师。基于搜索结果，生成情报分析报告。
 
-查询主题：{query}
-数据来源：{mode_desc}
+主题：{query}
+来源：{mode_desc}
 
-请严格按以下 6 个标题输出（每个标题用 ## 开头）：
+必须严格按以下格式输出（每个板块用 ## 开头，不能缺少）：
 
 ## 二、核心摘要
-[2-3 句事实描述]
+[2-3句核心事实]
 
 ## 六、证据链
-[3-5 个关键结论，每个结论列出证据来源]
+**结论 1**：[关键结论]
+- E1：[证据]（来源：[名称]，支持度：[高/中/低]）
+- E2：[证据]（来源：[名称]，支持度：[高/中/低]）
+**综合置信度**：[高/中/低]
 
 ## 八、舆情趋势
-[正面/负面/中性观点分布]
+正面：XX% | 中性：XX% | 负面：XX%
+[正面观点]
+[负面观点]
 
 ## 九、影响评估
-[技术/产业/安全/生态四维影响]
+**技术影响**：[★★★★☆] [分析]
+**产业影响**：[★★★★☆] [分析]
+**安全影响**：[★★★★☆] [分析]
 
 ## 十、风险评估
-[风险等级和关键风险点]
+**风险等级**：[高/中/低]
+[关键风险点]
 
 ## 十一、情报判断与后续关注
-[综合判断和后续监测指标]
+[综合判断]
+[后续监测指标]
 
-搜索结果内容将在用户消息中提供。请直接生成上述 6 个板块，不要有任何对话或提问。
+直接输出，不要提问。
 """
 
 
@@ -427,8 +466,18 @@ def generate_summary(llm, query, content, search_mode="all",
     elif isinstance(content, list):
         logger.debug(f"Content is list, length: {len(content)}")
 
+    model_name = getattr(llm, 'model_name', '') or getattr(llm, 'model', '') or ''
+    is_small = _is_small_model(model_name)
+    
+    if is_small:
+        logger.info(f"检测到小模型 '{model_name}'，启用简化模式（截断输入）")
+
     system_prompt = _build_system_prompt(query, search_mode)
     augmented_content = _build_augmented_content(content, credibility_context, kg_context, conflicts_context, kb_context)
+    
+    # 小模型截断输入
+    if is_small:
+        augmented_content = _truncate_augmented_content(augmented_content, max_chars=25000)
 
     prompt_template = ChatPromptTemplate(
         [("system", system_prompt), ("user", "搜索结果内容:\n{content}")]
@@ -439,25 +488,30 @@ def generate_summary(llm, query, content, search_mode="all",
         output = chain.invoke({"content": augmented_content})
         
         # 验证输出格式
-        if _validate_llm_output(output):
+        section_count = _validate_llm_output(output)
+        if section_count >= 3:
             return output
         
-        # 输出格式不符，使用简化 prompt 重试一次
-        logger.warning(f"LLM 输出格式不符预期（找到 {_validate_llm_output(output)} 个板块），使用简化 prompt 重试")
+        # 输出格式不符，使用简化 prompt 重试
+        logger.warning(f"LLM 输出仅包含 {section_count}/6 个板块，使用简化 prompt 重试")
+        
+        # 小模型重试时也截断输入
+        retry_content = _truncate_augmented_content(augmented_content, 20000) if is_small else augmented_content
         simplified_prompt = _build_simplified_prompt(query, search_mode)
         retry_template = ChatPromptTemplate(
             [("system", simplified_prompt), ("user", "搜索结果内容:\n{content}")]
         )
         retry_chain = retry_template | llm | StrOutputParser()
-        retry_output = retry_chain.invoke({"content": augmented_content})
+        retry_output = retry_chain.invoke({"content": retry_content})
         
-        if _validate_llm_output(retry_output):
-            logger.info("简化 prompt 重试成功")
+        retry_count = _validate_llm_output(retry_output)
+        if retry_count >= 3:
+            logger.info(f"简化 prompt 重试成功（{retry_count}/6 板块）")
             return retry_output
         
-        # 重试仍失败，返回原始输出（让 report_builder 降级处理）
-        logger.warning("简化 prompt 重试仍失败，返回原始输出")
-        return output
+        # 重试仍失败，返回板块更多的那个
+        logger.warning(f"重试仍仅 {retry_count}/6 板块，返回较长的输出")
+        return output if len(output) >= len(retry_output) else retry_output
         
     except Exception as e:
         error_msg = str(e)

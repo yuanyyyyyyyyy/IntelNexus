@@ -81,6 +81,11 @@ _ENTITY_BLACKLIST = frozenset({
     'multi-agent', 'inference', 'fine-tuning', 'pre-training',
     # 无关技术词（搜索结果中可能混入的跑题内容）
     '量子微波测量技术', '微波测量', '卡丁车游戏', '体素场景',
+    # API 端点/产品术语（不是具体组织/人物/地点）
+    'chat completions', 'stealth model', 'agentic work',
+    'hermes agent', 'openrouter', 'opencode',
+    # 网页抓取残片（句子片段不应作为实体）
+    'grith', 'freiburg fc', 'texas tech softball',
 })
 
 # 噪声实体正则模式：匹配纯数字、纯符号、过短文本等
@@ -132,6 +137,10 @@ class EntityExtractor:
             return True
         # URL 过滤：包含协议符、斜杠路径或 www. 的实体
         if any(pattern in clean for pattern in ('://', 'http', 'www.', '/api/', '/v1', '/v2')):
+            return True
+        # 中文句子过滤：包含中文字符且长度 >10 的实体大概率是句子片段
+        has_chinese = any('\u4e00' <= c <= '\u9fff' for c in clean)
+        if has_chinese and len(clean) > 10:
             return True
         # 黑名单精确匹配（不区分大小写）
         if clean.lower() in _ENTITY_BLACKLIST:
@@ -408,7 +417,9 @@ class EntityExtractor:
             return None
 
     def _canonical_id(self, name):
-        return re.sub(r'\s+', '_', name.strip().lower())[:50]
+        # 统一连字符和下划线为空格，然后转小写+下划线
+        normalized = name.strip().lower().replace('-', ' ').replace('_', ' ')
+        return re.sub(r'\s+', '_', normalized)[:50]
 
 
 class IntelligenceGraph:
