@@ -85,7 +85,7 @@ def render_results_panels():
     structured = st.session_state.get("structured_summary")
     if structured:
         st.markdown("---")
-        st.markdown(f"## {icon('summary', 'lg', 'blue')} {get_text('results_structured_summary_title', '结构化情报摘要')}", unsafe_allow_html=True)
+        st.markdown(f"## {icon('summary', 'lg', 'blue')} {get_text('results_structured_summary_title')}", unsafe_allow_html=True)
         from intelnexus.analysis.structured_summary import format_structured_summary_for_display
         md = format_structured_summary_for_display(structured)
         if md:
