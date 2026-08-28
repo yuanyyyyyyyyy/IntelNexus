@@ -44,7 +44,7 @@ logger = get_logger(__name__)
 
 # 全局超时后的宽限期（秒）：给已在跑的慢源最后机会收割晚到的成功结果，
 # 避免 shutdown(cancel_futures=True) 直接丢弃即将完成的检索。
-_GRACE_PERIOD = 15
+_GRACE_PERIOD = 8
 
 # 模块级注册表实例缓存（按构造参数维度），避免每次 collect 都重建并读盘
 _registry_cache: Dict[tuple, "SearchSourceRegistry"] = {}

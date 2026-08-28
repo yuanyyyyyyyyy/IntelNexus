@@ -78,7 +78,6 @@ MARKDOWN_TEMPLATE = """
 {recommend_content}
 
 ---
-<!-- FOOTER -->
 — 简报结束 —
 
 {disclaimer}
@@ -223,7 +222,7 @@ def _md_to_html(text: str) -> str:
             continue
 
         # 分割线
-        if stripped == "---" or stripped == "<!-- FOOTER -->":
+        if stripped == "---":
             html_lines.append('<hr style="border:none;border-top:1px solid #ddd;margin:15px 0;">')
             i += 1
             continue
@@ -491,7 +490,7 @@ def markdown_to_html_sections(markdown_content: str) -> dict:
 
     for line in lines:
         # 遇到页脚标记，停止向链接板块追加（页脚由邮件/独立HTML模板单独渲染）
-        if line.strip() == "<!-- FOOTER -->":
+        if line.strip() == "<!-- FOOTER -->" or line.strip() == "— 简报结束 —":
             if current_section and section_content:
                 sections[current_section] = _md_to_html("\n".join(section_content))
             break

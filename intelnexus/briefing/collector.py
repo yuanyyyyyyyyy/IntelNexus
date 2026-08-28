@@ -121,7 +121,7 @@ class AIBriefingCollector:
         results = {}
         category_ids = list(categories.keys())
 
-        max_workers = min(3, len(category_ids))  # 限制并发数，避免 NewsAPI 并发限频
+        max_workers = min(5, len(category_ids))  # 限制并发数，I/O 密集型可适当提高
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {
@@ -174,9 +174,7 @@ class AIBriefingCollector:
             List[Dict]: 搜索结果
         """
         from intelnexus.core.search.registry import get_registry
-        from intelnexus.core.search.news import NewsSearch
 
-        results = []
         try:
             registry = get_registry(
                 news_api_key=NEWS_API_KEY(),
@@ -187,31 +185,43 @@ class AIBriefingCollector:
             logger.warning(f"Registry 初始化失败: {e}")
             return []
 
-        for query in queries:
+        # 类目内查询并行执行（I/O 密集型，并发远快于串行）
+        def _run_single_query(query: str) -> List[Dict]:
             try:
-                # 使用 all 模式获取所有源
                 raw_results = registry.collect(
                     mode="all",
                     query=query,
                     max_results=max_results,
                     threads=5,
-                    global_timeout=60  # 从90s降至60s，减少无效等待
+                    global_timeout=40  # 从60s降至40s，RSS源通常<5s响应
                 )
-
-                # 转换为统一格式
-                for r in raw_results:
-                    results.append({
-                        "title": r.get("title", ""),
-                        "url": r.get("url", ""),
-                        "content": r.get("description", ""),
-                        "description": r.get("description", ""),
-                        "source": r.get("source", "Unknown"),
-                        "category": r.get("category", ""),
-                        "published_at": r.get("published_at", ""),
-                        "metadata": r.get("metadata", {}),
-                    })
+                return [{
+                    "title": r.get("title", ""),
+                    "url": r.get("url", ""),
+                    "content": r.get("description", ""),
+                    "description": r.get("description", ""),
+                    "source": r.get("source", "Unknown"),
+                    "category": r.get("category", ""),
+                    "published_at": r.get("published_at", ""),
+                    "metadata": r.get("metadata", {}),
+                } for r in raw_results]
             except Exception as e:
                 logger.warning(f"Registry 搜索失败 query='{query}': {e}")
+                return []
+
+        results = []
+        query_workers = min(len(queries), 5)
+        with ThreadPoolExecutor(max_workers=query_workers) as q_executor:
+            q_futures = {
+                q_executor.submit(_run_single_query, q): q
+                for q in queries
+            }
+            for q_future in as_completed(q_futures):
+                try:
+                    results.extend(q_future.result())
+                except Exception as e:
+                    q = q_futures[q_future]
+                    logger.warning(f"查询完成异常 query='{q}': {e}")
 
         return results
     
