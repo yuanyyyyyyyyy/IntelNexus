@@ -67,10 +67,12 @@ def _format_content_for_pdf(content: str) -> str:
 def export_markdown(content: str, query: str, output_path: str) -> str:
     """Export to Markdown format.
 
-    如果 content 已经是 10 板块结构化报告（以 "=" 开头），直接写入；
+    如果 content 已经是 10 板块结构化报告（以 "# IntelNexus" 或 "=" 开头），直接写入；
     否则回退到旧版包装格式（向后兼容）。
     """
-    is_structured = content.startswith("=")
+    is_structured = (content.startswith("# IntelNexus") or
+                     content.startswith("=") or
+                     "## 二、核心摘要" in content[:500])
 
     with open(output_path, 'w', encoding='utf-8') as f:
         if is_structured:
@@ -337,7 +339,9 @@ def export_pdf(content: str, query: str, output_path: str) -> str:
     
     story = []
     
-    is_structured = content.startswith("=")
+    is_structured = (content.startswith("# IntelNexus") or
+                     content.startswith("=") or
+                     "## 二、核心摘要" in content[:500])
     
     if not is_structured:
         # 旧版格式：添加标题和报告信息
@@ -464,7 +468,9 @@ def export_word(content: str, query: str, output_path: str) -> str:
         logger.debug(f"Word east-asian font setup skipped: {e}")
     
     # 标题 + 报告信息（仅旧版格式需要，新版结构化报告已包含）
-    is_structured = content.startswith("=")
+    is_structured = (content.startswith("# IntelNexus") or
+                     content.startswith("=") or
+                     "## 二、核心摘要" in content[:500])
     
     if not is_structured:
         title = doc.add_heading('IntelNexus 智能情报分析报告', 0)
@@ -639,7 +645,9 @@ def export_excel(content: str, query: str, output_path: str) -> str:
     )
     
     # 标题行 + 报告信息（仅旧版格式需要）
-    is_structured = content.startswith("=")
+    is_structured = (content.startswith("# IntelNexus") or
+                     content.startswith("=") or
+                     "## 二、核心摘要" in content[:500])
     start_row = 1
     
     if not is_structured:

@@ -68,24 +68,23 @@ def build_report_overview(query: str, search_mode: str, model: str,
     }
     mode_label = mode_labels.get(search_mode, search_mode)
 
+    # 使用 markdown 标题而非 ASCII box，避免被解析为水平线
     lines = [
-        "=" * 48,
-        "          IntelNexus 情报搜索分析报告",
-        "=" * 48,
+        "# IntelNexus 情报搜索分析报告",
         "",
-        f"报告编号：{report_id or _gen_report_id(now)}",
+        f"**报告编号**：{report_id or _gen_report_id(now)}",
         "",
-        f"分析主题：{query}",
+        f"**分析主题**：{query}",
         "",
-        f"搜索时间：{now.strftime('%Y-%m-%d %H:%M')}",
+        f"**搜索时间**：{now.strftime('%Y-%m-%d %H:%M')}",
         "",
-        f"分析模式：{mode_label}",
+        f"**分析模式**：{mode_label}",
         "",
-        f"分析模型：{model}",
+        f"**分析模型**：{model}",
         "",
-        f"报告生成时间：{now.strftime('%Y-%m-%d %H:%M')}",
+        f"**报告生成时间**：{now.strftime('%Y-%m-%d %H:%M')}",
         "",
-        "=" * 48,
+        "---",
     ]
     return "\n".join(lines)
 
@@ -103,7 +102,9 @@ def build_executive_summary(llm_sections: Dict[str, str]) -> str:
     content = llm_sections.get("executive_summary", "")
     if not content:
         return "> （执行摘要未生成，请检查 LLM 输出）"
-    return content
+    # 清理 LLM 输出中可能包含的原始标题（避免重复）
+    content = re.sub(r'^##\s*(?:一[、.]?\s*)?执行摘要\s*\n', '', content, flags=re.MULTILINE)
+    return content.strip()
 
 
 def build_source_analysis(source_counts: Dict[str, int],
@@ -499,21 +500,44 @@ def build_intelligence_report(
     # 1. 提取 LLM 生成的三个分析板块
     llm_sections = extract_analytical_sections(llm_output)
 
-    # 2. 组装各板块
+    # 2. 组装各板块（使用 ## 二级标题，避免 # 一级标题干扰 Streamlit 页面标题）
     sections = [
         build_report_overview(query, search_mode, model, report_id),
         "",
-        "# 二、核心摘要",
+        "## 二、核心摘要",
         "",
         build_executive_summary(llm_sections),
         "",
+        "---",
+        "",
         build_source_analysis(source_counts, source_stats, credibility_data),
+        "",
+        "---",
+        "",
         build_key_intelligence(results, kg_entities),
+        "",
+        "---",
+        "",
         build_credibility_assessment(credibility_data),
+        "",
+        "---",
+        "",
         build_timeline(results),
+        "",
+        "---",
+        "",
         build_entity_graph(kg_entities, kg_relations),
+        "",
+        "---",
+        "",
         build_sentiment_analysis(llm_sections),
+        "",
+        "---",
+        "",
         build_risk_assessment(llm_sections, conflicts, action_items),
+        "",
+        "---",
+        "",
         build_evidence_appendix(scraped or {}, results),
     ]
 
