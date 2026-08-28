@@ -32,17 +32,19 @@ logger = get_logger(__name__)
 
 _SECTION_PATTERNS = {
     "executive_summary": re.compile(
-        r'##\s*(?:二[、.]?\s*)?核心摘要\s*\n(.*?)(?=\n##\s)', re.DOTALL | re.IGNORECASE),
+        r'##\s*(?:二 [、.]?\s*)?核心摘要\s*\n(.*?)(?=\n##\s)', re.DOTALL | re.IGNORECASE),
     "evidence_chain": re.compile(
-        r'##\s*(?:六[、.]?\s*)?证据链\s*\n(.*?)(?=\n##\s)', re.DOTALL | re.IGNORECASE),
+        r'##\s*(?:六 [、.]?\s*)?证据链\s*\n(.*?)(?=\n##\s)', re.DOTALL | re.IGNORECASE),
     "sentiment_analysis": re.compile(
-        r'##\s*(?:八[、.]?\s*)?舆情趋势(?:分析)?\s*\n(.*?)(?=\n##\s|\Z)', re.DOTALL | re.IGNORECASE),
+        r'##\s*(?:八 [、.]?\s*)?舆情趋势 (?:分析)?\s*\n(.*?)(?=\n##\s|\Z)', re.DOTALL | re.IGNORECASE),
     "impact_assessment": re.compile(
-        r'##\s*(?:九[、.]?\s*)?影响评估\s*\n(.*?)(?=\n##\s)', re.DOTALL | re.IGNORECASE),
+        r'##\s*(?:九 [、.]?\s*)?影响评估\s*\n(.*?)(?=\n##\s)', re.DOTALL | re.IGNORECASE),
     "risk_assessment": re.compile(
-        r'##\s*(?:十[、.]?\s*)?风险评估\s*\n(.*?)(?=\n##\s)', re.DOTALL | re.IGNORECASE),
+        r'##\s*(?:十 [、.]?\s*)?风险评估\s*\n(.*?)(?=\n##\s)', re.DOTALL | re.IGNORECASE),
+    "attack_surface": re.compile(
+        r'##\s*(?:十 [、.]?\s*)?攻击面分析\s*\n(.*?)(?=\n##\s)', re.DOTALL | re.IGNORECASE),
     "intelligence_judgment": re.compile(
-        r'##\s*(?:十一[、.]?\s*)?情报判断(?:与后续关注)?\s*\n(.*?)(?=\n##\s|\Z)', re.DOTALL | re.IGNORECASE),
+        r'##\s*(?:十二 [、.]?\s*)?情报判断 (?:与后续关注)?\s*\n(.*?)(?=\n##\s|\Z)', re.DOTALL | re.IGNORECASE),
 }
 
 
@@ -56,11 +58,12 @@ def _extract_llm_section(llm_output: str, key: str) -> str:
 
 
 def extract_analytical_sections(llm_output: str) -> Dict[str, str]:
-    """提取 LLM 生成的六个分析板块。
+    """提取 LLM 生成的七个分析板块。
 
     Returns:
         {"executive_summary", "evidence_chain", "sentiment_analysis",
-         "impact_assessment", "risk_assessment", "intelligence_judgment"}
+         "impact_assessment", "risk_assessment", "attack_surface",
+         "intelligence_judgment"}
     """
     return {
         "executive_summary": _extract_llm_section(llm_output, "executive_summary"),
@@ -68,6 +71,7 @@ def extract_analytical_sections(llm_output: str) -> Dict[str, str]:
         "sentiment_analysis": _extract_llm_section(llm_output, "sentiment_analysis"),
         "impact_assessment": _extract_llm_section(llm_output, "impact_assessment"),
         "risk_assessment": _extract_llm_section(llm_output, "risk_assessment"),
+        "attack_surface": _extract_llm_section(llm_output, "attack_surface"),
         "intelligence_judgment": _extract_llm_section(llm_output, "intelligence_judgment"),
     }
 
@@ -759,9 +763,19 @@ def build_risk_assessment(llm_sections: Dict[str, str]) -> str:
     if not content:
         return "> （风险评估未生成，请检查 LLM 输出）"
     # 清理标题
-    content = re.sub(r'^##\s*(?:十[、.]?\s*)?风险评估\s*\n', '', content, flags=re.MULTILINE)
+    content = re.sub(r'^##\s*(?:十 [、.]?\s*)?风险评估\s*\n', '', content, flags=re.MULTILINE)
     # 后处理：供应链风险→供应链透明风险
     content = _postprocess_llm_text(content)
+    return content.strip()
+
+
+def build_attack_surface(llm_sections: Dict[str, str]) -> str:
+    """板块 11.5：攻击面分析（LLM 生成）。"""
+    content = llm_sections.get("attack_surface", "")
+    if not content:
+        return "> （攻击面分析未生成，请检查 LLM 输出）"
+    # 清理标题
+    content = re.sub(r'^##\s*(?:十 [、.]?\s*)?攻击面分析\s*\n', '', content, flags=re.MULTILINE)
     return content.strip()
 
 
@@ -983,6 +997,12 @@ def build_intelligence_report(
         "## 十一、风险评估",
         "",
         build_risk_assessment(llm_sections),
+        "",
+        "---",
+        "",
+        "## 十一、攻击面分析",
+        "",
+        build_attack_surface(llm_sections),
         "",
         "---",
         "",
