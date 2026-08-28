@@ -420,7 +420,7 @@ def run_search_computation(
     except Exception:
         result["tldr_card"] = ""
 
-    # ---- 11. 组装 10 板块结构化报告 ----
+    # ---- 11. 组装 13 板块结构化报告 ----
     progress_callback("finalizing", "组装结构化报告...", 0.95)
     try:
         from intelnexus.export.report_builder import build_intelligence_report
@@ -438,11 +438,67 @@ def run_search_computation(
             conflicts=result.get("conflicts", []),
             action_items=result.get("action_items", []),
             scraped=result.get("scraped", {}),
+            event_changes=result.get("event_changes"),
         )
         result["streamed_summary"] = assembled
     except Exception as e:
         logger.warning(f"结构化报告组装失败，回退到 LLM 原始输出: {e}")
         # 回退：保持 streamed_summary 为 LLM 原始输出
+
+    # ---- 12. 事件存储与增量变化检测 ----
+    try:
+        from intelnexus.analysis.event_store import get_event_store
+        store = get_event_store()
+
+        # 构建快照
+        results_list = result.get("results", [])
+        scores = [r.get("credibility_score", 0.5) for r in results_list if r.get("credibility_score")]
+        avg_score = sum(scores) / len(scores) if scores else 0.5
+
+        # 从 LLM 输出推断身份状态
+        llm_out = result.get("llm_raw_output", "").lower()
+        if any(kw in llm_out for kw in ("确认", "confirmed", "证实", "z.ai", "zai")):
+            identity_status = "confirmed"
+        elif any(kw in llm_out for kw in ("疑似", "suspected", "可能", "推测")):
+            identity_status = "suspected"
+        elif any(kw in llm_out for kw in ("争议", "disputed", "质疑")):
+            identity_status = "disputed"
+        else:
+            identity_status = "unknown"
+
+        # 风险等级
+        risk_level = "低"
+        if avg_score < 0.4:
+            risk_level = "高"
+        elif avg_score < 0.6:
+            risk_level = "中"
+
+        snapshot = {
+            "identity_status": identity_status,
+            "heat_level": min(100, len(results_list) * 2),
+            "risk_level": risk_level,
+            "key_findings": [r.get("title", "") for r in results_list[:5] if r.get("title")],
+            "source_count": len(result.get("source_counts", {})),
+            "result_count": len(results_list),
+        }
+
+        # 先检测变化（在保存之前）
+        changes = store.detect_changes(query, snapshot)
+        result["event_changes"] = changes
+
+        # 保存快照
+        store.save_snapshot(query, snapshot)
+
+        if changes:
+            logger.info(
+                f"事件变化检测: {query} - "
+                f"身份: {changes.get('identity_change', '无变化')}, "
+                f"热度: {changes.get('heat_change', '无变化')}, "
+                f"风险: {changes.get('risk_change', '无变化')}"
+            )
+    except Exception as e:
+        logger.debug(f"事件存储失败: {e}")
+        result["event_changes"] = None
 
     # 记录搜索历史
     try:
