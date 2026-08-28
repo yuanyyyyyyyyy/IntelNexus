@@ -459,7 +459,6 @@ def render_hermes_theme_css():
         border-radius: var(--radius-md);
         margin-bottom: 8px;
         transition: all 0.2s ease;
-        overflow: hidden;
     }
     [class*="st-key-sh_entry_"]:hover {
         border-color: var(--text-tertiary);
