@@ -74,6 +74,13 @@ _ENTITY_BLACKLIST = frozenset({
     'clear', 'model', 'rating', 'terms', 'privacy', 'support',
     'documentation', 'about', 'contact', 'blog', 'careers',
     'elo rating', 'stealth model terms', 'zero data retention generous',
+    # prompt 残片（LLM 系统提示词泄漏到网页内容中）
+    'you are', 'system prompt', 'assistant', 'human', 'chatgpt',
+    # 泛化技术概念（不是具体产品/组织/人物）
+    'context window', 'live status', 'token', 'tokens', 'benchmark',
+    'multi-agent', 'inference', 'fine-tuning', 'pre-training',
+    # 无关技术词（搜索结果中可能混入的跑题内容）
+    '量子微波测量技术', '微波测量', '卡丁车游戏', '体素场景',
 })
 
 # 噪声实体正则模式：匹配纯数字、纯符号、过短文本等
@@ -84,6 +91,8 @@ _NOISE_PATTERNS = [
     re.compile(r'^\d{4}$'),              # 纯四位数字（年份误判）
     re.compile(r'^v\d+\.\d+', re.I),     # 版本号 v1.0, v2.3
     re.compile(r'^[\w-]+/[\w-]+$'),       # URL 路径片段（如 stealth/ox-alpha）
+    re.compile(r'^(you are|system|assistant|human)\b', re.I),  # prompt 残片
+    re.compile(r'^(miwn|mshale|jzkv|freiburg)', re.I),  # Google News 注入的随机标签
 ]
 
 

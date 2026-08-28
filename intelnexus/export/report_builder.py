@@ -384,6 +384,40 @@ def _find_related_entities(text: str, entities: List[dict],
     return matched
 
 
+def _postprocess_llm_text(text: str) -> str:
+    """对 LLM 输出进行后处理：置信度数字转等级 + 风险命名修正。"""
+    if not text:
+        return text
+    
+    # 1. 置信度精确数字转等级（向后兼容旧模型输出）
+    def _conf_to_level(match):
+        val = float(match.group(1))
+        if val >= 0.8:
+            return "高"
+        elif val >= 0.5:
+            return "中"
+        else:
+            return "低"
+    
+    # 匹配 "综合置信度：0.82" 或 "**综合置信度**：0.82\n" 格式
+    text = re.sub(
+        r'\*?\*?综合置信度\*?\*?[：:]\s*(0\.\d+)\s*\n',
+        lambda m: f"**综合置信度**：{_conf_to_level(m)}\n",
+        text
+    )
+    # 匹配 "支持度：0.85" 格式
+    text = re.sub(
+        r'支持度[：:]\s*(0\.\d+)',
+        lambda m: f"支持度：{_conf_to_level(m)}",
+        text
+    )
+    
+    # 2. "供应链风险" → "供应链透明风险"（更精确的情报术语）
+    text = text.replace("供应链风险", "供应链透明风险")
+    
+    return text
+
+
 def build_evidence_chain(results: List[dict],
                          credibility_data: Optional[dict] = None,
                          conflicts: List[dict] = None,
@@ -401,6 +435,8 @@ def build_evidence_chain(results: List[dict],
         # 清理 LLM 输出中可能包含的原始标题
         llm_evidence = re.sub(
             r'^##\s*(?:六[、.]?\s*)?证据链\s*\n', '', llm_evidence, flags=re.MULTILINE)
+        # 后处理：置信度转等级 + 风险命名修正
+        llm_evidence = _postprocess_llm_text(llm_evidence)
         lines.append(llm_evidence.strip())
         lines.append("")
     else:
@@ -713,6 +749,8 @@ def build_risk_assessment(llm_sections: Dict[str, str]) -> str:
         return "> （风险评估未生成，请检查 LLM 输出）"
     # 清理标题
     content = re.sub(r'^##\s*(?:十[、.]?\s*)?风险评估\s*\n', '', content, flags=re.MULTILINE)
+    # 后处理：供应链风险→供应链透明风险
+    content = _postprocess_llm_text(content)
     return content.strip()
 
 
