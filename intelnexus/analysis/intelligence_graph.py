@@ -116,6 +116,9 @@ class EntityExtractor:
         # 长度过滤：超过 40 字符的实体通常是标题片段或描述词，不是有效实体
         if len(clean) > 40:
             return True
+        # URL 过滤：包含协议符、斜杠路径或 www. 的实体
+        if any(pattern in clean for pattern in ('://', 'http', 'www.', '/api/', '/v1', '/v2')):
+            return True
         # 黑名单精确匹配（不区分大小写）
         if clean.lower() in _ENTITY_BLACKLIST:
             return True
@@ -124,6 +127,31 @@ class EntityExtractor:
             if pat.match(clean):
                 return True
         return False
+
+    @staticmethod
+    def _normalize_entity_name(name: str) -> str:
+        """规范化实体名称（去重、清理）。
+        
+        处理：
+        - 移除重复词（如 "Ox Alpha Ox Alpha" → "Ox Alpha"）
+        - 移除首尾空白
+        """
+        if not name:
+            return name
+        
+        # 移除重复词（保留首次出现顺序）
+        words = name.strip().split()
+        if len(words) > 1:
+            seen = set()
+            deduped = []
+            for w in words:
+                w_lower = w.lower()
+                if w_lower not in seen:
+                    seen.add(w_lower)
+                    deduped.append(w)
+            return ' '.join(deduped)
+        
+        return name.strip()
 
     def extract(self, scraped_content, search_results=None):
         """
@@ -177,6 +205,10 @@ class EntityExtractor:
             if key not in seen_rels:
                 seen_rels.add(key)
                 unique_rels.append(rel)
+
+        # 规范化实体名称（去重、清理）
+        for e in all_entities.values():
+            e["name"] = self._normalize_entity_name(e["name"])
 
         max_mentions = max(
             (len(e["mentions"]) for e in all_entities.values()), default=1

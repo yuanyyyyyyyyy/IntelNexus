@@ -350,6 +350,57 @@ def _build_augmented_content(content, credibility_context="", kg_context="", con
     return augmented_content
 
 
+def _validate_llm_output(output: str) -> bool:
+    """验证 LLM 输出是否包含预期的板块标题。
+    
+    至少需要包含 3 个板块标题才认为输出有效。
+    """
+    if not output or len(output) < 100:
+        return False
+    
+    expected_sections = [
+        "核心摘要", "证据链", "舆情趋势", "影响评估", "风险评估", "情报判断"
+    ]
+    found = sum(1 for s in expected_sections if s in output)
+    return found >= 3
+
+
+def _build_simplified_prompt(query, search_mode):
+    """构建简化版 prompt（用于重试）。
+    
+    当模型无法遵循复杂的多板块指令时，使用更简单的格式要求。
+    """
+    mode_desc = _get_mode_description(search_mode)
+    return f"""
+你是一位高级网络情报分析师。基于以下搜索结果，请生成一份简洁的情报分析报告。
+
+查询主题：{query}
+数据来源：{mode_desc}
+
+请严格按以下 6 个标题输出（每个标题用 ## 开头）：
+
+## 二、核心摘要
+[2-3 句事实描述]
+
+## 六、证据链
+[3-5 个关键结论，每个结论列出证据来源]
+
+## 八、舆情趋势
+[正面/负面/中性观点分布]
+
+## 九、影响评估
+[技术/产业/安全/生态四维影响]
+
+## 十、风险评估
+[风险等级和关键风险点]
+
+## 十一、情报判断与后续关注
+[综合判断和后续监测指标]
+
+搜索结果内容将在用户消息中提供。请直接生成上述 6 个板块，不要有任何对话或提问。
+"""
+
+
 def generate_summary(llm, query, content, search_mode="all",
                      credibility_context="", kg_context="", conflicts_context="", kb_context=""):
     """生成情报报告，根据搜索模式调整分析重点"""
@@ -372,8 +423,31 @@ def generate_summary(llm, query, content, search_mode="all",
         [("system", system_prompt), ("user", "搜索结果内容:\n{content}")]
     )
     chain = prompt_template | llm | StrOutputParser()
+    
     try:
-        return chain.invoke({"content": augmented_content})
+        output = chain.invoke({"content": augmented_content})
+        
+        # 验证输出格式
+        if _validate_llm_output(output):
+            return output
+        
+        # 输出格式不符，使用简化 prompt 重试一次
+        logger.warning(f"LLM 输出格式不符预期（找到 {_validate_llm_output(output)} 个板块），使用简化 prompt 重试")
+        simplified_prompt = _build_simplified_prompt(query, search_mode)
+        retry_template = ChatPromptTemplate(
+            [("system", simplified_prompt), ("user", "搜索结果内容:\n{content}")]
+        )
+        retry_chain = retry_template | llm | StrOutputParser()
+        retry_output = retry_chain.invoke({"content": augmented_content})
+        
+        if _validate_llm_output(retry_output):
+            logger.info("简化 prompt 重试成功")
+            return retry_output
+        
+        # 重试仍失败，返回原始输出（让 report_builder 降级处理）
+        logger.warning("简化 prompt 重试仍失败，返回原始输出")
+        return output
+        
     except Exception as e:
         error_msg = str(e)
         logger.error(f"LLM API error ({type(e).__name__}): {error_msg}")
