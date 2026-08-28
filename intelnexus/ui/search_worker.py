@@ -260,11 +260,11 @@ def run_search_computation(
                 "conflicts_context": "",
             }
 
-    def _run_kg(scraped_data):
+    def _run_kg(scraped_data, base_results=None):
         try:
             from intelnexus.analysis.intelligence_graph import get_entity_extractor, IntelligenceGraph
             extractor = get_entity_extractor()
-            kg_raw = extractor.extract(scraped_data)
+            kg_raw = extractor.extract(scraped_data, search_results=base_results)
             kg = IntelligenceGraph()
             kg.build(kg_raw["entities"], kg_raw["relations"])
 
@@ -300,7 +300,7 @@ def run_search_computation(
     if _scraped:
         with ThreadPoolExecutor(max_workers=2) as _ex:
             _f_cred = _ex.submit(_run_credibility, _scraped, _base_results)
-            _f_kg = _ex.submit(_run_kg, _scraped)
+            _f_kg = _ex.submit(_run_kg, _scraped, _base_results)
             _cred_out = _f_cred.result()
             _kg_out = _f_kg.result()
     else:
