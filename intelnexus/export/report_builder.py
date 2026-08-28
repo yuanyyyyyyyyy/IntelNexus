@@ -1,19 +1,18 @@
 """
 情报搜索报告构建器 v2
 ======================
-将搜索结果、分析数据与 LLM 输出组装为结构化 13 板块情报报告。
+将搜索结果、分析数据与 LLM 输出组装为结构化情报报告。
 
 架构：混合生成模式
-- 程序化生成：板块 1/3/4/5/6/7/13（确定性高、零 LLM 成本）
-- LLM 生成：板块 2/8/9/10/11（需要语义理解）
-- 混合生成：板块 12（程序化筛选 + LLM 判断）
+- 程序化生成：板块 01/03/04/05/06/07/13/14（确定性高、零 LLM 成本）
+- LLM 生成：板块 02/08/09/10/11/12（需要语义理解）
 
-13 板块结构：
+14 板块结构：
  01. 报告概览          02. 核心摘要(LLM)       03. 事件画像
- 04. 关键情报          05. 证据链分析          06. 实体关系图谱
- 07. 事件演化时间线    08. 舆情趋势(LLM)       09. 影响评估(LLM)
- 10. 风险评估(LLM)     11. 情报判断(LLM)       12. 后续关注
- 13. 原始证据
+ 04. 来源分析          05. 关键情报            06. 证据链分析(LLM)
+ 07. 实体关系图谱      08. 事件演化时间线      09. 舆情趋势(LLM)
+ 10. 影响评估(LLM)     11. 风险评估(LLM)       12. 情报判断(LLM)
+ 13. 历史关联          14. 原始证据
 """
 
 import re
@@ -33,6 +32,8 @@ logger = get_logger(__name__)
 _SECTION_PATTERNS = {
     "executive_summary": re.compile(
         r'##\s*(?:二[、.]?\s*)?核心摘要\s*\n(.*?)(?=\n##\s)', re.DOTALL | re.IGNORECASE),
+    "evidence_chain": re.compile(
+        r'##\s*(?:六[、.]?\s*)?证据链\s*\n(.*?)(?=\n##\s)', re.DOTALL | re.IGNORECASE),
     "sentiment_analysis": re.compile(
         r'##\s*(?:八[、.]?\s*)?舆情趋势(?:分析)?\s*\n(.*?)(?=\n##\s|\Z)', re.DOTALL | re.IGNORECASE),
     "impact_assessment": re.compile(
@@ -54,14 +55,15 @@ def _extract_llm_section(llm_output: str, key: str) -> str:
 
 
 def extract_analytical_sections(llm_output: str) -> Dict[str, str]:
-    """提取 LLM 生成的五个分析板块。
+    """提取 LLM 生成的六个分析板块。
 
     Returns:
-        {"executive_summary", "sentiment_analysis", "impact_assessment",
-         "risk_assessment", "intelligence_judgment"}
+        {"executive_summary", "evidence_chain", "sentiment_analysis",
+         "impact_assessment", "risk_assessment", "intelligence_judgment"}
     """
     return {
         "executive_summary": _extract_llm_section(llm_output, "executive_summary"),
+        "evidence_chain": _extract_llm_section(llm_output, "evidence_chain"),
         "sentiment_analysis": _extract_llm_section(llm_output, "sentiment_analysis"),
         "impact_assessment": _extract_llm_section(llm_output, "impact_assessment"),
         "risk_assessment": _extract_llm_section(llm_output, "risk_assessment"),
@@ -315,46 +317,54 @@ def _find_related_entities(text: str, entities: List[dict],
 
 def build_evidence_chain(results: List[dict],
                          credibility_data: Optional[dict] = None,
-                         conflicts: List[dict] = None) -> str:
-    """板块 06：证据链分析（程序化生成）。
+                         conflicts: List[dict] = None,
+                         llm_sections: Dict[str, str] = None) -> str:
+    """板块 06：证据链分析（LLM 生成结论→证据节点 + 程序化补充跨源冲突）。
 
-    展示关键结论的证据支撑情况，而非简单的可信度评分。
+    展示关键结论的证据支撑情况，每个结论有独立的证据节点和置信度。
     """
     lines = ["## 六、证据链分析", ""]
 
-    if not credibility_data:
-        lines.append("> 无可信度评估数据")
-        return "\n".join(lines)
+    llm_sections = llm_sections or {}
+    llm_evidence = llm_sections.get("evidence_chain", "")
 
-    avg_score = credibility_data.get("avg_score", 0.5)
-    high_count = credibility_data.get("high_count", 0)
-    low_count = credibility_data.get("low_count", 0)
-    consistency = credibility_data.get("overall_consistency", 1.0)
-
-    # 总体证据强度
-    lines.append(f"**总体证据强度**：{avg_score:.0%}")
-    lines.append("")
-
-    # 证据统计
-    lines.append(f"- **高可信度来源**（≥70%）：{high_count} 个")
-    lines.append(f"- **低可信度来源**（<40%）：{low_count} 个")
-    lines.append(f"- **跨源一致性**：{consistency:.0%}")
-    lines.append("")
-
-    # 来源证据列表（按可信度排序）
-    if credibility_data.get("scores"):
-        lines.append("### 来源证据详情")
+    if llm_evidence:
+        # 清理 LLM 输出中可能包含的原始标题
+        llm_evidence = re.sub(
+            r'^##\s*(?:六[、.]?\s*)?证据链\s*\n', '', llm_evidence, flags=re.MULTILINE)
+        lines.append(llm_evidence.strip())
         lines.append("")
-        scores = sorted(credibility_data["scores"], key=lambda x: -x.get("score", 0))[:10]
-        for s in scores:
-            name = s.get("name", "Unknown")
-            score = s.get("score", 0.5)
-            reason = s.get("reason", "")
-            strength = "★" * int(score * 5) + "☆" * (5 - int(score * 5))
-            lines.append(f"- **{name}**：{strength} ({score:.0%}) — {reason}")
+    else:
+        # 降级：无可信度数据时提示
+        if not credibility_data:
+            lines.append("> 无可信度评估数据，证据链未生成")
+            return "\n".join(lines)
+
+        avg_score = credibility_data.get("avg_score", 0.5)
+        high_count = credibility_data.get("high_count", 0)
+        low_count = credibility_data.get("low_count", 0)
+        consistency = credibility_data.get("overall_consistency", 1.0)
+
+        lines.append(f"**总体证据强度**：{avg_score:.0%}")
+        lines.append("")
+        lines.append(f"- **高可信度来源**（≥70%）：{high_count} 个")
+        lines.append(f"- **低可信度来源**（<40%）：{low_count} 个")
+        lines.append(f"- **跨源一致性**：{consistency:.0%}")
         lines.append("")
 
-    # 跨源冲突
+        if credibility_data.get("scores"):
+            lines.append("### 来源证据详情")
+            lines.append("")
+            scores = sorted(credibility_data["scores"], key=lambda x: -x.get("score", 0))[:10]
+            for s in scores:
+                name = s.get("name", "Unknown")
+                score = s.get("score", 0.5)
+                reason = s.get("reason", "")
+                strength = "★" * int(score * 5) + "☆" * (5 - int(score * 5))
+                lines.append(f"- **{name}**：{strength} ({score:.0%}) — {reason}")
+            lines.append("")
+
+    # 跨源冲突（始终展示，无论 LLM 是否生成了证据链）
     if conflicts:
         lines.append("### 跨源冲突")
         lines.append("")
@@ -362,7 +372,7 @@ def build_evidence_chain(results: List[dict],
             severity = c.get("severity", 0)
             desc = c.get("description", "")
             ctype = c.get("type", "未知")
-            lines.append(f"- ️ [{ctype}] {desc}（严重度：{severity:.0%}）")
+            lines.append(f"- ⚠️ [{ctype}] {desc}（严重度：{severity:.0%}）")
         lines.append("")
 
     return "\n".join(lines)
@@ -547,10 +557,75 @@ def build_intelligence_judgment(llm_sections: Dict[str, str]) -> str:
     return content.strip()
 
 
+def build_event_history(event_changes: Optional[dict] = None,
+                        query: str = "") -> str:
+    """板块 13：历史关联与变化检测（程序化生成）。
+
+    展示与历史搜索的对比变化，体现系统的"记忆"能力。
+    """
+    lines = ["## 十三、历史关联与变化检测", ""]
+
+    if not event_changes:
+        lines.append("*首次搜索该主题，暂无历史对比数据。后续搜索将自动检测变化。*")
+        lines.append("")
+        return "\n".join(lines)
+
+    if not event_changes.get("has_history"):
+        lines.append("*首次搜索该主题，暂无历史对比数据。后续搜索将自动检测变化。*")
+        lines.append("")
+        return "\n".join(lines)
+
+    # 搜索统计
+    search_count = event_changes.get("search_count", 0)
+    days = event_changes.get("days_since_last", 0)
+    lines.append(f"**历史搜索次数**：{search_count} 次")
+    lines.append("")
+    if days > 0:
+        lines.append(f"**距上次搜索**：{days} 天")
+        lines.append("")
+
+    # 变化检测
+    has_changes = False
+
+    identity_change = event_changes.get("identity_change")
+    if identity_change:
+        has_changes = True
+        lines.append(f"**身份状态变化**：{identity_change}")
+        lines.append("")
+
+    heat_change = event_changes.get("heat_change")
+    if heat_change:
+        has_changes = True
+        arrow = "📈" if heat_change.startswith("+") else "📉"
+        lines.append(f"**热度变化**：{arrow} {heat_change}")
+        lines.append("")
+
+    risk_change = event_changes.get("risk_change")
+    if risk_change:
+        has_changes = True
+        lines.append(f"**风险等级变化**：{risk_change}")
+        lines.append("")
+
+    new_findings = event_changes.get("new_findings", [])
+    if new_findings:
+        has_changes = True
+        lines.append("**新增发现**：")
+        lines.append("")
+        for f in new_findings[:5]:
+            lines.append(f"- {f}")
+        lines.append("")
+
+    if not has_changes:
+        lines.append("*与上次搜索相比，未检测到显著变化。*")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
 def build_evidence_appendix(scraped: Dict[str, str],
                             results: List[dict] = None) -> str:
-    """板块 13：原始证据（程序化生成）。"""
-    lines = ["## 十三、原始证据", ""]
+    """板块 14：原始证据（程序化生成）。"""
+    lines = ["## 十四、原始证据", ""]
 
     if not scraped and not results:
         lines.append("> 无可用证据材料")
@@ -608,14 +683,15 @@ def build_intelligence_report(
     action_items: List[dict] = None,
     scraped: Dict[str, str] = None,
     report_id: str = None,
+    event_changes: Optional[dict] = None,
 ) -> str:
-    """组装完整的 13 板块情报搜索报告。
+    """组装完整的情报搜索报告。
 
     Args:
         query: 用户查询
         search_mode: 搜索模式
         model: LLM 模型名
-        llm_output: LLM 生成的原始报告（含 5 个分析板块）
+        llm_output: LLM 生成的原始报告（含 6 个分析板块）
         results: 搜索结果列表
         source_counts: 来源计数
         source_stats: 来源状态
@@ -626,16 +702,17 @@ def build_intelligence_report(
         action_items: 行动项
         scraped: 抓取的网页内容
         report_id: 自定义报告编号
+        event_changes: 历史事件变化检测数据
 
     Returns:
         完整的 Markdown 报告字符串
     """
-    # 1. 提取 LLM 生成的五个分析板块
+    # 1. 提取 LLM 生成的六个分析板块
     llm_sections = extract_analytical_sections(llm_output)
 
     result_count = len(results) if results else 0
 
-    # 2. 组装 13 板块
+    # 2. 组装 14 板块
     sections = [
         # 程序化板块
         build_report_overview(query, search_mode, model, source_counts, result_count, report_id),
@@ -660,7 +737,7 @@ def build_intelligence_report(
         "",
         "---",
         "",
-        build_evidence_chain(results, credibility_data, conflicts),
+        build_evidence_chain(results, credibility_data, conflicts, llm_sections),
         "",
         "---",
         "",
@@ -694,6 +771,11 @@ def build_intelligence_report(
         "## 十二、情报判断与后续关注",
         "",
         build_intelligence_judgment(llm_sections),
+        "",
+        "---",
+        "",
+        # 程序化板块：历史关联
+        build_event_history(event_changes, query),
         "",
         "---",
         "",

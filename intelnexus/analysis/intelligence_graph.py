@@ -13,6 +13,9 @@ import re
 import os
 import threading
 import networkx as nx
+from intelnexus.core.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 # 模块级 EntityExtractor 单例，避免每次搜索都重建（spaCy 模型加载代价极高）
@@ -22,6 +25,61 @@ _extractor_lock = threading.Lock()
 # 知识图谱节点标签中文字体族（CSS 字体栈，依赖浏览器本地字体回落，
 # 不引入任何在线字体依赖，保持离线部署能力）
 _GRAPH_CJK_FONT_FACE = "'Noto Serif SC', 'Source Han Serif SC', 'HarmonyOS Sans SC', 'Microsoft YaHei', serif"
+
+# ============================================================================
+# 噪声实体过滤层
+# ============================================================================
+# 网页结构词 / JSON 字段 / 程序变量 / 导航词 / 通用停用词
+# 这些词常被 spaCy 或正则误判为实体，必须剔除
+_ENTITY_BLACKLIST = frozenset({
+    # HTML / JSON / API 字段名
+    'user', 'role', 'content', 'data', 'id', 'type', 'name', 'value',
+    'key', 'status', 'code', 'message', 'result', 'items', 'list',
+    'array', 'object', 'string', 'number', 'boolean', 'null', 'true',
+    'false', 'token', 'session', 'header', 'body', 'request', 'response',
+    'url', 'uri', 'path', 'query', 'param', 'args', 'kwargs',
+    # 程序变量 / 类型名
+    'i', 'j', 'k', 'x', 'y', 'z', 'n', 'm', 'len', 'str', 'int',
+    'float', 'dict', 'set', 'tuple', 'range', 'map', 'filter',
+    'var', 'func', 'fn', 'obj', 'cls', 'self', 'this',
+    # 导航 / UI 词
+    'menu', 'nav', 'home', 'back', 'next', 'prev', 'page', 'login',
+    'logout', 'search', 'submit', 'cancel', 'ok', 'yes', 'no',
+    'click', 'button', 'link', 'form', 'input', 'select', 'option',
+    'div', 'span', 'table', 'tr', 'td', 'th', 'img', 'a', 'p',
+    'html', 'head', 'body', 'script', 'style', 'css', 'js',
+    # 通用英文停用词（常被正则误抽为大写短语）
+    'the', 'this', 'that', 'with', 'from', 'have', 'been',
+    'will', 'would', 'could', 'should', 'their', 'there',
+    'about', 'also', 'after', 'again', 'against', 'all', 'am', 'an',
+    'and', 'any', 'are', 'as', 'at', 'be', 'because', 'but', 'by',
+    'can', 'do', 'does', 'did', 'don', 'each', 'few', 'for', 'further',
+    'had', 'has', 'he', 'her', 'here', 'hers', 'herself', 'him',
+    'himself', 'his', 'how', 'if', 'in', 'into', 'is', 'it', 'its',
+    'itself', 'just', 'me', 'might', 'more', 'most', 'my', 'myself',
+    'nor', 'not', 'now', 'of', 'off', 'on', 'once', 'only', 'or',
+    'other', 'our', 'ours', 'ourselves', 'out', 'over', 'own', 're',
+    'same', 'she', 'so', 'some', 'such', 'than', 'them', 'themselves',
+    'then', 'these', 'they', 'those', 'through', 'to', 'too', 'under',
+    'until', 'up', 'us', 'very', 'was', 'we', 'were', 'what', 'when',
+    'where', 'which', 'while', 'who', 'whom', 'why', 'won', 'you',
+    'your', 'yours', 'yourself', 'yourselves',
+    # 中文噪声词
+    '用户', '角色', '内容', '数据', '类型', '名称', '值', '状态',
+    '代码', '消息', '结果', '列表', '对象', '字符串', '数字',
+    '首页', '返回', '下一页', '上一页', '页面', '登录', '退出',
+    '搜索', '提交', '取消', '确定', '是', '否', '点击', '按钮',
+    '链接', '表单', '输入', '选择', '选项',
+})
+
+# 噪声实体正则模式：匹配纯数字、纯符号、过短文本等
+_NOISE_PATTERNS = [
+    re.compile(r'^[\d\s\W]+$'),          # 纯数字/符号/空白
+    re.compile(r'^[a-z]$'),              # 单个小写字母
+    re.compile(r'^[A-Z]$'),              # 单个大写字母
+    re.compile(r'^\d{4}$'),              # 纯四位数字（年份误判）
+    re.compile(r'^v\d+\.\d+', re.I),     # 版本号 v1.0, v2.3
+]
 
 
 def get_entity_extractor():
@@ -45,6 +103,24 @@ class EntityExtractor:
     def __init__(self):
         self._nlp_zh = None
         self._nlp_en = None
+
+    @staticmethod
+    def _is_noise_entity(name: str) -> bool:
+        """判断实体名是否为噪声（网页结构词 / JSON 字段 / 程序变量 / 停用词）。
+
+        返回 True 表示应过滤掉该实体。
+        """
+        if not name or len(name.strip()) < 2:
+            return True
+        clean = name.strip()
+        # 黑名单精确匹配（不区分大小写）
+        if clean.lower() in _ENTITY_BLACKLIST:
+            return True
+        # 正则模式匹配
+        for pat in _NOISE_PATTERNS:
+            if pat.match(clean):
+                return True
+        return False
 
     def extract(self, scraped_content):
         """
@@ -107,6 +183,8 @@ class EntityExtractor:
         for ent in doc.ents:
             if ent.label_ in ('PERSON', 'ORG', 'GPE', 'LOC', 'EVENT',
                               'DATE', 'PRODUCT', 'MONEY', 'NORP', 'LAW'):
+                if self._is_noise_entity(ent.text):
+                    continue
                 eid = self._canonical_id(ent.text)
                 if eid not in all_entities:
                     all_entities[eid] = {
@@ -128,6 +206,7 @@ class EntityExtractor:
             sent_entities = [
                 e for e in sent.ents
                 if e.label_ in ('PERSON', 'ORG', 'GPE', 'PRODUCT')
+                and not self._is_noise_entity(e.text)
             ]
             if len(sent_entities) >= 2:
                 for i in range(len(sent_entities)):
@@ -155,7 +234,7 @@ class EntityExtractor:
         # Pattern 1: Quoted entities
         for m in re.finditer(r'[""\']([^""\'\']{2,30})[""\'\']', text[:5000]):
             name = m.group(1).strip()
-            if len(name) >= 2:
+            if len(name) >= 2 and not self._is_noise_entity(name):
                 eid = self._canonical_id(name)
                 if eid not in all_entities:
                     etype = self._guess_entity_type(name)
@@ -172,8 +251,7 @@ class EntityExtractor:
         for m in re.finditer(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\b', text[:5000]):
             name = m.group(1).strip()
             # Filter out common false positives
-            if name.lower() in ('the', 'this', 'that', 'with', 'from', 'have', 'been',
-                                'will', 'would', 'could', 'should', 'their', 'there'):
+            if self._is_noise_entity(name):
                 continue
             eid = self._canonical_id(name)
             if eid not in all_entities:
@@ -195,6 +273,8 @@ class EntityExtractor:
         for pattern in zh_patterns:
             for m in re.finditer(pattern, text[:5000]):
                 name = m.group(1).strip()
+                if self._is_noise_entity(name):
+                    continue
                 eid = self._canonical_id(name)
                 if eid not in all_entities:
                     etype = "ORG" if "公司" in name or "集团" in name else "PRODUCT"

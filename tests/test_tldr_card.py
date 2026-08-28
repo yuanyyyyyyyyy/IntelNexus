@@ -43,9 +43,13 @@ class TestTLDRCard:
 
     def test_system_prompt_contains_template(self):
         prompt = _build_system_prompt("test query", "all")
-        assert "TL;DR 情报速览" in prompt
-        assert "威胁等级" in prompt
-        assert "行动建议" in prompt
+        # 新版 prompt 包含 6 个分析板块
+        assert "核心摘要" in prompt
+        assert "证据链" in prompt
+        assert "舆情趋势" in prompt
+        assert "影响评估" in prompt
+        assert "风险评估" in prompt
+        assert "情报判断" in prompt
 
     def test_prompt_template_roundtrip(self):
         """系统提示词模板产出的报告应能被生产提取函数解析（端到端契约）。"""
