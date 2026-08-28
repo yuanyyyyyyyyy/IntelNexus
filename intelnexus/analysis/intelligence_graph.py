@@ -27,6 +27,24 @@ _extractor_lock = threading.Lock()
 _GRAPH_CJK_FONT_FACE = "'Noto Serif SC', 'Source Han Serif SC', 'HarmonyOS Sans SC', 'Microsoft YaHei', serif"
 
 # ============================================================================
+# 语义关系类型定义
+# ============================================================================
+# 根据上下文关键词推断实体间的语义关系
+_RELATION_PATTERNS = [
+    # (关系类型，中文关键词，英文关键词)
+    ("developed_by", ["开发", "研发", "创造", "构建"], ["developed by", "created by", "built by"]),
+    ("released_on", ["发布", "推出", "上线"], ["released on", "launched on", "announced on"]),
+    ("competes_with", ["竞争", "对手", "竞品"], ["competes with", "rival", "competitor"]),
+    ("derived_from", ["基于", "源自", "派生"], ["based on", "derived from", "forked from"]),
+    ("mentioned_by", ["报道", "提及", "引用"], ["reported by", "mentioned by", "cited by"]),
+    ("tested_by", ["测试", "评估", "验证"], ["tested by", "evaluated by", "verified by"]),
+    ("risk_related", ["风险", "威胁", "漏洞"], ["risk", "threat", "vulnerability"]),
+    ("owned_by", ["拥有", "所属", "旗下"], ["owned by", "belongs to", "subsidiary of"]),
+    ("partnered_with", ["合作", "联盟", "伙伴"], ["partnered with", "alliance", "partnership"]),
+    ("acquired_by", ["收购", "并购", "投资"], ["acquired by", "merged with", "invested by"]),
+]
+
+# ============================================================================
 # 噪声实体过滤层
 # ============================================================================
 # 网页结构词 / JSON 字段 / 程序变量 / 导航词 / 通用停用词
@@ -229,6 +247,19 @@ class EntityExtractor:
                 seen_rels.add(key)
                 unique_rels.append(rel)
 
+        # 尝试推断更语义化的关系类型
+        for rel in unique_rels:
+            if rel["predicate"] == "co_occur":
+                # 从源文本中查找关系线索
+                for src_url in rel.get("sources", []):
+                    if src_url in all_entities.get(rel["subject_id"], {}).get("mentions", [{}])[0].get("source_url", ""):
+                        context = all_entities.get(rel["subject_id"], {}).get("mentions", [{}])[0].get("sentence", "")
+                        inferred = self._infer_relation_type(context)
+                        if inferred:
+                            rel["predicate"] = inferred
+                            rel["confidence"] = min(1.0, rel.get("confidence", 0.5) + 0.1)
+                        break
+
         # 规范化实体名称（去重、清理）
         for e in all_entities.values():
             e["name"] = self._normalize_entity_name(e["name"])
@@ -392,6 +423,30 @@ class EntityExtractor:
         if any(kw in name for kw in ('漏洞', '攻击', 'CVE', 'exploit')):
             return "EVENT"
         return "ORG"  # Default to ORG for capitalized phrases
+
+    def _infer_relation_type(self, context: str) -> str:
+        """从上下文推断关系类型。
+
+        Args:
+            context: 包含两个实体的句子/段落
+
+        Returns:
+            关系类型字符串，或空字符串（无法推断时）
+        """
+        if not context:
+            return ""
+
+        context_lower = context.lower()
+
+        for rel_type, zh_keywords, en_keywords in _RELATION_PATTERNS:
+            # 检查中文关键词
+            if any(kw in context for kw in zh_keywords):
+                return rel_type
+            # 检查英文关键词
+            if any(kw in context_lower for kw in en_keywords):
+                return rel_type
+
+        return ""
 
     def _detect_lang(self, text):
         return 'zh' if any('\u4e00' <= c <= '\u9fff' for c in text[:200]) else 'en'
