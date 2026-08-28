@@ -267,6 +267,20 @@ def _render_search_results_ui(result: dict):
                     f"- [{_wscore:.2f}] {html.escape(str(wr.get('title', ''))[:70])} "
                     f"({html.escape(str(wr.get('source', '')))})")
 
+
+def render_search_report():
+    """在主页面持久渲染搜索报告、TL;DR 速览卡与完成提示。
+
+    从 session_state 读取数据，确保 fragment rerun 后内容不消失。
+    必须在 render_results_panels() 之前调用，保证报告在可视化面板上方。
+    """
+    if not st.session_state.get("search_completed", False):
+        return
+
+    report = st.session_state.get("streamed_summary", "")
+    if not report:
+        return
+
     # 报告标题
     st.markdown(f"""
     <div class="report-section">
@@ -275,12 +289,10 @@ def _render_search_results_ui(result: dict):
     """, unsafe_allow_html=True)
 
     # 报告全文
-    report = result.get("streamed_summary", "")
-    if report:
-        st.markdown(report)
+    st.markdown(report)
 
     # TL;DR 速览卡
-    tldr = result.get("tldr_card", "")
+    tldr = st.session_state.get("tldr_card", "")
     if tldr:
         _escaped = html.escape(tldr)
         _escaped = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", _escaped)
