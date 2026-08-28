@@ -353,7 +353,7 @@ confidence 取值范围 0-1，facts 必须≥0.8，analyses 0.5-0.8，speculatio
 （概率×影响矩阵：综合评级 = 概率与影响的乘积，如"高概率×高影响=高风险"）
 
 
-## 十、攻击面分析
+## 十二、攻击面分析
 
 从安全产品视角，分层分析该主题的攻击面/风险面：
 
@@ -376,7 +376,7 @@ confidence 取值范围 0-1，facts 必须≥0.8，analyses 0.5-0.8，speculatio
 **攻击面总结**：[一句话概括最核心的攻击面风险]
 
 
-## 十二、情报判断与后续关注
+## 十三、情报判断与后续关注
 
 **综合判断**：
 [2-3句综合分析，说明当前态势、关键不确定性和最值得关注的方向]
@@ -505,13 +505,13 @@ def _build_simplified_prompt(query, search_mode):
 **风险等级**：[高/中/低]
 [关键风险点]
 
-## 十、攻击面分析
+## 十二、攻击面分析
 **API 层**：[风险点]
 **分发层**：[风险点]
 **模型层**：[风险点]
 **企业层**：[风险点]
 
-## 十二、情报判断与后续关注
+## 十三、情报判断与后续关注
 [综合判断]
 [后续监测指标]
 
@@ -541,6 +541,9 @@ def generate_summary(llm, query, content, search_mode="all",
         logger.info(f"检测到小模型 '{model_name}'，启用简化模式（截断输入）")
 
     system_prompt = _build_system_prompt(query, search_mode)
+    # LangChain ChatPromptTemplate 默认使用 f-string 模板格式，
+    # 会将 system_prompt 中的 { } 误认为模板变量。需要转义为 {{ }}。
+    system_prompt_escaped = system_prompt.replace("{", "{{").replace("}", "}}")
     augmented_content = _build_augmented_content(content, credibility_context, kg_context, conflicts_context, kb_context)
     
     # 小模型截断输入
@@ -548,7 +551,7 @@ def generate_summary(llm, query, content, search_mode="all",
         augmented_content = _truncate_augmented_content(augmented_content, max_chars=25000)
 
     prompt_template = ChatPromptTemplate(
-        [("system", system_prompt), ("user", "搜索结果内容:\n{content}")]
+        [("system", system_prompt_escaped), ("user", "搜索结果内容:\n{content}")]
     )
     chain = prompt_template | llm | StrOutputParser()
     
@@ -566,8 +569,9 @@ def generate_summary(llm, query, content, search_mode="all",
         # 小模型重试时也截断输入
         retry_content = _truncate_augmented_content(augmented_content, 20000) if is_small else augmented_content
         simplified_prompt = _build_simplified_prompt(query, search_mode)
+        simplified_prompt_escaped = simplified_prompt.replace("{", "{{").replace("}", "}}")
         retry_template = ChatPromptTemplate(
-            [("system", simplified_prompt), ("user", "搜索结果内容:\n{content}")]
+            [("system", simplified_prompt_escaped), ("user", "搜索结果内容:\n{content}")]
         )
         retry_chain = retry_template | llm | StrOutputParser()
         retry_output = retry_chain.invoke({"content": retry_content})
