@@ -18,7 +18,6 @@ from intelnexus.briefing.templates import (
     format_news_item
 )
 from intelnexus.core.logger import get_logger
-from intelnexus.ui.icons import icon
 
 logger = get_logger(__name__)
 
@@ -571,7 +570,19 @@ class AIBriefingAnalyzer:
 
         sorted_results = sorted(filtered, key=_sort_key, reverse=True)
 
-        top_items = sorted_results[:BRIEFING_CONFIG["format"].get("max_top3_items", 3)]
+        # 主题多样性约束：TOP3 中不允许同一主题（标题前 20 字符相同）占据超过 2 席
+        max_top = BRIEFING_CONFIG["format"].get("max_top3_items", 3)
+        top_items = []
+        topic_count = {}  # topic_key → 已选数量
+        for item in sorted_results:
+            if len(top_items) >= max_top:
+                break
+            topic_key = item.get("title", "")[:20].lower()
+            count = topic_count.get(topic_key, 0)
+            if count >= 2:
+                continue  # 同一主题已占 2 席，跳过
+            top_items.append(item)
+            topic_count[topic_key] = count + 1
         if not top_items:
             return "本日暂无符合标准的重要新闻。"
 
@@ -600,6 +611,11 @@ class AIBriefingAnalyzer:
     def _generate_cyber_dynamic(self, collected_data: Dict[str, List[Dict]], llm) -> str:
         """生成 网络安全动态（漏洞与威胁 / 攻击事件 / 政策与合规）"""
         results = self._collect(CYBER_DYNAMIC_CATS, collected_data)
+        # 当专属类目为空时，从 ai_data_leak 补充安全相关内容（避免网安动态始终为零）
+        if not results:
+            results = self._collect(["ai_data_leak"], collected_data)
+            if results:
+                logger.info("网络安全动态：cyber_vuln/cyber_attack 为空，从 ai_data_leak 补充 %d 条", len(results))
         return self._run_prompt("cyber_dynamic", results, llm,
                                  "你是一位网络安全情报分析师，请生成'网络安全动态'部分。",
                                  label="网络安全动态")
@@ -657,6 +673,9 @@ class AIBriefingAnalyzer:
         blocks.append(f"### AI技术动态\n发现 {len(ai_results)} 条\n\n{ai_content}")
         # 网络安全动态
         cyber_results = self._collect(CYBER_DYNAMIC_CATS, collected_data)
+        # 当专属类目为空时，从 ai_data_leak 补充
+        if not cyber_results:
+            cyber_results = self._collect(["ai_data_leak"], collected_data)
         cyber_content = self._get_fallback_content("cyber_dynamic", cyber_results)
         blocks.append(f"### 网络安全动态\n发现 {len(cyber_results)} 条\n\n{cyber_content}")
         # 政策法规动态
@@ -697,18 +716,23 @@ class AIBriefingAnalyzer:
                     "suggestion": "立即升级至安全版本" if not in_kev else "按 CISA 要求紧急处置",
                 })
 
-        # 2. 提取暗网来源条目
+        # 2. 提取暗网来源条目（仅匹配 .onion 域名或明确的暗网源，避免误标 Dark Reading 等正规媒体）
+        _darkweb_hints = {"dark web", "darkweb", "tor network", "onion", "ransomware leak", "breach forum"}
         for item in results:
             url = item.get("url", "")
-            if ".onion" in url or "dark" in item.get("source", "").lower():
+            src_lower = item.get("source", "").lower()
+            desc_lower = (item.get("description", "") or "").lower()
+            is_onion = ".onion" in url
+            is_dark_forum = any(h in src_lower or h in desc_lower for h in _darkweb_hints)
+            if is_onion or is_dark_forum:
                 title = self._clean_search_title(item.get("title", ""))
                 if title:
                     threat_items.append({
                         "type": "暗网威胁",
                         "title": title,
-                        "source": "暗网论坛",
+                        "source": "暗网论坛" if is_dark_forum else "暗网来源",
                         "credibility": "63%",
-                        "impact": item.get("description", "")[:100],
+                        "impact": self._clean_search_title(item.get("description", "")[:100]),
                         "suggestion": "加强监控相关资产",
                     })
 
@@ -907,7 +931,7 @@ class AIBriefingAnalyzer:
 
             # 利用状态
             in_kev = data.get("in_kev", False)
-            exploit_status = f"{icon('high', color='terracotta', size='sm')} 在野利用" if in_kev else "暂无在野利用"
+            exploit_status = "🔴 在野利用" if in_kev else "暂无在野利用"
 
             # 建议措施（根据漏洞类型和利用状态差异化）
             if in_kev:
@@ -1337,10 +1361,16 @@ class AIBriefingAnalyzer:
 
     @staticmethod
     def _clean_search_title(title: str) -> str:
-        """清洗搜索结果标题：移除URL、日期片段、搜索引擎残留文本"""
+        """清洗搜索结果标题：移除URL、日期片段、搜索引擎残留文本、RSS CDATA 标签"""
         if not title:
             return "未知标题"
         t = title.strip()
+        # 移除 RSS CDATA 标签（<![CDATA[...]]> 及其残留片段）
+        t = re.sub(r'<!\[CDATA\[(.*?)\]>', r'\1', t, flags=re.DOTALL)
+        t = re.sub(r'\]\]>', '', t)
+        t = re.sub(r'<!\[CDATA\[', '', t)
+        # 移除 XML/HTML 标签残留
+        t = re.sub(r'<[^>]+>', '', t)
         # 移除 .onion URL
         if ".onion" in t:
             return ""
@@ -1638,16 +1668,23 @@ class AIBriefingAnalyzer:
             # 移除板块标题（由模板负责渲染）
             if delta_content.startswith("## 本期增量速览"):
                 lines = delta_content.split("\n")
-                # 跳过标题行和空行
                 start_idx = 0
                 for i, line in enumerate(lines):
                     if line.startswith("##"):
                         start_idx = i + 1
-                        # 跳过标题后的空行
                         while start_idx < len(lines) and not lines[start_idx].strip():
                             start_idx += 1
                         break
-                return "\n".join(lines[start_idx:]) if start_idx < len(lines) else ""
+                delta_content = "\n".join(lines[start_idx:]) if start_idx < len(lines) else ""
+            # 过滤百度跳转链接（baidu.com/link?url=... 无法识别实际内容，无信息价值）
+            delta_content = re.sub(
+                r'\s*-\s*\[.*?\]\(https?://(?:www\.)?baidu\.com/link\?url=[^\)]+\)\s*\n?',
+                '\n', delta_content
+            )
+            delta_content = re.sub(
+                r'\s*https?://(?:www\.)?baidu\.com/link\?url=\S+\s*\n?',
+                '\n', delta_content
+            )
             return delta_content
         except Exception as e:
             logger.warning(f"增量感知生成失败，降级跳过: {e}")
@@ -1749,17 +1786,15 @@ class AIBriefingAnalyzer:
         """程序化生成风险提醒：从 TOP3 + CVE 高危项 + 网安动态中提取紧急事件"""
         alerts = []
 
-        # 1. 从 TOP3 中提取 🔴 紧急事件
+        # 1. 从 TOP3 中提取紧急事件
         if top3_content:
-            # 查找包含 🔴 的段落
-            urgent_blocks = re.findall(r'(?:\U0001f534|' + re.escape(icon("high", color="terracotta", size="sm")) + r').*?(?=\\n\\n|\\Z)', top3_content, re.DOTALL)
+            urgent_blocks = re.findall(r'(?:\U0001f534).*?(?=\\n\\n|\\Z)', top3_content, re.DOTALL)
             if urgent_blocks:
-                # 提取标题
                 titles = re.findall(r'\*\*(.+?)\*\*', top3_content)
                 for title in titles[:3]:
                     if title and len(title) > 5:
                         alerts.append({
-                            "level": f"{icon('warning', color='warning', size='sm')} 高风险",
+                            "level": "⚠️ 高风险",
                             "event": title,
                             "risk": "该事件已被标记为紧急，需立即关注",
                             "action": "评估影响范围，启动应急响应流程",
@@ -1778,7 +1813,7 @@ class AIBriefingAnalyzer:
                 cvss_float = 0
             if cvss_float >= 9.0 or in_kev:
                 alerts.append({
-                    "level": f"{icon('warning', color='warning', size='sm')} 高风险",
+                    "level": "⚠️ 高风险",
                     "event": f"{cve_id}（CVSS {cvss_float}{' | 在野利用' if in_kev else ''}）",
                     "risk": "高危漏洞，可能导致远程代码执行或大规模影响",
                     "action": "立即升级至安全版本，前置 WAF/IPS 规则",
@@ -1792,11 +1827,22 @@ class AIBriefingAnalyzer:
                 title = self._clean_search_title(item.get("title", ""))
                 if title:
                     alerts.append({
-                        "level": f"{icon('warning', color='warning', size='sm')} 重要",
+                        "level": "⚠️ 重要",
                         "event": title,
                         "risk": "涉及高危安全事件，需持续关注",
                         "action": "检查相关资产暴露面，加强监控",
                     })
+
+        # 4. 基于采集量的风险提示：某类目条目超过 50 条表明该议题热度异常升高
+        for cat_id, items in collected_data.items():
+            if len(items) >= 50:
+                cat_name = WATCH_CATEGORIES.get(cat_id, {}).get("name", cat_id)
+                alerts.append({
+                    "level": "⚠️ 关注",
+                    "event": f"「{cat_name}」本期采集到 {len(items)} 条情报，热度显著升高",
+                    "risk": "该议题热度远超平均水平，可能反映重大事件或政策变动",
+                    "action": "建议重点关注该领域后续动态，评估潜在影响",
+                })
 
         if not alerts:
             return "本日暂无需要特别关注的风险提醒。建议保持常规安全防护措施。"
@@ -1865,12 +1911,26 @@ class AIBriefingAnalyzer:
             logger.warning(f"推荐关注 Topic 生成失败: {e}")
             return "暂无推荐。系统将根据您的搜索行为自动推荐关注点。"
 
+    # 低质量域名黑名单：AI工具导航站、问答社区等不应出现在情报简报中
+    _LOW_QUALITY_DOMAINS = {
+        'ai-bot.cn', 'aigc.cn', 'aigcdaily.cn', 'tool.lu',
+        'zhihu.com', 'www.zhihu.com',
+        'baidu.com', 'www.baidu.com',
+        'toutiao.com', 'www.toutiao.com',
+    }
+
     def _format_results_for_prompt(self, results: List[Dict]) -> str:
-        """将搜索结果格式化为提示词可用的格式"""
+        """将搜索结果格式化为提示词可用的格式（过滤低质量来源）"""
         formatted = []
+        skipped = 0
         for i, r in enumerate(results, 1):
-            title = r.get("title", "无标题")
             url = r.get("url", "")
+            # 过滤低质量域名（工具导航站、问答社区等）
+            domain = re.sub(r'^https?://(www\.)?', '', url).split('/')[0].lower()
+            if domain in self._LOW_QUALITY_DOMAINS:
+                skipped += 1
+                continue
+            title = r.get("title", "无标题")
             source = r.get("source", "未知来源")
             date = r.get("published_at", "未知日期")
             desc = r.get("description", r.get("content", ""))[:200]
