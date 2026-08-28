@@ -397,25 +397,35 @@ class AIBriefingAnalyzer:
             return ""
 
         # 按来源聚合分数（同一来源取最高分）
-        source_scores = {}
+        # 拆分两个维度：来源可靠性（源固有属性）+ 信息可信度（条目级综合评分）
+        source_reliability = {}  # 来源固有可靠性
+        source_confidence = {}   # 条目级信息可信度
         for r in scored:
             source = r.get("source", "Unknown")
-            score = r.get("credibility_score", 0.5)
-            if source not in source_scores or score > source_scores[source]:
-                source_scores[source] = score
+            details = r.get("credibility_details", {})
+            rel = details.get("source_reliability", details.get("domain_score", 0.5))
+            conf = r.get("credibility_score", 0.5)
+            if source not in source_reliability or rel > source_reliability[source]:
+                source_reliability[source] = rel
+            if source not in source_confidence or conf > source_confidence[source]:
+                source_confidence[source] = conf
 
-        scores = list(source_scores.values())
-        avg = round(sum(scores) / len(scores), 2) if scores else 0.5
-        high = sum(1 for s in scores if s >= 0.7)
-        low = sum(1 for s in scores if s < 0.4)
+        rel_scores = list(source_reliability.values())
+        conf_scores = list(source_confidence.values())
+        rel_avg = round(sum(rel_scores) / len(rel_scores), 2) if rel_scores else 0.5
+        conf_avg = round(sum(conf_scores) / len(conf_scores), 2) if conf_scores else 0.5
+        high_rel = sum(1 for s in rel_scores if s >= 0.7)
+        low_rel = sum(1 for s in rel_scores if s < 0.4)
         conflict_count = len(conflicts)
 
-        level = "高" if avg >= 0.7 else ("中" if avg >= 0.4 else "低")
+        rel_level = "高" if rel_avg >= 0.7 else ("中" if rel_avg >= 0.4 else "低")
+        conf_level = "高" if conf_avg >= 0.7 else ("中" if conf_avg >= 0.4 else "低")
         lines = [
             "## 来源可信度概览",
             "",
-            f"- **平均可信度**：{avg:.2f}（{level}）",
-            f"- **高可信来源**：{high} 个 · **低可信来源**：{low} 个（共 {len(source_scores)} 个独立来源）",
+            f"- **来源可靠性**：{rel_avg:.2f}（{rel_level}）— 基于域名权威性，反映来源固有可信度",
+            f"- **信息可信度**：{conf_avg:.2f}（{conf_level}）— 综合时效性、内容深度与跨源一致性",
+            f"- **高可靠来源**：{high_rel} 个 · **低可靠来源**：{low_rel} 个（共 {len(source_reliability)} 个独立来源）",
             f"- **跨源冲突提示**：{conflict_count} 处"
             if conflict_count else "- **跨源冲突提示**：未检测到明显冲突",
         ]
@@ -436,7 +446,7 @@ class AIBriefingAnalyzer:
                 for c in unique_conflicts[:2]:
                     lines.append(f"- {c.get('description', '')}（严重度 {c.get('severity', 0):.1f}）")
         lines.append("")
-        lines.append("> 本栏基于采集来源的域名权威性、时效性与内容深度自动评分，供研判参考。")
+        lines.append("> 来源可靠性 = 域名固有权威性（不受单条内容时效影响）；信息可信度 = 可靠性 × 时效性 × 内容深度 × 跨源一致性。")
         return "\n".join(lines)
 
     def _generate_top3(self, collected_data: Dict[str, List[Dict]], llm) -> str:
@@ -487,33 +497,47 @@ class AIBriefingAnalyzer:
             return self._generate_top3_fallback(all_results)
 
     def _build_credibility_summary(self, results: List[Dict]) -> str:
-        """构建可信度摘要，供TOP3提示词使用"""
-        high_trust = []
-        medium_trust = []
-        low_trust = []
-
+        """构建可信度摘要，供TOP3提示词使用（拆分来源可靠性 + 信息可信度）"""
+        # 来源可靠性（固有属性）和信息可信度（综合评分）分开统计
+        source_reliability = {}  # {source_name: max_reliability}
+        source_confidence = {}   # {source_name: max_confidence}
+    
         for r in results:
-            score = r.get("credibility_score", 0.5)
             source = r.get("source", "Unknown")
-            if score >= 0.7:
-                high_trust.append(f"{source}({score:.2f})")
-            elif score >= 0.4:
-                medium_trust.append(f"{source}({score:.2f})")
+            details = r.get("credibility_details", {})
+            rel = details.get("source_reliability", details.get("domain_score", 0.5))
+            conf = r.get("credibility_score", 0.5)
+            if source not in source_reliability or rel > source_reliability[source]:
+                source_reliability[source] = rel
+            if source not in source_confidence or conf > source_confidence[source]:
+                source_confidence[source] = conf
+    
+        # 按来源可靠性分档
+        high_rel = []
+        medium_rel = []
+        low_rel = []
+        for src, rel in source_reliability.items():
+            conf = source_confidence.get(src, 0.5)
+            entry = f"{src}(可靠性{rel:.0%}/信息{conf:.0%})"
+            if rel >= 0.7:
+                high_rel.append(entry)
+            elif rel >= 0.4:
+                medium_rel.append(entry)
             else:
-                low_trust.append(f"{source}({score:.2f})")
-
-        lines = ["来源可信度概览："]
-        if high_trust:
-            lines.append(f"- 高可信来源（≥0.7）：{', '.join(list(set(high_trust))[:5])}")
-        if medium_trust:
-            lines.append(f"- 中可信来源（0.4-0.7）：{', '.join(list(set(medium_trust))[:5])}")
-        if low_trust:
-            lines.append(f"- 低可信来源（<0.4）：{', '.join(list(set(low_trust))[:5])}")
-
+                low_rel.append(entry)
+    
+        lines = ["来源可信度概览（可靠性 = 来源固有权威性，信息 = 条目综合可信度）："]
+        if high_rel:
+            lines.append(f"- 高可靠来源（≥ 70%）：{', '.join(list(set(high_rel))[:5])}")
+        if medium_rel:
+            lines.append(f"- 中可靠来源（40-70%）：{', '.join(list(set(medium_rel))[:5])}")
+        if low_rel:
+            lines.append(f"- 低可靠来源（<40%）：{', '.join(list(set(low_rel))[:5])}")
+    
         return "\n".join(lines)
 
     def _generate_top3_fallback(self, all_results: List[Dict]) -> str:
-        """TOP3降级方案：按可信度和主题相关性加权排序，取Top3"""
+        """TOP3降级方案：按可信度、时效性、主题相关性加权排序，取Top3"""
         # 过滤掉暗网链接和极低可信来源
         filtered = [
             r for r in all_results
@@ -523,11 +547,24 @@ class AIBriefingAnalyzer:
         if not filtered:
             filtered = all_results
 
-        # 按可信度(60%) + 主题相关性(40%) 加权排序
+        now = datetime.now()
+
+        def _freshness_decay(item: Dict) -> float:
+            """时效性衰减因子：7 天内无衰减，之后每天衰减 5%，30 天后衰减至 0.3"""
+            pub_dt = self._parse_published_at(item.get("published_at", ""))
+            if pub_dt is None:
+                return 0.7  # 无日期条目给予中等衰减
+            age_days = max(0, (now - pub_dt).days)
+            if age_days <= 7:
+                return 1.0
+            return max(0.3, 1.0 - (age_days - 7) * 0.05)
+
+        # 按可信度(40%) + 主题相关性(30%) + 时效性(30%) 加权排序
         def _sort_key(x):
             cred = x.get("credibility_score", 0.5)
             rel = _topic_relevance(x.get("title", ""), x.get("description", ""))
-            return cred * 0.6 + rel * 0.4
+            fresh = _freshness_decay(x)
+            return cred * 0.40 + rel * 0.30 + fresh * 0.30
 
         sorted_results = sorted(filtered, key=_sort_key, reverse=True)
 
@@ -889,7 +926,6 @@ class AIBriefingAnalyzer:
                     suggestion = "限制访问控制，升级版本"
                 else:
                     suggestion = "升级至安全版本"
-                suggestion = "升级至安全版本"
 
             rows.append(f"| {cve_id} | {product_str} | {vuln_type_str} | {cvss} | {exploit_status} | {suggestion} |")
 
@@ -1781,7 +1817,11 @@ class AIBriefingAnalyzer:
         return "\n".join(lines)
 
     def _build_topic_recommendation(self, collected_data: Dict[str, List[Dict]]) -> str:
-        """程序化生成推荐关注 Topic：基于用户行为 + 本期采集数据推荐新关注点"""
+        """程序化生成推荐关注 Topic：基于用户行为 + 本期采集数据推荐新关注点
+
+        统计口径与 _build_overview() 统一：直接使用 collected_data 中各 category 的条目数，
+        而非关键词匹配（后者会显著低估实际条目数，导致与概览数字冲突）。
+        """
         try:
             # 读取用户行为数据
             import json
@@ -1795,23 +1835,16 @@ class AIBriefingAnalyzer:
                     query = s.get("query", "") if isinstance(s, dict) else str(s)
                     user_keywords.update(query.split())
 
-            # 从本期采集数据提取高频关键词
+            # 直接使用各 category 的条目数（与概览仪表盘统计口径一致）
             topic_freq = {}
-            for items in collected_data.values():
-                for item in items:
-                    title = item.get("title", "")
-                    desc = item.get("description", "")
-                    text = f"{title} {desc}".lower()
-                    # 检查与已知关注点的匹配
-                    for cat_id, cat_info in WATCH_CATEGORIES.items():
-                        for kw in cat_info.get("keywords_en", [])[:5]:
-                            if kw.lower() in text:
-                                topic_freq[cat_id] = topic_freq.get(cat_id, 0) + 1
+            for cat_id, items in collected_data.items():
+                if items:
+                    topic_freq[cat_id] = len(items)
 
             if not topic_freq and not user_keywords:
                 return "暂无推荐。系统将根据您的搜索行为自动推荐关注点。"
 
-            # 找出本期热度最高但用户可能未关注的 Topic
+            # 找出本期热度最高的 Topic（按实际采集条目数排序）
             sorted_topics = sorted(topic_freq.items(), key=lambda x: x[1], reverse=True)
             lines = []
             for cat_id, count in sorted_topics[:3]:

@@ -169,12 +169,18 @@ class SourceScorer:
         elif consis_score < 0.3:
             parts.append("与其他来源差异大")
 
+        # 来源可靠性（Source Reliability）：来源固有属性，不受单条内容时效/深度影响
+        # 与信息可信度（Information Confidence）拆分，避免 ExploitDB 等权威源
+        # 因单条内容时效性差而被误判为“低可信”（审计实锤问题）
+        source_reliability = round(domain_score, 3)
+
         return {
             "domain_score": round(domain_score, 3),
             "freshness_score": round(freshness_score, 3),
             "content_depth_score": round(depth_score, 3),
             "consistency_score": round(consis_score, 3),
             "final_score": round(final, 3),
+            "source_reliability": source_reliability,
             "reason": ", ".join(parts) if parts else "无明显特征"
         }
 
@@ -219,6 +225,8 @@ class SourceScorer:
             'kaspersky': 0.85, 'crowdstrike': 0.85, 'mandiant': 0.90,
             'palo alto': 0.85, 'fortinet': 0.80, 'symantec': 0.85,
             'nist': 0.90, 'cisa': 0.95, 'nvd': 0.95,
+            'exploit': 0.80, 'exploitdb': 0.80,
+            'cnvd': 0.85, 'otx': 0.80, 'alienvault': 0.80,
             'freebuf': 0.70, 'solidot': 0.65, 'infoq': 0.70,
         }
         for keyword, score in trust_keywords.items():
