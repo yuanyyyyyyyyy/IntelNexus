@@ -242,12 +242,19 @@ class AIBriefingNotifier:
             html_part = MIMEText(html_content, "html", "utf-8")
             msg.attach(html_part)
         
-        with smtplib.SMTP(smtp_server, smtp_port) as server:
+        # 根据端口选择连接方式：465=SSL直连，587/25=STARTTLS
+        if smtp_port == 465:
+            server = smtplib.SMTP_SSL(smtp_server, smtp_port, context=ssl.create_default_context())
+        else:
+            server = smtplib.SMTP(smtp_server, smtp_port)
             if use_tls:
-                # 校验服务端证书，抵御中间人攻击
                 server.starttls(context=ssl.create_default_context())
+        
+        try:
             server.login(username, password)
             server.send_message(msg)
+        finally:
+            server.quit()
         
         logger.info(f"Email sent to {email}")
         return True
@@ -429,10 +436,18 @@ class AIBriefingNotifier:
                     "建议设置 SMTP_USE_TLS=true（或 UI 中勾选'使用TLS'）"
                 )
             
-            with smtplib.SMTP(smtp_server, smtp_port) as server:
+            # 根据端口选择连接方式：465=SSL直连，587/25=STARTTLS
+            if smtp_port == 465:
+                server = smtplib.SMTP_SSL(smtp_server, smtp_port, context=ssl.create_default_context())
+            else:
+                server = smtplib.SMTP(smtp_server, smtp_port)
                 if use_tls:
                     server.starttls(context=ssl.create_default_context())
+            
+            try:
                 server.login(username, password)
+            finally:
+                server.quit()
             
             return True
         except Exception as e:
