@@ -375,7 +375,7 @@ def render_hermes_theme_css():
         background: var(--bg-card);
         border: 1px solid var(--border-light);
         border-radius: var(--radius-md);
-        padding: 12px 16px;
+        padding: 10px 16px;
         margin-bottom: 8px;
         transition: all 0.2s ease;
     }
@@ -383,20 +383,28 @@ def render_hermes_theme_css():
         border-color: var(--text-tertiary);
         box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     }
-    .sh-entry-query {
+    .sh-entry__time {
+        font-size: 12px;
+        color: var(--text-tertiary);
+        margin-bottom: 4px;
+    }
+    .sh-entry__meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .sh-entry__query {
         font-size: 14px;
         font-weight: 600;
         color: var(--text-primary);
-        margin-bottom: 6px;
         word-break: break-all;
     }
-    .sh-entry-meta {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex-wrap: wrap;
+    .sh-entry__sep {
+        color: var(--text-tertiary);
+        font-size: 12px;
     }
-    .sh-entry-badge {
+    .sh-entry__badge {
         display: inline-block;
         padding: 2px 8px;
         font-size: 11px;
@@ -406,14 +414,9 @@ def render_hermes_theme_css():
         border-radius: 4px;
         white-space: nowrap;
     }
-    .sh-entry-count {
+    .sh-entry__count {
         font-size: 12px;
         color: var(--text-secondary);
-    }
-    .sh-entry-time {
-        font-size: 12px;
-        color: var(--text-tertiary);
-        margin-left: auto;
     }
 
     /* ============================================================

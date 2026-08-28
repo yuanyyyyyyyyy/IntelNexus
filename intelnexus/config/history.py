@@ -46,7 +46,7 @@ class SearchHistory:
             "selected_url": selected_url,  # 新增：用户点击的结果 URL
         }
         
-        history = self.get_history()
+        history = self.get_history(include_deleted=False)
         history.insert(0, entry)
         
         if len(history) > 100:
@@ -55,16 +55,63 @@ class SearchHistory:
         self._save_history(history)
         return entry
     
-    def get_history(self, limit: int = 20) -> List[Dict]:
-        """Get search history."""
+    def get_history(self, limit: int = 100, include_deleted: bool = False) -> List[Dict]:
+        """Get search history.
+
+        Args:
+            limit: 最大返回条数。
+            include_deleted: 为 True 时包含已软删除条目。
+        """
         if not self.history_file.exists():
             return []
-        
+
         try:
             with open(self.history_file, 'r', encoding='utf-8') as f:
-                return json.load(f)[:limit]
+                data = json.load(f)
         except Exception:
             return []
+
+        if not include_deleted:
+            data = [e for e in data if not e.get("deleted")]
+        return data[:limit]
+
+    def delete_entry(self, entry_id: str) -> bool:
+        """软删除单条记录：标记 deleted + deleted_at。"""
+        history = self.get_history(limit=9999, include_deleted=False)
+        for entry in history:
+            if entry.get("id") == entry_id:
+                entry["deleted"] = True
+                entry["deleted_at"] = datetime.now().isoformat()
+                # 保留已删除条目在原文件中（物理清除由 purge_deleted 负责）
+                all_entries = self.get_history(limit=9999, include_deleted=True)
+                for ae in all_entries:
+                    if ae.get("id") == entry_id:
+                        ae["deleted"] = True
+                        ae["deleted_at"] = datetime.now().isoformat()
+                        break
+                self._save_history(all_entries)
+                return True
+        return False
+
+    def restore_entry(self, entry_id: str) -> bool:
+        """恢复软删除条目：清除 deleted / deleted_at 字段。"""
+        all_entries = self.get_history(limit=9999, include_deleted=True)
+        for entry in all_entries:
+            if entry.get("id") == entry_id:
+                entry.pop("deleted", None)
+                entry.pop("deleted_at", None)
+                self._save_history(all_entries)
+                return True
+        return False
+
+    def purge_deleted(self, days: int = 0) -> int:
+        """物理清除所有软删除条目。返回清除数量。"""
+        all_entries = self.get_history(limit=9999, include_deleted=True)
+        kept = [e for e in all_entries if not e.get("deleted")]
+        purged_count = len(all_entries) - len(kept)
+        if purged_count > 0:
+            self._save_history(kept)
+        return purged_count
     
     def save_report(self, query: str, content: str, mode: str) -> str:
         """Save a report to file."""
@@ -125,7 +172,7 @@ class SearchHistory:
         return False
     
     def clear_history(self):
-        """Clear search history."""
+        """物理清除所有条目（含软删除）。"""
         self._save_history([])
     
     def _generate_id(self) -> str:

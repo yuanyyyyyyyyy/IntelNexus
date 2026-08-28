@@ -267,7 +267,15 @@ if not onboarding_active:
         # 搜索进度轮询 fragment（后台任务运行时显示进度，完成时渲染结果）
         _search_progress_fragment()
 
-        # 搜索历史面板（无结果且无任务运行时显示）
+        # 搜索历史 toggle + 面板（对齐简报中心：toggle 控制显隐）
+        # 仅在没有搜索结果时显示 toggle（有结果时历史面板不干扰）
+        if not st.session_state.get("filtered"):
+            _sh_toggle = st.toggle(
+                get_text("show_history"),
+                key="sh_history_toggle",
+                value=st.session_state.get("show_search_history", False),
+            )
+            st.session_state.show_search_history = _sh_toggle
         render_search_history()
 
         # 搜索→简报订阅提示：检查当前查询是否已订阅为Topic
