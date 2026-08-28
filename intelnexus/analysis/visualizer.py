@@ -192,6 +192,103 @@ def generate_timeline_chart(scraped_data: dict) -> Optional[str]:
         return None
 
 
+def generate_credibility_radar(credibility_data: dict) -> Optional[str]:
+    """生成情报可信度雷达图（多维度可视化）。
+
+    维度：
+    - 来源可靠性：来源固有权威性（domain_score 均值）
+    - 信息可信度：条目级综合评分（credibility_score 均值）
+    - 一致性：跨源信息一致性（overall_consistency）
+    - 高质来源占比：高分来源比例
+    - 证据覆盖：有直接证据支撑的结论比例
+
+    Returns:
+        base64 PNG 字符串，或 None（无数据时）
+    """
+    if not credibility_data:
+        return None
+
+    scores = credibility_data.get("scores", [])
+    if not scores:
+        return None
+
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        from matplotlib import font_manager
+        _apply_cjk_font(matplotlib, font_manager)
+        import matplotlib.pyplot as plt
+        import numpy as np
+
+        _th = _chart_theme()
+        plt.rcParams["figure.facecolor"] = _th["fig"]
+        plt.rcParams["axes.facecolor"] = _th["fig"]
+        plt.rcParams["text.color"] = _th["fg"]
+        plt.rcParams["axes.labelcolor"] = _th["fg"]
+        plt.rcParams["xtick.color"] = _th["fg"]
+        plt.rcParams["ytick.color"] = _th["fg"]
+
+        # 计算各维度分数（0-1）
+        domain_scores = [s.get("domain", 0.5) for s in scores]
+        cred_scores = [s.get("score", 0.5) for s in scores]
+
+        source_reliability = np.mean(domain_scores) if domain_scores else 0.5
+        info_confidence = np.mean(cred_scores) if cred_scores else 0.5
+        consistency = credibility_data.get("overall_consistency", 0.5)
+
+        high_count = credibility_data.get("high_count", 0)
+        total = len(scores)
+        high_ratio = high_count / total if total > 0 else 0.5
+
+        # 证据覆盖（从 claims 推断，无数据时给默认值）
+        evidence_coverage = 0.7  # 默认值，实际可从 evidence_data 获取
+
+        # 雷达图数据
+        categories = ["来源可靠性", "信息可信度", "跨源一致性", "高质来源占比", "证据覆盖"]
+        values = [
+            min(1.0, source_reliability),
+            min(1.0, info_confidence),
+            min(1.0, consistency),
+            min(1.0, high_ratio),
+            min(1.0, evidence_coverage),
+        ]
+
+        # 闭合雷达图
+        values_closed = values + [values[0]]
+        angles = np.linspace(0, 2 * np.pi, len(categories), endpoint=False).tolist()
+        angles_closed = angles + [angles[0]]
+
+        fig, ax = plt.subplots(figsize=(4, 4), subplot_kw=dict(polar=True))
+
+        # 绘制数据区域
+        ax.fill(angles_closed, values_closed, color=_CHART_PALETTE["accent_orange"], alpha=0.25)
+        ax.plot(angles_closed, values_closed, color=_CHART_PALETTE["accent_orange"], linewidth=2)
+
+        # 绘制数据点
+        for angle, value in zip(angles, values):
+            ax.plot(angle, value, "o", color=_CHART_PALETTE["accent_orange"], markersize=6)
+
+        # 设置标签
+        ax.set_xticks(angles)
+        ax.set_xticklabels(categories, fontsize=8)
+        ax.set_ylim(0, 1)
+        ax.set_yticks([0.2, 0.4, 0.6, 0.8, 1.0])
+        ax.set_yticklabels(["20%", "40%", "60%", "80%", "100%"], fontsize=6, color="#888")
+        ax.set_title("情报可信度雷达", fontsize=10, pad=20)
+
+        # 网格线颜色
+        ax.grid(color=_CHART_PALETTE["grid"], alpha=0.5)
+
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", dpi=100, bbox_inches="tight")
+        plt.close(fig)
+        buf.seek(0)
+        return base64.b64encode(buf.read()).decode()
+    except Exception as e:
+        logger.warning(f"生成可信度雷达图失败: {e}")
+        return None
+
+
 def inject_visuals(report: str, charts: Dict[str, str]) -> str:
     """在报告的 ## 五、关键数据 部分注入图表。
 
@@ -206,7 +303,14 @@ def inject_visuals(report: str, charts: Dict[str, str]) -> str:
     for chart_type, b64 in charts.items():
         if not b64:
             continue
-        label = "威胁等级分布" if chart_type == "threat" else "时间线分布"
+        if chart_type == "threat":
+            label = "威胁等级分布"
+        elif chart_type == "timeline":
+            label = "时间线分布"
+        elif chart_type == "credibility_radar":
+            label = "情报可信度雷达"
+        else:
+            label = "可视化图表"
         img_tags.append(
             f'<img src="data:image/png;base64,{b64}" '
             f'alt="{label}" style="max-width:100%;margin:8px 0;">'

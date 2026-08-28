@@ -27,11 +27,49 @@ _TLDR_PATTERN = re.compile(
     r"##\s*TL;DR\s*情报速览\s*\n(.*?)(?=\n---|\n## |\Z)", re.DOTALL)
 
 
-def _extract_tldr_card(report: str) -> str:
+def _extract_tldr_card(report: str, structured_summary: dict = None) -> str:
+    """提取或生成 TL;DR 速览卡。
+
+    优先从 LLM 输出的 TL;DR 章节提取，若无则从结构化摘要生成。
+
+    Args:
+        report: LLM 生成的完整报告
+        structured_summary: 结构化摘要 dict（可选）
+
+    Returns:
+        TL;DR 文本
+    """
     if not report:
         return ""
+
+    # 优先从 LLM 输出提取
     m = _TLDR_PATTERN.search(report)
-    return m.group(1).strip() if m else ""
+    if m:
+        return m.group(1).strip()
+
+    # 降级：从结构化摘要生成
+    if structured_summary:
+        facts = structured_summary.get("facts", [])
+        analyses = structured_summary.get("analyses", [])
+        overall = structured_summary.get("overall_confidence", 0.5)
+
+        if facts:
+            # 取第一个事实作为核心
+            core_fact = facts[0].get("text", "")
+            if len(core_fact) > 80:
+                core_fact = core_fact[:77] + "..."
+
+            # 生成简短摘要
+            tldr = f"核心事实：{core_fact}"
+            if analyses:
+                analysis = analyses[0].get("text", "")
+                if len(analysis) > 60:
+                    analysis = analysis[:57] + "..."
+                tldr += f" | 分析：{analysis}"
+            tldr += f" | 置信度：{overall:.0%}"
+            return tldr
+
+    return ""
 
 
 def _zero_results_is_failure(stats) -> bool:
@@ -395,12 +433,17 @@ def run_search_computation(
     try:
         from config import ENABLE_VISUALIZATION
         if ENABLE_VISUALIZATION and (result.get("evidence_data") or result.get("scraped")):
-            from intelnexus.analysis.visualizer import generate_threat_chart, generate_timeline_chart, inject_visuals
+            from intelnexus.analysis.visualizer import generate_threat_chart, generate_timeline_chart, generate_credibility_radar, inject_visuals
             charts = {}
             if result.get("evidence_data"):
                 charts["threat"] = generate_threat_chart(result["evidence_data"])
             if result.get("scraped"):
                 charts["timeline"] = generate_timeline_chart(result["scraped"])
+            if result.get("credibility_data"):
+                radar = generate_credibility_radar(result["credibility_data"])
+                if radar:
+                    charts["credibility_radar"] = radar
+                    result["credibility_radar_chart"] = radar  # 供 UI 直接展示
             if any(charts.values()):
                 result["streamed_summary"] = inject_visuals(result["streamed_summary"], charts)
     except Exception as e:
@@ -414,9 +457,21 @@ def run_search_computation(
     except Exception as e:
         logger.warning(f"行动项提取失败: {e}")
 
-    # TL;DR 速览卡（基于 LLM 原始输出）
+    # 结构化摘要（事实/分析/推测）
     try:
-        result["tldr_card"] = _extract_tldr_card(result.get("llm_raw_output", ""))
+        if result.get("llm_raw_output"):
+            from intelnexus.analysis.structured_summary import extract_structured_summary
+            result["structured_summary"] = extract_structured_summary(result["llm_raw_output"])
+    except Exception as e:
+        logger.warning(f"结构化摘要提取失败：{e}")
+        result["structured_summary"] = None
+
+    # TL;DR 速览卡（基于 LLM 原始输出，降级使用结构化摘要）
+    try:
+        result["tldr_card"] = _extract_tldr_card(
+            result.get("llm_raw_output", ""),
+            result.get("structured_summary")
+        )
     except Exception:
         result["tldr_card"] = ""
 

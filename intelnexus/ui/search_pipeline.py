@@ -177,7 +177,8 @@ def _apply_search_results(result: dict):
         for key in ["refined", "results", "filtered", "scraped", "streamed_summary",
                      "credibility_data", "conflicts", "kg_entities", "kg_relations",
                      "kg_html_path", "kg_context", "evidence_data", "action_items",
-                     "source_stats", "report_timestamp"]:
+                     "source_stats", "report_timestamp", "credibility_radar_chart",
+                     "tldr_card", "structured_summary"]:
             if key in result and result[key] is not None:
                 st.session_state[key] = result[key]
 
