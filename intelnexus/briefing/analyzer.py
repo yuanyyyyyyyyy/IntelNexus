@@ -297,7 +297,9 @@ class AIBriefingAnalyzer:
         # 实体关系变化（独立板块）
         kg_changes_content = ""
         if kg_path:
-            kg_display = os.path.abspath(kg_path)
+            # 使用相对路径，避免暴露本地绝对路径（邮件推送/外部分享时泄露隐私）
+            kg_display = os.path.relpath(kg_path) if os.path.isabs(kg_path) else kg_path
+            kg_name = os.path.basename(kg_path)
             kg_changes_content = f"本期知识图谱已更新，新增实体与关系请查看：\n\n• [图谱] 本期实体关系图谱：{kg_display}"
         elif credibility_overview:
             kg_changes_content = credibility_overview
@@ -313,9 +315,9 @@ class AIBriefingAnalyzer:
         on_progress("summary", "正在生成今日核心摘要...", 0.95)
         summary_content = self._generate_summary(contents, collected_data)
 
-        # 可信度概览拼接到 top3 之前
-        top3_with_overview = credibility_overview + "\n\n---\n\n" + contents["top3"] \
-            if credibility_overview else contents["top3"]
+        # 可信度概览合并到简报概览板块（不再嵌入 TOP3）
+        if credibility_overview:
+            overview_content += "\n\n" + credibility_overview
 
         # 渲染完整简报
         briefing = render_markdown_briefing(
@@ -323,7 +325,7 @@ class AIBriefingAnalyzer:
             organization=org,
             overview_content=overview_content,
             summary_content=summary_content,
-            top3_content=top3_with_overview,
+            top3_content=contents["top3"],
             delta_content=contents.get("delta", ""),
             category_intel_content=contents.get("category_intel", ""),
             cyber_threat_content=contents.get("cyber_threat", ""),
@@ -1531,7 +1533,7 @@ class AIBriefingAnalyzer:
         if cyber_threat:
             kev_cves = re.findall(r'(CVE-\d{4}-\d+).*?在野利用', cyber_threat)
             for c in kev_cves[:2]:
-                lines.append(f"- {icon('warning', color='warning', size='sm')} {c}：已发现在野利用，需立即处置")
+                lines.append(f"- ⚠ {c}：已发现在野利用，需立即处置")
 
         # 从趋势研判提取核心观点
         insights = contents.get("insights", "")
@@ -1539,7 +1541,7 @@ class AIBriefingAnalyzer:
             insight_titles = re.findall(r'\*\*(.+?)\*\*', insights)
             for t in insight_titles[:2]:
                 if t and len(t) > 5:
-                    lines.append(f"- {icon('chart', color='blue', size='sm')} {t}")
+                    lines.append(f"- ▸ {t}")
 
         if len(lines) <= 7:
             lines.append("本日暂无特别需要关注的要点。")
@@ -1726,13 +1728,13 @@ class AIBriefingAnalyzer:
 
         source_str = "、".join(sorted(sources)) if sources else "Web"
 
-        # 风险等级判定
+        # 风险等级判定（Markdown 输出用纯文本符号，避免 SVG 泄露）
         if high_risk_count >= 3:
-            risk_level = f"{icon('high', color='terracotta', size='sm')} 高"
+            risk_level = "🔴 高"
         elif high_risk_count >= 1:
-            risk_level = f"{icon('medium', color='warm', size='sm')} 中等"
+            risk_level = "🟡 中等"
         else:
-            risk_level = f"{icon('low', color='sage', size='sm')} 低"
+            risk_level = "🟢 低"
 
         lines = [
             f"**覆盖范围：** {coverage}",

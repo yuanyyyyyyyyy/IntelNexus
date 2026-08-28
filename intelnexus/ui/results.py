@@ -62,6 +62,15 @@ def render_results_panels():
         col3.metric(get_text("metric_low_cred"), cred['low_count'])
         col4.metric(get_text("metric_consistency"), f"{cred['overall_consistency']:.2f}")
 
+        # 可信度雷达图
+        radar_chart = st.session_state.get("credibility_radar_chart")
+        if radar_chart:
+            st.markdown(
+                f'<img src="data:image/png;base64,{radar_chart}" '
+                f'alt="情报可信度雷达" style="max-width:400px;margin:16px auto;display:block;">',
+                unsafe_allow_html=True,
+            )
+
         rows = []
         for s in cred['scores'][:20]:
             rows.append(
@@ -71,6 +80,16 @@ def render_results_panels():
                       f"{get_text('col_level')} | {get_text('col_reason')} |\n"
                       "|------|--------|------|------|")
             st.markdown(header + "\n" + "\n".join(rows))
+
+    # 结构化摘要（事实/分析/推测）
+    structured = st.session_state.get("structured_summary")
+    if structured:
+        st.markdown("---")
+        st.markdown(f"## {icon('summary', 'lg', 'blue')} {get_text('results_structured_summary_title', '结构化情报摘要')}", unsafe_allow_html=True)
+        from intelnexus.analysis.structured_summary import format_structured_summary_for_display
+        md = format_structured_summary_for_display(structured)
+        if md:
+            st.markdown(md)
 
     conflicts = st.session_state.get("conflicts", [])
     if conflicts:
