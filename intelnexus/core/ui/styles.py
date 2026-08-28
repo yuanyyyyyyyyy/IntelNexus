@@ -438,6 +438,25 @@ def render_hermes_theme_css():
         min-height: 28px !important;
         line-height: 1.2 !important;
     }
+    /* query 查看按钮：伪装成纯文本链接 */
+    [class*="st-key-sh_view_"] .stButton > button {
+        background: transparent !important;
+        color: var(--text-primary) !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 2px 0 !important;
+        font-size: 14px !important;
+        font-weight: 600 !important;
+        text-align: left !important;
+        min-height: auto !important;
+        line-height: 1.4 !important;
+    }
+    [class*="st-key-sh_view_"] .stButton > button:hover {
+        color: var(--accent-orange) !important;
+        background: transparent !important;
+        transform: none !important;
+        box-shadow: none !important;
+    }
     /* 删除确认区按钮同样紧凑 */
     [class*="st-key-sh_delbtn_"] .stButton > button,
     [class*="st-key-sh_delyes_"] .stButton > button,
