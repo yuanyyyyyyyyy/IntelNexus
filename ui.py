@@ -36,6 +36,7 @@ from config import (
 from intelnexus.ui.sidebar import render_sidebar
 from intelnexus.ui.icons import icon
 from intelnexus.ui.search_pipeline import run_search_pipeline, _search_progress_fragment, render_search_report
+from intelnexus.ui.search_history import render_search_history
 from intelnexus.ui.results import render_results_panels
 from intelnexus.ui.download import render_download_section
 from intelnexus.ui.results_detail import render_results_detail
@@ -250,8 +251,12 @@ if not onboarding_active:
             f"live_query={live_query!r}, pending_query={pending_query!r}, model={model!r}"
         )
 
+        # 来自搜索历史面板的「重新搜索」触发
+        _sh_pending = st.session_state.pop("_sh_pending_query", None)
+        if _sh_pending and not (run_button and effective_query):
+            run_search_pipeline(_sh_pending, search_mode, model, threads, status_slot)
         # 来自简报的取证任务：自动触发搜索
-        if pending_query and not (run_button and effective_query):
+        elif pending_query and not (run_button and effective_query):
             run_search_pipeline(pending_query, pending_mode, model, threads, status_slot)
         elif run_button and effective_query:
             run_search_pipeline(effective_query, search_mode, model, threads, status_slot)
@@ -261,6 +266,9 @@ if not onboarding_active:
 
         # 搜索进度轮询 fragment（后台任务运行时显示进度，完成时渲染结果）
         _search_progress_fragment()
+
+        # 搜索历史面板（无结果且无任务运行时显示）
+        render_search_history()
 
         # 搜索→简报订阅提示：检查当前查询是否已订阅为Topic
         if effective_query:
