@@ -8,13 +8,12 @@ SMTP 邮件配置持久化模块
 - 调度器只读环境变量（SMTP_SERVER 等），UI 保存的配置对定时推送完全无效。
 
 合并优先级：
-- 非敏感字段：默认值 ← 环境变量 ← 配置文件（文件最优先）
-- 敏感字段（password）：默认值 ← 配置文件 ← 环境变量（.env 最优先）
+- 所有字段：默认值 ← 环境变量 ← 配置文件（文件最优先）
 
-安全建议：
-- SMTP 密码等敏感凭据应配置在 .env 文件中（已在 .gitignore），
-  而非 data/email_settings.json。后者虽也在 .gitignore 中，
-  但存在意外提交或打包泄露的风险。
+说明：
+- data/email_settings.json 已在 .gitignore 中，仅保存在用户本地，不会泄露到仓库
+- 普通用户通过 UI 配置即可，无需手动编辑 .env
+- .env 仍可作为高级用户的兜底配置方式
 """
 
 import os
@@ -50,20 +49,15 @@ _ENV_MAP = {
     "from_name": "SMTP_FROM_NAME",
 }
 
-# 敏感字段列表：这些字段的值应优先从 .env 读取，而非 JSON 文件
-# 原因：.env 已在 .gitignore 中，而 data/ 目录存在意外打包/提交风险
-_SENSITIVE_FIELDS = {"password"}
-
 
 def get_email_settings() -> Dict:
     """读取合并后的邮件配置。
 
-    优先级策略：
-    - 非敏感字段：默认值 ← 环境变量 ← 文件（文件最优先）
-    - 敏感字段（password）：默认值 ← 文件 ← 环境变量（.env 最优先）
+    优先级策略（所有字段统一）：
+    默认值 ← 环境变量 ← 配置文件（文件最优先）
 
-    这样设计是为了让敏感凭据可以通过 .env 安全管理，
-    同时保留 UI 配置非敏感字段的灵活性。
+    这样设计是为了让普通用户通过 UI 配置即可，
+    无需手动编辑 .env 文件。
     """
     cfg = dict(_DEFAULTS)
 
@@ -82,22 +76,12 @@ def get_email_settings() -> Dict:
         else:
             cfg[key] = val
 
-    # 2) UI/调用方显式保存到文件的字段
+    # 2) UI/调用方显式保存到文件的字段（文件优先级最高）
     stored = safe_read_json(EMAIL_SETTINGS_FILE)
     if isinstance(stored, dict):
         for key in _DEFAULTS:
             if key not in stored or stored[key] in (None, ""):
                 continue
-            # 敏感字段：仅当环境变量未设置时才使用文件中的值
-            if key in _SENSITIVE_FIELDS:
-                env_name = _ENV_MAP.get(key, "")
-                if os.getenv(env_name):
-                    logger.warning(
-                        f"敏感字段 '{key}' 同时存在于 {env_name} 和 "
-                        f"{EMAIL_SETTINGS_FILE}，优先使用环境变量（更安全）。"
-                        f"建议从 JSON 文件中移除该字段。"
-                    )
-                    continue
             cfg[key] = stored[key]
 
     return cfg
