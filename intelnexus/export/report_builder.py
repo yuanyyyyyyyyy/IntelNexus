@@ -490,7 +490,8 @@ def build_evidence_chain(results: List[dict],
             severity = c.get("severity", 0)
             desc = c.get("description", "")
             ctype = c.get("type", "未知")
-            lines.append(f"- {icon('warning', color='warning', size='sm')} [{ctype}] {desc}（严重度：{severity:.0%}）")
+            # Markdown 不支持 HTML SVG，改用 Unicode 警告符号
+            lines.append(f"- ⚠️ [{ctype}] {desc}（严重度：{severity:.0%}）")
         lines.append("")
 
     return "\n".join(lines)
@@ -828,7 +829,8 @@ def build_event_history(event_changes: Optional[dict] = None,
     heat_change = event_changes.get("heat_change")
     if heat_change:
         has_changes = True
-        arrow = icon('trend', color='sage' if heat_change.startswith('+') else 'terracotta', size='sm')
+        # Markdown 不支持 HTML SVG，改用 Unicode 箭头
+        arrow = "↑" if heat_change.startswith('+') else "↓"
         lines.append(f"**热度变化**：{arrow} {heat_change}")
         lines.append("")
 
