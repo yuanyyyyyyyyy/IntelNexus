@@ -93,6 +93,12 @@ HIDDEN_IMPORTS = [
     "networkx",
     "pyvis",
     "dotenv",
+    # jieba 分词器（可选，未安装时自动降级为 bi-gram）
+    "jieba",
+    "jieba.posseg",
+    "jieba.analyse",
+    "jieba.finalseg",
+    # intelnexus 模块
     "intelnexus",
     "intelnexus.core",
     "intelnexus.core.llm",
@@ -100,6 +106,7 @@ HIDDEN_IMPORTS = [
     "intelnexus.core.search",
     "intelnexus.core.search.registry",
     "intelnexus.core.search.sources",
+    "intelnexus.core.search.tokenizer",  # 新增 tokenizer 模块
     "intelnexus.analysis",
     "intelnexus.briefing",
     "intelnexus.config",

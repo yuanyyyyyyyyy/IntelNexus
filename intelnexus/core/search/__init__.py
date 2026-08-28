@@ -174,26 +174,18 @@ def is_blocked_domain(url: str) -> bool:
     return any(b in host for b in BLOCKED_DOMAINS)
 
 
+from intelnexus.core.search.tokenizer import tokenize  # noqa: E402,F401
+
+
 def _has_cjk(text: str) -> bool:
     """判断文本是否包含中日韩字符（CJK Unified Ideographs 范围）。"""
     return any('\u4e00' <= ch <= '\u9fff' for ch in text)
 
 
-def _cjk_bigrams(text: str) -> list:
-    """对中文文本生成 2 字滑动窗口 bi-gram 列表。
-
-    例："送免费模型额度" → ["送免", "免费", "费模", "模型", "型额", "额度"]
-    仅当文本长度 >= 3 时才生成（2 字及以下本身就是最小单元）。
-    """
-    if len(text) < 3:
-        return []
-    return [text[i:i+2] for i in range(len(text) - 1)]
-
-
 def extract_query_tokens(query) -> set:
     """从查询中提取有意义的关键词 token（排除停用词与纯数字年份）。
 
-    对含 CJK 字符的长 token，额外生成 bi-gram 子 token，
+    使用统一分词接口（jieba 优先 / bi-gram 兜底），
     避免中文无分词边界时整句作为单一 token 导致零匹配。
     """
     if isinstance(query, list):
@@ -207,16 +199,12 @@ def extract_query_tokens(query) -> set:
     for p in parts:
         if not p:
             continue
-        for raw in re.split(r"[\s,，。、;；]+", p):
-            tok = raw.strip().lower()
+        # 统一分词：jieba 精确分词 或 bi-gram 兜底
+        for word in tokenize(p):
+            tok = word.strip().lower()
             if not tok or tok in _STOPWORDS or tok.isdigit() or len(tok) < 2:
                 continue
             tokens.add(tok)
-            # 中文长 token 补充 bi-gram："送免费模型额度" → "免费","模型","额度" 等
-            if _has_cjk(tok) and len(tok) >= 3:
-                for bg in _cjk_bigrams(tok):
-                    if bg not in _STOPWORDS:
-                        tokens.add(bg)
     return tokens
 
 
