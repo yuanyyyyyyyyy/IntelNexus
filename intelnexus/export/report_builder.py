@@ -218,11 +218,12 @@ def build_source_analysis(source_counts: Dict[str, int],
     lines.append("### 4.1 来源分布")
     lines.append("")
     if source_counts:
-        lines.append("| 来源 | 数量 | 占比 |")
-        lines.append("|------|------|------|")
+        lines.append("| 来源 | 数量 | 占比 | 角色 |")
+        lines.append("|------|------|------|------|")
         for src, count in sorted(source_counts.items(), key=lambda x: -x[1]):
             pct = f"{count / total * 100:.0f}%" if total > 0 else "0%"
-            lines.append(f"| {src} | {count} | {pct} |")
+            role = _get_source_role(src)
+            lines.append(f"| {src} | {count} | {pct} | {role} |")
     else:
         lines.append("> 无有效来源数据")
     lines.append("")
@@ -242,7 +243,8 @@ def build_source_analysis(source_counts: Dict[str, int],
         sorted_sources = sorted(domain_scores.items(), key=lambda x: -x[1])[:10]
         for name, score in sorted_sources:
             stars = _score_to_stars(score)
-            lines.append(f"- **{name}**：{stars} ({score:.0%})")
+            role = _get_source_role(name)
+            lines.append(f"- **{name}**：{stars} ({score:.0%}) [{role}]")
     else:
         lines.append("> 无可信度评分数据")
     lines.append("")
@@ -256,6 +258,55 @@ def _score_to_stars(score: float) -> str:
     half = 1 if (score * 5 - full) >= 0.5 else 0
     empty = 5 - full - half
     return "★" * full + ("☆" if half else "") + "☆" * empty
+
+
+# 来源角色分类映射
+# Primary: 官方/权威数据源（漏洞库、公告）
+# Secondary: 媒体/新闻源
+# Community: 社区/论坛/开源平台
+# Research: 技术分析/学术研究
+_SOURCE_ROLE_MAP = {
+    # Primary - 官方权威
+    "NVD": "Primary",
+    "CISA_KEV": "Primary",
+    "CNVD": "Primary",
+    "ExploitDB": "Primary",
+    "AlienVault_OTX": "Primary",
+    # Secondary - 媒体报道
+    "Google News": "Secondary",
+    "SecRSS": "Secondary",
+    "Qianxin": "Secondary",
+    "scheduled": "Secondary",
+    # Community - 社区
+    "HackerNews": "Community",
+    "HuggingFace": "Community",
+    "arXiv": "Community",
+    "GitHub": "Community",
+    "Reddit": "Community",
+    "Twitter": "Community",
+    # Darkweb - 暗网
+    "Ahmia": "Community",
+    "OnionLink": "Community",
+    "TorDex": "Community",
+}
+
+
+def _get_source_role(source_name: str) -> str:
+    """根据来源名称返回角色分类标签。"""
+    # 精确匹配
+    if source_name in _SOURCE_ROLE_MAP:
+        return _SOURCE_ROLE_MAP[source_name]
+    # 模糊匹配（包含关键词）
+    name_lower = source_name.lower()
+    if any(kw in name_lower for kw in ('news', 'rss', 'media', 'blog')):
+        return "Secondary"
+    if any(kw in name_lower for kw in ('forum', 'community', 'reddit', 'hn', 'hacker')):
+        return "Community"
+    if any(kw in name_lower for kw in ('research', 'lab', 'arxiv', 'paper')):
+        return "Research"
+    if any(kw in name_lower for kw in ('nvd', 'cve', 'kev', 'cnvd', 'exploit', 'otx')):
+        return "Primary"
+    return "Secondary"  # 默认归类为媒体
 
 
 def build_key_intelligence(results: List[dict],
@@ -464,7 +515,7 @@ def build_event_evolution(results: List[dict],
 
     dates = list(by_date.keys())
 
-    # 检测事件阶段变化
+    # 检测事件阶段变化（使用情报术语）
     total_dates = len(dates)
     if total_dates >= 3:
         third = total_dates // 3
@@ -473,8 +524,18 @@ def build_event_evolution(results: List[dict],
             "mid": dates[third:third * 2],
             "late": dates[third * 2:],
         }
+        phase_labels = {
+            "early": "Discovery（发现期）",
+            "mid": "Attribution（归因期）",
+            "late": "Expansion（扩散期）",
+        }
     else:
         phases = {"early": dates, "mid": [], "late": []}
+        phase_labels = {
+            "early": "Discovery（发现期）",
+            "mid": "Attribution（归因期）",
+            "late": "Expansion（扩散期）",
+        }
 
     for i, date in enumerate(dates):
         items = by_date[date]
@@ -488,10 +549,10 @@ def build_event_evolution(results: List[dict],
         if total_dates >= 3:
             if date == phases["early"][-1] and phases["mid"]:
                 lines.append("")
-                lines.append("*--- 早期阶段结束 ---*")
+                lines.append(f"*--- {phase_labels['early']} 结束 ---*")
             elif date == phases["mid"][-1] and phases["late"]:
                 lines.append("")
-                lines.append("*--- 中期阶段结束 ---*")
+                lines.append(f"*--- {phase_labels['mid']} 结束 ---*")
 
         if i < len(dates) - 1:
             lines.append("")

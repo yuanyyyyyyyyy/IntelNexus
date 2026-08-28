@@ -113,6 +113,9 @@ class EntityExtractor:
         if not name or len(name.strip()) < 2:
             return True
         clean = name.strip()
+        # 长度过滤：超过 40 字符的实体通常是标题片段或描述词，不是有效实体
+        if len(clean) > 40:
+            return True
         # 黑名单精确匹配（不区分大小写）
         if clean.lower() in _ENTITY_BLACKLIST:
             return True
