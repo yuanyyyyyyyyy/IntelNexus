@@ -156,11 +156,13 @@ def run_briefing_pipeline(
         pass
 
     # ---- 4. 推送 ----
+    # 手动生成时推送给所有订阅者（不限制 schedule.enabled）；
+    # schedule.enabled 仅影响定时自动推送，不影响手动触发。
     pushed = 0
     if push_enabled:
         on_progress("push", "推送订阅者...", 0.97)
-        from intelnexus.config.subscriptions import get_active_subscribers
-        subscribers = get_active_subscribers()
+        from intelnexus.config.subscriptions import get_all_subscribers
+        subscribers = get_all_subscribers()
         if subscribers:
             notifier = AIBriefingNotifier(email_config=email_config)
             for sub in subscribers:
@@ -193,7 +195,7 @@ def run_briefing_pipeline(
                 1.0,
             )
         else:
-            on_progress("push_no_subs", "暂无启用推送的订阅者", 1.0)
+            on_progress("push_no_subs", "暂无订阅者，请先添加订阅者", 1.0)
     else:
         on_progress("push_skipped", "已跳过推送", 1.0)
 
