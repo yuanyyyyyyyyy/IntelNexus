@@ -42,7 +42,6 @@ Thumbs.db
 # 本地数据目录含凭据与用户数据（email_settings.json 等），整目录忽略
 # SCC / PyInstaller 运行时会自动创建
 data/
-src/config/data/
 
 # Output & Reports
 output/
@@ -58,11 +57,23 @@ test_*.py
 # Streamlit
 .streamlit/secrets.toml
 
+# Temporary & backup files
+*.tmp
+*.bak
+*.bak2
+
+# SQLite databases
+*.db
+*.sqlite
+*.sqlite-journal
+
 # AI tooling / IDE caches
 .codebuddy/
 .opencode/
 .reasonix/
 .qoder/
+.cursor/
+.claude/
 
 # 文档/学习资料
 docs/

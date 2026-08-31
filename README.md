@@ -11,16 +11,19 @@
 
 | 特性 | 说明 |
 |------|------|
-| **多源搜索** | 同时搜索网页(Bing/DDG/Yahoo/Yandex/Baidu)、新闻和暗网 |
+| **多源搜索** | 同时搜索网页(Bing/DDG/Yahoo/Yandex/Baidu)、新闻、威胁情报和暗网 |
 | **AI智能分析** | LLM自动优化查询、筛选结果、生成专业报告 |
 | **本地+自定义LLM** | 支持Ollama本地部署与界面添加自定义模型，不内置任何云端预设 |
-| **多格式导出** | 一键导出Markdown/PDF/Word/Excel |
+| **多格式导出** | 一键导出Markdown/PDF/Word/Excel，专业排版含中日韩字体 |
 | **暗网搜索** | 支持Ahmia(无需Tor) + OnionLink/TorDex(需Tor) + 自定义.onion站点 |
 | **Topic 中枢** | 搜索与简报共享的关注点注册表，驱动采集与推送的统一数据源 |
 | **AI简报系统** | 自动采集、分析、推送每日AI与网络安全情报简报 |
 | **增量感知** | 对比历史存档输出本期新增/消失条目，缓解信息过载 |
 | **个性化订阅** | 订阅者按兴趣过滤推送类目，只收关心方向 |
-| **知识图谱复用** | 简报复用实体关系图谱生成本期关系缩略图 |
+| **知识图谱** | 实体关系抽取与可视化，生成可交互的关系缩略图 |
+| **知识库** | 语义检索收藏条目，RAG 注入搜索管线与简报分析 |
+| **健康面板** | 数据源可达性实时监控，自动降级不可用源 |
+| **可信度评估** | 多源交叉评分 + 证据链追溯 + 冲突检测 |
 
 ---
 
@@ -32,23 +35,39 @@
 ```
 IntelNexus/
 ├── main.py                     # CLI入口（搜索 / 简报 / 调度）
-├── ui.py                       # 统一 Streamlit Web 界面（搜索 + 简报合一）
-├── config.py                   # 全局配置（环境变量）
-├── requirements.txt            # 依赖清单
+├── ui.py                       # 统一 Streamlit Web 界面（首页 + 搜索 + 简报 + 知识库）
+├── config.py                   # 全局配置（环境变量 + 功能开关）
+├── requirements.txt            # 核心依赖清单
+├── requirements-extras.txt     # 可选扩展（Anthropic/Gemini/NLP/图表）
+├── requirements-build.txt      # EXE 构建依赖（排除重型可选包）
 │
-├── intelnexus/                 # 唯一业务包（原 shared/src/intel-search/intel-briefing 归一）
-│   ├── core/                   # 底层：搜索 / LLM / 配置 / 日志 / 样式
-│   ├── analysis/               # 可信度评分 / 证据链 / 实体关系图谱
-│   ├── search_app/             # 搜索取证工作台（含暗网真身 darkweb.py）
+├── intelnexus/                 # 唯一业务包
+│   ├── core/                   # 底层：搜索 / LLM / 配置 / 日志 / 安全 / 样式
+│   │   ├── search/             #   搜索框架：注册表 / 源抽象 / 并发调度
+│   │   │   └── sources/        #     各数据源实现（15+ 源）
+│   │   ├── llm/                #   LLM 客户端（Ollama/OpenAI/自定义模型）
+│   │   ├── security/           #   URL 安全校验（防 SSRF）
+│   │   └── settings/           #   JSON 配置读写 + 文件锁 + 结果缓存
+│   ├── analysis/               # 可信度评分 / 证据链 / 实体关系图谱 / 结构化摘要
 │   ├── briefing/               # 简报巡防引擎（采集/分析/通知/调度/模板/导出）
-│   ├── topics/                 # ★ Topic Registry 中枢（registry/store/diff）
-│   ├── config/                 # data/ 下 JSON 读写（搜索历史/订阅者/简报历史）
-│   └── ui/                     # 统一壳：合并搜索 UI 与简报视图
+│   ├── topics/                 # Topic Registry 中枢（registry/store/diff）
+│   ├── knowledge/              # 知识库语义检索（RAG 注入搜索与简报）
+│   ├── export/                 # 报告导出（PDF/Word/Excel + CJK 字体注册）
+│   ├── config/                 # data/ 下 JSON 读写（搜索历史/订阅者/邮件/代理）
+│   ├── search_app/             # 暗网搜索真身（darkweb.py）
+│   └── ui/                     # 统一壳：首页概览/搜索/简报中心/知识库/侧边栏/图标
 │
-└── data/                       # 数据目录（JSON 持久化）
+├── static/fonts/               # 自托管 Web 字体（Inter/Playfair/Noto Serif SC 等）
+├── lib/                        # 前端库（vis-network/tom-select）
+├── presets/                    # 预设数据（OPML 订阅源）
+├── hooks/                      # PyInstaller 运行时钩子
+├── tests/                      # 测试套件（60+ 测试文件）
+│
+└── data/                       # 数据目录（JSON 持久化，.gitignore 忽略）
     ├── sources.json            # 数据源配置
     ├── subscriptions.json      # 订阅者配置（含 interests 个性化字段）
-    ├── topics.json             # ★ Topic 中枢持久化（preset + 用户搜索沉淀）
+    ├── topics.json             # Topic 中枢持久化（preset + 用户搜索沉淀）
+    ├── knowledge_base.json     # 知识库条目
     └── briefings/              # 简报历史存档（Delta 增量对比源）
 ```
 
@@ -64,6 +83,7 @@ IntelNexus/
 - **增量感知（Delta）**：简报对比历史存档，输出较上期的新增 / 消失条目，缓解信息过载。
 - **个性化订阅**：订阅者按 `interests` 过滤类目，只收自己关心的方向。
 - **知识图谱复用**：简报复用 IntelligenceGraph 生成本期实体关系缩略图，与分析共享深度。
+- **知识库 RAG**：收藏条目经语义编码后注入搜索管线与简报分析，让历史情报可复用。
 
 ---
 
@@ -137,10 +157,11 @@ python main.py search -q "人工智能趋势" -m qwen2.5:7b
 python main.py search -q "机器学习" -s web
 python main.py search -q "AI新闻" -s news
 python main.py search -q "暗网情报" -s darkweb
+python main.py search -q "CVE漏洞" -s threat
 
 # 参数说明
 # -m: 选择模型 (默认 qwen2.5:7b)
-# -s: 搜索模式 (web/news/darkweb/all)
+# -s: 搜索模式 (web/news/darkweb/threat/all)
 # -t: 线程数 (默认5)
 # -o: 输出文件名
 ```
@@ -150,6 +171,7 @@ python main.py search -q "暗网情报" -s darkweb
 ```bash
 python main.py ui
 # 打开 http://localhost:8501
+# 界面包含四个主 Tab：首页概览 / 情报搜索 / 简报中心 / 知识库
 ```
 
 ### AI简报系统
@@ -168,10 +190,11 @@ python main.py scheduler
 
 ### 功能
 
-- 自动采集4类AI情报：美欧机构AI应用、涉我AI舆论、AI新法案、AI数据泄露
+- 自动采集 6 类情报：美欧机构AI应用、涉我AI舆论、AI新法案、AI数据泄露、漏洞与威胁、攻击事件与合规
 - LLM分析生成结构化简报（TOP3亮点 + 分类详情 + 趋势洞察）
 - 多渠道推送：邮件(SMTP)、企业微信(Webhook)、钉钉(Webhook)
 - 定时调度：按订阅者配置推送时间和频率
+- 增量感知：对比历史存档标注新增/消失条目
 
 ### 快速开始
 
@@ -192,7 +215,7 @@ python main.py scheduler
 | ai_legislation | AI相关法规政策 |
 | ai_data_leak | AI数据泄露事件 |
 | cyber_vuln | 网络安全漏洞与威胁 |
-| cyber_attack | 网络攻击与事件 |
+| cyber_attack | 网络攻击事件与合规 |
 
 ---
 
@@ -216,7 +239,15 @@ SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USERNAME=your@email.com
 SMTP_PASSWORD=your-password
+
+# 功能开关 (可选，全部有默认值，详见 .env.example)
+# ENABLE_CREDIBILITY=true        # 可信度评估与知识图谱
+# ENABLE_VISUALIZATION=true      # 搜索结果图表可视化
+# ENABLE_OTX=false               # AlienVault OTX 威胁情报
+# ENABLE_NVD=false               # NVD 国家漏洞数据库
 ```
+
+完整的环境变量模板见 `.env.example`，包含所有功能开关的默认值。
 
 ---
 
@@ -237,7 +268,9 @@ SMTP_PASSWORD=your-password
 |------|------|
 | 网页 | Bing, DuckDuckGo, Yahoo, Yandex, Baidu |
 | 新闻 | Google News, Bing News, RSS订阅 |
-| 暗网 | Ahmia (公开访问，无需Tor) + OnionLink/TorDex (高级模式，需Tor)
+| 威胁情报 | HackerNews, ExploitDB, OTX, NVD, CISA KEV, 安全社区 |
+| 暗网 | Ahmia (公开访问，无需Tor) + OnionLink/TorDex (高级模式，需Tor) |
+| 自定义 | 用户通过 UI 添加的自定义搜索源 |
 
 ---
 
