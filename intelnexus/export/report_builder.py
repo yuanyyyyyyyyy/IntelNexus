@@ -56,20 +56,8 @@ def _extract_llm_section(llm_output: str, key: str) -> str:
     m = pattern.search(llm_output)
     if m:
         logger.debug(f"[_extract_llm_section] 成功提取 '{key}': {len(m.group(1))} chars")
-        # 输出匹配到的内容预览
-        preview = m.group(1)[:200].replace('\n', '\\n')
-        logger.debug(f"[_extract_llm_section] '{key}' 内容预览: {preview}")
     else:
-        # 调试：输出前 200 chars 查看实际格式
-        preview = llm_output[:200].replace('\n', '\\n')
-        logger.warning(f"[_extract_llm_section] 未匹配 '{key}'，LLM 输出预览: {preview}")
-        # 额外调试：尝试简单匹配
-        simple_pattern = re.compile(r'##.*?' + re.escape(key.split('_')[0]) if '_' in key else key, re.IGNORECASE)
-        simple_m = simple_pattern.search(llm_output)
-        if simple_m:
-            logger.warning(f"[_extract_llm_section] 简单匹配找到标题位置: {simple_m.start()}-{simple_m.end()}")
-        else:
-            logger.warning(f"[_extract_llm_section] 连简单匹配都找不到关键词")
+        logger.debug(f"[_extract_llm_section] 未匹配 '{key}'（板块不存在或 LLM 未输出）")
     return m.group(1).strip() if m else ""
 
 
@@ -775,10 +763,10 @@ def build_impact_assessment(llm_sections: Dict[str, str]) -> str:
 
 
 def build_risk_assessment(llm_sections: Dict[str, str]) -> str:
-    """板块 11：风险评估（LLM 生成）。"""
+    """板块 11：风险评估（LLM 可选生成）。"""
     content = llm_sections.get("risk_assessment", "")
     if not content:
-        return "> （风险评估未生成，请检查 LLM 输出）"
+        return "> （该主题不涉及安全风险评估）"
     # 清理标题
     content = re.sub(r'^##\s*(?:十 [、.]?\s*)?风险评估\s*\n', '', content, flags=re.MULTILINE)
     # 后处理：供应链风险→供应链透明风险
@@ -787,20 +775,20 @@ def build_risk_assessment(llm_sections: Dict[str, str]) -> str:
 
 
 def build_attack_surface(llm_sections: Dict[str, str]) -> str:
-    """板块 11.5：攻击面分析（LLM 生成）。"""
+    """板块 11.5：攻击面分析（LLM 可选生成）。"""
     content = llm_sections.get("attack_surface", "")
     if not content:
-        return "> （攻击面分析未生成，请检查 LLM 输出）"
+        return "> （该主题不涉及攻击面分析）"
     # 清理标题
     content = re.sub(r'^##\s*(?:十 [、.]?\s*)?攻击面分析\s*\n', '', content, flags=re.MULTILINE)
     return content.strip()
 
 
 def build_intelligence_judgment(llm_sections: Dict[str, str]) -> str:
-    """板块 12：情报判断与后续关注（LLM 生成）。"""
+    """板块 12：情报判断与后续关注（LLM 可选生成）。"""
     content = llm_sections.get("intelligence_judgment", "")
     if not content:
-        return "> （情报判断未生成，请检查 LLM 输出）"
+        return "> （该主题不涉及情报判断）"
     # 清理标题
     content = re.sub(r'^##\s*(?:十一[、.]?\s*)?情报判断(?:与后续关注)?\s*\n', '', content, flags=re.MULTILINE)
     return content.strip()
