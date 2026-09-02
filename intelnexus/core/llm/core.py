@@ -418,22 +418,19 @@ def _build_augmented_content(content, credibility_context="", kg_context="", con
 
 
 def _is_small_model(model_name: str) -> bool:
-    """检测是否为小参数模型（≤32B），需要简化输入和 prompt。"""
+    """检测是否为小参数模型（≤32B），需要简化输入和 prompt。
+
+    只依据显式参数量标识（如 -7b、-27b）判断——本地部署的真小模型
+    几乎都带参数后缀。不做系列前缀猜测：那会把 qwen3-max 等云端
+    旗舰误判为小模型导致输入被截断。误判兜底由 generate_summary 的
+    「输出格式校验 → 简化 prompt 重试」路径承担。
+    """
     if not model_name:
         return False
     name = model_name.lower()
     # 参数量标识：27b, 14b, 7b, 3b 等
     small_params = ['3b', '7b', '8b', '14b', '27b', '1.5b', '0.5b']
-    if any(p in name for p in small_params):
-        return True
-    # 已知小模型系列
-    small_series = ['qwen2.5-', 'qwen3.', 'phi-', 'gemma-', 'llama-3.2-8b', 'llama-3.1-8b']
-    if any(s in name for s in small_series):
-        # 检查是否没有大参数标识
-        large_params = ['72b', '110b', '405b', 'gpt-4', 'gpt-5', 'claude', 'deepseek-v3', 'deepseek-r1']
-        if not any(l in name for l in large_params):
-            return True
-    return False
+    return any(p in name for p in small_params)
 
 
 def _truncate_augmented_content(content: str, max_chars: int = 30000) -> str:
