@@ -2,6 +2,8 @@
 
 import pytest
 
+MAIN_PY = __import__("pathlib").Path(__file__).resolve().parent.parent / "main.py"
+
 
 class TestCaptchaDetection:
     def test_wappass_url_detected(self):
@@ -89,3 +91,15 @@ class TestEvidenceChainMandatory:
     def test_simplified_prompt_includes_evidence_chain(self):
         from intelnexus.core.llm.core import _build_simplified_prompt
         assert "证据链" in _build_simplified_prompt("测试主题", "web")
+
+
+class TestStartupEnvOrder:
+    def test_env_vars_set_before_streamlit_import(self):
+        """STREAMLIT_SERVER_* 必须在 `from streamlit.web import cli` 之前设置，
+        否则 bootstrap 二次解析配置时触发 [server] 变更警告。"""
+        src = MAIN_PY.read_text(encoding="utf-8")
+        ui_start = src.find("def ui(ui_port, ui_host,")
+        import_pos = src.find("from streamlit.web import cli as stcli", ui_start)
+        env_pos = src.find('os.environ["STREAMLIT_SERVER_PORT"]', ui_start)
+        assert ui_start != -1 and import_pos != -1 and env_pos != -1
+        assert env_pos < import_pos

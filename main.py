@@ -470,6 +470,18 @@ def _auto_open_browser(port: int, delay: float = 3.0) -> None:
 @click.option("--no-browser", is_flag=True, help="Disable auto-open browser")
 def ui(ui_port, ui_host, no_scheduler, no_browser):
     """Run IntelNexus in Web UI mode."""
+    # STREAMLIT_SERVER_* 环境变量必须在 streamlit 首次解析配置之前设置：
+    # import streamlit 即触发一次配置解析，之后再设环境变量会让 bootstrap
+    # 二次解析时 server.* 发生变化，触发 "An update to the [server] config
+    # option section was detected" 警告。用环境变量（而非 CLI --server.*）
+    # 传参本身是为了避免与 config.toml [server] 段冲突。
+    os.environ["STREAMLIT_SERVER_PORT"] = str(ui_port)
+    os.environ["STREAMLIT_SERVER_ADDRESS"] = ui_host
+    # 禁止 Streamlit 内置的自动打开浏览器行为（headless=false 时它会在服务器
+    # 启动后立即开一个标签页），与下方 _auto_open_browser 线程冲突导致双标签页。
+    # 我们的自定义函数带健康检查 + 延迟，确保 app 完全就绪后才打开。
+    os.environ["STREAMLIT_SERVER_HEADLESS"] = "true"
+
     from streamlit.web import cli as stcli
 
     if getattr(sys, "frozen", False):
@@ -491,14 +503,6 @@ def ui(ui_port, ui_host, no_scheduler, no_browser):
         t.start()
 
     ui_script = os.path.join(base, "ui.py")
-    # 用环境变量传 server 配置，避免 CLI --server.* 参数与 config.toml
-    # [server] 段冲突触发 "An update to the [server] config option..." 警告。
-    os.environ["STREAMLIT_SERVER_PORT"] = str(ui_port)
-    os.environ["STREAMLIT_SERVER_ADDRESS"] = ui_host
-    # 禁止 Streamlit 内置的自动打开浏览器行为（headless=false 时它会在服务器
-    # 启动后立即开一个标签页），与下方 _auto_open_browser 线程冲突导致双标签页。
-    # 我们的自定义函数带健康检查 + 延迟，确保 app 完全就绪后才打开。
-    os.environ["STREAMLIT_SERVER_HEADLESS"] = "true"
     sys.argv = [
         "streamlit", "run", ui_script,
         "--global.developmentMode=false",
