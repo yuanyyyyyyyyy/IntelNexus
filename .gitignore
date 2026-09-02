@@ -74,6 +74,8 @@ test_*.py
 .qoder/
 .cursor/
 .claude/
+# Mimosa 安全扫描产物（会话级扫描状态与基线哈希）
+.mimosa/
 
 # 文档/学习资料
 docs/
