@@ -8,6 +8,11 @@ from intelnexus.core.settings.cache import get_cached, set_cached
 from intelnexus.core.logger import get_logger
 from intelnexus.core.search import USER_AGENTS, get_http_proxies, get_session, get_shared_tor_session
 
+try:
+    import trafilatura
+except ImportError:
+    trafilatura = None  # 未安装时静默降级为整页文本
+
 logger = get_logger(__name__)
 
 # 反爬验证码页特征：URL 特征（百度 wappass / captcha 路径）+ 文本特征兜底。
@@ -29,6 +34,29 @@ def _is_captcha_response(final_url: str, text: str) -> bool:
         return True
     head = (text or '')[:500]
     return sum(1 for m in _CAPTCHA_TEXT_MARKERS if m in head) >= 2
+
+
+def _extract_main_text(html_text: str) -> str:
+    """用 trafilatura 提取正文主内容（去导航/广告/侧栏/相关推荐）。
+
+    返回空串表示未提取到（开关关闭/库缺失/失败/内容过短），调用方应
+    降级为整页文本。整页文本会混入广告与页面框架文案，污染实体图谱
+    和舆情输入，主内容提取是这些噪声的源头治理。
+    """
+    from config import ENABLE_MAIN_CONTENT_EXTRACTION
+    if not ENABLE_MAIN_CONTENT_EXTRACTION or trafilatura is None or not html_text:
+        return ""
+    try:
+        extracted = trafilatura.extract(
+            html_text,
+            include_comments=False,
+            include_tables=True,
+            favor_recall=True,
+        )
+    except Exception as e:
+        logger.debug(f"正文提取失败（降级整页文本）: {type(e).__name__}")
+        return ""
+    return (extracted or "").strip() if extracted and len(extracted) >= 100 else ""
 
 
 def is_safe_scrape_target(url: str) -> bool:
@@ -112,9 +140,15 @@ def scrape_single(url_data, rotate=False, rotate_interval=5, control_port=9051, 
 
             # 反爬验证码页（如百度 wappass 验证码）返回 200：丢弃正文走 title
             # 降级，且不回写 resolved_url，避免验证码 URL/文本污染下游链路
+            # （验证码检测用整页文本，保持检测面完整）
             if _is_captcha_response(response.url or url, text):
                 logger.debug(f"检测到反爬验证码页，丢弃正文: {url[:120]}")
                 return url, url_data['title']
+
+            # 正文主内容提取：去导航/广告/侧栏，失败保持整页文本（现状行为）
+            main_text = _extract_main_text(response.text)
+            if main_text:
+                text = main_text
 
             # 包装 URL（如 baidu.com/link?url=）无法离线解码，抓取时跟随
             # 重定向后把真实地址回写到结果条目，供去重/评分/证据库使用
