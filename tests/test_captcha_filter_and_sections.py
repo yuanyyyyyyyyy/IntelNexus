@@ -48,3 +48,44 @@ class TestEntityNoiseFilter:
         from intelnexus.analysis.intelligence_graph import EntityExtractor
         assert not EntityExtractor._is_noise_entity("阿里云百炼")
         assert not EntityExtractor._is_noise_entity("硅基流动")
+
+
+class TestEvidenceChainMandatory:
+    def test_validate_counts_evidence_chain(self):
+        from intelnexus.core.llm.core import _validate_llm_output
+        filler = "这是一段足够长的分析正文，用于通过输出长度下限校验。" * 3
+        output = (
+            "## 二、核心摘要\n" + filler + "\n"
+            "## 六、证据链\n" + filler + "\n"
+            "## 八、舆情趋势\n" + filler + "\n"
+            "## 九、影响评估\n" + filler + "\n"
+        )
+        assert _validate_llm_output(output) == 4
+
+    def test_validate_without_evidence_chain(self):
+        from intelnexus.core.llm.core import _validate_llm_output
+        filler = "这是一段足够长的分析正文，用于通过输出长度下限校验。" * 3
+        output = (
+            "## 二、核心摘要\n" + filler + "\n"
+            "## 八、舆情趋势\n" + filler + "\n"
+            "## 九、影响评估\n" + filler + "\n"
+        )
+        assert _validate_llm_output(output) == 3
+
+    def test_short_output_returns_zero(self):
+        from intelnexus.core.llm.core import _validate_llm_output
+        assert _validate_llm_output("核心摘要 证据链 舆情趋势 影响评估") == 0
+
+    def test_system_prompt_has_evidence_chain_as_mandatory(self):
+        """证据链必须出现在必选板块组（可选板块判定语之前）。"""
+        from intelnexus.core.llm.core import _build_system_prompt
+        prompt = _build_system_prompt("测试主题", "web")
+        mandatory_pos = prompt.find("必选板块")
+        optional_pos = prompt.find("可选板块")
+        chain_pos = prompt.find("## 六、证据链")
+        assert 0 < mandatory_pos < optional_pos
+        assert mandatory_pos < chain_pos < optional_pos
+
+    def test_simplified_prompt_includes_evidence_chain(self):
+        from intelnexus.core.llm.core import _build_simplified_prompt
+        assert "证据链" in _build_simplified_prompt("测试主题", "web")

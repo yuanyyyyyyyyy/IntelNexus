@@ -229,8 +229,8 @@ def _build_system_prompt(query, search_mode):
     """统一的 LLM system prompt。
 
     不再区分 general/security 双模板，改为一个统一 prompt：
-    - 4 个必选板块（所有查询都生成）
-    - 3 个可选板块（LLM 根据话题自行判断是否生成）
+    - 5 个必选板块（所有查询都生成：TL;DR、核心摘要、证据链、舆情趋势、影响评估）
+    - 3 个可选板块（仅安全/风险话题生成：风险评估、攻击面分析、情报判断）
     """
     mode_desc = _get_mode_description(search_mode)
     return f"""
@@ -319,15 +319,9 @@ def _build_system_prompt(query, search_mode):
 **关键判断**：[一句话概括最核心的影响判断]
 
 
----
-
-**可选板块**（仅当查询主题涉及安全、风险、威胁时生成，否则跳过）：
-
-判断标准：如果查询主题涉及网络安全、数据泄露、恶意攻击、技术风险等安全/风险话题，请额外生成以下板块；如果话题与安全风险无关（如商业、产品、市场、政策等），则**不要输出**以下板块。
-
 ## 六、证据链
 
-从搜索结果中提炼 3-5 个关键结论，每个结论列出支撑证据节点：
+从搜索结果中提炼 2-5 个关键结论，每个结论列出支撑证据节点：
 
 **结论 1**：[一句话概括关键结论]
 - E1：[证据描述]（来源：[来源名]，来源等级：[A/B/C/D]，支持度：[高/中/低]）
@@ -335,7 +329,14 @@ def _build_system_prompt(query, search_mode):
 **综合置信度**：[高/中/低]
 
 来源等级定义：A=官方声明/权威媒体；B=专业媒体；C=社区平台；D=匿名博客/个人网站
+（所有话题都必须生成本板块：它只做结论与来源的对应关系，与话题是否涉及安全无关）
 
+
+---
+
+**可选板块**（仅当查询主题涉及安全、风险、威胁时生成，否则跳过）：
+
+判断标准：如果查询主题涉及网络安全、数据泄露、恶意攻击、技术风险等安全/风险话题，请额外生成以下板块；如果话题与安全风险无关（如商业、产品、市场、政策等），则**不要输出**以下板块。
 
 ## 十、风险评估
 
@@ -447,15 +448,15 @@ def _truncate_augmented_content(content: str, max_chars: int = 30000) -> str:
 
 def _validate_llm_output(output: str) -> int:
     """验证 LLM 输出包含多少个必选板块标题。
-    
-    返回找到的必选板块数量（0-3）：
-    核心摘要、舆情趋势、影响评估
-    可选板块（证据链/风险评估/攻击面分析/情报判断）不计入验证。
+
+    返回找到的必选板块数量（0-4）：
+    核心摘要、证据链、舆情趋势、影响评估
+    可选板块（风险评估/攻击面分析/情报判断）不计入验证。
     """
     if not output or len(output) < 100:
         return 0
-    
-    required_sections = ["核心摘要", "舆情趋势", "影响评估"]
+
+    required_sections = ["核心摘要", "证据链", "舆情趋势", "影响评估"]
     return sum(1 for s in required_sections if s in output)
 
 
@@ -463,7 +464,7 @@ def _build_simplified_prompt(query, search_mode):
     """构建简化版 prompt（用于重试）。
     
     当模型无法遵循复杂的多板块指令时，使用更简单的格式要求。
-    只要求 4 个必选板块，不包含可选板块。
+    包含全部必选板块（证据链用最简格式），不包含可选板块。
     """
     mode_desc = _get_mode_description(search_mode)
     return f"""
@@ -491,6 +492,11 @@ def _build_simplified_prompt(query, search_mode):
 **技术影响**：[★★★★☆] [分析]
 **产业影响**：[★★★★☆] [分析]
 **用户影响**：[★★★★☆] [分析]
+
+## 六、证据链
+**结论 1**：[关键结论]
+- E1：[证据]（来源：[来源名]，来源等级：[A/B/C/D]，支持度：[高/中/低]）
+**综合置信度**：[高/中/低]
 
 直接输出，不要提问。
 """
@@ -546,9 +552,9 @@ def generate_summary(llm, query, content, search_mode="all",
         logger.info(f"LLM 原始输出长度: {len(output)} chars")
         logger.debug(f"LLM 完整输出:\n{output}")
         
-        # 验证输出格式：至少包含 2 个必选板块
+        # 验证输出格式：至少包含 3 个必选板块（共 4 个必选板块）
         section_count = _validate_llm_output(output)
-        min_sections = 2
+        min_sections = 3
         logger.info(f"LLM 输出验证: {section_count} 个必选板块 (期望>={min_sections})")
         if section_count >= min_sections:
             return output
