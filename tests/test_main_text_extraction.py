@@ -65,3 +65,66 @@ class TestConfigImportDoesNotParse:
             cwd=str(ROOT), capture_output=True, text=True, timeout=120,
         )
         assert result.returncode == 0, f"stderr:\n{result.stderr[-2000:]}"
+
+
+class TestExtractMainText:
+    def test_extracts_article_without_noise(self):
+        from intelnexus.core.search.scraper import _extract_main_text
+        main = _extract_main_text(PAGE_HTML)
+        assert main, "正文提取不应为空"
+        for w in ARTICLE_WORDS:
+            assert w in main
+        for w in NAV_NOISE_WORDS:
+            assert w not in main
+
+    def test_garbage_html_returns_empty(self):
+        from intelnexus.core.search.scraper import _extract_main_text
+        assert _extract_main_text("<html><body>太短</body></html>") == ""
+        assert _extract_main_text("") == ""
+
+    def test_flag_off_returns_empty(self, monkeypatch):
+        import config
+        monkeypatch.setattr(config, "ENABLE_MAIN_CONTENT_EXTRACTION", False)
+        from intelnexus.core.search.scraper import _extract_main_text
+        assert _extract_main_text(PAGE_HTML) == ""
+
+    def test_library_missing_returns_empty(self, monkeypatch):
+        import intelnexus.core.search.scraper as scraper_mod
+        monkeypatch.setattr(scraper_mod, "trafilatura", None)
+        assert scraper_mod._extract_main_text(PAGE_HTML) == ""
+
+
+class TestScrapeSingleIntegration:
+    def _mock_response(self, url="https://example.com/article"):
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.encoding = "utf-8"
+        resp.text = PAGE_HTML
+        resp.url = url
+        return resp
+
+    def test_main_text_replaces_full_page(self):
+        import intelnexus.core.search.scraper as scraper_mod
+        session = MagicMock()
+        session.get.return_value = self._mock_response()
+        url_data = {"title": "测试文章标题", "url": "https://example.com/article"}
+        with patch.object(scraper_mod, "get_session", return_value=session), \
+             patch.object(scraper_mod, "get_cached", return_value=None), \
+             patch.object(scraper_mod, "set_cached"):
+            url, text = scraper_mod.scrape_single(url_data)
+        assert url == "https://example.com/article"
+        for w in ARTICLE_WORDS:
+            assert w in text
+        for w in NAV_NOISE_WORDS:
+            assert w not in text
+        assert text.startswith("测试文章标题")
+
+    def test_exception_falls_back_to_title(self):
+        import intelnexus.core.search.scraper as scraper_mod
+        session = MagicMock()
+        session.get.side_effect = RuntimeError("network down")
+        url_data = {"title": "测试文章标题", "url": "https://example.com/article"}
+        with patch.object(scraper_mod, "get_session", return_value=session), \
+             patch.object(scraper_mod, "get_cached", return_value=None):
+            url, text = scraper_mod.scrape_single(url_data)
+        assert text == "测试文章标题"
