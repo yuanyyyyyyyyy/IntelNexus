@@ -116,6 +116,7 @@ _NOISE_PATTERNS = [
     re.compile(r'^[\w-]+/[\w-]+$'),       # URL 路径片段（如 stealth/ox-alpha）
     re.compile(r'^[a-z0-9]+(?:_[a-z0-9]+)+$'),  # 下划线 slug（网站导航/URL 残片，如 about_get、try_now）
     re.compile(r'^(首次|这种|这类|该项|这些|那些|其次|此外|本次|相关|有关)'),  # 中文指示词开头的伪实体（如「首次」「这种技术」）
+    re.compile(r'^(?:后|再|然后|接着|最后|首先|先)?(?:点击|进入|打开|选择|前往|返回|输入|滑动|拖动|勾选|登录|注册)'),  # 中文操作指令短语（页面 UI 文案，如「点击右上角的用户中心」）
     re.compile(r'^(you are|system|assistant|human)\b', re.I),  # prompt 残片
     re.compile(r'^(miwn|mshale|jzkv|freiburg)', re.I),  # Google News 注入的随机标签
 ]
