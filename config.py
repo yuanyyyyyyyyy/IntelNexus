@@ -9,12 +9,22 @@ def _get_secret(key: str, default=None):
 
     Streamlit Community Cloud 通过 UI Secrets 面板注入配置，
     不使用 .env 文件。本地开发时走 .env（dotenv 已 load）。
+
+    注意：仅在 Streamlit 运行时上下文（ui.py 脚本执行、Cloud 部署）探测
+    secrets。CLI 启动进程（`streamlit run` 之前的 bootstrap 阶段）里访问
+    st.secrets 会触发首次配置解析，而 bootstrap 的二次解析会把
+    STREAMLIT_SERVER_* 环境变量经 click flags 写入 [server] 段，两次解析
+    不一致即触发 "An update to the [server] config option section was
+    detected" 警告。runtime.exists() 为 False 时跳过探测，保证 CLI 进程
+    不发生首次解析。
     """
     # 1) 尝试 Streamlit secrets（仅在 Streamlit 运行时可用）
     try:
-        import streamlit as st
-        if hasattr(st, "secrets") and key in st.secrets:
-            return st.secrets[key]
+        from streamlit import runtime
+        if runtime.exists():
+            import streamlit as st
+            if hasattr(st, "secrets") and key in st.secrets:
+                return st.secrets[key]
     except Exception:
         pass
     # 2) 回退到环境变量
@@ -54,6 +64,8 @@ ENABLE_CNVD = os.getenv("ENABLE_CNVD", "false").lower() == "true"
 ENABLE_ARXIV = os.getenv("ENABLE_ARXIV", "false").lower() == "true"
 # HuggingFace在中国被墙，暂时禁用
 ENABLE_HUGGINGFACE = os.getenv("ENABLE_HUGGINGFACE", "false").lower() == "true"
+# 抓取时用 trafilatura 提取正文主内容（去导航/广告/侧栏），失败自动降级整页文本
+ENABLE_MAIN_CONTENT_EXTRACTION = os.getenv("ENABLE_MAIN_CONTENT_EXTRACTION", "true").lower() == "true"
 
 # 搜索源开关覆盖钩子：UI「搜索服务设置」面板保存的开关（data/search_settings.json）
 # 优先于上面的环境变量默认值。导入失败（循环依赖防护）时保持 env 值不变。
