@@ -34,7 +34,8 @@ _SECTION_PATTERNS = {
     "executive_summary": re.compile(
         r'##\s*(?:二[、.]\s*)?核心摘要\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
     "evidence_chain": re.compile(
-        r'##\s*(?:六[、.]\s*)?证据链\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
+        # LLM 按模板会写出「证据链分析」标题，后缀必须可选，否则板块永远提取不到
+        r'##\s*(?:六[、.]\s*)?证据链(?:\s*分析)?\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
     "sentiment_analysis": re.compile(
         r'##\s*(?:八[、.]\s*)?舆情趋势(?: 分析)?\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
     "impact_assessment": re.compile(
@@ -44,7 +45,8 @@ _SECTION_PATTERNS = {
     "attack_surface": re.compile(
         r'##\s*(?:十二[、.]\s*)?攻击面分析\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
     "intelligence_judgment": re.compile(
-        r'##\s*(?:十三[、.]\s*)?情报判断 (?:与后续关注)?\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
+        # 「情报判断与后续关注」中间无空格，此处不能用字面空格匹配
+        r'##\s*(?:十三[、.]\s*)?情报判断\s*(?:与后续关注)?\s*\n+(.*?)(?=\n+##\s|$)', re.DOTALL | re.IGNORECASE),
 }
 
 
@@ -768,7 +770,7 @@ def build_risk_assessment(llm_sections: Dict[str, str]) -> str:
     if not content:
         return "> （该主题不涉及安全风险评估）"
     # 清理标题
-    content = re.sub(r'^##\s*(?:十 [、.]?\s*)?风险评估\s*\n', '', content, flags=re.MULTILINE)
+    content = re.sub(r'^##\s*(?:十[、.]?\s*)?风险评估\s*\n', '', content, flags=re.MULTILINE)
     # 后处理：供应链风险→供应链透明风险
     content = _postprocess_llm_text(content)
     return content.strip()
@@ -780,7 +782,7 @@ def build_attack_surface(llm_sections: Dict[str, str]) -> str:
     if not content:
         return "> （该主题不涉及攻击面分析）"
     # 清理标题
-    content = re.sub(r'^##\s*(?:十 [、.]?\s*)?攻击面分析\s*\n', '', content, flags=re.MULTILINE)
+    content = re.sub(r'^##\s*(?:十[、.]?\s*)?攻击面分析\s*\n', '', content, flags=re.MULTILINE)
     return content.strip()
 
 

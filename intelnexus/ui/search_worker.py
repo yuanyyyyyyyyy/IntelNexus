@@ -541,6 +541,23 @@ def run_search_computation(
 
     # ---- 12. 组装 14 板块结构化报告 ----
     progress_callback("finalizing", "组装结构化报告...", 0.95)
+
+    # 报告编号：按当日历史条数自增（旧实现用 now.second % 1000，编号实为
+    # 随机秒数，不唯一也不连续）。组装先于 add_search 执行，因此
+    # 「当日已有条数 + 1」即本次的当日序号。
+    report_id = None
+    try:
+        from intelnexus.config.history import get_history_manager
+        _now = datetime.now()
+        _today = _now.strftime("%Y-%m-%d")
+        _today_count = sum(
+            1 for e in get_history_manager().get_history(limit=9999, include_deleted=True)
+            if str(e.get("timestamp", "")).startswith(_today)
+        )
+        report_id = f"INTEL-{_now.strftime('%Y%m%d')}-{_today_count + 1:03d}"
+    except Exception as e:
+        logger.debug(f"生成报告编号失败，回退默认规则: {e}")
+
     try:
         from intelnexus.export.report_builder import build_intelligence_report
         assembled = build_intelligence_report(
@@ -558,6 +575,7 @@ def run_search_computation(
             action_items=result.get("action_items", []),
             scraped=result.get("scraped", {}),
             event_changes=result.get("event_changes"),
+            report_id=report_id,
         )
         result["streamed_summary"] = assembled
     except Exception as e:
