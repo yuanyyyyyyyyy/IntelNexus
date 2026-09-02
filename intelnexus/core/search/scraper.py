@@ -81,6 +81,16 @@ def scrape_single(url_data, rotate=False, rotate_interval=5, control_port=9051, 
             response = session.get(url, headers=headers, timeout=15)
 
         if response.status_code == 200:
+            # 包装 URL（如 baidu.com/link?url=）无法离线解码，抓取时跟随
+            # 重定向后把真实地址回写到结果条目，供去重/评分/证据库使用
+            try:
+                req_host = urlparse(url).netloc.lower()
+                if any(h in req_host for h in ('baidu.com', 'bing.com', 'google.com')) \
+                        and response.url and response.url != url:
+                    url_data['resolved_url'] = response.url
+            except Exception:
+                pass
+
             if response.encoding is None or response.encoding.lower() == 'iso-8859-1':
                 response.encoding = response.apparent_encoding or 'utf-8'
 

@@ -78,6 +78,28 @@ class SourceScorer:
 
     AGGREGATOR_SOURCES = {'Bing', 'Google', 'DuckDuckGo', 'Yahoo', 'Yandex', 'Baidu'}
 
+    # 搜索引擎重定向/聚合页域名：URL 无法识别真实发布者时才退回按
+    # 来源（引擎）类型评分
+    REDIRECT_HOSTS = {
+        'r.search.yahoo.com', 'search.yahoo.com',
+        'www.baidu.com', 'baidu.com',
+        'news.google.com', 'www.bing.com', 'cn.bing.com', 'bing.com',
+        'html.duckduckgo.com', 'duckduckgo.com',
+        'www.google.com', 'google.com', 'yandex.com', 'www.yandex.com',
+    }
+
+    # 常见内容平台域名：重定向解码后按平台自身权重评分，而非按投放引擎计分
+    PLATFORM_DOMAINS = {
+        'juejin.cn': 0.6, 'zhihu.com': 0.6, 'bilibili.com': 0.55,
+        'csdn.net': 0.55, 'segmentfault.com': 0.6, 'linux.do': 0.55,
+        'openrouter.ai': 0.75, 'github.com': 0.75, 'huggingface.co': 0.7,
+        'wikipedia.org': 0.75, 'medium.com': 0.65, 'substack.com': 0.65,
+        'solidot.org': 0.6, '36kr.com': 0.6, 'ithome.com': 0.6,
+        'technode.com': 0.7, 'scmp.com': 0.8, 'binance.com': 0.5,
+        'youtube.com': 0.5, 'twitter.com': 0.5, 'x.com': 0.5,
+        'facebook.com': 0.5, 'ycombinator.com': 0.75,
+    }
+
     NEWS_SOURCES = {'Google News', 'Bing News', 'Yahoo News',
                     'Reuters', 'TechCrunch', 'The Verge', 'Wired', 'BBC', 'CNN',
                     'BleepingComputer', 'SecurityWeek', 'Dark Reading', 'The Hacker News',
@@ -198,6 +220,13 @@ class SourceScorer:
                 for tld, score in self.TLD_SCORES.items():
                     if domain.endswith(tld):
                         return score
+                for plat, score in self.PLATFORM_DOMAINS.items():
+                    if domain == plat or domain.endswith('.' + plat):
+                        return score
+                # 可识别的真实发布者域名但未收录：给保守基准分。不能退回按
+                # 来源（搜索引擎）名评分——那会把 juejin.cn 的文章按 "Yahoo" 计分
+                if domain not in self.REDIRECT_HOSTS:
+                    return 0.45
         except Exception:
             pass
 
@@ -439,6 +468,40 @@ class ConflictDetector:
     CIDAR: Detects numeric, temporal, and stance conflicts across sources.
     """
 
+    # 版权/备案上下文标记：年份出现在这些片段附近时通常是页脚而非事件日期
+    _COPYRIGHT_RE = re.compile(
+        r'(©|&copy;|copyright|版权所有|备案|icp|all rights reserved)', re.IGNORECASE)
+
+    # 年份区间（如 "2009-2026"）：两端年份都是页脚/历史区间，不是事件冲突
+    _YEAR_RANGE_RE = re.compile(r'(?:19|20)\d{2}\s*[-–—]\s*(?:19|20)\d{2}')
+
+    # 年份必须处于"真实日期表述"中才参与冲突比较（裸年份如 "since 2009" 不算）
+    _DATE_LIKE_RES = (
+        re.compile(r'(?:19|20)\d{2}\s*年'),
+        re.compile(r'(?:19|20)\d{2}[-/.]\d{1,2}[-/.]\d{1,2}'),   # 2026-08-20
+        re.compile(r'\d{1,2}\s*[-/.]\s*(?:19|20)\d{2}'),          # 20/08/2026
+        re.compile(r'(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)'
+                   r'[a-z]*\.?\s+\d{1,2},?\s*(?:19|20)\d{2}', re.IGNORECASE),  # August 21, 2026
+        re.compile(r'\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)'
+                   r'[a-z]*,?\s+(?:19|20)\d{2}', re.IGNORECASE),  # 21 August 2026
+    )
+
+    # 事件上下文词：裸年份若伴随这些词（"the event happened in 2020"）
+    # 仍是有效的事件日期表述，纳入冲突比较
+    _EVENT_CTX_RE = re.compile(
+        r'(event|happened|occurred|released|launched|published|announced|founded'
+        r'|发布|推出|上线|发生|发表于|截止|举办|成立于|创立)', re.IGNORECASE)
+
+    def _is_event_year(self, text: str, pos: int) -> bool:
+        """判断 text[pos:pos+4] 处的年份是否为事件日期（而非版权页脚/年份区间）。"""
+        window = text[max(0, pos - 30):pos + 30]
+        if self._COPYRIGHT_RE.search(window):
+            return False
+        if self._YEAR_RANGE_RE.search(window):
+            return False
+        return any(p.search(window) for p in self._DATE_LIKE_RES) \
+            or bool(self._EVENT_CTX_RE.search(window))
+
     def detect(self, results, scraped_content):
         """
         Args:
@@ -465,6 +528,19 @@ class ConflictDetector:
         conflicts.extend(self._detect_numeric(texts, results))
         conflicts.extend(self._detect_temporal(texts, results))
         conflicts.extend(self._detect_stance(texts, results))
+
+        # 去重：不同来源对可能产出完全相同的冲突描述（多引擎收录同一批文章时
+        # 尤其常见），按 (type, description) 保留最高严重度的一条
+        seen = set()
+        deduped = []
+        for c in sorted(conflicts, key=lambda x: -x.get("severity", 0)):
+            key = (c.get("type"), c.get("description"))
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(c)
+        conflicts = deduped
+
         # 全局冲突上限：避免简报中冲突列表过长
         MAX_CONFLICTS = 30
         if len(conflicts) > MAX_CONFLICTS:
@@ -587,17 +663,17 @@ class ConflictDetector:
         pattern = r'((?:19|20)\d{2})'
 
         for i, t in enumerate(texts):
-            years = set(re.findall(pattern, t))
-            for y in years:
-                try:
-                    year_val = int(y)
-                    pos = t.find(y)
-                    ctx_start = max(0, pos - 20)
-                    ctx_end = min(len(t), pos + 20)
-                    context = t[ctx_start:ctx_end]
-                    entries.append((i, year_val, context.strip()))
-                except Exception:
+            for m in re.finditer(pattern, t):
+                # 只把处于真实日期表述中的年份纳入比较，排除版权页脚、
+                # 年份区间和孤立的裸年份（否则任意两个页面都会"相差 N 年"）
+                if not self._is_event_year(t, m.start()):
                     continue
+                year_val = int(m.group(1))
+                pos = m.start()
+                ctx_start = max(0, pos - 20)
+                ctx_end = min(len(t), pos + 20)
+                context = t[ctx_start:ctx_end]
+                entries.append((i, year_val, context.strip()))
 
         # 预计算标题关键词
         title_words = []
@@ -621,17 +697,24 @@ class ConflictDetector:
                             overlap = len(words_a & words_b) / max(len(words_a | words_b), 1)
                             if overlap < 0.15:
                                 continue
+                    gap = abs(y_a - y_b)
+                    name_a = results[idx_a].get("source", "Unknown")
+                    name_b = results[idx_b].get("source", "Unknown")
                     conflicts.append({
                         "type": "temporal",
-                        "severity": 0.8,
+                        # 严重度随年份差伸缩，不再固定 0.8
+                        "severity": round(min(0.9, 0.5 + 0.04 * gap), 2),
                         "claim": f"时间冲突: {y_a} vs {y_b}",
-                        "description": f"来源间对同一事件的时间描述相差 {abs(y_a - y_b)} 年",
+                        "description": (
+                            f"{name_a} 与 {name_b} 对同一事件的日期表述相差 {gap} 年"
+                            f"（「{ctx_a.strip()[:24]}」 vs 「{ctx_b.strip()[:24]}」）"
+                        ),
                         "sources": [
                             {"index": idx_a,
-                             "name": results[idx_a].get("source", "Unknown"),
+                             "name": name_a,
                              "value": ctx_a[:80]},
                             {"index": idx_b,
-                             "name": results[idx_b].get("source", "Unknown"),
+                             "name": name_b,
                              "value": ctx_b[:80]}
                         ]
                     })
@@ -687,7 +770,10 @@ class ConflictDetector:
                     "type": "stance",
                     "severity": severity,
                     "claim": "立场冲突",
-                    "description": f"来源间存在立场分歧 ({s_a} vs {s_b})",
+                    "description": (
+                        f"{results[a].get('source', 'Unknown')} 与 "
+                        f"{results[b].get('source', 'Unknown')} 立场分歧 ({s_a} vs {s_b})"
+                    ),
                     "sources": [
                         {"index": a,
                          "name": results[a].get("source", "Unknown")},
