@@ -114,6 +114,8 @@ _NOISE_PATTERNS = [
     re.compile(r'^\d{4}$'),              # 纯四位数字（年份误判）
     re.compile(r'^v\d+\.\d+', re.I),     # 版本号 v1.0, v2.3
     re.compile(r'^[\w-]+/[\w-]+$'),       # URL 路径片段（如 stealth/ox-alpha）
+    re.compile(r'^[a-z0-9]+(?:_[a-z0-9]+)+$'),  # 下划线 slug（网站导航/URL 残片，如 about_get、try_now）
+    re.compile(r'^(首次|这种|这类|该项|这些|那些|其次|此外|本次|相关|有关)'),  # 中文指示词开头的伪实体（如「首次」「这种技术」）
     re.compile(r'^(you are|system|assistant|human)\b', re.I),  # prompt 残片
     re.compile(r'^(miwn|mshale|jzkv|freiburg)', re.I),  # Google News 注入的随机标签
 ]
@@ -471,9 +473,11 @@ class EntityExtractor:
         except (OSError, ValueError, ImportError):
             return None
 
-    def _canonical_id(self, name):
-        # 统一连字符和下划线为空格，然后转小写+下划线
-        normalized = name.strip().lower().replace('-', ' ').replace('_', ' ')
+    @staticmethod
+    def _canonical_id(name):
+        # 统一连字符和下划线为空格，然后转小写+下划线；
+        # 先去掉尾部标点，避免 "Ox Alpha" 与 "Ox Alpha." 生成两个实体
+        normalized = name.strip().rstrip('.。,，;；!！?？·：:').lower().replace('-', ' ').replace('_', ' ')
         return re.sub(r'\s+', '_', normalized)[:50]
 
 

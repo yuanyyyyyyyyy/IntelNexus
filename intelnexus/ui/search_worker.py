@@ -529,9 +529,11 @@ def run_search_computation(
         elif avg_score < 0.6:
             risk_level = "中"
 
+        # 热度口径与报告事件画像一致（去重独立文章数 + 跨源广度）
+        from intelnexus.export.report_builder import compute_heat_level
         snapshot = {
             "identity_status": identity_status,
-            "heat_level": min(100, len(results_list) * 2),
+            "heat_level": compute_heat_level(results_list, len(result.get("source_counts", {}))),
             "risk_level": risk_level,
             "key_findings": [r.get("title", "") for r in results_list[:5] if r.get("title")],
             "source_count": len(result.get("source_counts", {})),
