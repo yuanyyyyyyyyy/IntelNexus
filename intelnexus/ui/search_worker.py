@@ -317,7 +317,8 @@ def run_search_computation(
 
     def _run_kg(scraped_data, base_results=None):
         try:
-            from intelnexus.analysis.intelligence_graph import get_entity_extractor, IntelligenceGraph
+            from intelnexus.analysis.intelligence_graph import (
+                get_entity_extractor, IntelligenceGraph, prune_kg_html)
             extractor = get_entity_extractor()
             kg_raw = extractor.extract(scraped_data, search_results=base_results)
             kg = IntelligenceGraph()
@@ -332,6 +333,8 @@ def run_search_computation(
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             os.makedirs("temp", exist_ok=True)
             kg_path = kg.export_html(f"temp/kg_{timestamp}.html")
+            # KG HTML 按时间戳命名永不覆盖，顺手清理只留最近 10 个
+            prune_kg_html("temp")
 
             top_entities = sorted(_kg_entities, key=lambda x: x["importance"], reverse=True)[:10]
             kg_lines = [f"- {e['name']} ({e['type']})" for e in top_entities]

@@ -1,5 +1,6 @@
 import os
 import html
+from pathlib import Path
 from urllib.parse import quote, urlparse
 import streamlit as st
 from intelnexus.ui.i18n import get_text
@@ -114,11 +115,11 @@ def render_results_panels():
         if entities:
             st.markdown(f"**{get_text('label_key_entities')}**: " +
                         ", ".join([f"{_esc(e['name'])}({_esc(e['type'])})" for e in entities[:8]]))
-        # 重内容折叠：600px iframe 默认收起，需要时再展开
+        # 重内容折叠：600px iframe 默认收起，需要时再展开。
+        # st.iframe(Path) 对 HTML 文件内部走 srcdoc 嵌入且强制允许滚动，
+        # 与旧版 components.html(html, height=600, scrolling=True) 行为等价
         with st.expander(get_text("kg_details_expander")):
-            with open(kg_path, 'r', encoding='utf-8') as f:
-                html_content = f.read()
-            st.components.v1.html(html_content, height=600, scrolling=True)
+            st.iframe(Path(kg_path), height=600)
 
     ev = st.session_state.get("evidence_data")
     if ev and ev.get("claims"):

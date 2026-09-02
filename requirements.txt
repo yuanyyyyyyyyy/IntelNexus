@@ -19,8 +19,8 @@ python-dateutil>=2.8.0
 # 中文分词（搜索相关性评分；缺失时 tokenizer 静默降级为 bi-gram，中文查询效果变差）
 jieba>=0.42.1
 
-# Web界面
-streamlit>=1.37.0
+# Web界面（st.iframe 需 1.48+，用于替代已弃用的 st.components.v1.html）
+streamlit>=1.48.0
 
 # 环境配置
 python-dotenv>=1.0.0
