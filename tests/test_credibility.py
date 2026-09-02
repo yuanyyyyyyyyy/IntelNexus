@@ -76,11 +76,11 @@ class TestSourceScorer:
         assert results[0]["credibility_details"]["domain_score"] >= 0.7
 
     def test_unknown_domain_low_score(self, scorer):
-        """Unknown domains should get default low score."""
+        """Unknown publisher domains get a conservative default score (0.45)."""
         results = [{"title": "test", "link": "https://random-blog.com/post", "source": "Blog"}]
         scraped = {"https://random-blog.com/post": "A" * 500}
         results = scorer.evaluate(results, scraped)
-        assert results[0]["credibility_details"]["domain_score"] == 0.4
+        assert results[0]["credibility_details"]["domain_score"] == 0.45
 
     def test_aggregator_source(self, scorer):
         """Aggregator sources (Bing, Google) should get 0.5."""
@@ -204,7 +204,8 @@ class TestConflictDetector:
         conflicts = detector.detect(results, scraped)
         temporal = [c for c in conflicts if c["type"] == "temporal"]
         assert len(temporal) > 0
-        assert temporal[0]["severity"] == 0.8
+        # 严重度随年份差伸缩：差 3 年 = 0.5 + 0.04*3 = 0.62（旧实现固定 0.8）
+        assert temporal[0]["severity"] == pytest.approx(0.62)
 
     def test_stance_conflict(self):
         """Positive vs negative stance should produce stance conflicts."""

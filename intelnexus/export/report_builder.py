@@ -19,6 +19,7 @@ import re
 from collections import OrderedDict
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
 from intelnexus.core.logger import get_logger
 from intelnexus.ui.icons import icon
@@ -85,6 +86,31 @@ def extract_analytical_sections(llm_output: str) -> Dict[str, str]:
 # ============================================================================
 # 各板块生成函数
 # ============================================================================
+
+def compute_heat_level(results: List[dict], source_count: int = 0) -> int:
+    """热度估算（0-100）：去重后的独立文章数 ×4 + 跨源广度加成。
+
+    多个搜索引擎会收录同一篇文章（旧实现按原始条数 ×2 计），同一篇文章
+    最多被重复计 5 次，导致热度虚高；此处按归一化 URL 去重后再计。
+    """
+    unique_urls = set()
+    for r in results or []:
+        u = r.get("resolved_url") or r.get("link") or r.get("url", "")
+        if not u:
+            continue
+        try:
+            p = urlparse(u)
+            key = f"{(p.netloc or '').lower()}{p.path.rstrip('/')}"
+        except Exception:
+            key = u
+        unique_urls.add(key)
+    base = len(unique_urls) or len(results or [])
+    if source_count:
+        breadth = max(0, source_count - 1)
+    else:
+        breadth = max(0, len({r.get("source", "") for r in results or [] if r.get("source")}) - 1)
+    return min(100, base * 4 + breadth * 5)
+
 
 def build_report_overview(query: str, search_mode: str, model: str,
                           source_counts: Dict[str, int] = None,
@@ -194,9 +220,8 @@ def build_event_profile(results: List[dict], llm_sections: Dict[str, str], query
     # 统计来源数
     sources = set(r.get("source", "") for r in results if r.get("source"))
 
-    # 计算热度（基于结果数量）
-    result_count = len(results)
-    heat_level = min(100, result_count * 2)
+    # 计算热度（去重独立文章数 + 跨源广度，详见 compute_heat_level）
+    heat_level = compute_heat_level(results)
     heat_bar = "█" * (heat_level // 10) + "░" * (10 - heat_level // 10)
 
     # 计算可信度
@@ -768,7 +793,7 @@ def build_risk_assessment(llm_sections: Dict[str, str]) -> str:
     """板块 11：风险评估（LLM 可选生成）。"""
     content = llm_sections.get("risk_assessment", "")
     if not content:
-        return "> （该主题不涉及安全风险评估）"
+        return "> （本次分析未生成风险评估内容）"
     # 清理标题
     content = re.sub(r'^##\s*(?:十[、.]?\s*)?风险评估\s*\n', '', content, flags=re.MULTILINE)
     # 后处理：供应链风险→供应链透明风险
@@ -780,7 +805,7 @@ def build_attack_surface(llm_sections: Dict[str, str]) -> str:
     """板块 11.5：攻击面分析（LLM 可选生成）。"""
     content = llm_sections.get("attack_surface", "")
     if not content:
-        return "> （该主题不涉及攻击面分析）"
+        return "> （本次分析未生成攻击面分析内容）"
     # 清理标题
     content = re.sub(r'^##\s*(?:十[、.]?\s*)?攻击面分析\s*\n', '', content, flags=re.MULTILINE)
     return content.strip()
@@ -790,7 +815,7 @@ def build_intelligence_judgment(llm_sections: Dict[str, str]) -> str:
     """板块 12：情报判断与后续关注（LLM 可选生成）。"""
     content = llm_sections.get("intelligence_judgment", "")
     if not content:
-        return "> （该主题不涉及情报判断）"
+        return "> （本次分析未生成情报判断内容）"
     # 清理标题
     content = re.sub(r'^##\s*(?:十一[、.]?\s*)?情报判断(?:与后续关注)?\s*\n', '', content, flags=re.MULTILINE)
     return content.strip()
