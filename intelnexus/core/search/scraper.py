@@ -10,6 +10,26 @@ from intelnexus.core.search import USER_AGENTS, get_http_proxies, get_session, g
 
 logger = get_logger(__name__)
 
+# 反爬验证码页特征：URL 特征（百度 wappass / captcha 路径）+ 文本特征兜底。
+# 验证码页通常返回 HTTP 200 且带最终 URL（跟随重定向后），若不识别，
+# 验证码文本会被当正文进入评分/实体/证据链路，验证码 URL 会被当作真实地址回写
+_CAPTCHA_URL_HOSTS = ('wappass.', 'captcha.')
+_CAPTCHA_TEXT_MARKERS = ('安全验证', '请输入验证码', '拖动滑块', '滑块验证', '完成拼图')
+
+
+def _is_captcha_response(final_url: str, text: str) -> bool:
+    """判断抓取到的页面是否为反爬验证码页。"""
+    try:
+        parsed = urlparse(final_url or '')
+        host = (parsed.netloc or '').lower()
+        path = (parsed.path or '').lower()
+    except Exception:
+        return False
+    if any(h in host for h in _CAPTCHA_URL_HOSTS) or 'captcha' in path:
+        return True
+    head = (text or '')[:500]
+    return sum(1 for m in _CAPTCHA_TEXT_MARKERS if m in head) >= 2
+
 
 def is_safe_scrape_target(url: str) -> bool:
     """抓取目标防护（SSRF 第一层）：仅允许 http(s)，拒绝内网/环回地址。
@@ -81,6 +101,21 @@ def scrape_single(url_data, rotate=False, rotate_interval=5, control_port=9051, 
             response = session.get(url, headers=headers, timeout=15)
 
         if response.status_code == 200:
+            if response.encoding is None or response.encoding.lower() == 'iso-8859-1':
+                response.encoding = response.apparent_encoding or 'utf-8'
+
+            soup = BeautifulSoup(response.text, "html.parser")
+            for script in soup(["script", "style"]):
+                script.extract()
+            text = soup.get_text(separator=' ', strip=True)
+            text = ' '.join(text.split())
+
+            # 反爬验证码页（如百度 wappass 验证码）返回 200：丢弃正文走 title
+            # 降级，且不回写 resolved_url，避免验证码 URL/文本污染下游链路
+            if _is_captcha_response(response.url or url, text):
+                logger.debug(f"检测到反爬验证码页，丢弃正文: {url[:120]}")
+                return url, url_data['title']
+
             # 包装 URL（如 baidu.com/link?url=）无法离线解码，抓取时跟随
             # 重定向后把真实地址回写到结果条目，供去重/评分/证据库使用
             try:
@@ -90,15 +125,6 @@ def scrape_single(url_data, rotate=False, rotate_interval=5, control_port=9051, 
                     url_data['resolved_url'] = response.url
             except Exception:
                 pass
-
-            if response.encoding is None or response.encoding.lower() == 'iso-8859-1':
-                response.encoding = response.apparent_encoding or 'utf-8'
-
-            soup = BeautifulSoup(response.text, "html.parser")
-            for script in soup(["script", "style"]):
-                script.extract()
-            text = soup.get_text(separator=' ', strip=True)
-            text = ' '.join(text.split())
 
             if len(text) < 100:
                 scraped_text = url_data['title']
