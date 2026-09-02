@@ -131,6 +131,41 @@ def get_entity_extractor():
     return _shared_extractor
 
 
+def prune_kg_html(directory: str = "temp", keep: int = 10) -> int:
+    """清理历史 KG HTML 产物：按 mtime 只保留最近 keep 个 kg_*.html。
+
+    KG HTML 以秒级时间戳命名、永不覆盖，且 temp/ 没有其他清理机制，
+    不清理会无限堆积。单个文件删除失败只记 debug，不中断搜索流程。
+    返回删除的文件数。
+    """
+    try:
+        names = [n for n in os.listdir(directory)
+                 if n.startswith("kg_") and n.endswith(".html")]
+    except OSError:
+        return 0
+    if len(names) <= keep:
+        return 0
+
+    def _mtime(path: str) -> float:
+        try:
+            return os.path.getmtime(path)
+        except OSError:
+            return 0.0
+
+    paths = sorted((os.path.join(directory, n) for n in names),
+                   key=_mtime, reverse=True)
+    removed = 0
+    for path in paths[keep:]:
+        try:
+            os.remove(path)
+            removed += 1
+        except OSError as e:
+            logger.debug(f"清理 KG HTML 失败（跳过）: {path}: {e}")
+    if removed:
+        logger.debug(f"已清理 {removed} 个历史 KG HTML")
+    return removed
+
+
 class EntityExtractor:
     """
     Extract named entities from scraped content using spaCy NER.
