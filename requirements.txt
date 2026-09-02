@@ -16,6 +16,9 @@ portalocker>=2.8.0; sys_platform != 'win32'
 # 日期解析增强（可信度评估的发布时间解析，缺失时降级）
 python-dateutil>=2.8.0
 
+# 中文分词（搜索相关性评分；缺失时 tokenizer 静默降级为 bi-gram，中文查询效果变差）
+jieba>=0.42.1
+
 # Web界面
 streamlit>=1.37.0
 

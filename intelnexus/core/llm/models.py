@@ -173,7 +173,7 @@ def get_model_config(name: str) -> Optional[Dict]:
     return None
 
 
-def update_custom_model(name: str, model_type: str, config: Dict) -> bool:
+def update_custom_model(name: str, model_type: str, config: Dict, new_name: str = "") -> bool:
     """
     Update an existing custom model by name.
 
@@ -181,6 +181,8 @@ def update_custom_model(name: str, model_type: str, config: Dict) -> bool:
         name: Model name to update
         model_type: New model type
         config: New model configuration
+        new_name: New display name; empty or same as current keeps the name.
+            Renaming is rejected if the target name already exists.
 
     Returns:
         True if successful, False otherwise
@@ -197,8 +199,17 @@ def update_custom_model(name: str, model_type: str, config: Dict) -> bool:
     if not data:
         return False
 
+    new_name = (new_name or "").strip()
+    if new_name and new_name != name:
+        if new_name in [m["name"] for m in data.get("models", [])]:
+            return False
+        target_name = new_name
+    else:
+        target_name = name
+
     for model in data.get("models", []):
         if model["name"] == name:
+            model["name"] = target_name
             model["type"] = model_type
             model["config"] = _encode_sensitive(config)
             return safe_write_json(CUSTOM_MODELS_FILE, data)

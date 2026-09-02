@@ -567,8 +567,14 @@ def run_search_computation(
     # 记录搜索历史
     try:
         from intelnexus.config.history import get_history_manager
+        ranked_results = result.get("results", [])
+        top_url = ""
+        if ranked_results:
+            top = ranked_results[0]
+            top_url = top.get("url") or top.get("link") or ""
         get_history_manager().add_search(
             query, search_mode, results_count, model or "",
+            selected_url=top_url,
             report_content=result.get("streamed_summary", ""),
         )
     except Exception as e:
