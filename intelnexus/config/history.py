@@ -33,7 +33,9 @@ class SearchHistory:
             mode: 搜索模式
             results_count: 结果数量
             model: 使用的模型
-            selected_url: 用户选择的结果 URL（可选）
+            selected_url: 搜索完成时相关性排序首位的结果 URL（当前 UI 无逐条
+                点击入口，以排序首位作为用户兴趣的近似信号；未来若增加
+                结果点击埋点，应在此字段记录用户实际点击的 URL）
             report_content: 结构化报告内容（可选，用于查看历史时显示完整内容）
         """
         entry = {

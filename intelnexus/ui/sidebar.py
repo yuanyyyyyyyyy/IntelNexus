@@ -471,7 +471,10 @@ def _render_custom_models():
                                     "api_key": st.session_state.get(f"edit_api_key_{mname}", ""),
                                 }
                                 new_type = st.session_state.get(f"edit_type_{mname}", mtype)
-                                if update_custom_model(mname, new_type, new_config):
+                                new_display_name = st.session_state.get(f"edit_display_name_{mname}", "").strip()
+                                if new_display_name and new_display_name != mname and new_display_name in get_custom_model_names():
+                                    st.error(get_text("model_exists"))
+                                elif update_custom_model(mname, new_type, new_config, new_name=new_display_name):
                                     st.success(get_text("model_update_success"))
                                     st.session_state[editing_key] = False
                                     st.rerun()
@@ -488,6 +491,7 @@ def _render_custom_models():
                                 mconfig = get_model_config(mname)
                                 cfg = mconfig.get("config", {}) if mconfig else {}
                                 _norm_type = next((t for t in MODEL_TYPES if t.lower() == mtype.lower()), mtype)
+                                st.session_state[f"edit_display_name_{mname}"] = mname
                                 st.session_state[f"edit_type_{mname}"] = _norm_type
                                 st.session_state[f"edit_model_id_{mname}"] = cfg.get("model_name", "")
                                 st.session_state[f"edit_base_url_{mname}"] = cfg.get("base_url", "")
@@ -527,6 +531,10 @@ def _render_custom_models():
                                 st.session_state[f"edit_base_url_{mname}"] = DEFAULT_BASE_URLS[cur_edit_type]
                             st.session_state[prev_type_key] = cur_edit_type
 
+                        st.text_input(
+                            get_text("model_name"),
+                            key=f"edit_display_name_{mname}",
+                        )
                         edit_type = st.selectbox(
                             get_text("model_type"),
                             MODEL_TYPES,
