@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, urlencode, urlparse, unquote
 
 from intelnexus.core.logger import get_logger
 from intelnexus.core.search import USER_AGENTS, get_http_proxies_for, is_blocked_domain, relevance_passes, get_session as _get_shared_session
@@ -145,7 +145,6 @@ def _fetch_engine(engine_name: str, query: str, page: int = 0):
                     continue
 
                 # 过滤词典/翻译/百科类域名
-                from urllib.parse import urlparse
                 try:
                     domain = urlparse(href).netloc.lower()
                     if any(blocked in domain for blocked in BLOCKED_DOMAINS_WEB):
@@ -205,12 +204,55 @@ ENGINE_FUNCS = {
 }
 
 
+# ---------------------------------------------------------------------------
+# 搜索结果重定向包装解析
+# ---------------------------------------------------------------------------
+# Yahoo 把真实地址编码在路径段 RU= 中，DuckDuckGo 编码在 uddg= 参数中，
+# 均可离线解码；不解码会导致同一篇文章以不同包装 URL 重复入库、去重失效、
+# 证据库出现 r.search.yahoo.com 之类的无效溯源地址。
+_YAHOO_RU_RE = re.compile(r'/RU=([^/]+)')
+_DDG_UDDG_RE = re.compile(r'[?&]uddg=([^&]+)')
+
+# 真实地址无法离线解码的包装域（如 Baidu link?url= 为加密串，需运行时
+# 跟随重定向，由 scraper 抓取时记录 resolved_url）
+_WRAPPER_HOSTS = (
+    'r.search.yahoo.com', 'search.yahoo.com',
+    'html.duckduckgo.com', 'duckduckgo.com',
+    'www.baidu.com', 'baidu.com',
+    'news.google.com', 'www.bing.com', 'cn.bing.com', 'bing.com',
+)
+
+
+def canonical_result_url(url: str) -> str:
+    """解析搜索结果中的重定向包装，返回真实目标 URL（无法解析时原样返回）。"""
+    if not url or '://' not in url:
+        return url
+    try:
+        host = urlparse(url).netloc.lower()
+    except Exception:
+        return url
+
+    real = url
+    if 'yahoo' in host:
+        m = _YAHOO_RU_RE.search(url)
+        if m:
+            real = unquote(m.group(1))
+    elif 'duckduckgo' in host:
+        m = _DDG_UDDG_RE.search(url)
+        if m:
+            real = unquote(m.group(1))
+    return real if real.startswith('http') else url
+
+
 def _dedup_results(results):
     seen = set()
     unique = []
     for res in results:
-        link = res.get("url", "").rstrip('/')
+        # 先解码重定向包装再入库：后续去重、域名评分、证据附录都以真实
+        # URL 为准；同一篇文章即使来自不同引擎/包装也只保留一条
+        link = canonical_result_url(res.get("url", "")).rstrip('/')
         if link and link not in seen and len(link) > 10:
+            res["url"] = link
             seen.add(link)
             unique.append(res)
     return unique

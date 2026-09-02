@@ -216,6 +216,23 @@ def run_search_computation(
     scraped = scrape_multiple(result["filtered"], max_workers=threads)
     result["scraped"] = scraped
 
+    # ---- 5.5 重定向 URL 回填（baidu/link 等包装在抓取时才解析出真实地址）----
+    # 结果与 scraped 字典必须同步换键，否则可信度评估会因 URL 错位而全部落空
+    try:
+        from intelnexus.core.search.web import canonical_result_url
+        _remap = {}
+        for _r in result.get("results", []):
+            _resolved = _r.pop("resolved_url", None) or canonical_result_url(_r.get("url", ""))
+            if _resolved and _resolved != _r.get("url"):
+                _remap[_r.get("url", "")] = _resolved
+                _r["url"] = _resolved
+        if _remap and result.get("scraped"):
+            result["scraped"] = {
+                _remap.get(_k, _k): _v for _k, _v in result["scraped"].items()
+            }
+    except Exception as e:
+        logger.debug(f"重定向 URL 回填失败（不影响主流程）: {e}")
+
     # ---- 6. 知识库 RAG ----
     progress_callback("kb_retrieval", "检索知识库...", 0.45)
     kb_context = ""
