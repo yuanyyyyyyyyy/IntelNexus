@@ -8,7 +8,7 @@ from urllib3.util.retry import Retry
 from urllib.parse import quote, urlencode, urlparse, unquote
 
 from intelnexus.core.logger import get_logger
-from intelnexus.core.search import USER_AGENTS, get_http_proxies_for, is_blocked_domain, relevance_passes, get_session as _get_shared_session
+from intelnexus.core.search import USER_AGENTS, get_http_proxies_for, is_blocked_domain, relevance_detail, get_session as _get_shared_session
 
 logger = get_logger(__name__)
 
@@ -313,13 +313,31 @@ def get_web_results(query, max_workers: int = 5, max_results: int = 50) -> list:
             LAST_WEB_ERRORS.clear()
 
     filtered = []
+    blocked_count = 0
+    filtered_details = []
     for r in unique_results[:max_results]:
         if is_blocked_domain(r.get("url", "")):
+            blocked_count += 1
             continue
-        if not relevance_passes(r, query):
+        detail = relevance_detail(r, query)
+        if not detail["passed"]:
+            filtered_details.append(detail)
             continue
         filtered.append(r)
 
     kept = filtered
     logger.info(f"网页检索原始 {len(unique_results[:max_results])} 条，过滤后保留 {len(kept)} 条")
+
+    # 过滤观测汇总：采集量骤降时定位该调 freshness、阈值还是查询词
+    # （被滤条目按原始 token 命中数分布；web 源无发布日期，freshness 恒 0，
+    # 命中 1 个 token 的条目几乎必然低于 0.3 阈值）
+    if filtered_details:
+        hit_dist = {"0命中": 0, "1命中": 0, "多命中": 0}
+        for d in filtered_details:
+            n = len(d["matched_tokens"])
+            hit_dist["0命中" if n == 0 else ("1命中" if n == 1 else "多命中")] += 1
+        logger.info(
+            f"网页检索过滤明细: 相关性过滤 {len(filtered_details)} 条"
+            f"（域名黑名单另滤 {blocked_count} 条）；被滤条目 token 命中分布 {hit_dist}"
+        )
     return kept

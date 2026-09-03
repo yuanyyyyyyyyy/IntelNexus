@@ -229,3 +229,62 @@ class TestSearchHistorySelectedUrl:
         h = SearchHistory(storage_dir=str(tmp_path))
         entry = h.add_search("ransomware", "web", 0, "test-model")
         assert entry["selected_url"] == ""
+
+
+# ============================================================
+# Test: relevance_detail 明细（过滤观测）
+# ============================================================
+
+class TestRelevanceDetail:
+    """relevance_detail 与 relevance_passes 判定语义一致，并提供定位数据。"""
+
+    def _result(self, title, description="", url="https://example.com/a"):
+        return {"title": title, "description": description, "url": url}
+
+    def test_consistent_with_relevance_passes(self):
+        from intelnexus.core.search import relevance_detail, relevance_passes
+        cases = [
+            self._result("ZCode 免费送 token 额度领取教程", "智谱 zcode 免费 token 活动"),
+            self._result("完全不相关的内容", "这里没有任何查询关键词"),
+            self._result("免费领取 token", "token 额度汇总"),
+        ]
+        for r in cases:
+            assert relevance_detail(r, "zcode 免费送token")["passed"] == \
+                relevance_passes(r, "zcode 免费送token")
+
+    def test_detail_fields_and_token_lists(self):
+        from intelnexus.core.search import relevance_detail
+        d = relevance_detail(
+            self._result("智谱 ZCode 周末免费 token 额度", "免费领取"),
+            "zcode 免费送token",
+        )
+        assert set(d) >= {"passed", "keyword_score", "bm25_score", "freshness",
+                          "total", "matched_tokens", "missed_tokens", "reason"}
+        assert "zcode" in d["matched_tokens"]
+        assert "token" in d["matched_tokens"]
+        # 分母为原始 token 数，得分与命中数一致
+        assert d["keyword_score"] == round(len(d["matched_tokens"]) / 3, 3)
+        # jieba 将查询切为 ['zcode', '免费送', 'token']
+        assert set(d["missed_tokens"]) | set(d["matched_tokens"]) == {"zcode", "免费送", "token"}
+
+    def test_blocked_domain_reason(self):
+        from intelnexus.core.search import relevance_detail
+        d = relevance_detail(
+            self._result("anything", url="https://zh.wikipedia.org/wiki/x"),
+            "zcode 免费 token",
+        )
+        assert not d["passed"]
+        assert d["reason"] == "blocked_domain"
+
+    def test_mixed_language_single_hit_filtered_reason(self):
+        """复现 15→3 根因：web 源无日期 freshness=0，且查询 token「免费送」
+        在正常正文中几乎不可能子串命中（中文 token 全落空），仅命中英文
+        token 时总分 ~0.2 低于 0.3 阈值被过滤。"""
+        from intelnexus.core.search import relevance_detail
+        d = relevance_detail(
+            self._result("智谱开放平台免费额度汇总", "各平台免费额度对比"),
+            "zcode 免费送token",
+        )
+        assert d["matched_tokens"] == []
+        assert not d["passed"]
+        assert d["reason"] == "score_below_threshold"

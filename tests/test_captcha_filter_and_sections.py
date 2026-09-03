@@ -51,6 +51,12 @@ class TestEntityNoiseFilter:
         assert not EntityExtractor._is_noise_entity("阿里云百炼")
         assert not EntityExtractor._is_noise_entity("硅基流动")
 
+    def test_pronoun_possessive_phrases_filtered(self):
+        """教程正文片段（代词所有格开头）不应成为实体。"""
+        from intelnexus.analysis.intelligence_graph import EntityExtractor
+        assert EntityExtractor._is_noise_entity("你的密钥")
+        assert EntityExtractor._is_noise_entity("我们拆成三个实际技术")
+
 
 class TestEvidenceChainMandatory:
     def test_validate_counts_evidence_chain(self):

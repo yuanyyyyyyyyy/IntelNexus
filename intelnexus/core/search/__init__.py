@@ -269,21 +269,34 @@ def _calculate_bm25_score(text: str, query_tokens: set, k1: float = 1.5, b: floa
     return min(score / 5.0, 1.0)
 
 
-def relevance_passes(result: dict, query) -> bool:
+def relevance_detail(result: dict, query) -> dict:
     """
-    相关性评分：仅用于「按查询检索」的来源。
-    - 域名黑名单命中直接丢弃；
-    - 结合同义词扩展、BM25评分和时效性评分进行综合评估；
-    - 阈值：综合评分 >= 0.3 视为相关。
-    返回 False 表示应被过滤。
+    relevance_passes 的明细版：返回评分构成与 token 命中清单。
+
+    用于过滤观测——采集量骤降时定位该调 freshness、阈值还是查询词，
+    避免盲调导致垃圾结果涌入。relevance_passes 复用本函数，两者判定
+    语义始终保持一致。
     """
+    detail = {
+        "passed": False,
+        "keyword_score": 0.0,
+        "bm25_score": 0.0,
+        "freshness": 0.0,
+        "total": 0.0,
+        "matched_tokens": [],
+        "missed_tokens": [],
+        "reason": "",
+    }
     url = result.get("url") or result.get("link") or ""
     if is_blocked_domain(url):
-        return False
+        detail["reason"] = "blocked_domain"
+        return detail
 
     tokens = extract_query_tokens(query)
     if not tokens:
-        return True  # 无可判定关键词时不误杀
+        detail["passed"] = True  # 无可判定关键词时不误杀
+        detail["reason"] = "no_tokens"
+        return detail
 
     # 同义词扩展
     expanded_tokens = expand_query_tokens(tokens)
@@ -295,17 +308,11 @@ def relevance_passes(result: dict, query) -> bool:
 
     # 计算关键词匹配分数：分母用原始 token 数（不含同义词扩展），
     # 避免扩展词稀释评分导致高质量结果被误杀。
-    # 扩展词仍参与匹配计数（增加命中机会），但不惩罚分母。
-    matched = 0
-    matched_original = 0
-    for t in expanded_tokens:
-        if t in text.lower():
-            matched += 1
-    for t in tokens:
-        if t in text.lower():
-            matched_original += 1
+    # 扩展词仍参与 BM25 匹配（增加命中机会），但不惩罚分母。
+    text_lower = text.lower()
+    matched_original = [t for t in tokens if t in text_lower]
 
-    keyword_score = matched_original / len(tokens) if tokens else 0.0
+    keyword_score = len(matched_original) / len(tokens) if tokens else 0.0
 
     # 计算BM25评分
     bm25_score = _calculate_bm25_score(text, expanded_tokens)
@@ -314,12 +321,32 @@ def relevance_passes(result: dict, query) -> bool:
     published_at = result.get("published_at") or ""
     freshness_score = get_freshness_score(published_at)
 
-    # 综合评分（权重：关键词0.5 + BM250.3 + 时效性0.2）
+    # 综合评分（权重：关键词0.5 + BM250.3 + 时效性）
     total_score = keyword_score * 0.5 + bm25_score * 0.3 + freshness_score
 
-    # 阈值判断
-    threshold = 0.3
-    return total_score >= threshold
+    passed = total_score >= 0.3
+    detail.update({
+        "passed": passed,
+        "keyword_score": round(keyword_score, 3),
+        "bm25_score": round(bm25_score, 3),
+        "freshness": round(freshness_score, 3),
+        "total": round(total_score, 3),
+        "matched_tokens": matched_original,
+        "missed_tokens": [t for t in tokens if t not in matched_original],
+        "reason": "passed" if passed else "score_below_threshold",
+    })
+    return detail
+
+
+def relevance_passes(result: dict, query) -> bool:
+    """
+    相关性评分：仅用于「按查询检索」的来源。
+    - 域名黑名单命中直接丢弃；
+    - 结合同义词扩展、BM25评分和时效性评分进行综合评估；
+    - 阈值：综合评分 >= 0.3 视为相关。
+    返回 False 表示应被过滤。评分构成见 relevance_detail。
+    """
+    return relevance_detail(result, query)["passed"]
 
 
 # ========== 统一搜索源抽象（SearchSource） ==========
