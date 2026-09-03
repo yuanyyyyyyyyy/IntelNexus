@@ -308,9 +308,18 @@ def relevance_detail(result: dict, query) -> dict:
 
     # 计算关键词匹配分数：分母用原始 token 数（不含同义词扩展），
     # 避免扩展词稀释评分导致高质量结果被误杀。
-    # 扩展词仍参与 BM25 匹配（增加命中机会），但不惩罚分母。
+    # 命中判定包含同义词：原始 token 本体或其同义词（与 expand_query_tokens
+    # 同样取前 2 个）任一在文本中出现即视为该 token 命中——修复扩展词命中
+    # 从未计入评分的问题（如查询 token「免费送」不会在正文中原样出现，
+    # 但其同义词「免费」命中时该 token 应计为命中）。
+    from intelnexus.core.search_constants import SYNONYM_DICT
+
     text_lower = text.lower()
-    matched_original = [t for t in tokens if t in text_lower]
+    matched_original = []
+    for t in tokens:
+        candidates = [t] + [s.lower() for s in SYNONYM_DICT.get(t, [])[:2]]
+        if any(c in text_lower for c in candidates):
+            matched_original.append(t)
 
     keyword_score = len(matched_original) / len(tokens) if tokens else 0.0
 
