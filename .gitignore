@@ -9,12 +9,13 @@ build/
 dist/
 *.egg-info/
 *.egg
+# JS 依赖（docgen 及未来任何 JS 子项目）
+node_modules/
 
 # Build artifacts
 unpacked_intelnexus/
 *.spec
 temp/
-intelnexus.spec
 
 # Virtual environments
 .venv/
@@ -46,11 +47,14 @@ data/
 # Output & Reports
 output/
 report_*.md
+# 代码统计/覆盖率工具输出（论文 5.10 节数据来源）
+coverage_result.txt
+tcounts.txt
 *.pdf
 *.docx
 *.xlsx
 
-# Test files (root level only)
+# Test files（test_*.py 为全局忽略，tests/ 目录经下方例外重新纳入）
 test_*.py
 !tests/test_*.py
 
@@ -61,6 +65,8 @@ test_*.py
 *.tmp
 *.bak
 *.bak2
+# Office 锁文件（Word/Excel 打开文档时生成的 ~$xxx 临时文件）
+~$*
 
 # SQLite databases
 *.db
@@ -77,8 +83,9 @@ test_*.py
 # Mimosa 安全扫描产物（会话级扫描状态与基线哈希）
 .mimosa/
 
-# 文档/学习资料
+# 文档/学习资料：docs 全目录不入库（论文、开题报告与插图仅留本地，历史记录已清理）
 docs/
+*.docx.bak-*
 
 # Test & type-check caches
 .pytest_cache/
