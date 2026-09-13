@@ -425,13 +425,12 @@ def _start_ai_scheduler():
         pass
 
 
-def _auto_open_browser(port: int, delay: float = 3.0) -> None:
+def _auto_open_browser(port: int, delay: float = 0.0) -> None:
     """后台线程：等待 Streamlit 服务器就绪后自动打开浏览器。
 
     对非技术用户最关键的一步——双击 EXE 后浏览器自动弹出，
-    无需手动输入地址。先轮询 /_stcore/health 确认服务器进程存活，
-    再额外等待确保 app 完全初始化，最后打开浏览器到根路径。
-    超时 30 秒放弃。
+    无需手动输入地址。轮询 /_stcore/health 确认服务器进程存活后即打开，
+    不再做固定前置等待（等待完全由 health 轮询承担，超时 30 秒放弃）。
     """
     import time
     import urllib.request
@@ -439,8 +438,8 @@ def _auto_open_browser(port: int, delay: float = 3.0) -> None:
     health_url = f"http://localhost:{port}/_stcore/health"
     app_url = f"http://localhost:{port}/"
     deadline = time.monotonic() + 30
-    time.sleep(delay)  # 给 Streamlit 足够启动时间
-    
+    time.sleep(delay)  # 默认 0，靠下方轮询等待服务器就绪
+
     # 阶段 1：等待健康检查端点响应（确认服务器进程存活）
     while time.monotonic() < deadline:
         try:
@@ -455,12 +454,13 @@ def _auto_open_browser(port: int, delay: float = 3.0) -> None:
         time.sleep(0.5)
     else:
         return  # 超时，放弃
-    
-    # 阶段 2：额外等待 2 秒确保 app 完全初始化（UI 脚本加载、组件注册等）
-    time.sleep(2.0)
-    
-    # 阶段 3：打开浏览器
-    webbrowser.open(app_url)
+
+    # 阶段 2：极短优雅等待，确保 Streamlit 完全就绪（UI 脚本加载、组件注册）
+    time.sleep(0.5)
+
+    # 阶段 3：打开浏览器（优先新标签页，失败时回退到 open）
+    if not webbrowser.open_new_tab(app_url):
+        webbrowser.open(app_url)
 
 
 @intelnexus.command()
@@ -489,18 +489,20 @@ def ui(ui_port, ui_host, no_scheduler, no_browser):
     else:
         base = os.path.dirname(__file__)
 
+    # 调度器初始化（重模块导入 + 数据迁移 + LLM 网络探测）放到后台线程，
+    # 避免阻塞 Streamlit 启动，黑屏时长从 ~14s 降到秒级。
     if not no_scheduler:
-        _start_ai_scheduler()
+        threading.Thread(target=_start_ai_scheduler, daemon=True).start()
 
-    # 自动打开浏览器：对 EXE 用户（非技术人员）最关键，
+    # 自动打开浏览器：立即启动轮询（不再等待调度器线程），
+    # Streamlit 真正就绪后才弹窗。对 EXE 用户（非技术人员）最关键，
     # 源码模式也受益（省去手动输入地址的步骤）。
     if not no_browser:
-        t = threading.Thread(
+        threading.Thread(
             target=_auto_open_browser,
             args=(ui_port,),
             daemon=True,
-        )
-        t.start()
+        ).start()
 
     ui_script = os.path.join(base, "ui.py")
     sys.argv = [

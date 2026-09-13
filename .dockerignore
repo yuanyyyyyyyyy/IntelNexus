@@ -1,0 +1,48 @@
+# ===== 密钥与凭据：绝不打进镜像 =====
+.env
+.env.*
+.streamlit/secrets.toml
+
+# ===== 用户数据与可变内容：由宿主机 volume 提供 =====
+data/
+output/
+report_*.md
+*.pdf
+*.docx
+*.xlsx
+
+# ===== Python 缓存 / 虚拟环境 =====
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+
+# ===== 版本控制 / CI / 编辑器 =====
+.git/
+.github/
+.idea/
+.vscode/
+
+# ===== 测试与文档（非运行时需要） =====
+tests/
+docs/
+
+# ===== 构建产物 =====
+build/
+dist/
+*.spec
+unpacked_intelnexus/
+temp/
+
+# ===== 前端依赖（本项目无 node 构建，保留以防） =====
+node_modules/
+
+# ===== 工具 / 缓存 =====
+.cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.codebuddy/
+.mimosa/

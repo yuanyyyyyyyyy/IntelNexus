@@ -130,6 +130,57 @@ def expand_query_for_search(query_variants):
     return query_variants
 
 
+def llm_expand_query(llm, user_input: str, max_variants: int = 5) -> list[str]:
+    """用 LLM 把用户输入改写为一组检索变体。
+
+    用于阶段二查询优化：相比规则式 ``expand_query``，LLM 能产出更贴近检索意图的
+    同义改写 / 术语扩展 / 中英互补变体。失败（模型不可用、超时、输出无法解析）
+    返回 ``[]``，调用方应回退到规则式 ``expand_query``，保证检索链路不中断。
+
+    Args:
+        llm: 已加载的 LangChain LLM 实例（与报告生成共用同一实例）。
+        user_input: 用户原始查询。
+        max_variants: 变体上限（默认 5）。
+
+    Returns:
+        去重、清洗后的检索变体列表；为空时返回 ``[]``。
+    """
+    if llm is None or not (user_input or "").strip():
+        return []
+
+    system = (
+        "你是情报检索专家。把用户查询改写为若干条互不重复、可直接投给搜索引擎的检索式。\n"
+        "要求：1) 每行一条，不要编号、不要引号、不要解释；"
+        "2) 第一条必须最贴近原意（保留原语言与关键实体）；"
+        "3) 其余条目做同义改写/术语扩展/中英互补；"
+        "4) 不得编造原查询没有的实体或时间范围。"
+    )
+    template = ChatPromptTemplate(
+        [("system", system), ("user", "原始查询：{q}\n请输出 {n} 条检索变体：")]
+    )
+    try:
+        out = (template | llm | StrOutputParser()).invoke(
+            {"q": user_input.strip(), "n": max_variants}
+        )
+    except Exception as e:
+        logger.warning(f"LLM 查询改写失败，回退规则式: {e}")
+        return []
+
+    # 防御式解析：LLM 可能输出 1. xxx / - xxx / **xxx** / 甚至一段解释，
+    # 逐行清洗 + 去重 + 截断（120 字符）+ 上限 max_variants 条。
+    variants: list[str] = []
+    for line in out.splitlines():
+        s = line.strip().strip("0123456789.、-*•`\"' \t").strip()
+        if not s:
+            continue
+        s = s[:120]
+        if s not in variants:
+            variants.append(s)
+        if len(variants) >= max_variants:
+            break
+    return variants
+
+
 def _get_mode_description(search_mode):
     """Return a description string for the given search mode."""
     # 单一事实源：与 core.search.modes.MODE_DESCRIPTIONS 保持一致（此前本地副本漂移，

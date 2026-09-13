@@ -117,6 +117,13 @@ def _render_bulk_collect_button():
                     st.toast(get_text("topic_pinned").format(q=query))
         st.rerun()
 
+# --- Warm UI caches before first paint ---
+# 在所有可见控件输出之前预热重型只读缓存（模型/Ollama 探测、Tor、代理、注册表、健康表、
+# 状态栏指标）。重型工作集中于此，浏览器停在「连接中」态；之后所有控件在几十毫秒内连发，
+# 一次性呈现，消除首屏「一点一点」逐段显现。后续切 Tab 命中热缓存，开销可忽略。
+from intelnexus.ui._caches import warm_ui_caches
+warm_ui_caches()
+
 # --- Render theme ---
 render_hermes_theme_css()
 

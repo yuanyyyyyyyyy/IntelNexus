@@ -1,0 +1,46 @@
+# IntelNexus 容器编排
+# 用法：
+#   cp .env.example .env   # 填入密钥
+#   docker compose up -d --build
+# 应用仅暴露内部 8501，由 nginx 在公网侧做 TLS + basic auth，仅 443(及 80 用于证书验证) 对外。
+
+services:
+  app:
+    build: .
+    image: intelnexus:latest
+    container_name: intelnexus-app
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      # 持久化所有用户数据（订阅者 / 邮件配置 / 简报历史 / 模型与知识库）
+      - intelnexus_data:/app/data
+    # 仅暴露给内部网络，不映射到宿主机公网（nginx 反代访问）
+    expose:
+      - "8501"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8501/_stcore/health').status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 90s
+      retries: 3
+
+  nginx:
+    image: nginx:stable
+    container_name: intelnexus-nginx
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "80:80"     # 仅用于 Let's Encrypt HTTP-01 验证与 80→443 重定向
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/htpasswd:/etc/nginx/htpasswd:ro          # basic auth 账号（deploy 时生成）
+      - ./certs:/etc/letsencrypt:ro                       # Let's Encrypt 证书（certbot 生成）
+      - ./certs/webroot:/var/www/certbot:ro               # certbot HTTP-01 挑战目录
+    # nginx 在 app 不健康时不强行启动；app 重建后 nginx 自动重连
+
+volumes:
+  intelnexus_data:

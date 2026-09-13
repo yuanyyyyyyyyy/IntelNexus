@@ -91,15 +91,20 @@ def run_search_computation(
 ) -> Dict[str, Any]:
     """搜索管线纯计算入口（后台线程安全）。
 
-    阶段：
-    1. 预检 Ollama 模型可达
-    2. 加载模型 + 查询优化
-    3. 多源检索
-    4. 内容抓取
-    5. 可信度 + 知识图谱（并行）
-    6. 报告生成（LLM）
-    7. 证据链追踪
-    8. 后处理（角标 / 可视化 / 行动项 / TL;DR）
+    论文 5.2 节定义的八阶段（对外表述以论文为准）：
+    1. 预检：Ollama 模型可达性
+    2. 查询优化：加载模型并生成检索变体
+    3. 多源检索：注册表并发检索
+    4. 相关性排序：语义相关度计算与弱相关分离
+    5. 正文抓取：并发抓取 + 重定向 URL 回填
+    6. 知识库检索：RAG 召回历史情报
+    7. 并行增强：可信度评估 ‖ 知识图谱（二者无数据依赖）
+    8. 报告生成：LLM 生成 → 证据链对齐 → 后处理 → 结构化报告组装
+
+    实现步骤编号 1-12 与八阶段的对应关系（代码注释以阶段八细分的形式标注）：
+    阶段一至阶段七对应步骤 1-7（步骤 5.5 为阶段五内部的重定向回填）；
+    阶段八由步骤 8（LLM 生成）、9（证据链追踪）、10（后处理：角标/可视化/
+    行动项/TL;DR）、11（事件存储与增量检测）、12（结构化报告组装）共同构成。
 
     Returns:
         dict: 包含所有原 session_state 字段 + 元信息，包括：
@@ -134,7 +139,7 @@ def run_search_computation(
     # ---- 1. 预检 ----
     progress_callback("preflight", "检查模型可用性...", 0.02)
     from intelnexus.core.llm.utils import check_ollama_model_available, is_vision_model, is_ollama_local_model
-    from intelnexus.core.llm.core import get_llm, expand_query, expand_query_for_search, generate_summary
+    from intelnexus.core.llm.core import get_llm, expand_query, expand_query_for_search, llm_expand_query, generate_summary
 
     if is_ollama_local_model(model):
         available, msg = check_ollama_model_available(model, timeout=3.0)
@@ -147,10 +152,17 @@ def run_search_computation(
     from intelnexus.analysis import warm_up_models
     warm_up_models()
     llm = get_llm(model)
-    query_variants = expand_query(query)
+    # 真·LLM 改写：失败/超时返回 [] 时回退规则式 expand_query，检索不中断。
+    query_variants = llm_expand_query(llm, query)
+    if not query_variants:
+        query_variants = expand_query(query)
+    query_variants = query_variants[:5]
+    # 方案B：仍只用第一条（最贴近原意）变体作为实际检索串。
     search_query = expand_query_for_search(query_variants)
-    result["refined"] = query
-    result["refined_display"] = query
+    result["query_variants"] = query_variants
+    result["search_query"] = search_query
+    result["refined"] = search_query          # 改存实际检索串（修复原仅存原 query 的缺陷）
+    result["refined_display"] = search_query
 
     # ---- 3. 多源检索 ----
     progress_callback("searching", "检索多源数据...", 0.1)
@@ -403,7 +415,7 @@ def run_search_computation(
         logger.warning(f"缓存中间产物失败: {e}")
         result_key = None
 
-    # ---- 8. 报告生成 ----
+    # ---- 8. 报告生成（阶段八·LLM 生成）----
     progress_callback("generating", "生成情报报告...", 0.7)
     try:
         # 后台模式不使用流式输出（无 UI callback）
@@ -422,7 +434,7 @@ def run_search_computation(
         result["llm_raw_output"] = ""
         result["streamed_summary"] = ""
 
-    # ---- 9. 证据链追踪 ----
+    # ---- 9. 证据链追踪（阶段八·证据对齐）----
     progress_callback("evidence", "追踪证据链...", 0.85)
     try:
         if result.get("llm_raw_output"):
@@ -436,7 +448,7 @@ def run_search_computation(
         logger.error(f"证据链追踪失败: {e}")
         result["evidence_data"] = None
 
-    # ---- 10. 后处理 ----
+    # ---- 10. 后处理（阶段八·角标/可视化/行动项/TL;DR）----
     progress_callback("finalizing", "后处理...", 0.92)
 
     # 证据角标注入
@@ -495,7 +507,7 @@ def run_search_computation(
     except Exception:
         result["tldr_card"] = ""
 
-    # ---- 11. 事件存储与增量变化检测（必须在报告组装之前） ----
+    # ---- 11. 事件存储与增量变化检测（阶段八·增量检测，必须在报告组装之前） ----
     try:
         from intelnexus.analysis.event_store import get_event_store
         store = get_event_store()
@@ -561,7 +573,7 @@ def run_search_computation(
         logger.debug(f"事件存储失败: {e}")
         result["event_changes"] = None
 
-    # ---- 12. 组装 14 板块结构化报告 ----
+    # ---- 12. 组装结构化报告（阶段八·最终产物）----
     progress_callback("finalizing", "组装结构化报告...", 0.95)
 
     # 报告编号：按当日历史条数自增（旧实现用 now.second % 1000，编号实为

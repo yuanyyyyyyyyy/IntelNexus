@@ -199,11 +199,10 @@ _STATUS_DOT_cls = {"healthy": "active", "degraded": "warning", "down": "error"}
 def _render_source_status_bar() -> None:
     """首页数据源状态点阵：一行彩色圆点 + 短名称，快速定位故障源。"""
     try:
-        from intelnexus.core.search.health import get_all_health
-        from intelnexus.core.search.registry import get_registry
+        from intelnexus.ui._caches import cached_all_health, cached_registry
 
-        all_health = get_all_health()
-        registry = get_registry()
+        all_health = cached_all_health()
+        registry = cached_registry()
         active_names = (
             {s.__class__.__name__ for s in registry.all_sources()}
             if registry else None

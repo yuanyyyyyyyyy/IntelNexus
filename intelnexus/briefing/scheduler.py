@@ -58,8 +58,9 @@ class AIBriefingScheduler:
     def _resolve_llm(self) -> dict:
         """解析定时链路可用的 LLM；成功则注入 analyzer 并返回状态。
 
-        结果同步到 scheduler_registry（供 UI 状态横幅读取）。解析失败
-        时状态必须可见——不允许静默以降级模板文案推送给订阅者。
+        结果同步到 self.llm_status 与 scheduler_registry（供 UI 状态横幅读取）。
+        解析失败或耗时较长时状态仍可见——不允许静默以降级模板文案推送给订阅者。
+        本方法可在后台线程调用（start 时异步解析），调用方无需再赋值返回值。
         """
         from intelnexus.briefing.scheduler_model import resolve_scheduler_llm, make_status
         from intelnexus.briefing import scheduler_registry
@@ -71,7 +72,8 @@ class AIBriefingScheduler:
         else:
             logger.warning(f"Scheduler LLM unavailable: {reason}")
             scheduler_registry.set_model_status(None, degraded=True, reason=reason)
-        return make_status(llm is not None, name, reason)
+        self.llm_status = make_status(llm is not None, name, reason)
+        return self.llm_status
 
 
     def start(self):
@@ -92,11 +94,10 @@ class AIBriefingScheduler:
 
         # 模型在启动时确定性解析一次；失败不阻塞调度器启动
         # （Ollama 可能稍后才就绪，执行前会重试），但状态必须可见。
+        # 解析涉及网络探测（Ollama/云端候选 + get_llm 构建），耗时数秒，
+        # 放到后台线程，避免拖慢 UI 启动（start() 立即返回、状态异步上报）。
         if not self._explicit_llm and not self.analyzer._llm:
-            try:
-                self.llm_status = self._resolve_llm()
-            except Exception as e:
-                self.llm_status = {"ok": False, "model": "", "reason": f"模型解析异常: {e}"}
+            threading.Thread(target=self._resolve_llm, daemon=True).start()
     
     def stop(self):
         """停止调度器"""

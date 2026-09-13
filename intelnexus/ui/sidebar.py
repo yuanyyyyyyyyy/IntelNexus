@@ -6,7 +6,10 @@ import os
 from intelnexus.core.logger import get_logger
 from intelnexus.ui.i18n import get_text, localize_llm_test_error
 from intelnexus.ui.icons import icon
-from intelnexus.core.ui.helpers import SEARCH_MODES, DEFAULT_TOR_PORT, check_tor_status
+from intelnexus.core.ui.helpers import (
+    SEARCH_MODES, DEFAULT_TOR_PORT,
+    find_tor_port, is_tor_running, get_tor_port,
+)
 from intelnexus.core.llm.utils import get_model_choices, is_vision_model
 from intelnexus.core.llm.models import (
     add_custom_model, get_custom_model_names, remove_custom_model,
@@ -25,10 +28,14 @@ logger = get_logger(__name__)
 def _render_search_mode():
     """搜索模式选择 + 暗网设置"""
     from intelnexus.ui.icons import icon as _icon
+    from intelnexus.ui._caches import cached_tor_state
     # widget key 预置默认值：number_input 只给 key= 不给 value=，避免
     # 「default value but also had its value set via Session State API」政策警告刷屏
+    # Tor 端口探测走缓存（ttl=15），避免每次切 Tab 重复探测
+    _cached_tor_port, _cached_tor_running = cached_tor_state()
     if "tor_port" not in st.session_state:
-        st.session_state.tor_port = DEFAULT_TOR_PORT
+        # 首次加载默认到探测到的真实 Tor 端口，否则回退 9150
+        st.session_state.tor_port = _cached_tor_port or DEFAULT_TOR_PORT
     st.markdown(f'<div class="sb-section"><span class="sb-section__label">{_icon("investigate", "sm", "blue")} {get_text("sidebar_mode_label")}</span></div>', unsafe_allow_html=True)
 
     # 方案一（智能路由）：「智能」置顶为默认——按查询主题自动路由，
@@ -37,7 +44,9 @@ def _render_search_mode():
 
     # 手动列表只暴露用户可选的 5 模式；smart/smart_general 是路由内部值
     manual_modes = [m for m in SEARCH_MODES.keys() if m != SMART_GENERAL_KEY]
-    if not darkweb_available():
+    # 可见性基于 Tor 真实连接状态（自动探测常见 SOCKS 端口），而非 ENABLE_DARKWEB 开关
+    tor_running = _cached_tor_running
+    if not tor_running:
         manual_modes.remove("darkweb")  # Tor 未运行时隐藏死选项
 
     top = st.radio(
@@ -61,9 +70,9 @@ def _render_search_mode():
             )
             if search_mode == "darkweb":
                 tor_port_used = _render_darkweb_settings()
-                if not darkweb_available():
+                if not tor_running:
                     st.error(get_text("darkweb_tor_offline_hint"))
-    elif not darkweb_available():
+    elif not tor_running:
         st.caption(get_text("smart_hint_no_tor"))
     return search_mode
 
@@ -77,7 +86,7 @@ def _render_darkweb_settings():
             key="tor_port"
         )
 
-        tor_running = check_tor_status(tor_port)
+        tor_running = is_tor_running(preferred=tor_port)
         if tor_running:
             st.markdown(f"<span class='status-dot active'></span>{get_text('tor_running')}", unsafe_allow_html=True)
         else:
@@ -176,28 +185,42 @@ def _render_darkweb_settings():
     return int(st.session_state.get("tor_port", DEFAULT_TOR_PORT))
 
 def _render_source_health():
-    """数据源健康状态面板"""
+    """数据源健康状态面板（只读展示；写副作用移到刷新按钮与会话一次性守卫）。
+
+    旧实现每帧都调用 purge_stale_entries()（写盘）+ invalidate_status_metrics()，
+    既浪费又把 15s 运行指标缓存每帧失效（等于废掉缓存），且每次切 Tab 都写盘。
+    现改为：会话首帧自动清理一次 + 刷新按钮手动清理，平时只走只读缓存。
+    """
     try:
-        from intelnexus.core.search.health import get_all_health, save_health, purge_stale_entries
-        from intelnexus.core.search.registry import get_registry
+        from intelnexus.core.search.health import save_health
+        from intelnexus.ui._caches import cached_registry, cached_all_health
+        from intelnexus.ui.status_metrics import (
+            invalidate_status_metrics, get_health_summary_cached)
         from intelnexus.config.search_settings import get_news_api_key as NEWS_API_KEY
-        active_names = [s.name for s in get_registry(
-            news_api_key=NEWS_API_KEY()).all_sources()]
-        purge_stale_entries(active_names)  # 清掉测试残留/已删源的僵尸条目
-        # purge 是写操作：失效运行指标缓存，消除摘要行与明细列表最长 15s 的口径不一致
+        registry = cached_registry(news_api_key=NEWS_API_KEY())
+        active_names = [s.name for s in registry.all_sources()]
+    except Exception:
+        return
+
+    # 会话首帧一次性清理测试残留/已删源的僵尸条目（写操作只发生一次，不阻塞切 Tab）
+    if not st.session_state.get("_health_purged_once", False):
         try:
-            from intelnexus.ui.status_metrics import invalidate_status_metrics
+            from intelnexus.core.search.health import purge_stale_entries
+            purge_stale_entries(active_names)
             invalidate_status_metrics()
+            cached_all_health.clear()
         except Exception:
             pass
-        all_health = get_all_health()
+        st.session_state["_health_purged_once"] = True
+
+    try:
+        all_health = cached_all_health()
     except Exception:
         return
 
     with st.expander(get_text("source_health"), expanded=False):
         # 顶部聚合摘要：与状态栏/健康概览面板共享同一口径（15s 缓存）
         try:
-            from intelnexus.ui.status_metrics import get_health_summary_cached
             _s = get_health_summary_cached() or {}
             st.caption(get_text("health_summary_line").format(
                 healthy=int(_s.get("healthy") or 0),
@@ -206,12 +229,14 @@ def _render_source_health():
         except Exception:
             pass
 
-        # 刷新按钮：失效缓存后 rerun，不发起网络探测
+        # 刷新按钮：清理僵尸条目 + 失效缓存，不发起网络探测
         if st.button(get_text("health_refresh"), key="sb_health_refresh",
                      use_container_width=True):
             try:
-                from intelnexus.ui.status_metrics import invalidate_status_metrics
+                from intelnexus.core.search.health import purge_stale_entries
+                purge_stale_entries(active_names)
                 invalidate_status_metrics()
+                cached_all_health.clear()
             except Exception:
                 pass
             st.rerun()
@@ -284,6 +309,8 @@ def _render_search_service_settings():
             if st.button(get_text("save_changes"), key="newsapi_save_btn"):
                 if new_key.strip() and save_search_settings({"news_api_key": new_key.strip()}):
                     st.success(get_text("newsapi_saved"))
+                    from intelnexus.ui._caches import cached_registry
+                    cached_registry.clear()  # NewsAPI key 已变，刷新注册表缓存
                     st.rerun()
                 else:
                     st.error(get_text("fill_fields"))
@@ -291,6 +318,8 @@ def _render_search_service_settings():
             if current and st.button(get_text("newsapi_clear"), key="newsapi_clear_btn"):
                 if save_search_settings({"news_api_key": ""}):
                     st.success(get_text("newsapi_cleared"))
+                    from intelnexus.ui._caches import cached_registry
+                    cached_registry.clear()  # NewsAPI key 已变，刷新注册表缓存
                     st.rerun()
 
         # ---- 搜索源开关（F: 源太少问题的 UI 入口）----
@@ -322,7 +351,9 @@ def _render_search_service_settings():
                     for k, v in new_toggles.items():
                         setattr(_app_cfg, k, v)
                     from intelnexus.core.search.registry import reset_registry_cache
+                    from intelnexus.ui._caches import cached_registry
                     reset_registry_cache()
+                    cached_registry.clear()  # 源开关已变，刷新注册表缓存
                     st.success(get_text("source_toggles_saved"))
                     st.rerun()
         except Exception as e:
@@ -331,10 +362,12 @@ def _render_search_service_settings():
 
 def _render_model_settings():
     """模型选择（核心设置）"""
+    from intelnexus.ui._caches import cached_model_choices
     # 单行带图标区块标题：与 sidebar_mode_label 同风格（英文 · 中文，i18n 单键）
     st.markdown(f'<div class="sb-section"><span class="sb-section__label">{icon("ai_model", "sm", "blue")} {get_text("sidebar_model_label")}</span></div>', unsafe_allow_html=True)
 
-    model_options = get_model_choices()
+    # 模型选项含 Ollama HTTP 探测，走缓存（ttl=30）避免每次切 Tab 重探（Ollama 未运行时会卡约 3s）
+    model_options = cached_model_choices()
     if not model_options:
         st.info(get_text("no_model_hint"))
         model = None
@@ -394,6 +427,7 @@ def _render_advanced_settings():
 
 def _render_custom_models():
     """自定义模型管理：添加 / 编辑 / 测试连接 / 删除"""
+    from intelnexus.ui._caches import cached_model_choices
     st.markdown(f'<div class="sb-section"><span class="sb-section__label">{icon("layers", "sm", "blue")} {get_text("sidebar_custom_models_label")}</span></div>', unsafe_allow_html=True)
 
     MODEL_TYPES = [
@@ -476,6 +510,7 @@ def _render_custom_models():
                                     st.error(get_text("model_exists"))
                                 elif update_custom_model(mname, new_type, new_config, new_name=new_display_name):
                                     st.success(get_text("model_update_success"))
+                                    cached_model_choices.clear()  # 模型选项已变，刷新缓存
                                     st.session_state[editing_key] = False
                                     st.rerun()
                                 else:
@@ -515,6 +550,7 @@ def _render_custom_models():
                             if st.button(get_text("delete"), key=f"delete_{mname}", width="stretch"):
                                 if remove_custom_model(mname):
                                     st.success(get_text("deleted"))
+                                    cached_model_choices.clear()  # 模型选项已变，刷新缓存
                                     st.rerun()
 
                 # 编辑表单（展开在模型条目下方，同样归入容器保持条目分组一致）
@@ -625,6 +661,7 @@ def _render_custom_models():
                     config = {"model_name": model_id, "base_url": base_url, "api_key": api_key}
                     if add_custom_model(custom_model_name, model_type.lower(), config):
                         st.success(get_text("model_add_success"))
+                        cached_model_choices.clear()  # 模型选项已变，刷新缓存
                         st.rerun()
                     else:
                         st.error(get_text("model_exists"))
@@ -887,8 +924,9 @@ def _render_proxy_settings():
         try:
             from intelnexus.config.proxy_settings import (
                 get_proxy_settings, save_proxy_settings,
-                detect_system_proxy, test_proxy_connection, _normalize_proxy_url,
+                test_proxy_connection, _normalize_proxy_url,
             )
+            from intelnexus.ui._caches import cached_system_proxy
         except Exception as e:
             logger.warning(f"代理设置模块不可用: {e}")
             return
@@ -917,8 +955,8 @@ def _render_proxy_settings():
             key="proxy_auto_detect_cb",
         )
 
-        # 系统代理实时检测值（只读展示）
-        sys_proxy = detect_system_proxy()
+        # 系统代理实时检测值（只读展示，走缓存 ttl=60 避免每次重探）
+        sys_proxy = cached_system_proxy()
         if sys_proxy:
             st.markdown(
                 f"<div class='stCaption'>{icon('search', size='sm', color='gray')} "

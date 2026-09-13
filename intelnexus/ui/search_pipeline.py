@@ -68,7 +68,8 @@ def _start_search_task(query: str, search_mode: str, model: str, threads: int):
         for k in ["refined", "results", "filtered", "scraped", "streamed_summary",
                    "credibility_data", "conflicts", "kg_entities", "kg_relations",
                    "kg_html_path", "kg_context", "evidence_data", "action_items",
-                   "source_stats", "source_counts", "source_info"]:
+                   "source_stats", "source_counts", "source_info",
+                   "query_variants", "search_query"]:
             st.session_state.pop(k, None)
         st.session_state.search_completed = False
         # 同简报：启动后立即 rerun，让导航锁和侧边栏提示立即生效
@@ -178,7 +179,7 @@ def _apply_search_results(result: dict):
                      "credibility_data", "conflicts", "kg_entities", "kg_relations",
                      "kg_html_path", "kg_context", "evidence_data", "action_items",
                      "source_stats", "report_timestamp", "credibility_radar_chart",
-                     "tldr_card", "structured_summary"]:
+                     "tldr_card", "structured_summary", "query_variants", "search_query"]:
             if key in result and result[key] is not None:
                 st.session_state[key] = result[key]
 
@@ -211,11 +212,19 @@ def _render_search_results_ui(result: dict):
     source_info = result.get("source_info", "")
     source_stats = result.get("source_stats", {})
 
-    # 查询优化展示
+    # 查询优化展示：透明化检索范围 —— 原始查询 / 实际检索串 / 变体列表
+    search_query = result.get("search_query", query) or query
+    query_variants = result.get("query_variants", []) or []
+    variants_html = "".join(
+        f'<div class="result-subtitle">· {html.escape(v)}</div>'
+        for v in query_variants
+    )
     st.markdown(f"""
     <div class="result-card">
         <div class="section-header">{get_text("refined_query")}</div>
         <div class="result-title">{get_text("original_query")} {html.escape(query)}</div>
+        <div class="result-title">{get_text("search_query_label")} {html.escape(search_query)}</div>
+        {variants_html}
     </div>
     """, unsafe_allow_html=True)
 
