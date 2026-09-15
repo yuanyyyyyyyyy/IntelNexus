@@ -2,12 +2,15 @@
 CNVD (国家信息安全漏洞共享平台) 搜索源适配器
 ============================================
 通过 CNVD 公开页面获取漏洞信息。
-- 公开数据，无需认证
-- 国内可直连
+
+现场结论（2026-09-15 实测）：
+- 官方域名为 https://www.cnvd.org.cn；曾误写为 cvd.org.cn（DNS 通但连接被 RST）。
+- 站点当前由加速乐（Jiasule）保护：纯 HTTP 请求返回 HTTP 521 与
+  __jsl_clearance JS 校验脚本。本源**不绕过**该反爬机制（不做 cookie 求解），
+  命中校验时直接标记失败并返回空，交由注册表健康降级处理。
 """
 from typing import Dict, List
 
-import requests
 from bs4 import BeautifulSoup
 
 from intelnexus.core.logger import get_logger
@@ -20,7 +23,13 @@ logger = get_logger(__name__)
 class CNVDSource(BaseSearchSource):
     """国家信息安全漏洞共享平台适配器。"""
 
-    BASE_URL = "https://www.cvd.org.cn"
+    #: 官方域名（注意是 cnvd 而非 cvd）
+    BASE_URL = "https://www.cnvd.org.cn"
+    #: 漏洞列表/搜索接口路径
+    SEARCH_PATH = "/flaw/list"
+    #: 加速乐反爬校验特征
+    ANTIBOT_STATUS = 521
+    ANTIBOT_MARKER = "__jsl_clearance"
 
     def __init__(self, name: str = "CNVD", category: str = CATEGORY_THREAT_INTEL,
                  enabled: bool = True, requires_proxy: bool = False):
@@ -31,15 +40,28 @@ class CNVDSource(BaseSearchSource):
 
     def search(self, query, max_results: int = 20) -> List[Dict]:
         try:
+            # 国内站点：requires_proxy=False → self.get_proxies() 恒为 None（强制直连），
+            # 与 ExploitDB 走 get_http_proxies()（国际站点有代理则走）的差异是有意为之。
             proxies = self.get_proxies()
             session = get_session(proxies)
 
-            # CNVD 搜索接口
-            url = f"{self.BASE_URL}/faw/list.htm"
-            params = {"q": query}
+            # CNVD 漏洞列表搜索接口：flag=true 走关键字检索
+            url = f"{self.BASE_URL}{self.SEARCH_PATH}"
+            params = {"flag": "true", "q": query}
             headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
             resp = session.get(url, params=params, headers=headers, timeout=15)
+
+            # 反爬 JS 校验：不绕过（不求解 __jsl_clearance），标记失败后降级返回空
+            if resp.status_code == self.ANTIBOT_STATUS or \
+                    self.ANTIBOT_MARKER in (resp.text or "")[:1000]:
+                self.last_error = (
+                    f"CNVD 站点启用反爬 JS 校验（HTTP {resp.status_code}），"
+                    f"纯 HTTP 无法抓取"
+                )[:200]
+                logger.info(f"CNVDSource 命中反爬校验，已跳过: HTTP {resp.status_code}")
+                return []
+
             resp.raise_for_status()
 
             soup = BeautifulSoup(resp.text, "html.parser")

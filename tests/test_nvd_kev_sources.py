@@ -49,6 +49,28 @@ class TestNVDSource:
             results = src.search("nothing")
         assert results == []
 
+    def test_request_contract_2_0_endpoint_and_keyword_search(self):
+        """契约守卫：2.0 端点 + keywordSearch 参数（2026-09-15 实测 HTTP 200）。
+
+        历史注释称「NVD API查询格式错误（404）」而默认禁用；实测该端点与
+        参数完全正常，此用例锁定契约防止回退到旧端点/旧参数名。
+        """
+        from intelnexus.core.search.sources.nvd_source import NVDSearchSource
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"vulnerabilities": []}
+        mock_resp.raise_for_status = MagicMock()
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        with patch("intelnexus.core.search.sources.nvd_source.get_session",
+                   return_value=mock_session):
+            NVDSearchSource().search("log4j", max_results=10)
+
+        args, kwargs = mock_session.get.call_args
+        assert args[0] == NVDSearchSource.BASE_URL
+        assert NVDSearchSource.BASE_URL.endswith("/rest/json/cves/2.0")
+        assert kwargs["params"]["keywordSearch"] == "log4j"
+        assert kwargs["params"]["resultsPerPage"] <= 40
+
 
 class TestCISAKEVSource:
     def test_search_filtering(self):
