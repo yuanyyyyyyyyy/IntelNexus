@@ -1,0 +1,89 @@
+{
+  "generated_at": "2026-09-15T13:38:14Z",
+  "mapping_entries": 94,
+  "by_source": {
+    "dataset": 15,
+    "pricing": 3,
+    "env": 4,
+    "aggregate": 65,
+    "privacy": 6,
+    "scan": 1
+  },
+  "runs_in_aggregate": 18,
+  "runs_ok": 18,
+  "runs_incomplete": [],
+  "runs_missing": [],
+  "unbound_slots": 0,
+  "prose_numbers": {
+    "checked": 165,
+    "unmatched": [
+      {
+        "file": "00_front.md",
+        "line": 5,
+        "value": "4.8",
+        "context": "::abstract 摘　要：安全运营人员需要从海量公开安全信源中快速形成简报，而将待处理内容提交至云端大语言模型会带来数据出域风险；本地推"
+      },
+      {
+        "file": "00_front.md",
+        "line": 13,
+        "value": "4.8",
+        "context": "::en_abstract Abstract：Security operators must turn massive volumes of"
+      },
+      {
+        "file": "05_results.md",
+        "line": 4,
+        "value": "0.196",
+        "context": "::body 在安全简报生成质量上，以与语言无关的安全实体 F1 为主指标：本地 qwen3:8b 为 0.213±0.228，云端旗舰档（"
+      },
+      {
+        "file": "05_results.md",
+        "line": 14,
+        "value": "0.009",
+        "context": "::body 自动指标方面，本地 qwen3:8b 的 ROUGE-L 为 0.008±0.007、BERTScore 为 0.571±0."
+      },
+      {
+        "file": "05_results.md",
+        "line": 17,
+        "value": "4.8",
+        "context": "::body 端到端时延与吞吐结果见表4。本地组的 P50 时延为 152.22 s，P95 时延为 180.46 s，吞吐为 0.44 条"
+      },
+      {
+        "file": "05_results.md",
+        "line": 17,
+        "value": "4.6",
+        "context": "::body 端到端时延与吞吐结果见表4。本地组的 P50 时延为 152.22 s，P95 时延为 180.46 s，吞吐为 0.44 条"
+      },
+      {
+        "file": "05_results.md",
+        "line": 24,
+        "value": "2.9",
+        "context": "::body 成本对比见表5。按式（1）与式（2）折算，云端旗舰档单次简报成本为 0.0230 元（输入 token 0.0072 元、输出"
+      },
+      {
+        "file": "05_results.md",
+        "line": 24,
+        "value": "6.5",
+        "context": "::body 成本对比见表5。按式（1）与式（2）折算，云端旗舰档单次简报成本为 0.0230 元（输入 token 0.0072 元、输出"
+      },
+      {
+        "file": "05_results.md",
+        "line": 24,
+        "value": "4.3",
+        "context": "::body 成本对比见表5。按式（1）与式（2）折算，云端旗舰档单次简报成本为 0.0230 元（输入 token 0.0072 元、输出"
+      },
+      {
+        "file": "06_discussion.md",
+        "line": 3,
+        "value": "0.009",
+        "context": "::body 从表3与表4的结果看，本地化代价的落点可以分解为两个问题：质量差距是否集中在特定栏目，以及时延差距是否集中在特定环节。若自动指"
+      }
+    ],
+    "unmatched_total": 10,
+    "note": "未匹配项为派生量（比值/差值/百分比/反算值），需人工确认",
+    "filled_dir": "D:\\Edge\\信息安全与通信保密期刊－20260911\\_build\\content_filled"
+  },
+  "issues": [
+    "云端 token 用量来自重算（600 条，分词器 Qwen/Qwen3-8B；其中自带提示词留痕 0 条、跨调用代理 600 条）：批量运行时未采集 API usage",
+    "600 条的输入 token 是跨调用代理值（借用本地同一样本的 prompt_eval_count），必须以区间披露：见 reports/cost_sensitivity.json 的 input_token_band，表5 表注须与该产物同源"
+  ]
+}

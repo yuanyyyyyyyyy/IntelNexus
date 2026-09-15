@@ -1,0 +1,59 @@
+{
+  "probed_at": "2026-09-14T08:39:19Z",
+  "results": [
+    {
+      "provider": "qwen",
+      "model": "qwen3-max",
+      "prompt_chars": 14,
+      "configured": true,
+      "ok": true,
+      "elapsed_s": 4.0,
+      "tokens_out": 30,
+      "error": null,
+      "answer_chars": 75,
+      "tokens_in": 14,
+      "tier": "flagship"
+    },
+    {
+      "provider": "qwen",
+      "model": "qwen3-max",
+      "prompt_chars": 1081,
+      "configured": true,
+      "ok": true,
+      "elapsed_s": 10.52,
+      "tokens_out": 513,
+      "error": null,
+      "answer_chars": 2216,
+      "tokens_in": 240,
+      "tier": "flagship-full-input"
+    },
+    {
+      "provider": "qwen",
+      "model": "qwen-plus",
+      "prompt_chars": 14,
+      "configured": true,
+      "ok": true,
+      "elapsed_s": 1.89,
+      "tokens_out": 54,
+      "error": null,
+      "answer_chars": 112,
+      "tokens_in": 14,
+      "tier": "light"
+    },
+    {
+      "provider": "qwen",
+      "model": "qwen-plus",
+      "prompt_chars": 1081,
+      "configured": true,
+      "ok": true,
+      "elapsed_s": 23.66,
+      "tokens_out": 1008,
+      "error": null,
+      "answer_chars": 3982,
+      "tokens_in": 240,
+      "tier": "light-full-input"
+    }
+  ],
+  "timeout_used": 120,
+  "max_tokens_used": null
+}

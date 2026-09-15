@@ -3,6 +3,13 @@
 import os
 import sys
 
+
+def pytest_configure(config):
+    """注册自定义标记：slow 表示需要真实模型/长耗时，可用 -m 'not slow' 跳过。"""
+    config.addinivalue_line(
+        "markers", "slow: 需要真实模型或长耗时（如加载 BERTScore 多语言基座）")
+
+
 # Add project root first (so `import config` resolves to root config.py,
 # and the single intelnexus package is importable without sys.path hacks).
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))

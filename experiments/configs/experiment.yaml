@@ -1,0 +1,202 @@
+# 论文 A 实验配置矩阵
+# ---------------------------------------------------------------------------
+# 纪律：本文件是「预注册」的一部分。正式跑批前定稿，拿到结果后不得修改样本量、
+# 重复次数或配置清单（PROTOCOL.md 的 G1 门禁会校验本文件哈希）。
+# 本文件由 git 跟踪；任何密钥只走环境变量，禁止写入此处。
+
+version: 1
+created: "2026-09-13"
+
+# 随机种子：本地后端透传，云端不支持时以 temperature=0 + 多次重复估计方差
+seed: 20260913
+repeats: 5
+# 各阶段重复次数（PROTOCOL.md 约定）：smoke/pilot 只做自检与外推，full 才是正式结果
+repeats_by_stage:
+  smoke: 2
+  pilot: 2
+  # full 由 5 次降为 3 次（本地算力约束，见 PROTOCOL 偏差记录）
+  full: 3
+
+# ------------------------------------------------------------------ 实验单元
+unit:
+  # 生成入口：与主程序同链路、同参数（intelnexus/core/llm/core.py:generate_summary）
+  entrypoint: "intelnexus.core.llm.core.generate_summary"
+  common_params: "intelnexus.core.llm.utils._common_llm_params"
+  # 时延测量必须串行：并发会污染 P50/P95。吞吐另行按并发口径测量。
+  concurrency_for_latency: 1
+  search_mode: "all"
+  # 统一输入上限（字符）：对本地与云端一致生效，消除"云端不截断"的不公平
+  # 与本地超长预填充导致的超时。该值覆盖生产中的小模型 25000 截断，
+  # 会写入 run_manifest.param_overrides，论文须说明。
+  input_max_chars: 8000
+
+# ------------------------------------------------------------------ 数据集
+dataset:
+  snapshot_dir: "data/snapshot"
+  items_file: "items.jsonl"
+  # 固定划分：调试集用于提示词/脚本调试，测试集用于全部正式测量
+  dev_ratio: 0.2
+  # 各阶段样本量（随机种子固定后抽样）
+  smoke_size: 2
+  pilot_size: 30
+  # full 规模经显存体检定为 degrade-required 后缩减（见 PROTOCOL 偏差记录）
+  full_size: 100
+  min_total_required: 200
+
+# ------------------------------------------------------------------ 配置矩阵
+configs:
+  # 本地组按本机显存实测（6 GB）与模型可得性定稿为 2 档：
+  #   qwen3:8b —— 8B 量化，实测无法全 GPU 驻留（25–36% 层回落 CPU），
+  #               代表"算力受限但模型更强"的一档；
+  #   qwen3:4b —— 4B，可全 GPU 驻留，代表"本地高效档"。
+  # llava:7b 为多模态模型，不适用于文本简报，已排除。
+  - id: "qwen3:8b"
+    group: local
+    backend: ollama
+    model: "qwen3:8b"
+    params: "8.2B"
+    truncate_chars: 25000
+  - id: "qwen3:4b"
+    group: local
+    backend: ollama
+    model: "qwen3:4b"
+    params: "4B"
+    truncate_chars: 25000
+    # qwen3:4b 默认开启思考模式：实测 1024 token 预算被思考耗尽、content 为空
+    # （整档输出 0 字符，运行却无报错）。关闭思考是该模型在本任务上可用的前提，
+    # 该覆盖会写入 manifest.extra_params，论文表2 须记明"按模型记录解码配置"。
+    options:
+      reasoning: false
+  - id: "cloud_flagship"
+    group: cloud
+    backend: openai_compatible
+    provider: qwen
+    tier: flagship
+  - id: "cloud_light"
+    group: cloud
+    backend: openai_compatible
+    provider: qwen
+    tier: light
+  - id: "baseline_keyword"
+    group: baseline
+    backend: baseline
+    kind: keyword
+  - id: "baseline_textrank"
+    group: baseline
+    backend: baseline
+    kind: textrank
+  - id: "baseline_tfidf"
+    group: baseline
+    backend: baseline
+    kind: tfidf
+
+# 云端敏感性对照：不进入主表，仅用于 6.4 节效度讨论
+sensitivity:
+  - id: "cloud_deepseek"
+    group: cloud
+    backend: openai_compatible
+    provider: deepseek
+    tier: flagship
+
+# ------------------------------------------------------------------ 排除配置
+# 定义保留在此以留档完整的预注册矩阵，但不进入汇总、图表与论文表格。
+# 排除动作本身属偏差，原因与证据见 PROTOCOL.md「偏差记录」2026-09-15。
+exclude_configs:
+  qwen3:4b: >-
+    默认（思考开启）配置下整档 300/300 条 content 为空、输出 0 字符；
+    关闭思考的冒烟虽产出 1 758 字符，但 eval_count 恰好等于 num_predict=1024，
+    即输出被上限截断。经与作者确认，该臂不重跑、撤出主表，作为
+    "本地小模型默认解码行为不可用"的负结果在论文 5.x/6.3 说明。
+
+# ------------------------------------------------------------------ 基线参数
+baselines:
+  keyword:
+    top_k: 3
+    min_sentence_chars: 12
+  textrank:
+    window: 5
+    max_sentences: 5
+    damping: 0.85
+  tfidf:
+    clusters: 8
+    first_sentence: true
+    max_sentences: 5
+
+# ------------------------------------------------------------------ 后端
+ollama:
+  base_url_env: OLLAMA_BASE_URL
+  default_base_url: "http://127.0.0.1:11434"
+  # 本地组选项：仅影响本地 Ollama 后端
+  # num_ctx 按实测硬件收紧：本机 RTX 4050 Laptop 仅 6 GB 显存。
+  # 实测 8192 上下文时 ollama ps 显示 "36%/64% CPU/GPU"（KV cache 挤占显存，
+  # 约 36% 的层回落到 CPU），生成速度仅 8.3 tok/s；降到 4096 以争取全 GPU 驻留。
+  options:
+    num_ctx: 4096
+    num_predict: 1024
+
+cloud:
+  # 对主程序默认参数（_common_llm_params）的覆盖项。
+  # 任何非空覆盖都会写入 run_manifest.param_overrides，论文须如实说明。
+  # request_timeout: 120 为默认值；实测云端超时后再决定是否上调。
+  request_timeout: null
+  max_tokens: null
+  # 输入上限已统一到 unit.input_max_chars（对本地与云端一致生效）
+  providers:
+    - name: qwen
+      # 阿里云百炼 OpenAI 兼容模式
+      env_key: DASHSCOPE_API_KEY
+      base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+      flagship_hint: ["qwen3-max", "qwen-max", "qwen3-235b"]
+      light_hint: ["qwen-plus", "qwen-flash", "qwen-turbo"]
+    - name: deepseek
+      env_key: DEEPSEEK_API_KEY
+      base_url: "https://api.deepseek.com/v1"
+      flagship_hint: ["deepseek-chat"]
+      light_hint: ["deepseek-chat"]
+
+# ------------------------------------------------------------------ 评测
+evaluation:
+  bertscore:
+    # 生成物为中文、参考摘要多为英文 → 必须用跨语言（多语言）基座。
+    # 中文单语基座（bert-base-chinese）无法处理英文参考摘要。
+    model: "bert-base-multilingual-cased"
+    # 固定落盘目录（相对 experiments/）：运行时以 local_files_only 加载，避免每次联网，
+    # 保证离线可复现；下载走国内镜像。见 reports/ 中的缓存与 data/ 下的 model_info.json。
+    local_dir: "data/bert_base_multilingual_cased"
+    mirror: "https://hf-mirror.com"
+    # 下载源，按顺序尝试（公开只读镜像）。实测 huggingface.co 国内不可达；
+    # hf-mirror 可用但时快时慢；ModelScope 稳定，故置于首位。支持断点续传。
+    sources:
+      - "https://modelscope.cn/api/v1/models/AI-ModelScope/{model}/repo?Revision=master&FilePath={file}"
+      - "https://hf-mirror.com/{model}/resolve/main/{file}"
+    batch_size: 16
+    # IDF 必须关闭：bert-score 默认按**本次调用批次内的参考文本**现算 IDF，
+    # 若每个配置各调一次，IDF 会随批次变化，导致跨配置不可比。
+    idf: false
+    # 官方基线重标定只对登记过的单语模型成立，多语言基座不适用。
+    rescale_with_baseline: false
+    # 模型内部按 512 token 截断，长简报只在被截断的部分上比较：
+    # 这是该指标的固有限制，论文须在表注说明，并另算"首板块口径"作稳健性对照。
+    max_length: 512
+    # 逐条结果缓存（键含模型名，换基座不会串味）：全量只算一次，之后重跑秒级命中
+    cache: "reports/bertscore_cache.jsonl"
+
+# ------------------------------------------------------------------ 隐私测量
+privacy:
+  # 按优先级探测，取第一个可用者；全部不可用则该指标保留 not-yet-measured
+  capture_order: ["pktmon", "tshark", "mitmproxy"]
+  # 本地组必须先完成模型拉取再抓包，抓包区间严格限定推理阶段
+  exclude_model_pull: true
+  # 明文残留扫描目标：对应表6 的"日志、缓存与临时文件"。
+  # 刻意排除 experiments/runs/：那是实验自身的归档产物（含公告正文与生成结果），
+  # 属于预期留存而非"残留泄漏"，计入会污染该指标（口径已记入 PROTOCOL）。
+  scan_targets:
+    - "logs"
+    - "temp"
+    - "intelnexus/data/cache"
+
+# ------------------------------------------------------------------ 输出
+output:
+  runs_dir: "runs"
+  reports_dir: "reports"
+  raw_outputs_gitignored: true

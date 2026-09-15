@@ -1,0 +1,261 @@
+{
+  "content_dir": "D:\\Edge\\信息安全与通信保密期刊－20260911\\_build\\content",
+  "out_dir": "D:\\Edge\\信息安全与通信保密期刊－20260911\\_build\\content_filled",
+  "filled": 79,
+  "unresolved_entries": 15,
+  "remaining_placeholders_in_output": 19,
+  "per_file": {
+    "00_front.md": {
+      "filled": 0,
+      "missing": 0
+    },
+    "01_intro.md": {
+      "filled": 0,
+      "missing": 0
+    },
+    "02_related.md": {
+      "filled": 0,
+      "missing": 0
+    },
+    "03_platform.md": {
+      "filled": 0,
+      "missing": 0
+    },
+    "04_expdesign.md": {
+      "filled": 22,
+      "missing": 0
+    },
+    "05_results.md": {
+      "filled": 57,
+      "missing": 15
+    },
+    "06_discussion.md": {
+      "filled": 0,
+      "missing": 0
+    },
+    "07_conclusion.md": {
+      "filled": 0,
+      "missing": 0
+    },
+    "08_refs.md": {
+      "filled": 0,
+      "missing": 0
+    },
+    "09_bio.md": {
+      "filled": 0,
+      "missing": 0
+    }
+  },
+  "unresolved_sample": [
+    {
+      "slot_id": "05_results.md:8:7",
+      "entry": {
+        "source": "aggregate",
+        "path": [
+          "configs",
+          "qwen3:8b",
+          "human"
+        ],
+        "fmt": "mean_sd",
+        "digits": 3
+      },
+      "context": "|qwen3:8b（本地）|not-yet-measured|not-yet-measured|not-yet-measured|not-yet-measure"
+    },
+    {
+      "slot_id": "05_results.md:9:11",
+      "entry": {
+        "source": "aggregate",
+        "path": [
+          "configs",
+          "cloud_flagship",
+          "human"
+        ],
+        "fmt": "mean_sd",
+        "digits": 3
+      },
+      "context": "|云端旗舰档|not-yet-measured|not-yet-measured|not-yet-measured|not-yet-measured|"
+    },
+    {
+      "slot_id": "05_results.md:10:15",
+      "entry": {
+        "source": "aggregate",
+        "path": [
+          "configs",
+          "cloud_light",
+          "human"
+        ],
+        "fmt": "mean_sd",
+        "digits": 3
+      },
+      "context": "|云端轻量档|not-yet-measured|not-yet-measured|not-yet-measured|not-yet-measured|"
+    },
+    {
+      "slot_id": "05_results.md:11:19",
+      "entry": {
+        "source": "aggregate",
+        "path": [
+          "configs",
+          "baseline_keyword",
+          "human"
+        ],
+        "fmt": "mean_sd",
+        "digits": 3
+      },
+      "context": "|基线：关键词规则|not-yet-measured|not-yet-measured|not-yet-measured|not-yet-measured|"
+    },
+    {
+      "slot_id": "05_results.md:12:23",
+      "entry": {
+        "source": "aggregate",
+        "path": [
+          "configs",
+          "baseline_textrank",
+          "human"
+        ],
+        "fmt": "mean_sd",
+        "digits": 3
+      },
+      "context": "|基线：TextRank|not-yet-measured|not-yet-measured|not-yet-measured|not-yet-measured"
+    },
+    {
+      "slot_id": "05_results.md:13:27",
+      "entry": {
+        "source": "aggregate",
+        "path": [
+          "configs",
+          "baseline_tfidf",
+          "human"
+        ],
+        "fmt": "mean_sd",
+        "digits": 3
+      },
+      "context": "|基线：TF-IDF 聚类+首句|not-yet-measured|not-yet-measured|not-yet-measured|not-yet-meas"
+    },
+    {
+      "slot_id": "05_results.md:47:62",
+      "entry": {
+        "source": "aggregate",
+        "path": [
+          "comparisons",
+          "2",
+          "p_adj"
+        ],
+        "fmt": "holm",
+        "digits": 0
+      },
+      "context": "|本地最优 vs 云端旗舰档|人工评分|not-yet-measured|not-yet-measured|not-yet-measured|"
+    },
+    {
+      "slot_id": "05_results.md:47:61",
+      "entry": {
+        "source": "aggregate",
+        "path": [
+          "comparisons",
+          "2",
+          "cliffs_delta"
+        ],
+        "fmt": "float",
+        "digits": 3
+      },
+      "context": "|本地最优 vs 云端旗舰档|人工评分|not-yet-measured|not-yet-measured|not-yet-measured|"
+    },
+    {
+      "slot_id": "05_results.md:47:60",
+      "entry": {
+        "source": "aggregate",
+        "path": [
+          "comparisons",
+          "2",
+          "statistic"
+        ],
+        "fmt": "float",
+        "digits": 1
+      },
+      "context": "|本地最优 vs 云端旗舰档|人工评分|not-yet-measured|not-yet-measured|not-yet-measured|"
+    },
+    {
+      "slot_id": "05_results.md:51:71",
+      "entry": {
+        "source": "aggregate",
+        "path": [
+          "comparisons",
+          "5",
+          "p_adj"
+        ],
+        "fmt": "holm",
+        "digits": 0
+      },
+      "context": "|云端旗舰档 vs 云端轻量档|人工评分|not-yet-measured|not-yet-measured|not-yet-measured|"
+    },
+    {
+      "slot_id": "05_results.md:51:70",
+      "entry": {
+        "source": "aggregate",
+        "path": [
+          "comparisons",
+          "5",
+          "cliffs_delta"
+        ],
+        "fmt": "float",
+        "digits": 3
+      },
+      "context": "|云端旗舰档 vs 云端轻量档|人工评分|not-yet-measured|not-yet-measured|not-yet-measured|"
+    },
+    {
+      "slot_id": "05_results.md:51:69",
+      "entry": {
+        "source": "aggregate",
+        "path": [
+          "comparisons",
+          "5",
+          "statistic"
+        ],
+        "fmt": "float",
+        "digits": 1
+      },
+      "context": "|云端旗舰档 vs 云端轻量档|人工评分|not-yet-measured|not-yet-measured|not-yet-measured|"
+    },
+    {
+      "slot_id": "05_results.md:52:74",
+      "entry": {
+        "source": "aggregate",
+        "path": [
+          "comparisons",
+          "6",
+          "p_adj"
+        ],
+        "fmt": "holm",
+        "digits": 0
+      },
+      "context": "|大模型 vs 最强基线|人工评分|not-yet-measured|not-yet-measured|not-yet-measured|"
+    },
+    {
+      "slot_id": "05_results.md:52:73",
+      "entry": {
+        "source": "aggregate",
+        "path": [
+          "comparisons",
+          "6",
+          "cliffs_delta"
+        ],
+        "fmt": "float",
+        "digits": 3
+      },
+      "context": "|大模型 vs 最强基线|人工评分|not-yet-measured|not-yet-measured|not-yet-measured|"
+    },
+    {
+      "slot_id": "05_results.md:52:72",
+      "entry": {
+        "source": "aggregate",
+        "path": [
+          "comparisons",
+          "6",
+          "statistic"
+        ],
+        "fmt": "float",
+        "digits": 1
+      },
+      "context": "|大模型 vs 最强基线|人工评分|not-yet-measured|not-yet-measured|not-yet-measured|"
+    }
+  ]
+}

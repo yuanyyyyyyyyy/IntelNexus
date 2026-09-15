@@ -17,3 +17,27 @@ spacy>=3.6.0
 
 # 搜索结果图表可视化（懒加载，未安装时相关图表面板降级）
 matplotlib>=3.7.0
+
+# ---------------------------------------------------------------------------
+# 论文 A 实验管线依赖（experiments/）
+# 与业务依赖隔离：不安装不影响 IntelNexus 主程序运行，
+# 但对应实验指标会按纪律保留 not-yet-measured，不做近似替代。
+#   - PyYAML       : 读取 experiments/configs/*.yaml
+#   - scipy        : 表7 的 Wilcoxon 符号秩检验
+#   - psutil       : 无 GPU 时的进程内存峰值采样
+#   - pynvml       : 显存采样（nvidia-smi 不可用时的回退）
+#   - bert-score   : 表3 的 BERTScore。基座用 bert-base-multilingual-cased
+#                    （生成物中文、参考摘要多为英文，必须跨语言基座）。
+#                    基座不由此文件安装，而是固定落盘：
+#                    `python -m experiments.cli bertscore-fetch`
+#                    （多源直连 + 断点续传；国内 huggingface.co 不可达，
+#                     默认走 ModelScope 与 hf-mirror，见 experiment.yaml 的
+#                     evaluation.bertscore.sources）
+#   - rouge-score  : ROUGE-L 的交叉校验实现（主实现为仓库内自研，不强制）
+# ---------------------------------------------------------------------------
+PyYAML>=6.0
+scipy>=1.10.0
+psutil>=5.9.0
+pynvml>=11.5.0
+bert-score>=0.3.13
+rouge-score>=0.1.2

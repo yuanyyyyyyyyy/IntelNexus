@@ -1,0 +1,5383 @@
+{
+  "generated_at": "2026-09-15T13:15:12Z",
+  "usage_source": "recount",
+  "basis_config": "qwen3:8b",
+  "tokenizer": {
+    "model": "Qwen/Qwen3-8B",
+    "file": "D:\\Improve\\Project\\Python\\IntelNexus\\experiments\\data\\qwen_tokenizer\\tokenizer.json",
+    "bytes": 11422654,
+    "vocab_size": 151669
+  },
+  "basis": {
+    "input_tokens": "优先：该次运行自己的提示词留痕 prompt_tokens（usage_source=recount_own_prompt）；回退：qwen3:8b 的 prompt_eval_count 合计的重复间中位数（usage_source=recount_proxy，跨调用代理，口径不可比）",
+    "output_tokens": "对云端已存盘的生成文本用 Qwen 分词器计数（add_special_tokens=False）",
+    "disclaimer": "重算值取代未采集的 API usage。**计数口径已实测准确**：同调用内云端输入偏差 ≤0.383%、输出 0.000%，本地后端 ≤0.751%（见 calibration 与 same_call_agreement）。输入侧若为代理值，其偏差来自**调用次数口径差**（本地记录的 tokens_in 是一条样本内各次调用之和，含简化 prompt 重试；云端那一次常为单次），不确定区间见 calibration_cross_call 与 reports/cost_sensitivity.json 的 input_token_band，论文须并报"
+  },
+  "proxy_spread": {
+    "config": "qwen3:8b",
+    "samples": 100,
+    "samples_with_spread": 3,
+    "max_spread": 2993,
+    "median_spread": 0,
+    "rows": [
+      {
+        "sample_id": "github_advisories:GHSA-hh89-3r9w-qj3j",
+        "n": 9,
+        "min": 1857,
+        "max": 4850,
+        "median": 2453,
+        "spread": 2993
+      },
+      {
+        "sample_id": "github_advisories:GHSA-23rh-xw42-fq82",
+        "n": 4,
+        "min": 2643,
+        "max": 4025,
+        "median": 4025,
+        "spread": 1382
+      },
+      {
+        "sample_id": "github_advisories:GHSA-j535-v25q-vx3q",
+        "n": 5,
+        "min": 1852,
+        "max": 2443,
+        "median": 1852,
+        "spread": 591
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202511-03",
+        "n": 3,
+        "min": 1759,
+        "max": 1759,
+        "median": 1759,
+        "spread": 0
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202511-04",
+        "n": 3,
+        "min": 2099,
+        "max": 2099,
+        "median": 2099,
+        "spread": 0
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202511-05",
+        "n": 3,
+        "min": 2386,
+        "max": 2386,
+        "median": 2386,
+        "spread": 0
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202512-01",
+        "n": 3,
+        "min": 1818,
+        "max": 1818,
+        "median": 1818,
+        "spread": 0
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-01",
+        "n": 3,
+        "min": 2574,
+        "max": 2574,
+        "median": 2574,
+        "spread": 0
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-02",
+        "n": 3,
+        "min": 2627,
+        "max": 2627,
+        "median": 2627,
+        "spread": 0
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-03",
+        "n": 3,
+        "min": 2616,
+        "max": 2616,
+        "median": 2616,
+        "spread": 0
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-04",
+        "n": 3,
+        "min": 1778,
+        "max": 1778,
+        "median": 1778,
+        "spread": 0
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-05",
+        "n": 3,
+        "min": 1865,
+        "max": 1865,
+        "median": 1865,
+        "spread": 0
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202603-01",
+        "n": 3,
+        "min": 2405,
+        "max": 2405,
+        "median": 2405,
+        "spread": 0
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202604-03",
+        "n": 3,
+        "min": 1840,
+        "max": 1840,
+        "median": 1840,
+        "spread": 0
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202604-04",
+        "n": 3,
+        "min": 1849,
+        "max": 1849,
+        "median": 1849,
+        "spread": 0
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-06",
+        "n": 3,
+        "min": 1784,
+        "max": 1784,
+        "median": 1784,
+        "spread": 0
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-07",
+        "n": 3,
+        "min": 1760,
+        "max": 1760,
+        "median": 1760,
+        "spread": 0
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-08",
+        "n": 3,
+        "min": 1758,
+        "max": 1758,
+        "median": 1758,
+        "spread": 0
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-09",
+        "n": 3,
+        "min": 2322,
+        "max": 2322,
+        "median": 2322,
+        "spread": 0
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-10",
+        "n": 3,
+        "min": 1795,
+        "max": 1795,
+        "median": 1795,
+        "spread": 0
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-11",
+        "n": 3,
+        "min": 2374,
+        "max": 2374,
+        "median": 2374,
+        "spread": 0
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-12",
+        "n": 3,
+        "min": 1901,
+        "max": 1901,
+        "median": 1901,
+        "spread": 0
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-13",
+        "n": 3,
+        "min": 1783,
+        "max": 1783,
+        "median": 1783,
+        "spread": 0
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-14",
+        "n": 3,
+        "min": 1848,
+        "max": 1848,
+        "median": 1848,
+        "spread": 0
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-15",
+        "n": 3,
+        "min": 2635,
+        "max": 2635,
+        "median": 2635,
+        "spread": 0
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-16",
+        "n": 3,
+        "min": 1749,
+        "max": 1749,
+        "median": 1749,
+        "spread": 0
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-22",
+        "n": 3,
+        "min": 2283,
+        "max": 2283,
+        "median": 2283,
+        "spread": 0
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-32",
+        "n": 3,
+        "min": 1752,
+        "max": 1752,
+        "median": 1752,
+        "spread": 0
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-33",
+        "n": 3,
+        "min": 1814,
+        "max": 1814,
+        "median": 1814,
+        "spread": 0
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-34",
+        "n": 3,
+        "min": 2905,
+        "max": 2905,
+        "median": 2905,
+        "spread": 0
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202609-02",
+        "n": 3,
+        "min": 3129,
+        "max": 3129,
+        "median": 3129,
+        "spread": 0
+      },
+      {
+        "sample_id": "gentoo_glsa_rss:https://security.gentoo.org/glsa/202609-03",
+        "n": 3,
+        "min": 2641,
+        "max": 2641,
+        "median": 2641,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-243p-f3cv-c5wh",
+        "n": 3,
+        "min": 4073,
+        "max": 4073,
+        "median": 4073,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-2cg9-97gq-9mqp",
+        "n": 3,
+        "min": 3941,
+        "max": 3941,
+        "median": 3941,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-2j95-gqxf-v3vg",
+        "n": 3,
+        "min": 3933,
+        "max": 3933,
+        "median": 3933,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-2p48-j3qc-rx9f",
+        "n": 3,
+        "min": 3851,
+        "max": 3851,
+        "median": 3851,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-325j-mg25-8q58",
+        "n": 3,
+        "min": 2919,
+        "max": 2919,
+        "median": 2919,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-34ff-336r-5q23",
+        "n": 4,
+        "min": 2445,
+        "max": 2445,
+        "median": 2445,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-35jj-42hp-8gmq",
+        "n": 3,
+        "min": 1851,
+        "max": 1851,
+        "median": 1851,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-38xv-hf3p-h7mq",
+        "n": 3,
+        "min": 4147,
+        "max": 4147,
+        "median": 4147,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-3g9q-v48f-hh9w",
+        "n": 3,
+        "min": 3675,
+        "max": 3675,
+        "median": 3675,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-486v-q2wf-fp2r",
+        "n": 3,
+        "min": 3341,
+        "max": 3341,
+        "median": 3341,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-4qpv-39hg-f7fx",
+        "n": 3,
+        "min": 3903,
+        "max": 3903,
+        "median": 3903,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-4x45-gxvp-6283",
+        "n": 3,
+        "min": 4087,
+        "max": 4087,
+        "median": 4087,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-5m98-cgcr-xx3q",
+        "n": 3,
+        "min": 2569,
+        "max": 2569,
+        "median": 2569,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-5vf4-452p-jjhf",
+        "n": 3,
+        "min": 3679,
+        "max": 3679,
+        "median": 3679,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-65h7-9wrw-629c",
+        "n": 3,
+        "min": 4281,
+        "max": 4281,
+        "median": 4281,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-65xw-2v52-jhxc",
+        "n": 3,
+        "min": 2363,
+        "max": 2363,
+        "median": 2363,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-66hp-wgxq-6f5q",
+        "n": 3,
+        "min": 2342,
+        "max": 2342,
+        "median": 2342,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-679f-58pq-4v2c",
+        "n": 3,
+        "min": 2521,
+        "max": 2521,
+        "median": 2521,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-6xcw-7xm6-48c6",
+        "n": 3,
+        "min": 1899,
+        "max": 1899,
+        "median": 1899,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-7ghq-v6jf-g56c",
+        "n": 3,
+        "min": 4017,
+        "max": 4017,
+        "median": 4017,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-8r35-5x5r-hv74",
+        "n": 3,
+        "min": 3447,
+        "max": 3447,
+        "median": 3447,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-8wqc-v2q8-vff2",
+        "n": 3,
+        "min": 3703,
+        "max": 3703,
+        "median": 3703,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-98q5-5qh2-7w75",
+        "n": 3,
+        "min": 3869,
+        "max": 3869,
+        "median": 3869,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-992q-9gwp-7r79",
+        "n": 3,
+        "min": 3185,
+        "max": 3185,
+        "median": 3185,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-99h5-jhh7-v3r3",
+        "n": 3,
+        "min": 3881,
+        "max": 3881,
+        "median": 3881,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-c476-6w5q-jw77",
+        "n": 3,
+        "min": 2529,
+        "max": 2529,
+        "median": 2529,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-cqr2-h44g-v75v",
+        "n": 3,
+        "min": 2397,
+        "max": 2397,
+        "median": 2397,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-cw9w-vv67-hf73",
+        "n": 3,
+        "min": 2531,
+        "max": 2531,
+        "median": 2531,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-f2cp-m7mv-8jpv",
+        "n": 3,
+        "min": 2457,
+        "max": 2457,
+        "median": 2457,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-f52w-8j3h-j724",
+        "n": 3,
+        "min": 4009,
+        "max": 4009,
+        "median": 4009,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-f6mr-pjwc-34m4",
+        "n": 3,
+        "min": 3125,
+        "max": 3125,
+        "median": 3125,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-f7h9-qv4x-9x57",
+        "n": 3,
+        "min": 3829,
+        "max": 3829,
+        "median": 3829,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-f8g7-2xjc-7mfh",
+        "n": 3,
+        "min": 4239,
+        "max": 4239,
+        "median": 4239,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-g3f9-g5vj-p62f",
+        "n": 3,
+        "min": 3843,
+        "max": 3843,
+        "median": 3843,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-h8m9-jgf8-vwvp",
+        "n": 3,
+        "min": 2514,
+        "max": 2514,
+        "median": 2514,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-hf57-cqmx-p4gr",
+        "n": 3,
+        "min": 3795,
+        "max": 3795,
+        "median": 3795,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-hh8m-fm6v-7cvg",
+        "n": 3,
+        "min": 2719,
+        "max": 2719,
+        "median": 2719,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-hw8v-xxg5-vvvx",
+        "n": 10,
+        "min": 2397,
+        "max": 2397,
+        "median": 2397,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-j328-xmgp-j4q3",
+        "n": 3,
+        "min": 4095,
+        "max": 4095,
+        "median": 4095,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-m3wp-48jr-vr4g",
+        "n": 3,
+        "min": 4056,
+        "max": 4056,
+        "median": 4056,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-p297-fm68-3q8c",
+        "n": 3,
+        "min": 3501,
+        "max": 3501,
+        "median": 3501,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-p569-5gjg-9cmj",
+        "n": 3,
+        "min": 3829,
+        "max": 3829,
+        "median": 3829,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-p6m2-r3w9-mpxw",
+        "n": 3,
+        "min": 2339,
+        "max": 2339,
+        "median": 2339,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-p78m-89r6-pgf7",
+        "n": 3,
+        "min": 2345,
+        "max": 2345,
+        "median": 2345,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-pf83-w3f9-8m37",
+        "n": 3,
+        "min": 2413,
+        "max": 2413,
+        "median": 2413,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-pq6c-vh67-xpm3",
+        "n": 3,
+        "min": 1856,
+        "max": 1856,
+        "median": 1856,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-q5wm-mgqx-fv2f",
+        "n": 3,
+        "min": 1814,
+        "max": 1814,
+        "median": 1814,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-qgpw-8g46-w95v",
+        "n": 3,
+        "min": 2467,
+        "max": 2467,
+        "median": 2467,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-qqjf-53cj-pwvv",
+        "n": 3,
+        "min": 3891,
+        "max": 3891,
+        "median": 3891,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-rf44-j88r-hh8c",
+        "n": 3,
+        "min": 3905,
+        "max": 3905,
+        "median": 3905,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-rqfv-2mw9-78g2",
+        "n": 3,
+        "min": 2080,
+        "max": 2080,
+        "median": 2080,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-rqx4-3f6q-3x2v",
+        "n": 3,
+        "min": 2573,
+        "max": 2573,
+        "median": 2573,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-v39v-59xw-j98g",
+        "n": 3,
+        "min": 3553,
+        "max": 3553,
+        "median": 3553,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-v3p8-whq6-r5jg",
+        "n": 3,
+        "min": 3161,
+        "max": 3161,
+        "median": 3161,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-v67p-phpq-fc8x",
+        "n": 3,
+        "min": 3897,
+        "max": 3897,
+        "median": 3897,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-v77h-2w3m-94hx",
+        "n": 3,
+        "min": 3023,
+        "max": 3023,
+        "median": 3023,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-vjfw-cpmh-xwv3",
+        "n": 3,
+        "min": 2521,
+        "max": 2521,
+        "median": 2521,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-w4v4-9rw7-5326",
+        "n": 3,
+        "min": 3825,
+        "max": 3825,
+        "median": 3825,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-wfgq-w7cq-qj7j",
+        "n": 3,
+        "min": 3897,
+        "max": 3897,
+        "median": 3897,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-wjwr-xfp9-r66p",
+        "n": 3,
+        "min": 3607,
+        "max": 3607,
+        "median": 3607,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-wpmr-8h3q-fwj7",
+        "n": 3,
+        "min": 2399,
+        "max": 2399,
+        "median": 2399,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-wvm9-9g5j-623f",
+        "n": 3,
+        "min": 2925,
+        "max": 2925,
+        "median": 2925,
+        "spread": 0
+      },
+      {
+        "sample_id": "github_advisories:GHSA-xwwr-4h3p-r22c",
+        "n": 3,
+        "min": 3769,
+        "max": 3769,
+        "median": 3769,
+        "spread": 0
+      },
+      {
+        "sample_id": "mozilla_security_rss:https://blog.mozilla.org/security/2024/04/04/rapidly-leveling-up-firefox-security/",
+        "n": 3,
+        "min": 3521,
+        "max": 3521,
+        "median": 3521,
+        "spread": 0
+      },
+      {
+        "sample_id": "mozilla_security_rss:https://blog.mozilla.org/security/2024/10/11/behind-the-scenes-fixing-an-in-the-wild-firefox-exploit/",
+        "n": 3,
+        "min": 2058,
+        "max": 2058,
+        "median": 2058,
+        "spread": 0
+      },
+      {
+        "sample_id": "mozilla_security_rss:https://blog.mozilla.org/security/2025/05/17/firefox-security-response-to-pwn2own-2025/",
+        "n": 3,
+        "min": 2359,
+        "max": 2359,
+        "median": 2359,
+        "spread": 0
+      },
+      {
+        "sample_id": "mozilla_security_rss:https://blog.mozilla.org/security/2026/06/29/improving-transparency-and-assurance-in-the-web-pki-mozilla-root-store-policy-v3-1/",
+        "n": 3,
+        "min": 3428,
+        "max": 3428,
+        "median": 3428,
+        "spread": 0
+      },
+      {
+        "sample_id": "mozilla_security_rss:https://blog.mozilla.org/security/2026/08/10/updated-gpg-key-for-signing-firefox-and-thunderbird-releases/",
+        "n": 3,
+        "min": 4658,
+        "max": 4658,
+        "median": 4658,
+        "spread": 0
+      }
+    ]
+  },
+  "same_call_agreement": {
+    "available": true,
+    "n_records": 4,
+    "max_abs_dev_pct": 0.751,
+    "median_abs_dev_pct": 0.742,
+    "note": "同一次生成内的口径对照：我方计数（prompt_tokens_sum）vs 服务端 prompt_eval_count。服务端额外计入模型自带 chat 模板的特殊 token，故小幅差异属预期；出现数倍差异才说明口径有问题",
+    "rows": [
+      {
+        "run_id": "20260915T123434Z-qwen3-8b-r1-d97oyif3",
+        "config": "qwen3:8b",
+        "stage": "smoke",
+        "sample_id": "github_advisories:GHSA-hw8v-xxg5-vvvx",
+        "repeat": 1,
+        "prompt_calls": 2,
+        "our_tokens": 2379,
+        "server_tokens": 2397,
+        "dev_pct": -0.751
+      },
+      {
+        "run_id": "20260915T123434Z-qwen3-8b-r1-d97oyif3",
+        "config": "qwen3:8b",
+        "stage": "smoke",
+        "sample_id": "github_advisories:GHSA-hh89-3r9w-qj3j",
+        "repeat": 1,
+        "prompt_calls": 2,
+        "our_tokens": 2435,
+        "server_tokens": 2453,
+        "dev_pct": -0.734
+      },
+      {
+        "run_id": "20260915T124003Z-qwen3-8b-r2-ktmwo8kb",
+        "config": "qwen3:8b",
+        "stage": "smoke",
+        "sample_id": "github_advisories:GHSA-hw8v-xxg5-vvvx",
+        "repeat": 2,
+        "prompt_calls": 2,
+        "our_tokens": 2379,
+        "server_tokens": 2397,
+        "dev_pct": -0.751
+      },
+      {
+        "run_id": "20260915T124003Z-qwen3-8b-r2-ktmwo8kb",
+        "config": "qwen3:8b",
+        "stage": "smoke",
+        "sample_id": "github_advisories:GHSA-hh89-3r9w-qj3j",
+        "repeat": 2,
+        "prompt_calls": 2,
+        "our_tokens": 2435,
+        "server_tokens": 2453,
+        "dev_pct": -0.734
+      }
+    ]
+  },
+  "calibration": {
+    "measured_at": "2026-09-15T13:04:00Z",
+    "comparison_type": "same-call",
+    "n_items": 3,
+    "configs": {
+      "cloud_flagship": {
+        "model": "qwen3-max",
+        "usage_source": "api_usage",
+        "max_abs_dev_pct": 0.383,
+        "rows": [
+          {
+            "sample_id": "github_advisories:GHSA-hw8v-xxg5-vvvx",
+            "error": null,
+            "api_tokens_in": 1827,
+            "prompt_tokens_in": 1820,
+            "api_tokens_out": 1650,
+            "recount_tokens_out": 1650,
+            "dev_in_pct": -0.383,
+            "dev_out_pct": 0.0,
+            "prompt_calls": 1,
+            "prompt_render": "chat_messages",
+            "prompt_chars": 3635,
+            "usage_source": "api_usage"
+          },
+          {
+            "sample_id": "github_advisories:GHSA-hh89-3r9w-qj3j",
+            "error": null,
+            "api_tokens_in": 1855,
+            "prompt_tokens_in": 1848,
+            "api_tokens_out": 1660,
+            "recount_tokens_out": 1660,
+            "dev_in_pct": -0.377,
+            "dev_out_pct": 0.0,
+            "prompt_calls": 1,
+            "prompt_render": "chat_messages",
+            "prompt_chars": 3845,
+            "usage_source": "api_usage"
+          },
+          {
+            "sample_id": "github_advisories:GHSA-j535-v25q-vx3q",
+            "error": null,
+            "api_tokens_in": 1850,
+            "prompt_tokens_in": 1843,
+            "api_tokens_out": 1627,
+            "recount_tokens_out": 1627,
+            "dev_in_pct": -0.378,
+            "dev_out_pct": 0.0,
+            "prompt_calls": 1,
+            "prompt_render": "chat_messages",
+            "prompt_chars": 3694,
+            "usage_source": "api_usage"
+          }
+        ]
+      },
+      "cloud_light": {
+        "model": "qwen-plus",
+        "usage_source": "api_usage",
+        "max_abs_dev_pct": 0.383,
+        "rows": [
+          {
+            "sample_id": "github_advisories:GHSA-hw8v-xxg5-vvvx",
+            "error": null,
+            "api_tokens_in": 1827,
+            "prompt_tokens_in": 1820,
+            "api_tokens_out": 2325,
+            "recount_tokens_out": 2325,
+            "dev_in_pct": -0.383,
+            "dev_out_pct": 0.0,
+            "prompt_calls": 1,
+            "prompt_render": "chat_messages",
+            "prompt_chars": 3635,
+            "usage_source": "api_usage"
+          },
+          {
+            "sample_id": "github_advisories:GHSA-hh89-3r9w-qj3j",
+            "error": null,
+            "api_tokens_in": 1855,
+            "prompt_tokens_in": 1848,
+            "api_tokens_out": 2482,
+            "recount_tokens_out": 2482,
+            "dev_in_pct": -0.377,
+            "dev_out_pct": 0.0,
+            "prompt_calls": 1,
+            "prompt_render": "chat_messages",
+            "prompt_chars": 3845,
+            "usage_source": "api_usage"
+          },
+          {
+            "sample_id": "github_advisories:GHSA-j535-v25q-vx3q",
+            "error": null,
+            "api_tokens_in": 1850,
+            "prompt_tokens_in": 1843,
+            "api_tokens_out": 2035,
+            "recount_tokens_out": 2035,
+            "dev_in_pct": -0.378,
+            "dev_out_pct": 0.0,
+            "prompt_calls": 1,
+            "prompt_render": "chat_messages",
+            "prompt_chars": 3694,
+            "usage_source": "api_usage"
+          }
+        ]
+      }
+    }
+  },
+  "calibration_cross_call": {
+    "measured_at": "2026-09-15T11:56:43Z",
+    "n_items": 3,
+    "configs": {
+      "cloud_flagship": {
+        "model": "qwen3-max",
+        "usage_source": null,
+        "max_abs_dev_pct": 32.237,
+        "rows": [
+          {
+            "sample_id": "github_advisories:GHSA-hw8v-xxg5-vvvx",
+            "error": null,
+            "api_tokens_in": 1827,
+            "recount_tokens_in": 2397,
+            "api_tokens_out": 1688,
+            "recount_tokens_out": 1688,
+            "dev_in_pct": 31.199,
+            "dev_out_pct": 0.0
+          },
+          {
+            "sample_id": "github_advisories:GHSA-hh89-3r9w-qj3j",
+            "error": null,
+            "api_tokens_in": 1855,
+            "recount_tokens_in": 2453,
+            "api_tokens_out": 1490,
+            "recount_tokens_out": 1490,
+            "dev_in_pct": 32.237,
+            "dev_out_pct": 0.0
+          },
+          {
+            "sample_id": "github_advisories:GHSA-j535-v25q-vx3q",
+            "error": null,
+            "api_tokens_in": 1850,
+            "recount_tokens_in": 1852,
+            "api_tokens_out": 1740,
+            "recount_tokens_out": 1740,
+            "dev_in_pct": 0.108,
+            "dev_out_pct": 0.0
+          }
+        ]
+      },
+      "cloud_light": {
+        "model": "qwen-plus",
+        "usage_source": null,
+        "max_abs_dev_pct": 32.237,
+        "rows": [
+          {
+            "sample_id": "github_advisories:GHSA-hw8v-xxg5-vvvx",
+            "error": null,
+            "api_tokens_in": 1827,
+            "recount_tokens_in": 2397,
+            "api_tokens_out": 2219,
+            "recount_tokens_out": 2219,
+            "dev_in_pct": 31.199,
+            "dev_out_pct": 0.0
+          },
+          {
+            "sample_id": "github_advisories:GHSA-hh89-3r9w-qj3j",
+            "error": null,
+            "api_tokens_in": 1855,
+            "recount_tokens_in": 2453,
+            "api_tokens_out": 2226,
+            "recount_tokens_out": 2226,
+            "dev_in_pct": 32.237,
+            "dev_out_pct": 0.0
+          },
+          {
+            "sample_id": "github_advisories:GHSA-j535-v25q-vx3q",
+            "error": null,
+            "api_tokens_in": 1850,
+            "recount_tokens_in": 1852,
+            "api_tokens_out": 2052,
+            "recount_tokens_out": 2052,
+            "dev_in_pct": 0.108,
+            "dev_out_pct": 0.0
+          }
+        ]
+      }
+    },
+    "comparison_type": "cross-call",
+    "confound": "跨调用比较：把「本地当次运行记录的 prompt_eval_count 合计」与「另一次云调用的 API usage（单次）」相比，二者口径不可比——本地小模型常因输出板块不足而改用简化 prompt 重试，一条样本因此发 2 次请求，其 tokens_in 是各次之和，而云端那一次可能只发 1 次。实测复算：1820（首次）+ 559（重试）= 2379，与旧记录 2397 相差 0.751%，恰等于独立实测的计数偏差，说明该 32.237% 源于调用次数口径差，而非提示词漂移或分词器误差；计数口径本身已由同调用校准验证（云端 ≤0.383% / 本地 ≤0.751%）。次要成分是提示词自身长度也会变化（见 proxy_spread）。该比值仅用于为输入侧定界（见 input_token_band）。",
+    "proxy_spread_evidence": {
+      "note": "同样本提示词 token 合计在本组观测内的极差：代理值不可靠的直接证据",
+      "samples": 3,
+      "samples_with_spread": 2,
+      "max_spread": 2993,
+      "rows": [
+        {
+          "sample_id": "github_advisories:GHSA-hh89-3r9w-qj3j",
+          "n": 9,
+          "min": 1857,
+          "max": 4850,
+          "median": 2453,
+          "spread": 2993
+        },
+        {
+          "sample_id": "github_advisories:GHSA-j535-v25q-vx3q",
+          "n": 5,
+          "min": 1852,
+          "max": 2443,
+          "median": 1852,
+          "spread": 591
+        },
+        {
+          "sample_id": "github_advisories:GHSA-hw8v-xxg5-vvvx",
+          "n": 10,
+          "min": 2397,
+          "max": 2397,
+          "median": 2397,
+          "spread": 0
+        }
+      ]
+    }
+  },
+  "stats": {
+    "runs": 10,
+    "records": 608,
+    "tin_missing": 0,
+    "tout_missing": 0,
+    "tin_own_prompt": 0,
+    "tin_proxy": 608
+  },
+  "configs": {
+    "20260914T092637Z-cloud_flagship-r1-mwc0vw01": {
+      "github_advisories:GHSA-hw8v-xxg5-vvvx": {
+        "1": {
+          "tokens_in": 2397,
+          "tokens_out": 1695,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-hh89-3r9w-qj3j": {
+        "1": {
+          "tokens_in": 2453,
+          "tokens_out": 1685,
+          "tokens_in_source": "recount_proxy"
+        }
+      }
+    },
+    "20260914T092753Z-cloud_flagship-r2-0moq20tk": {
+      "github_advisories:GHSA-hw8v-xxg5-vvvx": {
+        "2": {
+          "tokens_in": 2397,
+          "tokens_out": 1605,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-hh89-3r9w-qj3j": {
+        "2": {
+          "tokens_in": 2453,
+          "tokens_out": 1471,
+          "tokens_in_source": "recount_proxy"
+        }
+      }
+    },
+    "20260914T092902Z-cloud_light-r1-mgohc4na": {
+      "github_advisories:GHSA-hw8v-xxg5-vvvx": {
+        "1": {
+          "tokens_in": 2397,
+          "tokens_out": 2203,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-hh89-3r9w-qj3j": {
+        "1": {
+          "tokens_in": 2453,
+          "tokens_out": 2214,
+          "tokens_in_source": "recount_proxy"
+        }
+      }
+    },
+    "20260914T093009Z-cloud_light-r2-2wnyd9cd": {
+      "github_advisories:GHSA-hw8v-xxg5-vvvx": {
+        "2": {
+          "tokens_in": 2397,
+          "tokens_out": 2289,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-hh89-3r9w-qj3j": {
+        "2": {
+          "tokens_in": 2453,
+          "tokens_out": 2158,
+          "tokens_in_source": "recount_proxy"
+        }
+      }
+    },
+    "20260914T093212Z-cloud_flagship-r1-qgwljxc2": {
+      "github_advisories:GHSA-hw8v-xxg5-vvvx": {
+        "1": {
+          "tokens_in": 2397,
+          "tokens_out": 1644,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-hh89-3r9w-qj3j": {
+        "1": {
+          "tokens_in": 2453,
+          "tokens_out": 1422,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-j535-v25q-vx3q": {
+        "1": {
+          "tokens_in": 1852,
+          "tokens_out": 1590,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-34ff-336r-5q23": {
+        "1": {
+          "tokens_in": 2445,
+          "tokens_out": 1679,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-23rh-xw42-fq82": {
+        "1": {
+          "tokens_in": 4025,
+          "tokens_out": 1637,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-hh8m-fm6v-7cvg": {
+        "1": {
+          "tokens_in": 2719,
+          "tokens_out": 1727,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-p297-fm68-3q8c": {
+        "1": {
+          "tokens_in": 3501,
+          "tokens_out": 1658,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f6mr-pjwc-34m4": {
+        "1": {
+          "tokens_in": 3125,
+          "tokens_out": 1606,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-v3p8-whq6-r5jg": {
+        "1": {
+          "tokens_in": 3161,
+          "tokens_out": 1819,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-7ghq-v6jf-g56c": {
+        "1": {
+          "tokens_in": 4017,
+          "tokens_out": 1935,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-rf44-j88r-hh8c": {
+        "1": {
+          "tokens_in": 3905,
+          "tokens_out": 2037,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-35jj-42hp-8gmq": {
+        "1": {
+          "tokens_in": 1851,
+          "tokens_out": 1675,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-6xcw-7xm6-48c6": {
+        "1": {
+          "tokens_in": 1899,
+          "tokens_out": 1685,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-65xw-2v52-jhxc": {
+        "1": {
+          "tokens_in": 2363,
+          "tokens_out": 1037,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-679f-58pq-4v2c": {
+        "1": {
+          "tokens_in": 2521,
+          "tokens_out": 1700,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f2cp-m7mv-8jpv": {
+        "1": {
+          "tokens_in": 2457,
+          "tokens_out": 1573,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-5m98-cgcr-xx3q": {
+        "1": {
+          "tokens_in": 2569,
+          "tokens_out": 1006,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-pf83-w3f9-8m37": {
+        "1": {
+          "tokens_in": 2413,
+          "tokens_out": 1609,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-pq6c-vh67-xpm3": {
+        "1": {
+          "tokens_in": 1856,
+          "tokens_out": 1107,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-cqr2-h44g-v75v": {
+        "1": {
+          "tokens_in": 2397,
+          "tokens_out": 1605,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-qgpw-8g46-w95v": {
+        "1": {
+          "tokens_in": 2467,
+          "tokens_out": 1006,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-q5wm-mgqx-fv2f": {
+        "1": {
+          "tokens_in": 1814,
+          "tokens_out": 1674,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-cw9w-vv67-hf73": {
+        "1": {
+          "tokens_in": 2531,
+          "tokens_out": 1571,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-hf57-cqmx-p4gr": {
+        "1": {
+          "tokens_in": 3795,
+          "tokens_out": 1553,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-wpmr-8h3q-fwj7": {
+        "1": {
+          "tokens_in": 2399,
+          "tokens_out": 1664,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-p78m-89r6-pgf7": {
+        "1": {
+          "tokens_in": 2345,
+          "tokens_out": 1673,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-wfgq-w7cq-qj7j": {
+        "1": {
+          "tokens_in": 3897,
+          "tokens_out": 1649,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-m3wp-48jr-vr4g": {
+        "1": {
+          "tokens_in": 4056,
+          "tokens_out": 1690,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-4x45-gxvp-6283": {
+        "1": {
+          "tokens_in": 4087,
+          "tokens_out": 1643,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-4qpv-39hg-f7fx": {
+        "1": {
+          "tokens_in": 3903,
+          "tokens_out": 1739,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-wjwr-xfp9-r66p": {
+        "1": {
+          "tokens_in": 3607,
+          "tokens_out": 1709,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-8r35-5x5r-hv74": {
+        "1": {
+          "tokens_in": 3447,
+          "tokens_out": 1907,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-v39v-59xw-j98g": {
+        "1": {
+          "tokens_in": 3553,
+          "tokens_out": 1712,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-3g9q-v48f-hh9w": {
+        "1": {
+          "tokens_in": 3675,
+          "tokens_out": 1798,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-2p48-j3qc-rx9f": {
+        "1": {
+          "tokens_in": 3851,
+          "tokens_out": 1588,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-38xv-hf3p-h7mq": {
+        "1": {
+          "tokens_in": 4147,
+          "tokens_out": 1712,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-c476-6w5q-jw77": {
+        "1": {
+          "tokens_in": 2529,
+          "tokens_out": 1713,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-p569-5gjg-9cmj": {
+        "1": {
+          "tokens_in": 3829,
+          "tokens_out": 1746,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-xwwr-4h3p-r22c": {
+        "1": {
+          "tokens_in": 3769,
+          "tokens_out": 1639,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-p6m2-r3w9-mpxw": {
+        "1": {
+          "tokens_in": 2339,
+          "tokens_out": 1521,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f8g7-2xjc-7mfh": {
+        "1": {
+          "tokens_in": 4239,
+          "tokens_out": 1933,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-486v-q2wf-fp2r": {
+        "1": {
+          "tokens_in": 3341,
+          "tokens_out": 1763,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-66hp-wgxq-6f5q": {
+        "1": {
+          "tokens_in": 2342,
+          "tokens_out": 1598,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f52w-8j3h-j724": {
+        "1": {
+          "tokens_in": 4009,
+          "tokens_out": 1845,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-qqjf-53cj-pwvv": {
+        "1": {
+          "tokens_in": 3891,
+          "tokens_out": 1701,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-v67p-phpq-fc8x": {
+        "1": {
+          "tokens_in": 3897,
+          "tokens_out": 1912,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-w4v4-9rw7-5326": {
+        "1": {
+          "tokens_in": 3825,
+          "tokens_out": 1808,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-wvm9-9g5j-623f": {
+        "1": {
+          "tokens_in": 2925,
+          "tokens_out": 1631,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-rqfv-2mw9-78g2": {
+        "1": {
+          "tokens_in": 2080,
+          "tokens_out": 1668,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-98q5-5qh2-7w75": {
+        "1": {
+          "tokens_in": 3869,
+          "tokens_out": 1720,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-2j95-gqxf-v3vg": {
+        "1": {
+          "tokens_in": 3933,
+          "tokens_out": 1870,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-vjfw-cpmh-xwv3": {
+        "1": {
+          "tokens_in": 2521,
+          "tokens_out": 1717,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-243p-f3cv-c5wh": {
+        "1": {
+          "tokens_in": 4073,
+          "tokens_out": 1627,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-5vf4-452p-jjhf": {
+        "1": {
+          "tokens_in": 3679,
+          "tokens_out": 1708,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f7h9-qv4x-9x57": {
+        "1": {
+          "tokens_in": 3829,
+          "tokens_out": 1603,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-j328-xmgp-j4q3": {
+        "1": {
+          "tokens_in": 4095,
+          "tokens_out": 1707,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-g3f9-g5vj-p62f": {
+        "1": {
+          "tokens_in": 3843,
+          "tokens_out": 991,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-99h5-jhh7-v3r3": {
+        "1": {
+          "tokens_in": 3881,
+          "tokens_out": 1645,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-2cg9-97gq-9mqp": {
+        "1": {
+          "tokens_in": 3941,
+          "tokens_out": 1662,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-v77h-2w3m-94hx": {
+        "1": {
+          "tokens_in": 3023,
+          "tokens_out": 1856,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-h8m9-jgf8-vwvp": {
+        "1": {
+          "tokens_in": 2514,
+          "tokens_out": 1857,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-65h7-9wrw-629c": {
+        "1": {
+          "tokens_in": 4281,
+          "tokens_out": 1843,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-8wqc-v2q8-vff2": {
+        "1": {
+          "tokens_in": 3703,
+          "tokens_out": 1671,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-rqx4-3f6q-3x2v": {
+        "1": {
+          "tokens_in": 2573,
+          "tokens_out": 1098,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-325j-mg25-8q58": {
+        "1": {
+          "tokens_in": 2919,
+          "tokens_out": 1715,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-992q-9gwp-7r79": {
+        "1": {
+          "tokens_in": 3185,
+          "tokens_out": 1669,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2024/10/11/behind-the-scenes-fixing-an-in-the-wild-firefox-exploit/": {
+        "1": {
+          "tokens_in": 2058,
+          "tokens_out": 970,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-06": {
+        "1": {
+          "tokens_in": 1784,
+          "tokens_out": 1445,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-07": {
+        "1": {
+          "tokens_in": 1760,
+          "tokens_out": 1523,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-08": {
+        "1": {
+          "tokens_in": 1758,
+          "tokens_out": 1543,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-09": {
+        "1": {
+          "tokens_in": 2322,
+          "tokens_out": 1453,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-10": {
+        "1": {
+          "tokens_in": 1795,
+          "tokens_out": 1436,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202604-03": {
+        "1": {
+          "tokens_in": 1840,
+          "tokens_out": 1478,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202604-04": {
+        "1": {
+          "tokens_in": 1849,
+          "tokens_out": 1531,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202603-01": {
+        "1": {
+          "tokens_in": 2405,
+          "tokens_out": 1527,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2026/08/10/updated-gpg-key-for-signing-firefox-and-thunderbird-releases/": {
+        "1": {
+          "tokens_in": 4658,
+          "tokens_out": 1034,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-14": {
+        "1": {
+          "tokens_in": 1848,
+          "tokens_out": 1505,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-15": {
+        "1": {
+          "tokens_in": 2635,
+          "tokens_out": 1426,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-16": {
+        "1": {
+          "tokens_in": 1749,
+          "tokens_out": 1514,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-22": {
+        "1": {
+          "tokens_in": 2283,
+          "tokens_out": 1479,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202511-03": {
+        "1": {
+          "tokens_in": 1759,
+          "tokens_out": 1435,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202511-04": {
+        "1": {
+          "tokens_in": 2099,
+          "tokens_out": 1443,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202511-05": {
+        "1": {
+          "tokens_in": 2386,
+          "tokens_out": 1425,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-01": {
+        "1": {
+          "tokens_in": 2574,
+          "tokens_out": 1621,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-02": {
+        "1": {
+          "tokens_in": 2627,
+          "tokens_out": 1484,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-03": {
+        "1": {
+          "tokens_in": 2616,
+          "tokens_out": 1681,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-04": {
+        "1": {
+          "tokens_in": 1778,
+          "tokens_out": 1411,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-05": {
+        "1": {
+          "tokens_in": 1865,
+          "tokens_out": 1727,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2026/06/29/improving-transparency-and-assurance-in-the-web-pki-mozilla-root-store-policy-v3-1/": {
+        "1": {
+          "tokens_in": 3428,
+          "tokens_out": 1034,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-34": {
+        "1": {
+          "tokens_in": 2905,
+          "tokens_out": 1539,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202609-02": {
+        "1": {
+          "tokens_in": 3129,
+          "tokens_out": 1492,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202609-03": {
+        "1": {
+          "tokens_in": 2641,
+          "tokens_out": 1481,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-11": {
+        "1": {
+          "tokens_in": 2374,
+          "tokens_out": 1524,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-12": {
+        "1": {
+          "tokens_in": 1901,
+          "tokens_out": 1579,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2025/05/17/firefox-security-response-to-pwn2own-2025/": {
+        "1": {
+          "tokens_in": 2359,
+          "tokens_out": 1686,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202512-01": {
+        "1": {
+          "tokens_in": 1818,
+          "tokens_out": 1481,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-32": {
+        "1": {
+          "tokens_in": 1752,
+          "tokens_out": 1466,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-33": {
+        "1": {
+          "tokens_in": 1814,
+          "tokens_out": 1475,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-13": {
+        "1": {
+          "tokens_in": 1783,
+          "tokens_out": 1453,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2024/04/04/rapidly-leveling-up-firefox-security/": {
+        "1": {
+          "tokens_in": 3521,
+          "tokens_out": 970,
+          "tokens_in_source": "recount_proxy"
+        }
+      }
+    },
+    "20260914T102539Z-cloud_flagship-r2-4zc2fan5": {
+      "github_advisories:GHSA-hw8v-xxg5-vvvx": {
+        "2": {
+          "tokens_in": 2397,
+          "tokens_out": 1536,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-hh89-3r9w-qj3j": {
+        "2": {
+          "tokens_in": 2453,
+          "tokens_out": 1547,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-j535-v25q-vx3q": {
+        "2": {
+          "tokens_in": 1852,
+          "tokens_out": 1085,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-34ff-336r-5q23": {
+        "2": {
+          "tokens_in": 2445,
+          "tokens_out": 1633,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-23rh-xw42-fq82": {
+        "2": {
+          "tokens_in": 4025,
+          "tokens_out": 1611,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-hh8m-fm6v-7cvg": {
+        "2": {
+          "tokens_in": 2719,
+          "tokens_out": 1757,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-p297-fm68-3q8c": {
+        "2": {
+          "tokens_in": 3501,
+          "tokens_out": 1669,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f6mr-pjwc-34m4": {
+        "2": {
+          "tokens_in": 3125,
+          "tokens_out": 1681,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-v3p8-whq6-r5jg": {
+        "2": {
+          "tokens_in": 3161,
+          "tokens_out": 1735,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-7ghq-v6jf-g56c": {
+        "2": {
+          "tokens_in": 4017,
+          "tokens_out": 1870,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-rf44-j88r-hh8c": {
+        "2": {
+          "tokens_in": 3905,
+          "tokens_out": 1901,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-35jj-42hp-8gmq": {
+        "2": {
+          "tokens_in": 1851,
+          "tokens_out": 1648,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-6xcw-7xm6-48c6": {
+        "2": {
+          "tokens_in": 1899,
+          "tokens_out": 1525,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-65xw-2v52-jhxc": {
+        "2": {
+          "tokens_in": 2363,
+          "tokens_out": 1674,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-679f-58pq-4v2c": {
+        "2": {
+          "tokens_in": 2521,
+          "tokens_out": 1533,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f2cp-m7mv-8jpv": {
+        "2": {
+          "tokens_in": 2457,
+          "tokens_out": 1510,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-5m98-cgcr-xx3q": {
+        "2": {
+          "tokens_in": 2569,
+          "tokens_out": 1636,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-pf83-w3f9-8m37": {
+        "2": {
+          "tokens_in": 2413,
+          "tokens_out": 1674,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-pq6c-vh67-xpm3": {
+        "2": {
+          "tokens_in": 1856,
+          "tokens_out": 1484,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-cqr2-h44g-v75v": {
+        "2": {
+          "tokens_in": 2397,
+          "tokens_out": 1490,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-qgpw-8g46-w95v": {
+        "2": {
+          "tokens_in": 2467,
+          "tokens_out": 1535,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-q5wm-mgqx-fv2f": {
+        "2": {
+          "tokens_in": 1814,
+          "tokens_out": 1634,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-cw9w-vv67-hf73": {
+        "2": {
+          "tokens_in": 2531,
+          "tokens_out": 1042,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-hf57-cqmx-p4gr": {
+        "2": {
+          "tokens_in": 3795,
+          "tokens_out": 1550,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-wpmr-8h3q-fwj7": {
+        "2": {
+          "tokens_in": 2399,
+          "tokens_out": 1809,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-p78m-89r6-pgf7": {
+        "2": {
+          "tokens_in": 2345,
+          "tokens_out": 1116,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-wfgq-w7cq-qj7j": {
+        "2": {
+          "tokens_in": 3897,
+          "tokens_out": 1622,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-m3wp-48jr-vr4g": {
+        "2": {
+          "tokens_in": 4056,
+          "tokens_out": 1653,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-4x45-gxvp-6283": {
+        "2": {
+          "tokens_in": 4087,
+          "tokens_out": 1626,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-4qpv-39hg-f7fx": {
+        "2": {
+          "tokens_in": 3903,
+          "tokens_out": 1764,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-wjwr-xfp9-r66p": {
+        "2": {
+          "tokens_in": 3607,
+          "tokens_out": 1653,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-8r35-5x5r-hv74": {
+        "2": {
+          "tokens_in": 3447,
+          "tokens_out": 1857,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-v39v-59xw-j98g": {
+        "2": {
+          "tokens_in": 3553,
+          "tokens_out": 1813,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-3g9q-v48f-hh9w": {
+        "2": {
+          "tokens_in": 3675,
+          "tokens_out": 1837,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-2p48-j3qc-rx9f": {
+        "2": {
+          "tokens_in": 3851,
+          "tokens_out": 1698,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-38xv-hf3p-h7mq": {
+        "2": {
+          "tokens_in": 4147,
+          "tokens_out": 1717,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-c476-6w5q-jw77": {
+        "2": {
+          "tokens_in": 2529,
+          "tokens_out": 1703,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-p569-5gjg-9cmj": {
+        "2": {
+          "tokens_in": 3829,
+          "tokens_out": 1707,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-xwwr-4h3p-r22c": {
+        "2": {
+          "tokens_in": 3769,
+          "tokens_out": 1718,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-p6m2-r3w9-mpxw": {
+        "2": {
+          "tokens_in": 2339,
+          "tokens_out": 1664,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f8g7-2xjc-7mfh": {
+        "2": {
+          "tokens_in": 4239,
+          "tokens_out": 1837,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-486v-q2wf-fp2r": {
+        "2": {
+          "tokens_in": 3341,
+          "tokens_out": 1711,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-66hp-wgxq-6f5q": {
+        "2": {
+          "tokens_in": 2342,
+          "tokens_out": 1627,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f52w-8j3h-j724": {
+        "2": {
+          "tokens_in": 4009,
+          "tokens_out": 1846,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-qqjf-53cj-pwvv": {
+        "2": {
+          "tokens_in": 3891,
+          "tokens_out": 1569,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-v67p-phpq-fc8x": {
+        "2": {
+          "tokens_in": 3897,
+          "tokens_out": 1880,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-w4v4-9rw7-5326": {
+        "2": {
+          "tokens_in": 3825,
+          "tokens_out": 1941,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-wvm9-9g5j-623f": {
+        "2": {
+          "tokens_in": 2925,
+          "tokens_out": 1578,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-rqfv-2mw9-78g2": {
+        "2": {
+          "tokens_in": 2080,
+          "tokens_out": 1712,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-98q5-5qh2-7w75": {
+        "2": {
+          "tokens_in": 3869,
+          "tokens_out": 1726,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-2j95-gqxf-v3vg": {
+        "2": {
+          "tokens_in": 3933,
+          "tokens_out": 1959,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-vjfw-cpmh-xwv3": {
+        "2": {
+          "tokens_in": 2521,
+          "tokens_out": 1692,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-243p-f3cv-c5wh": {
+        "2": {
+          "tokens_in": 4073,
+          "tokens_out": 1761,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-5vf4-452p-jjhf": {
+        "2": {
+          "tokens_in": 3679,
+          "tokens_out": 1710,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f7h9-qv4x-9x57": {
+        "2": {
+          "tokens_in": 3829,
+          "tokens_out": 1714,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-j328-xmgp-j4q3": {
+        "2": {
+          "tokens_in": 4095,
+          "tokens_out": 1644,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-g3f9-g5vj-p62f": {
+        "2": {
+          "tokens_in": 3843,
+          "tokens_out": 1778,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-99h5-jhh7-v3r3": {
+        "2": {
+          "tokens_in": 3881,
+          "tokens_out": 1604,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-2cg9-97gq-9mqp": {
+        "2": {
+          "tokens_in": 3941,
+          "tokens_out": 1645,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-v77h-2w3m-94hx": {
+        "2": {
+          "tokens_in": 3023,
+          "tokens_out": 1764,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-h8m9-jgf8-vwvp": {
+        "2": {
+          "tokens_in": 2514,
+          "tokens_out": 1650,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-65h7-9wrw-629c": {
+        "2": {
+          "tokens_in": 4281,
+          "tokens_out": 1982,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-8wqc-v2q8-vff2": {
+        "2": {
+          "tokens_in": 3703,
+          "tokens_out": 1668,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-rqx4-3f6q-3x2v": {
+        "2": {
+          "tokens_in": 2573,
+          "tokens_out": 1779,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-325j-mg25-8q58": {
+        "2": {
+          "tokens_in": 2919,
+          "tokens_out": 1204,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-992q-9gwp-7r79": {
+        "2": {
+          "tokens_in": 3185,
+          "tokens_out": 1952,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2024/10/11/behind-the-scenes-fixing-an-in-the-wild-firefox-exploit/": {
+        "2": {
+          "tokens_in": 2058,
+          "tokens_out": 963,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-06": {
+        "2": {
+          "tokens_in": 1784,
+          "tokens_out": 1410,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-07": {
+        "2": {
+          "tokens_in": 1760,
+          "tokens_out": 1497,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-08": {
+        "2": {
+          "tokens_in": 1758,
+          "tokens_out": 1430,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-09": {
+        "2": {
+          "tokens_in": 2322,
+          "tokens_out": 1537,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-10": {
+        "2": {
+          "tokens_in": 1795,
+          "tokens_out": 1419,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202604-03": {
+        "2": {
+          "tokens_in": 1840,
+          "tokens_out": 1589,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202604-04": {
+        "2": {
+          "tokens_in": 1849,
+          "tokens_out": 1511,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202603-01": {
+        "2": {
+          "tokens_in": 2405,
+          "tokens_out": 1497,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2026/08/10/updated-gpg-key-for-signing-firefox-and-thunderbird-releases/": {
+        "2": {
+          "tokens_in": 4658,
+          "tokens_out": 1080,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-14": {
+        "2": {
+          "tokens_in": 1848,
+          "tokens_out": 1463,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-15": {
+        "2": {
+          "tokens_in": 2635,
+          "tokens_out": 1495,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-16": {
+        "2": {
+          "tokens_in": 1749,
+          "tokens_out": 1445,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-22": {
+        "2": {
+          "tokens_in": 2283,
+          "tokens_out": 1502,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202511-03": {
+        "2": {
+          "tokens_in": 1759,
+          "tokens_out": 1488,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202511-04": {
+        "2": {
+          "tokens_in": 2099,
+          "tokens_out": 1445,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202511-05": {
+        "2": {
+          "tokens_in": 2386,
+          "tokens_out": 1480,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-01": {
+        "2": {
+          "tokens_in": 2574,
+          "tokens_out": 1532,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-02": {
+        "2": {
+          "tokens_in": 2627,
+          "tokens_out": 1426,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-03": {
+        "2": {
+          "tokens_in": 2616,
+          "tokens_out": 1524,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-04": {
+        "2": {
+          "tokens_in": 1778,
+          "tokens_out": 1408,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-05": {
+        "2": {
+          "tokens_in": 1865,
+          "tokens_out": 1528,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2026/06/29/improving-transparency-and-assurance-in-the-web-pki-mozilla-root-store-policy-v3-1/": {
+        "2": {
+          "tokens_in": 3428,
+          "tokens_out": 1080,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-34": {
+        "2": {
+          "tokens_in": 2905,
+          "tokens_out": 1449,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202609-02": {
+        "2": {
+          "tokens_in": 3129,
+          "tokens_out": 1490,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202609-03": {
+        "2": {
+          "tokens_in": 2641,
+          "tokens_out": 1528,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-11": {
+        "2": {
+          "tokens_in": 2374,
+          "tokens_out": 1598,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-12": {
+        "2": {
+          "tokens_in": 1901,
+          "tokens_out": 1595,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2025/05/17/firefox-security-response-to-pwn2own-2025/": {
+        "2": {
+          "tokens_in": 2359,
+          "tokens_out": 1021,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202512-01": {
+        "2": {
+          "tokens_in": 1818,
+          "tokens_out": 1518,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-32": {
+        "2": {
+          "tokens_in": 1752,
+          "tokens_out": 1445,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-33": {
+        "2": {
+          "tokens_in": 1814,
+          "tokens_out": 1435,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-13": {
+        "2": {
+          "tokens_in": 1783,
+          "tokens_out": 1444,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2024/04/04/rapidly-leveling-up-firefox-security/": {
+        "2": {
+          "tokens_in": 3521,
+          "tokens_out": 963,
+          "tokens_in_source": "recount_proxy"
+        }
+      }
+    },
+    "20260914T111846Z-cloud_flagship-r3-5m9qu288": {
+      "github_advisories:GHSA-hw8v-xxg5-vvvx": {
+        "3": {
+          "tokens_in": 2397,
+          "tokens_out": 1694,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-hh89-3r9w-qj3j": {
+        "3": {
+          "tokens_in": 2453,
+          "tokens_out": 1520,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-j535-v25q-vx3q": {
+        "3": {
+          "tokens_in": 1852,
+          "tokens_out": 1691,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-34ff-336r-5q23": {
+        "3": {
+          "tokens_in": 2445,
+          "tokens_out": 1019,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-23rh-xw42-fq82": {
+        "3": {
+          "tokens_in": 4025,
+          "tokens_out": 1647,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-hh8m-fm6v-7cvg": {
+        "3": {
+          "tokens_in": 2719,
+          "tokens_out": 1752,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-p297-fm68-3q8c": {
+        "3": {
+          "tokens_in": 3501,
+          "tokens_out": 1677,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f6mr-pjwc-34m4": {
+        "3": {
+          "tokens_in": 3125,
+          "tokens_out": 1557,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-v3p8-whq6-r5jg": {
+        "3": {
+          "tokens_in": 3161,
+          "tokens_out": 1789,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-7ghq-v6jf-g56c": {
+        "3": {
+          "tokens_in": 4017,
+          "tokens_out": 1771,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-rf44-j88r-hh8c": {
+        "3": {
+          "tokens_in": 3905,
+          "tokens_out": 1938,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-35jj-42hp-8gmq": {
+        "3": {
+          "tokens_in": 1851,
+          "tokens_out": 1676,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-6xcw-7xm6-48c6": {
+        "3": {
+          "tokens_in": 1899,
+          "tokens_out": 1088,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-65xw-2v52-jhxc": {
+        "3": {
+          "tokens_in": 2363,
+          "tokens_out": 1257,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-679f-58pq-4v2c": {
+        "3": {
+          "tokens_in": 2521,
+          "tokens_out": 1718,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f2cp-m7mv-8jpv": {
+        "3": {
+          "tokens_in": 2457,
+          "tokens_out": 1499,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-5m98-cgcr-xx3q": {
+        "3": {
+          "tokens_in": 2569,
+          "tokens_out": 1635,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-pf83-w3f9-8m37": {
+        "3": {
+          "tokens_in": 2413,
+          "tokens_out": 1591,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-pq6c-vh67-xpm3": {
+        "3": {
+          "tokens_in": 1856,
+          "tokens_out": 1644,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-cqr2-h44g-v75v": {
+        "3": {
+          "tokens_in": 2397,
+          "tokens_out": 1542,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-qgpw-8g46-w95v": {
+        "3": {
+          "tokens_in": 2467,
+          "tokens_out": 1699,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-q5wm-mgqx-fv2f": {
+        "3": {
+          "tokens_in": 1814,
+          "tokens_out": 1499,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-cw9w-vv67-hf73": {
+        "3": {
+          "tokens_in": 2531,
+          "tokens_out": 1586,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-hf57-cqmx-p4gr": {
+        "3": {
+          "tokens_in": 3795,
+          "tokens_out": 1556,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-wpmr-8h3q-fwj7": {
+        "3": {
+          "tokens_in": 2399,
+          "tokens_out": 1843,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-p78m-89r6-pgf7": {
+        "3": {
+          "tokens_in": 2345,
+          "tokens_out": 1165,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-wfgq-w7cq-qj7j": {
+        "3": {
+          "tokens_in": 3897,
+          "tokens_out": 1637,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-m3wp-48jr-vr4g": {
+        "3": {
+          "tokens_in": 4056,
+          "tokens_out": 1723,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-4x45-gxvp-6283": {
+        "3": {
+          "tokens_in": 4087,
+          "tokens_out": 1599,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-4qpv-39hg-f7fx": {
+        "3": {
+          "tokens_in": 3903,
+          "tokens_out": 1678,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-wjwr-xfp9-r66p": {
+        "3": {
+          "tokens_in": 3607,
+          "tokens_out": 1626,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-8r35-5x5r-hv74": {
+        "3": {
+          "tokens_in": 3447,
+          "tokens_out": 1784,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-v39v-59xw-j98g": {
+        "3": {
+          "tokens_in": 3553,
+          "tokens_out": 1785,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-3g9q-v48f-hh9w": {
+        "3": {
+          "tokens_in": 3675,
+          "tokens_out": 1952,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-2p48-j3qc-rx9f": {
+        "3": {
+          "tokens_in": 3851,
+          "tokens_out": 1715,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-38xv-hf3p-h7mq": {
+        "3": {
+          "tokens_in": 4147,
+          "tokens_out": 1734,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-c476-6w5q-jw77": {
+        "3": {
+          "tokens_in": 2529,
+          "tokens_out": 1725,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-p569-5gjg-9cmj": {
+        "3": {
+          "tokens_in": 3829,
+          "tokens_out": 1244,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-xwwr-4h3p-r22c": {
+        "3": {
+          "tokens_in": 3769,
+          "tokens_out": 1764,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-p6m2-r3w9-mpxw": {
+        "3": {
+          "tokens_in": 2339,
+          "tokens_out": 1488,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f8g7-2xjc-7mfh": {
+        "3": {
+          "tokens_in": 4239,
+          "tokens_out": 1728,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-486v-q2wf-fp2r": {
+        "3": {
+          "tokens_in": 3341,
+          "tokens_out": 1851,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-66hp-wgxq-6f5q": {
+        "3": {
+          "tokens_in": 2342,
+          "tokens_out": 1617,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f52w-8j3h-j724": {
+        "3": {
+          "tokens_in": 4009,
+          "tokens_out": 1895,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-qqjf-53cj-pwvv": {
+        "3": {
+          "tokens_in": 3891,
+          "tokens_out": 1672,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-v67p-phpq-fc8x": {
+        "3": {
+          "tokens_in": 3897,
+          "tokens_out": 1198,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-w4v4-9rw7-5326": {
+        "3": {
+          "tokens_in": 3825,
+          "tokens_out": 1922,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-wvm9-9g5j-623f": {
+        "3": {
+          "tokens_in": 2925,
+          "tokens_out": 1619,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-rqfv-2mw9-78g2": {
+        "3": {
+          "tokens_in": 2080,
+          "tokens_out": 1709,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-98q5-5qh2-7w75": {
+        "3": {
+          "tokens_in": 3869,
+          "tokens_out": 1790,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-2j95-gqxf-v3vg": {
+        "3": {
+          "tokens_in": 3933,
+          "tokens_out": 1940,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-vjfw-cpmh-xwv3": {
+        "3": {
+          "tokens_in": 2521,
+          "tokens_out": 1658,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-243p-f3cv-c5wh": {
+        "3": {
+          "tokens_in": 4073,
+          "tokens_out": 1711,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-5vf4-452p-jjhf": {
+        "3": {
+          "tokens_in": 3679,
+          "tokens_out": 1807,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f7h9-qv4x-9x57": {
+        "3": {
+          "tokens_in": 3829,
+          "tokens_out": 1753,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-j328-xmgp-j4q3": {
+        "3": {
+          "tokens_in": 4095,
+          "tokens_out": 1727,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-g3f9-g5vj-p62f": {
+        "3": {
+          "tokens_in": 3843,
+          "tokens_out": 1648,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-99h5-jhh7-v3r3": {
+        "3": {
+          "tokens_in": 3881,
+          "tokens_out": 1578,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-2cg9-97gq-9mqp": {
+        "3": {
+          "tokens_in": 3941,
+          "tokens_out": 1564,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-v77h-2w3m-94hx": {
+        "3": {
+          "tokens_in": 3023,
+          "tokens_out": 1837,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-h8m9-jgf8-vwvp": {
+        "3": {
+          "tokens_in": 2514,
+          "tokens_out": 1657,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-65h7-9wrw-629c": {
+        "3": {
+          "tokens_in": 4281,
+          "tokens_out": 2050,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-8wqc-v2q8-vff2": {
+        "3": {
+          "tokens_in": 3703,
+          "tokens_out": 1585,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-rqx4-3f6q-3x2v": {
+        "3": {
+          "tokens_in": 2573,
+          "tokens_out": 1909,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-325j-mg25-8q58": {
+        "3": {
+          "tokens_in": 2919,
+          "tokens_out": 1680,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-992q-9gwp-7r79": {
+        "3": {
+          "tokens_in": 3185,
+          "tokens_out": 1002,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2024/10/11/behind-the-scenes-fixing-an-in-the-wild-firefox-exploit/": {
+        "3": {
+          "tokens_in": 2058,
+          "tokens_out": 1070,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-06": {
+        "3": {
+          "tokens_in": 1784,
+          "tokens_out": 1460,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-07": {
+        "3": {
+          "tokens_in": 1760,
+          "tokens_out": 1457,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-08": {
+        "3": {
+          "tokens_in": 1758,
+          "tokens_out": 1492,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-09": {
+        "3": {
+          "tokens_in": 2322,
+          "tokens_out": 1505,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-10": {
+        "3": {
+          "tokens_in": 1795,
+          "tokens_out": 1427,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202604-03": {
+        "3": {
+          "tokens_in": 1840,
+          "tokens_out": 1601,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202604-04": {
+        "3": {
+          "tokens_in": 1849,
+          "tokens_out": 1524,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202603-01": {
+        "3": {
+          "tokens_in": 2405,
+          "tokens_out": 1397,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2026/08/10/updated-gpg-key-for-signing-firefox-and-thunderbird-releases/": {
+        "3": {
+          "tokens_in": 4658,
+          "tokens_out": 1161,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-14": {
+        "3": {
+          "tokens_in": 1848,
+          "tokens_out": 1507,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-15": {
+        "3": {
+          "tokens_in": 2635,
+          "tokens_out": 1604,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-16": {
+        "3": {
+          "tokens_in": 1749,
+          "tokens_out": 1448,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-22": {
+        "3": {
+          "tokens_in": 2283,
+          "tokens_out": 1485,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202511-03": {
+        "3": {
+          "tokens_in": 1759,
+          "tokens_out": 1472,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202511-04": {
+        "3": {
+          "tokens_in": 2099,
+          "tokens_out": 1478,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202511-05": {
+        "3": {
+          "tokens_in": 2386,
+          "tokens_out": 1450,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-01": {
+        "3": {
+          "tokens_in": 2574,
+          "tokens_out": 1673,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-02": {
+        "3": {
+          "tokens_in": 2627,
+          "tokens_out": 1436,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-03": {
+        "3": {
+          "tokens_in": 2616,
+          "tokens_out": 1614,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-04": {
+        "3": {
+          "tokens_in": 1778,
+          "tokens_out": 1455,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-05": {
+        "3": {
+          "tokens_in": 1865,
+          "tokens_out": 1605,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2026/06/29/improving-transparency-and-assurance-in-the-web-pki-mozilla-root-store-policy-v3-1/": {
+        "3": {
+          "tokens_in": 3428,
+          "tokens_out": 1161,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-34": {
+        "3": {
+          "tokens_in": 2905,
+          "tokens_out": 1426,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202609-02": {
+        "3": {
+          "tokens_in": 3129,
+          "tokens_out": 1513,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202609-03": {
+        "3": {
+          "tokens_in": 2641,
+          "tokens_out": 1508,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-11": {
+        "3": {
+          "tokens_in": 2374,
+          "tokens_out": 1514,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-12": {
+        "3": {
+          "tokens_in": 1901,
+          "tokens_out": 1523,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2025/05/17/firefox-security-response-to-pwn2own-2025/": {
+        "3": {
+          "tokens_in": 2359,
+          "tokens_out": 1702,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202512-01": {
+        "3": {
+          "tokens_in": 1818,
+          "tokens_out": 1495,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-32": {
+        "3": {
+          "tokens_in": 1752,
+          "tokens_out": 1438,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-33": {
+        "3": {
+          "tokens_in": 1814,
+          "tokens_out": 1527,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-13": {
+        "3": {
+          "tokens_in": 1783,
+          "tokens_out": 1551,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2024/04/04/rapidly-leveling-up-firefox-security/": {
+        "3": {
+          "tokens_in": 3521,
+          "tokens_out": 1070,
+          "tokens_in_source": "recount_proxy"
+        }
+      }
+    },
+    "20260914T121108Z-cloud_light-r1-6szawvwt": {
+      "github_advisories:GHSA-hw8v-xxg5-vvvx": {
+        "1": {
+          "tokens_in": 2397,
+          "tokens_out": 2245,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-hh89-3r9w-qj3j": {
+        "1": {
+          "tokens_in": 2453,
+          "tokens_out": 2087,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-j535-v25q-vx3q": {
+        "1": {
+          "tokens_in": 1852,
+          "tokens_out": 2062,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-34ff-336r-5q23": {
+        "1": {
+          "tokens_in": 2445,
+          "tokens_out": 2292,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-23rh-xw42-fq82": {
+        "1": {
+          "tokens_in": 4025,
+          "tokens_out": 2229,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-hh8m-fm6v-7cvg": {
+        "1": {
+          "tokens_in": 2719,
+          "tokens_out": 2146,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-p297-fm68-3q8c": {
+        "1": {
+          "tokens_in": 3501,
+          "tokens_out": 2241,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f6mr-pjwc-34m4": {
+        "1": {
+          "tokens_in": 3125,
+          "tokens_out": 2446,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-v3p8-whq6-r5jg": {
+        "1": {
+          "tokens_in": 3161,
+          "tokens_out": 2461,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-7ghq-v6jf-g56c": {
+        "1": {
+          "tokens_in": 4017,
+          "tokens_out": 2413,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-rf44-j88r-hh8c": {
+        "1": {
+          "tokens_in": 3905,
+          "tokens_out": 1201,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-35jj-42hp-8gmq": {
+        "1": {
+          "tokens_in": 1851,
+          "tokens_out": 2073,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-6xcw-7xm6-48c6": {
+        "1": {
+          "tokens_in": 1899,
+          "tokens_out": 2079,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-65xw-2v52-jhxc": {
+        "1": {
+          "tokens_in": 2363,
+          "tokens_out": 2046,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-679f-58pq-4v2c": {
+        "1": {
+          "tokens_in": 2521,
+          "tokens_out": 2230,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f2cp-m7mv-8jpv": {
+        "1": {
+          "tokens_in": 2457,
+          "tokens_out": 2130,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-5m98-cgcr-xx3q": {
+        "1": {
+          "tokens_in": 2569,
+          "tokens_out": 2371,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-pf83-w3f9-8m37": {
+        "1": {
+          "tokens_in": 2413,
+          "tokens_out": 2183,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-pq6c-vh67-xpm3": {
+        "1": {
+          "tokens_in": 1856,
+          "tokens_out": 2147,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-cqr2-h44g-v75v": {
+        "1": {
+          "tokens_in": 2397,
+          "tokens_out": 2161,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-qgpw-8g46-w95v": {
+        "1": {
+          "tokens_in": 2467,
+          "tokens_out": 2433,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-q5wm-mgqx-fv2f": {
+        "1": {
+          "tokens_in": 1814,
+          "tokens_out": 1857,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-cw9w-vv67-hf73": {
+        "1": {
+          "tokens_in": 2531,
+          "tokens_out": 1901,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-hf57-cqmx-p4gr": {
+        "1": {
+          "tokens_in": 3795,
+          "tokens_out": 2168,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-wpmr-8h3q-fwj7": {
+        "1": {
+          "tokens_in": 2399,
+          "tokens_out": 2153,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-p78m-89r6-pgf7": {
+        "1": {
+          "tokens_in": 2345,
+          "tokens_out": 2133,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-wfgq-w7cq-qj7j": {
+        "1": {
+          "tokens_in": 3897,
+          "tokens_out": 2336,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-m3wp-48jr-vr4g": {
+        "1": {
+          "tokens_in": 4056,
+          "tokens_out": 2443,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-4x45-gxvp-6283": {
+        "1": {
+          "tokens_in": 4087,
+          "tokens_out": 2291,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-4qpv-39hg-f7fx": {
+        "1": {
+          "tokens_in": 3903,
+          "tokens_out": 2309,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-wjwr-xfp9-r66p": {
+        "1": {
+          "tokens_in": 3607,
+          "tokens_out": 2331,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-8r35-5x5r-hv74": {
+        "1": {
+          "tokens_in": 3447,
+          "tokens_out": 2281,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-v39v-59xw-j98g": {
+        "1": {
+          "tokens_in": 3553,
+          "tokens_out": 2195,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-3g9q-v48f-hh9w": {
+        "1": {
+          "tokens_in": 3675,
+          "tokens_out": 2357,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-2p48-j3qc-rx9f": {
+        "1": {
+          "tokens_in": 3851,
+          "tokens_out": 2540,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-38xv-hf3p-h7mq": {
+        "1": {
+          "tokens_in": 4147,
+          "tokens_out": 2087,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-c476-6w5q-jw77": {
+        "1": {
+          "tokens_in": 2529,
+          "tokens_out": 1566,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-p569-5gjg-9cmj": {
+        "1": {
+          "tokens_in": 3829,
+          "tokens_out": 2394,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-xwwr-4h3p-r22c": {
+        "1": {
+          "tokens_in": 3769,
+          "tokens_out": 2601,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-p6m2-r3w9-mpxw": {
+        "1": {
+          "tokens_in": 2339,
+          "tokens_out": 2388,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f8g7-2xjc-7mfh": {
+        "1": {
+          "tokens_in": 4239,
+          "tokens_out": 2769,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-486v-q2wf-fp2r": {
+        "1": {
+          "tokens_in": 3341,
+          "tokens_out": 2306,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-66hp-wgxq-6f5q": {
+        "1": {
+          "tokens_in": 2342,
+          "tokens_out": 2218,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f52w-8j3h-j724": {
+        "1": {
+          "tokens_in": 4009,
+          "tokens_out": 1355,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-qqjf-53cj-pwvv": {
+        "1": {
+          "tokens_in": 3891,
+          "tokens_out": 1462,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-v67p-phpq-fc8x": {
+        "1": {
+          "tokens_in": 3897,
+          "tokens_out": 2409,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-w4v4-9rw7-5326": {
+        "1": {
+          "tokens_in": 3825,
+          "tokens_out": 691,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-wvm9-9g5j-623f": {
+        "1": {
+          "tokens_in": 2925,
+          "tokens_out": 2244,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-rqfv-2mw9-78g2": {
+        "1": {
+          "tokens_in": 2080,
+          "tokens_out": 2270,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-98q5-5qh2-7w75": {
+        "1": {
+          "tokens_in": 3869,
+          "tokens_out": 2404,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-2j95-gqxf-v3vg": {
+        "1": {
+          "tokens_in": 3933,
+          "tokens_out": 2647,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-vjfw-cpmh-xwv3": {
+        "1": {
+          "tokens_in": 2521,
+          "tokens_out": 2406,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-243p-f3cv-c5wh": {
+        "1": {
+          "tokens_in": 4073,
+          "tokens_out": 2390,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-5vf4-452p-jjhf": {
+        "1": {
+          "tokens_in": 3679,
+          "tokens_out": 578,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f7h9-qv4x-9x57": {
+        "1": {
+          "tokens_in": 3829,
+          "tokens_out": 2456,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-j328-xmgp-j4q3": {
+        "1": {
+          "tokens_in": 4095,
+          "tokens_out": 2278,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-g3f9-g5vj-p62f": {
+        "1": {
+          "tokens_in": 3843,
+          "tokens_out": 2605,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-99h5-jhh7-v3r3": {
+        "1": {
+          "tokens_in": 3881,
+          "tokens_out": 948,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-2cg9-97gq-9mqp": {
+        "1": {
+          "tokens_in": 3941,
+          "tokens_out": 967,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-v77h-2w3m-94hx": {
+        "1": {
+          "tokens_in": 3023,
+          "tokens_out": 2227,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-h8m9-jgf8-vwvp": {
+        "1": {
+          "tokens_in": 2514,
+          "tokens_out": 2771,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-65h7-9wrw-629c": {
+        "1": {
+          "tokens_in": 4281,
+          "tokens_out": 1849,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-8wqc-v2q8-vff2": {
+        "1": {
+          "tokens_in": 3703,
+          "tokens_out": 2257,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-rqx4-3f6q-3x2v": {
+        "1": {
+          "tokens_in": 2573,
+          "tokens_out": 2532,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-325j-mg25-8q58": {
+        "1": {
+          "tokens_in": 2919,
+          "tokens_out": 2316,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-992q-9gwp-7r79": {
+        "1": {
+          "tokens_in": 3185,
+          "tokens_out": 2198,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2024/10/11/behind-the-scenes-fixing-an-in-the-wild-firefox-exploit/": {
+        "1": {
+          "tokens_in": 2058,
+          "tokens_out": 2140,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-06": {
+        "1": {
+          "tokens_in": 1784,
+          "tokens_out": 2084,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-07": {
+        "1": {
+          "tokens_in": 1760,
+          "tokens_out": 1940,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-08": {
+        "1": {
+          "tokens_in": 1758,
+          "tokens_out": 2313,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-09": {
+        "1": {
+          "tokens_in": 2322,
+          "tokens_out": 1992,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-10": {
+        "1": {
+          "tokens_in": 1795,
+          "tokens_out": 2299,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202604-03": {
+        "1": {
+          "tokens_in": 1840,
+          "tokens_out": 2029,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202604-04": {
+        "1": {
+          "tokens_in": 1849,
+          "tokens_out": 1883,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202603-01": {
+        "1": {
+          "tokens_in": 2405,
+          "tokens_out": 2307,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2026/08/10/updated-gpg-key-for-signing-firefox-and-thunderbird-releases/": {
+        "1": {
+          "tokens_in": 4658,
+          "tokens_out": 2265,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-14": {
+        "1": {
+          "tokens_in": 1848,
+          "tokens_out": 2373,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-15": {
+        "1": {
+          "tokens_in": 2635,
+          "tokens_out": 1958,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-16": {
+        "1": {
+          "tokens_in": 1749,
+          "tokens_out": 2050,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-22": {
+        "1": {
+          "tokens_in": 2283,
+          "tokens_out": 1967,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202511-03": {
+        "1": {
+          "tokens_in": 1759,
+          "tokens_out": 2093,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202511-04": {
+        "1": {
+          "tokens_in": 2099,
+          "tokens_out": 2210,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202511-05": {
+        "1": {
+          "tokens_in": 2386,
+          "tokens_out": 1960,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-01": {
+        "1": {
+          "tokens_in": 2574,
+          "tokens_out": 2316,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-02": {
+        "1": {
+          "tokens_in": 2627,
+          "tokens_out": 2279,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-03": {
+        "1": {
+          "tokens_in": 2616,
+          "tokens_out": 2143,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-04": {
+        "1": {
+          "tokens_in": 1778,
+          "tokens_out": 2033,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-05": {
+        "1": {
+          "tokens_in": 1865,
+          "tokens_out": 2071,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2026/06/29/improving-transparency-and-assurance-in-the-web-pki-mozilla-root-store-policy-v3-1/": {
+        "1": {
+          "tokens_in": 3428,
+          "tokens_out": 2265,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-34": {
+        "1": {
+          "tokens_in": 2905,
+          "tokens_out": 2115,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202609-02": {
+        "1": {
+          "tokens_in": 3129,
+          "tokens_out": 2099,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202609-03": {
+        "1": {
+          "tokens_in": 2641,
+          "tokens_out": 2213,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-11": {
+        "1": {
+          "tokens_in": 2374,
+          "tokens_out": 1854,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-12": {
+        "1": {
+          "tokens_in": 1901,
+          "tokens_out": 2344,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2025/05/17/firefox-security-response-to-pwn2own-2025/": {
+        "1": {
+          "tokens_in": 2359,
+          "tokens_out": 2170,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202512-01": {
+        "1": {
+          "tokens_in": 1818,
+          "tokens_out": 2015,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-32": {
+        "1": {
+          "tokens_in": 1752,
+          "tokens_out": 1994,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-33": {
+        "1": {
+          "tokens_in": 1814,
+          "tokens_out": 2173,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-13": {
+        "1": {
+          "tokens_in": 1783,
+          "tokens_out": 2185,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2024/04/04/rapidly-leveling-up-firefox-security/": {
+        "1": {
+          "tokens_in": 3521,
+          "tokens_out": 2140,
+          "tokens_in_source": "recount_proxy"
+        }
+      }
+    },
+    "20260914T131251Z-cloud_light-r2-9z0k9gw0": {
+      "github_advisories:GHSA-hw8v-xxg5-vvvx": {
+        "2": {
+          "tokens_in": 2397,
+          "tokens_out": 2323,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-hh89-3r9w-qj3j": {
+        "2": {
+          "tokens_in": 2453,
+          "tokens_out": 2236,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-j535-v25q-vx3q": {
+        "2": {
+          "tokens_in": 1852,
+          "tokens_out": 2091,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-34ff-336r-5q23": {
+        "2": {
+          "tokens_in": 2445,
+          "tokens_out": 2143,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-23rh-xw42-fq82": {
+        "2": {
+          "tokens_in": 4025,
+          "tokens_out": 2578,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-hh8m-fm6v-7cvg": {
+        "2": {
+          "tokens_in": 2719,
+          "tokens_out": 2122,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-p297-fm68-3q8c": {
+        "2": {
+          "tokens_in": 3501,
+          "tokens_out": 2165,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f6mr-pjwc-34m4": {
+        "2": {
+          "tokens_in": 3125,
+          "tokens_out": 2223,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-v3p8-whq6-r5jg": {
+        "2": {
+          "tokens_in": 3161,
+          "tokens_out": 2328,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-7ghq-v6jf-g56c": {
+        "2": {
+          "tokens_in": 4017,
+          "tokens_out": 2513,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-rf44-j88r-hh8c": {
+        "2": {
+          "tokens_in": 3905,
+          "tokens_out": 3087,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-35jj-42hp-8gmq": {
+        "2": {
+          "tokens_in": 1851,
+          "tokens_out": 2047,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-6xcw-7xm6-48c6": {
+        "2": {
+          "tokens_in": 1899,
+          "tokens_out": 2224,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-65xw-2v52-jhxc": {
+        "2": {
+          "tokens_in": 2363,
+          "tokens_out": 1916,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-679f-58pq-4v2c": {
+        "2": {
+          "tokens_in": 2521,
+          "tokens_out": 2039,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f2cp-m7mv-8jpv": {
+        "2": {
+          "tokens_in": 2457,
+          "tokens_out": 2460,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-5m98-cgcr-xx3q": {
+        "2": {
+          "tokens_in": 2569,
+          "tokens_out": 2215,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-pf83-w3f9-8m37": {
+        "2": {
+          "tokens_in": 2413,
+          "tokens_out": 2338,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-pq6c-vh67-xpm3": {
+        "2": {
+          "tokens_in": 1856,
+          "tokens_out": 2022,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-cqr2-h44g-v75v": {
+        "2": {
+          "tokens_in": 2397,
+          "tokens_out": 2175,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-qgpw-8g46-w95v": {
+        "2": {
+          "tokens_in": 2467,
+          "tokens_out": 2074,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-q5wm-mgqx-fv2f": {
+        "2": {
+          "tokens_in": 1814,
+          "tokens_out": 1925,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-cw9w-vv67-hf73": {
+        "2": {
+          "tokens_in": 2531,
+          "tokens_out": 2025,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-hf57-cqmx-p4gr": {
+        "2": {
+          "tokens_in": 3795,
+          "tokens_out": 2378,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-wpmr-8h3q-fwj7": {
+        "2": {
+          "tokens_in": 2399,
+          "tokens_out": 1674,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-p78m-89r6-pgf7": {
+        "2": {
+          "tokens_in": 2345,
+          "tokens_out": 2212,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-wfgq-w7cq-qj7j": {
+        "2": {
+          "tokens_in": 3897,
+          "tokens_out": 2215,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-m3wp-48jr-vr4g": {
+        "2": {
+          "tokens_in": 4056,
+          "tokens_out": 2445,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-4x45-gxvp-6283": {
+        "2": {
+          "tokens_in": 4087,
+          "tokens_out": 529,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-4qpv-39hg-f7fx": {
+        "2": {
+          "tokens_in": 3903,
+          "tokens_out": 2427,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-wjwr-xfp9-r66p": {
+        "2": {
+          "tokens_in": 3607,
+          "tokens_out": 2281,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-8r35-5x5r-hv74": {
+        "2": {
+          "tokens_in": 3447,
+          "tokens_out": 2348,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-v39v-59xw-j98g": {
+        "2": {
+          "tokens_in": 3553,
+          "tokens_out": 2363,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-3g9q-v48f-hh9w": {
+        "2": {
+          "tokens_in": 3675,
+          "tokens_out": 2673,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-2p48-j3qc-rx9f": {
+        "2": {
+          "tokens_in": 3851,
+          "tokens_out": 2322,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-38xv-hf3p-h7mq": {
+        "2": {
+          "tokens_in": 4147,
+          "tokens_out": 1255,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-c476-6w5q-jw77": {
+        "2": {
+          "tokens_in": 2529,
+          "tokens_out": 541,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-p569-5gjg-9cmj": {
+        "2": {
+          "tokens_in": 3829,
+          "tokens_out": 1130,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-xwwr-4h3p-r22c": {
+        "2": {
+          "tokens_in": 3769,
+          "tokens_out": 2541,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-p6m2-r3w9-mpxw": {
+        "2": {
+          "tokens_in": 2339,
+          "tokens_out": 2312,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f8g7-2xjc-7mfh": {
+        "2": {
+          "tokens_in": 4239,
+          "tokens_out": 689,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-486v-q2wf-fp2r": {
+        "2": {
+          "tokens_in": 3341,
+          "tokens_out": 2369,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-66hp-wgxq-6f5q": {
+        "2": {
+          "tokens_in": 2342,
+          "tokens_out": 2338,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f52w-8j3h-j724": {
+        "2": {
+          "tokens_in": 4009,
+          "tokens_out": 660,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-qqjf-53cj-pwvv": {
+        "2": {
+          "tokens_in": 3891,
+          "tokens_out": 2536,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-v67p-phpq-fc8x": {
+        "2": {
+          "tokens_in": 3897,
+          "tokens_out": 2625,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-w4v4-9rw7-5326": {
+        "2": {
+          "tokens_in": 3825,
+          "tokens_out": 676,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-wvm9-9g5j-623f": {
+        "2": {
+          "tokens_in": 2925,
+          "tokens_out": 2145,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-rqfv-2mw9-78g2": {
+        "2": {
+          "tokens_in": 2080,
+          "tokens_out": 2304,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-98q5-5qh2-7w75": {
+        "2": {
+          "tokens_in": 3869,
+          "tokens_out": 2306,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-2j95-gqxf-v3vg": {
+        "2": {
+          "tokens_in": 3933,
+          "tokens_out": 2508,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-vjfw-cpmh-xwv3": {
+        "2": {
+          "tokens_in": 2521,
+          "tokens_out": 2352,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-243p-f3cv-c5wh": {
+        "2": {
+          "tokens_in": 4073,
+          "tokens_out": 2461,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-5vf4-452p-jjhf": {
+        "2": {
+          "tokens_in": 3679,
+          "tokens_out": 2176,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f7h9-qv4x-9x57": {
+        "2": {
+          "tokens_in": 3829,
+          "tokens_out": 2196,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-j328-xmgp-j4q3": {
+        "2": {
+          "tokens_in": 4095,
+          "tokens_out": 2227,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-g3f9-g5vj-p62f": {
+        "2": {
+          "tokens_in": 3843,
+          "tokens_out": 2641,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-99h5-jhh7-v3r3": {
+        "2": {
+          "tokens_in": 3881,
+          "tokens_out": 2525,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-2cg9-97gq-9mqp": {
+        "2": {
+          "tokens_in": 3941,
+          "tokens_out": 2603,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-v77h-2w3m-94hx": {
+        "2": {
+          "tokens_in": 3023,
+          "tokens_out": 2190,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-h8m9-jgf8-vwvp": {
+        "2": {
+          "tokens_in": 2514,
+          "tokens_out": 2397,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-65h7-9wrw-629c": {
+        "2": {
+          "tokens_in": 4281,
+          "tokens_out": 1182,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-8wqc-v2q8-vff2": {
+        "2": {
+          "tokens_in": 3703,
+          "tokens_out": 2284,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-rqx4-3f6q-3x2v": {
+        "2": {
+          "tokens_in": 2573,
+          "tokens_out": 2383,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-325j-mg25-8q58": {
+        "2": {
+          "tokens_in": 2919,
+          "tokens_out": 2338,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-992q-9gwp-7r79": {
+        "2": {
+          "tokens_in": 3185,
+          "tokens_out": 2345,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2024/10/11/behind-the-scenes-fixing-an-in-the-wild-firefox-exploit/": {
+        "2": {
+          "tokens_in": 2058,
+          "tokens_out": 2033,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-06": {
+        "2": {
+          "tokens_in": 1784,
+          "tokens_out": 2117,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-07": {
+        "2": {
+          "tokens_in": 1760,
+          "tokens_out": 1979,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-08": {
+        "2": {
+          "tokens_in": 1758,
+          "tokens_out": 2066,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-09": {
+        "2": {
+          "tokens_in": 2322,
+          "tokens_out": 2138,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-10": {
+        "2": {
+          "tokens_in": 1795,
+          "tokens_out": 2175,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202604-03": {
+        "2": {
+          "tokens_in": 1840,
+          "tokens_out": 1960,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202604-04": {
+        "2": {
+          "tokens_in": 1849,
+          "tokens_out": 2167,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202603-01": {
+        "2": {
+          "tokens_in": 2405,
+          "tokens_out": 2393,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2026/08/10/updated-gpg-key-for-signing-firefox-and-thunderbird-releases/": {
+        "2": {
+          "tokens_in": 4658,
+          "tokens_out": 2259,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-14": {
+        "2": {
+          "tokens_in": 1848,
+          "tokens_out": 1944,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-15": {
+        "2": {
+          "tokens_in": 2635,
+          "tokens_out": 2146,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-16": {
+        "2": {
+          "tokens_in": 1749,
+          "tokens_out": 2070,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-22": {
+        "2": {
+          "tokens_in": 2283,
+          "tokens_out": 1909,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202511-03": {
+        "2": {
+          "tokens_in": 1759,
+          "tokens_out": 2241,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202511-04": {
+        "2": {
+          "tokens_in": 2099,
+          "tokens_out": 2002,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202511-05": {
+        "2": {
+          "tokens_in": 2386,
+          "tokens_out": 2008,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-01": {
+        "2": {
+          "tokens_in": 2574,
+          "tokens_out": 2002,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-02": {
+        "2": {
+          "tokens_in": 2627,
+          "tokens_out": 2255,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-03": {
+        "2": {
+          "tokens_in": 2616,
+          "tokens_out": 2165,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-04": {
+        "2": {
+          "tokens_in": 1778,
+          "tokens_out": 2233,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-05": {
+        "2": {
+          "tokens_in": 1865,
+          "tokens_out": 2213,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2026/06/29/improving-transparency-and-assurance-in-the-web-pki-mozilla-root-store-policy-v3-1/": {
+        "2": {
+          "tokens_in": 3428,
+          "tokens_out": 2259,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-34": {
+        "2": {
+          "tokens_in": 2905,
+          "tokens_out": 2040,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202609-02": {
+        "2": {
+          "tokens_in": 3129,
+          "tokens_out": 1948,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202609-03": {
+        "2": {
+          "tokens_in": 2641,
+          "tokens_out": 2110,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-11": {
+        "2": {
+          "tokens_in": 2374,
+          "tokens_out": 2006,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-12": {
+        "2": {
+          "tokens_in": 1901,
+          "tokens_out": 2182,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2025/05/17/firefox-security-response-to-pwn2own-2025/": {
+        "2": {
+          "tokens_in": 2359,
+          "tokens_out": 2134,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202512-01": {
+        "2": {
+          "tokens_in": 1818,
+          "tokens_out": 2133,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-32": {
+        "2": {
+          "tokens_in": 1752,
+          "tokens_out": 2129,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-33": {
+        "2": {
+          "tokens_in": 1814,
+          "tokens_out": 1999,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-13": {
+        "2": {
+          "tokens_in": 1783,
+          "tokens_out": 2013,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2024/04/04/rapidly-leveling-up-firefox-security/": {
+        "2": {
+          "tokens_in": 3521,
+          "tokens_out": 2033,
+          "tokens_in_source": "recount_proxy"
+        }
+      }
+    },
+    "20260914T141334Z-cloud_light-r3-x9c30ij1": {
+      "github_advisories:GHSA-hw8v-xxg5-vvvx": {
+        "3": {
+          "tokens_in": 2397,
+          "tokens_out": 2020,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-hh89-3r9w-qj3j": {
+        "3": {
+          "tokens_in": 2453,
+          "tokens_out": 2333,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-j535-v25q-vx3q": {
+        "3": {
+          "tokens_in": 1852,
+          "tokens_out": 1989,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-34ff-336r-5q23": {
+        "3": {
+          "tokens_in": 2445,
+          "tokens_out": 2098,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-23rh-xw42-fq82": {
+        "3": {
+          "tokens_in": 4025,
+          "tokens_out": 2331,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-hh8m-fm6v-7cvg": {
+        "3": {
+          "tokens_in": 2719,
+          "tokens_out": 2177,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-p297-fm68-3q8c": {
+        "3": {
+          "tokens_in": 3501,
+          "tokens_out": 2155,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f6mr-pjwc-34m4": {
+        "3": {
+          "tokens_in": 3125,
+          "tokens_out": 2293,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-v3p8-whq6-r5jg": {
+        "3": {
+          "tokens_in": 3161,
+          "tokens_out": 2444,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-7ghq-v6jf-g56c": {
+        "3": {
+          "tokens_in": 4017,
+          "tokens_out": 2315,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-rf44-j88r-hh8c": {
+        "3": {
+          "tokens_in": 3905,
+          "tokens_out": 1532,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-35jj-42hp-8gmq": {
+        "3": {
+          "tokens_in": 1851,
+          "tokens_out": 1981,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-6xcw-7xm6-48c6": {
+        "3": {
+          "tokens_in": 1899,
+          "tokens_out": 2222,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-65xw-2v52-jhxc": {
+        "3": {
+          "tokens_in": 2363,
+          "tokens_out": 2016,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-679f-58pq-4v2c": {
+        "3": {
+          "tokens_in": 2521,
+          "tokens_out": 2330,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f2cp-m7mv-8jpv": {
+        "3": {
+          "tokens_in": 2457,
+          "tokens_out": 2227,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-5m98-cgcr-xx3q": {
+        "3": {
+          "tokens_in": 2569,
+          "tokens_out": 2289,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-pf83-w3f9-8m37": {
+        "3": {
+          "tokens_in": 2413,
+          "tokens_out": 2239,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-pq6c-vh67-xpm3": {
+        "3": {
+          "tokens_in": 1856,
+          "tokens_out": 1915,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-cqr2-h44g-v75v": {
+        "3": {
+          "tokens_in": 2397,
+          "tokens_out": 2235,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-qgpw-8g46-w95v": {
+        "3": {
+          "tokens_in": 2467,
+          "tokens_out": 2153,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-q5wm-mgqx-fv2f": {
+        "3": {
+          "tokens_in": 1814,
+          "tokens_out": 2083,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-cw9w-vv67-hf73": {
+        "3": {
+          "tokens_in": 2531,
+          "tokens_out": 2066,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-hf57-cqmx-p4gr": {
+        "3": {
+          "tokens_in": 3795,
+          "tokens_out": 2197,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-wpmr-8h3q-fwj7": {
+        "3": {
+          "tokens_in": 2399,
+          "tokens_out": 2327,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-p78m-89r6-pgf7": {
+        "3": {
+          "tokens_in": 2345,
+          "tokens_out": 2246,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-wfgq-w7cq-qj7j": {
+        "3": {
+          "tokens_in": 3897,
+          "tokens_out": 2211,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-m3wp-48jr-vr4g": {
+        "3": {
+          "tokens_in": 4056,
+          "tokens_out": 2333,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-4x45-gxvp-6283": {
+        "3": {
+          "tokens_in": 4087,
+          "tokens_out": 2216,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-4qpv-39hg-f7fx": {
+        "3": {
+          "tokens_in": 3903,
+          "tokens_out": 2420,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-wjwr-xfp9-r66p": {
+        "3": {
+          "tokens_in": 3607,
+          "tokens_out": 2301,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-8r35-5x5r-hv74": {
+        "3": {
+          "tokens_in": 3447,
+          "tokens_out": 2364,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-v39v-59xw-j98g": {
+        "3": {
+          "tokens_in": 3553,
+          "tokens_out": 2243,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-3g9q-v48f-hh9w": {
+        "3": {
+          "tokens_in": 3675,
+          "tokens_out": 2451,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-2p48-j3qc-rx9f": {
+        "3": {
+          "tokens_in": 3851,
+          "tokens_out": 2267,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-38xv-hf3p-h7mq": {
+        "3": {
+          "tokens_in": 4147,
+          "tokens_out": 1203,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-c476-6w5q-jw77": {
+        "3": {
+          "tokens_in": 2529,
+          "tokens_out": 2364,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-p569-5gjg-9cmj": {
+        "3": {
+          "tokens_in": 3829,
+          "tokens_out": 2406,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-xwwr-4h3p-r22c": {
+        "3": {
+          "tokens_in": 3769,
+          "tokens_out": 2693,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-p6m2-r3w9-mpxw": {
+        "3": {
+          "tokens_in": 2339,
+          "tokens_out": 2075,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f8g7-2xjc-7mfh": {
+        "3": {
+          "tokens_in": 4239,
+          "tokens_out": 2700,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-486v-q2wf-fp2r": {
+        "3": {
+          "tokens_in": 3341,
+          "tokens_out": 2269,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-66hp-wgxq-6f5q": {
+        "3": {
+          "tokens_in": 2342,
+          "tokens_out": 2314,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f52w-8j3h-j724": {
+        "3": {
+          "tokens_in": 4009,
+          "tokens_out": 1888,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-qqjf-53cj-pwvv": {
+        "3": {
+          "tokens_in": 3891,
+          "tokens_out": 512,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-v67p-phpq-fc8x": {
+        "3": {
+          "tokens_in": 3897,
+          "tokens_out": 2447,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-w4v4-9rw7-5326": {
+        "3": {
+          "tokens_in": 3825,
+          "tokens_out": 2767,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-wvm9-9g5j-623f": {
+        "3": {
+          "tokens_in": 2925,
+          "tokens_out": 2343,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-rqfv-2mw9-78g2": {
+        "3": {
+          "tokens_in": 2080,
+          "tokens_out": 2233,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-98q5-5qh2-7w75": {
+        "3": {
+          "tokens_in": 3869,
+          "tokens_out": 2462,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-2j95-gqxf-v3vg": {
+        "3": {
+          "tokens_in": 3933,
+          "tokens_out": 2531,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-vjfw-cpmh-xwv3": {
+        "3": {
+          "tokens_in": 2521,
+          "tokens_out": 2397,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-243p-f3cv-c5wh": {
+        "3": {
+          "tokens_in": 4073,
+          "tokens_out": 2677,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-5vf4-452p-jjhf": {
+        "3": {
+          "tokens_in": 3679,
+          "tokens_out": 2087,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-f7h9-qv4x-9x57": {
+        "3": {
+          "tokens_in": 3829,
+          "tokens_out": 2262,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-j328-xmgp-j4q3": {
+        "3": {
+          "tokens_in": 4095,
+          "tokens_out": 2431,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-g3f9-g5vj-p62f": {
+        "3": {
+          "tokens_in": 3843,
+          "tokens_out": 2125,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-99h5-jhh7-v3r3": {
+        "3": {
+          "tokens_in": 3881,
+          "tokens_out": 2083,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-2cg9-97gq-9mqp": {
+        "3": {
+          "tokens_in": 3941,
+          "tokens_out": 2455,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-v77h-2w3m-94hx": {
+        "3": {
+          "tokens_in": 3023,
+          "tokens_out": 2369,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-h8m9-jgf8-vwvp": {
+        "3": {
+          "tokens_in": 2514,
+          "tokens_out": 1325,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-65h7-9wrw-629c": {
+        "3": {
+          "tokens_in": 4281,
+          "tokens_out": 1403,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-8wqc-v2q8-vff2": {
+        "3": {
+          "tokens_in": 3703,
+          "tokens_out": 2564,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-rqx4-3f6q-3x2v": {
+        "3": {
+          "tokens_in": 2573,
+          "tokens_out": 2303,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-325j-mg25-8q58": {
+        "3": {
+          "tokens_in": 2919,
+          "tokens_out": 2326,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "github_advisories:GHSA-992q-9gwp-7r79": {
+        "3": {
+          "tokens_in": 3185,
+          "tokens_out": 2451,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2024/10/11/behind-the-scenes-fixing-an-in-the-wild-firefox-exploit/": {
+        "3": {
+          "tokens_in": 2058,
+          "tokens_out": 2191,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-06": {
+        "3": {
+          "tokens_in": 1784,
+          "tokens_out": 2182,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-07": {
+        "3": {
+          "tokens_in": 1760,
+          "tokens_out": 2278,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-08": {
+        "3": {
+          "tokens_in": 1758,
+          "tokens_out": 2221,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-09": {
+        "3": {
+          "tokens_in": 2322,
+          "tokens_out": 1830,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-10": {
+        "3": {
+          "tokens_in": 1795,
+          "tokens_out": 2068,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202604-03": {
+        "3": {
+          "tokens_in": 1840,
+          "tokens_out": 2116,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202604-04": {
+        "3": {
+          "tokens_in": 1849,
+          "tokens_out": 2095,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202603-01": {
+        "3": {
+          "tokens_in": 2405,
+          "tokens_out": 2281,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2026/08/10/updated-gpg-key-for-signing-firefox-and-thunderbird-releases/": {
+        "3": {
+          "tokens_in": 4658,
+          "tokens_out": 2137,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-14": {
+        "3": {
+          "tokens_in": 1848,
+          "tokens_out": 2302,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-15": {
+        "3": {
+          "tokens_in": 2635,
+          "tokens_out": 2194,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-16": {
+        "3": {
+          "tokens_in": 1749,
+          "tokens_out": 2070,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-22": {
+        "3": {
+          "tokens_in": 2283,
+          "tokens_out": 2215,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202511-03": {
+        "3": {
+          "tokens_in": 1759,
+          "tokens_out": 2097,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202511-04": {
+        "3": {
+          "tokens_in": 2099,
+          "tokens_out": 1952,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202511-05": {
+        "3": {
+          "tokens_in": 2386,
+          "tokens_out": 1998,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-01": {
+        "3": {
+          "tokens_in": 2574,
+          "tokens_out": 2131,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-02": {
+        "3": {
+          "tokens_in": 2627,
+          "tokens_out": 2184,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-03": {
+        "3": {
+          "tokens_in": 2616,
+          "tokens_out": 2100,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-04": {
+        "3": {
+          "tokens_in": 1778,
+          "tokens_out": 2007,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202601-05": {
+        "3": {
+          "tokens_in": 1865,
+          "tokens_out": 2258,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2026/06/29/improving-transparency-and-assurance-in-the-web-pki-mozilla-root-store-policy-v3-1/": {
+        "3": {
+          "tokens_in": 3428,
+          "tokens_out": 2137,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-34": {
+        "3": {
+          "tokens_in": 2905,
+          "tokens_out": 2269,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202609-02": {
+        "3": {
+          "tokens_in": 3129,
+          "tokens_out": 2126,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202609-03": {
+        "3": {
+          "tokens_in": 2641,
+          "tokens_out": 2191,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-11": {
+        "3": {
+          "tokens_in": 2374,
+          "tokens_out": 1972,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-12": {
+        "3": {
+          "tokens_in": 1901,
+          "tokens_out": 2152,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2025/05/17/firefox-security-response-to-pwn2own-2025/": {
+        "3": {
+          "tokens_in": 2359,
+          "tokens_out": 2167,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202512-01": {
+        "3": {
+          "tokens_in": 1818,
+          "tokens_out": 2147,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-32": {
+        "3": {
+          "tokens_in": 1752,
+          "tokens_out": 2187,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-33": {
+        "3": {
+          "tokens_in": 1814,
+          "tokens_out": 2089,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "gentoo_glsa_rss:https://security.gentoo.org/glsa/202608-13": {
+        "3": {
+          "tokens_in": 1783,
+          "tokens_out": 2297,
+          "tokens_in_source": "recount_proxy"
+        }
+      },
+      "mozilla_security_rss:https://blog.mozilla.org/security/2024/04/04/rapidly-leveling-up-firefox-security/": {
+        "3": {
+          "tokens_in": 3521,
+          "tokens_out": 2191,
+          "tokens_in_source": "recount_proxy"
+        }
+      }
+    }
+  }
+}

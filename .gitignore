@@ -102,3 +102,21 @@ intelnexus/data/result_cache/
 # zcode
 .zcode/
 
+# 投稿辅助交付目录（论文A整改产物：图/表/修正文案/文献清单，独立于仓库，不入库）
+paper_A/
+
+# ---------------------------------------------------------------------------
+# 论文 A 实验管线产物（experiments/）
+# 运行记录含云端原始响应与模型输出，仓库公开，一律不入库；
+# 原始抓取页面同理（只保留哈希清单与统计）。
+# ---------------------------------------------------------------------------
+experiments/runs/
+experiments/data/snapshot/raw/
+experiments/reports/privacy.json
+experiments/reports/privacy_scan.json
+
+# 预训练模型与分词器本体（684 MB + 10.9 MB，均可由命令重新拉取，不入库）
+experiments/data/bert_base_multilingual_cased/
+experiments/data/qwen_tokenizer/
+# BERTScore 逐条分数缓存（可由 aggregate 重算，非事实源）
+experiments/reports/bertscore_cache.jsonl

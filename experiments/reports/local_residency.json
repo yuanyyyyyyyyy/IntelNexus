@@ -1,0 +1,33 @@
+{
+  "generated_at": "2026-09-14T09:10:22Z",
+  "config": "qwen3:4b",
+  "model": "qwen3:4b",
+  "trials": [
+    {
+      "num_ctx": 8192,
+      "n_items": 2,
+      "item_latency_s": 41.2,
+      "size_gb": 3.8,
+      "processor_raw": "100% GPU",
+      "gpu_share": 1.0,
+      "verdict": "full-ok",
+      "error": null
+    },
+    {
+      "num_ctx": 4096,
+      "n_items": 2,
+      "item_latency_s": 41.94,
+      "size_gb": 3.2,
+      "processor_raw": "100% GPU",
+      "gpu_share": 1.0,
+      "verdict": "full-ok",
+      "error": null
+    }
+  ],
+  "thresholds": {
+    "gpu_share_ok": 0.95,
+    "latency_ok_s": 90.0
+  },
+  "verdict": "full-ok",
+  "recommendations": []
+}

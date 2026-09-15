@@ -1,0 +1,180 @@
+{
+  "probed_at": true,
+  "results": [
+    {
+      "id": "nvd_cve_api",
+      "name": "NVD CVE API 2.0",
+      "category": "漏洞公告数据库",
+      "url": "https://services.nvd.nist.gov/rest/json/cves/2.0",
+      "ok": true,
+      "http_status": 200,
+      "error": null,
+      "robots_allowed": true,
+      "robots_source": "no-robots(404)",
+      "n_items": 3,
+      "sample": {
+        "native_id": "CVE-1999-0095",
+        "title": "",
+        "summary_len": 89,
+        "published": "1988-10-01T04:00:00.000",
+        "top_level_keys": [
+          "cve"
+        ]
+      },
+      "detail_fetch": null,
+      "suggestion": null
+    },
+    {
+      "id": "cisa_kev",
+      "name": "CISA Known Exploited Vulnerabilities",
+      "category": "公开威胁通告",
+      "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
+      "ok": true,
+      "http_status": 200,
+      "error": null,
+      "robots_allowed": true,
+      "robots_source": "robots.txt",
+      "n_items": 1709,
+      "sample": {
+        "native_id": "CVE-2026-84869",
+        "title": "",
+        "summary_len": 248,
+        "published": "2026-09-11",
+        "top_level_keys": [
+          "cveID",
+          "vendorProject",
+          "product",
+          "vulnerabilityName",
+          "dateAdded",
+          "shortDescription",
+          "requiredAction",
+          "dueDate",
+          "knownRansomwareCampaignUse",
+          "forensicTriage",
+          "notes",
+          "cwes"
+        ]
+      },
+      "detail_fetch": null,
+      "suggestion": null
+    },
+    {
+      "id": "cisa_advisories_rss",
+      "name": "CISA Cybersecurity Advisories (RSS)",
+      "category": "公开威胁通告",
+      "url": "https://www.cisa.gov/cybersecurity-advisories/all.xml",
+      "ok": true,
+      "http_status": 200,
+      "error": null,
+      "robots_allowed": true,
+      "robots_source": "cached",
+      "n_items": 30,
+      "sample": {
+        "title": "CISA Adds Three Known Exploited Vulnerabilities to Catalog",
+        "link": "https://www.cisa.gov/news-events/alerts/2026/09/11/cisa-adds-three-known-exploited-vulnerabilities-catalog",
+        "summary_len": 1813,
+        "published": "Fri, 11 Sep 26 12:00:00 +0000"
+      },
+      "detail_fetch": {
+        "ok": true,
+        "status": 200,
+        "robots_allowed": true,
+        "text_len": 1940
+      },
+      "suggestion": null
+    },
+    {
+      "id": "msrc_cvrf",
+      "name": "Microsoft Security Update Guide (CVRF)",
+      "category": "厂商安全公告",
+      "url": "https://api.msrc.microsoft.com/cvrf/v2.0/updates",
+      "ok": true,
+      "http_status": 200,
+      "error": null,
+      "robots_allowed": true,
+      "robots_source": "no-robots(404)",
+      "n_items": 192,
+      "sample": {
+        "native_id": "",
+        "title": "",
+        "summary_len": 0,
+        "published": null,
+        "top_level_keys": [
+          "ID",
+          "Alias",
+          "DocumentTitle",
+          "Severity",
+          "InitialReleaseDate",
+          "CurrentReleaseDate",
+          "CvrfUrl"
+        ]
+      },
+      "detail_fetch": null,
+      "suggestion": null
+    },
+    {
+      "id": "github_advisories",
+      "name": "GitHub Advisory Database (public export)",
+      "category": "漏洞公告数据库",
+      "url": "https://api.github.com/advisories",
+      "ok": true,
+      "http_status": 200,
+      "error": null,
+      "robots_allowed": true,
+      "robots_source": "no-robots(404)",
+      "n_items": 3,
+      "sample": {
+        "native_id": "GHSA-992q-9gwp-7r79",
+        "title": "",
+        "summary_len": 74,
+        "published": "2026-09-11T22:13:21Z",
+        "top_level_keys": [
+          "ghsa_id",
+          "cve_id",
+          "url",
+          "html_url",
+          "summary",
+          "description",
+          "type",
+          "severity",
+          "repository_advisory_url",
+          "source_code_location",
+          "identifiers",
+          "references"
+        ]
+      },
+      "detail_fetch": null,
+      "suggestion": null
+    },
+    {
+      "id": "qianxin_ti",
+      "name": "奇安信威胁情报中心",
+      "category": "公开威胁通告",
+      "url": "https://ti.qianxin.com/rss",
+      "ok": true,
+      "http_status": 200,
+      "error": null,
+      "robots_allowed": true,
+      "robots_source": "robots.txt",
+      "n_items": 0,
+      "sample": null,
+      "detail_fetch": null,
+      "suggestion": "抓到 0 条，需核对 items_path / id_field / summary_field"
+    },
+    {
+      "id": "redhat_security_rss",
+      "name": "Red Hat Security Advisories (RSS)",
+      "category": "厂商安全公告",
+      "url": "https://access.redhat.com/hydra/rest/securitydata/rss",
+      "ok": false,
+      "http_status": 404,
+      "error": "http-404",
+      "robots_allowed": true,
+      "robots_source": "robots.txt",
+      "n_items": 0,
+      "sample": null,
+      "detail_fetch": null,
+      "suggestion": "不可达，表1 不列此源"
+    }
+  ]
+}

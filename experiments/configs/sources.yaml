@@ -1,0 +1,193 @@
+# 数据集信源候选清单（R1 / 表1）
+# ---------------------------------------------------------------------------
+# 纪律：
+# 1. 只采公开可访问、无需认证的内容；遵守 robots.txt；全局最小间隔 ≥2s；
+#    明确 User-Agent；不采个人信息。
+# 2. 实际可用性由 `collect/probe_sources.py` 实测决定，不可达的源直接剔除，
+#    并在表1 只列实际采集到的信源——不得把不可达的源写进论文。
+# 3. summary_field 是参考摘要字段（R3 的 ROUGE-L / BERTScore 依赖它）；
+#    没有官方摘要字段的源不进入评测集。
+
+global:
+  min_interval_s: 2.0
+  user_agent: "IntelNexusResearchBot/1.0 (academic; +https://github.com/zero-one-his2607/IntelNexus)"
+  timeout_s: 20
+  max_retries: 2
+  respect_robots: true
+
+sources:
+  - id: nvd_cve_api
+    name: "NVD CVE API 2.0"
+    category: "漏洞公告"
+    kind: api_json
+    url: "https://services.nvd.nist.gov/rest/json/cves/2.0"
+    params_template: "resultsPerPage={limit}&startIndex={offset}"
+    robots: null
+    min_interval_s: 6.0          # NVD 无密钥限流要求（沿用项目既有实现）
+    items_path: "vulnerabilities"
+    summary_field: "cve.descriptions"
+    id_field: "cve.id"
+    title_field: "cve.id"
+    url_template: "https://nvd.nist.gov/vuln/detail/{id}"
+    published_field: "cve.published"
+    # NVD 只有描述全文，没有更长的正文；若既作正文又作参考摘要会造成
+    # "输入即答案"，故本源不进入质量评测集，仅用于构成、时延、吞吐与成本测量
+    content_from: inline
+    content_field: "cve.descriptions"
+    quality_eligible: false
+    # NVD 默认按 CVE 编号升序返回（会从 1999 年条目开始），需限定发布窗口；
+    # 实测该 API 对 pubStartDate/pubEndDate 的跨度上限约 120 天，超出返回 404
+    window_days: 110
+    # 窗口内多点取样（startIndex），避免时间跨度只有一两天
+    start_indexes: [0, 1500, 3500, 6000, 10000]
+    enabled: true
+
+  - id: cisa_kev
+    name: "CISA Known Exploited Vulnerabilities"
+    category: "公开威胁通告"
+    kind: api_json
+    url: "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+    robots: "https://www.cisa.gov/robots.txt"
+    min_interval_s: 2.0
+    items_path: "vulnerabilities"
+    summary_field: "shortDescription"
+    id_field: "cveID"
+    title_field: "vulnerabilityName"
+    url_template: "https://www.cisa.gov/known-exploited-vulnerabilities-catalog?search_api_fulltext={id}"
+    published_field: "dateAdded"
+    # 原设计用 NVD 描述做正文（跨源配对），但 KEV 覆盖二十余年的 CVE，
+    # 与 NVD 近期窗口交集极小（实测匹配 0 条）。改为正文即 shortDescription，
+    # 仅用于数据集构成、时延、吞吐与成本测量，不进入质量评测集。
+    content_from: inline
+    content_field: "shortDescription"
+    quality_eligible: false
+    enabled: true
+
+  - id: cisa_advisories_rss
+    name: "CISA Cybersecurity Advisories (RSS)"
+    category: "公开威胁通告"
+    kind: rss
+    url: "https://www.cisa.gov/cybersecurity-advisories/all.xml"
+    robots: "https://www.cisa.gov/robots.txt"
+    min_interval_s: 2.0
+    summary_field: "description"
+    id_field: "link"
+    title_field: "title"
+    published_field: "pubDate"
+    # 实测：CISA 的 RSS description 已是公告全文（约 1.8k 字符），
+    # 与详情页正文近乎同源，故不进入质量评测集，仅用于构成与时延测量
+    content_from: detail
+    quality_eligible: false
+    enabled: true
+
+  - id: msrc_cvrf
+    name: "Microsoft Security Update Guide (CVRF)"
+    category: "厂商安全公告"
+    kind: api_json
+    url: "https://api.msrc.microsoft.com/cvrf/v2.0/updates"
+    robots: null
+    min_interval_s: 2.0
+    items_path: "$"
+    summary_field: "DocumentTitle.Value"
+    id_field: "ID"
+    title_field: "DocumentTitle.Value"
+    published_field: "InitialReleaseDate"
+    # 实测（reports/source_probe.json）：/updates 只返回月度文档索引，
+    # 无逐条漏洞摘要字段，摘要长度 0，无法作为参考摘要 → 不启用
+    content_from: inline
+    quality_eligible: false
+    enabled: false
+
+  - id: github_advisories
+    name: "GitHub Advisory Database"
+    category: "厂商安全公告"
+    kind: api_json
+    url: "https://api.github.com/advisories"
+    params_template: "per_page={limit}&page={page}"
+    max_per_page: 100
+    robots: null
+    min_interval_s: 2.0
+    items_path: "$"
+    summary_field: "summary"
+    id_field: "ghsa_id"
+    title_field: "cve_id"
+    url_field: "html_url"
+    published_field: "published_at"
+    # 正文取 description（完整公告正文），参考摘要取 summary（官方一行摘要）
+    # —— 类似 XSum 的极端摘要设定，正文与金标不同源
+    content_from: field
+    content_field: "description"
+    quality_eligible: true
+    enabled: true
+
+  - id: ubuntu_usn_rss
+    name: "Ubuntu Security Notices (USN)"
+    category: "厂商安全公告"
+    kind: rss
+    url: "https://ubuntu.com/usn/rss.xml"
+    robots: "https://ubuntu.com/robots.txt"
+    min_interval_s: 2.0
+    summary_field: "description"
+    id_field: "link"
+    title_field: "title"
+    published_field: "pubDate"
+    # 正文取详情页，参考摘要取 RSS description（官方摘要段落）
+    content_from: detail
+    quality_eligible: true
+    enabled: true
+
+  - id: mozilla_security_rss
+    name: "Mozilla Security Blog"
+    category: "厂商安全公告"
+    kind: rss
+    url: "https://blog.mozilla.org/security/feed/"
+    robots: "https://blog.mozilla.org/robots.txt"
+    min_interval_s: 2.0
+    summary_field: "description"
+    id_field: "link"
+    title_field: "title"
+    published_field: "pubDate"
+    content_from: detail
+    quality_eligible: true
+    enabled: true
+
+  - id: gentoo_glsa_rss
+    name: "Gentoo Linux Security Advisories (GLSA)"
+    category: "厂商安全公告"
+    kind: rss
+    url: "https://security.gentoo.org/glsa/feed.rss"
+    robots: "https://security.gentoo.org/robots.txt"
+    min_interval_s: 2.0
+    summary_field: "description"
+    id_field: "link"
+    title_field: "title"
+    published_field: "pubDate"
+    content_from: detail
+    quality_eligible: true
+    enabled: true
+
+  - id: qianxin_ti
+    name: "奇安信威胁情报中心"
+    category: "公开威胁通告"
+    kind: rss
+    url: "https://ti.qianxin.com/rss"
+    robots: "https://ti.qianxin.com/robots.txt"
+    min_interval_s: 2.0
+    summary_field: "summary"
+    id_field: "link"
+    published_field: "published"
+    # 实测返回 0 条（RSS 地址失效），表1 不列此源
+    enabled: false
+
+  - id: redhat_security_rss
+    name: "Red Hat Security Advisories (RSS)"
+    category: "厂商安全公告"
+    kind: rss
+    url: "https://access.redhat.com/hydra/rest/securitydata/rss"
+    robots: "https://access.redhat.com/robots.txt"
+    min_interval_s: 2.0
+    summary_field: "summary"
+    id_field: "link"
+    published_field: "published"
+    # 实测 404，表1 不列此源
+    enabled: false

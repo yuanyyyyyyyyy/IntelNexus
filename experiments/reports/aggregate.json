@@ -1,0 +1,506 @@
+{
+  "generated_at": "2026-09-15T12:51:30Z",
+  "stage": "full",
+  "runs_included": [
+    "20260914T091753Z-qwen3-8b-r1-p61kksni",
+    "20260914T093212Z-cloud_flagship-r1-qgwljxc2",
+    "20260914T102539Z-cloud_flagship-r2-4zc2fan5",
+    "20260914T111846Z-cloud_flagship-r3-5m9qu288",
+    "20260914T121108Z-cloud_light-r1-6szawvwt",
+    "20260914T125926Z-qwen3-8b-r2-ndvsq3ge",
+    "20260914T131251Z-cloud_light-r2-9z0k9gw0",
+    "20260914T141334Z-cloud_light-r3-x9c30ij1",
+    "20260914T165536Z-qwen3-8b-r3-ujc37wrz",
+    "20260914T235340Z-baseline_keyword-r1-pdh2v2mw",
+    "20260914T235341Z-baseline_keyword-r2-qa4ku89e",
+    "20260914T235342Z-baseline_keyword-r3-k0wdndxk",
+    "20260914T235342Z-baseline_textrank-r1-ltej4qae",
+    "20260914T235347Z-baseline_textrank-r2-3q75dyud",
+    "20260914T235348Z-baseline_textrank-r3-pmbdf3u0",
+    "20260914T235350Z-baseline_tfidf-r1-g79pd9qz",
+    "20260914T235355Z-baseline_tfidf-r2-h9z6d66n",
+    "20260914T235359Z-baseline_tfidf-r3-bvxp8g3b"
+  ],
+  "n_runs": 18,
+  "configs": {
+    "qwen3:8b": {
+      "n_items": 100,
+      "n_records": 300,
+      "n_valid": 300,
+      "n_failed": 0,
+      "n_repeats": 3,
+      "model_version": "qwen3:8b",
+      "rouge_l": {
+        "mean": 0.00841423395609589,
+        "sd": 0.007335651575710892,
+        "n": 300
+      },
+      "bertscore": {
+        "mean": 0.5713143116235733,
+        "sd": 0.016751909825660025,
+        "n": 300
+      },
+      "bertscore_head": {
+        "mean": 0.6344086909294129,
+        "sd": 0.026705853803629852,
+        "n": 300
+      },
+      "entity_f1": {
+        "mean": 0.213342867187917,
+        "sd": 0.2279964279262679,
+        "n": 294
+      },
+      "rouge_l_head": {
+        "mean": 0.023313992014486484,
+        "sd": 0.023143624042548293,
+        "n": 300
+      },
+      "entity_f1_ref": {
+        "mean": 0.05268440709617181,
+        "sd": 0.12189767954221736,
+        "n": 102
+      },
+      "human": null,
+      "latency_p50": 152.21785,
+      "latency_p95": 180.46453,
+      "latency_mean": 136.43071066666667,
+      "throughput_per_min": {
+        "mean": 0.44,
+        "sd": 0.01732050807568879,
+        "n": 3
+      },
+      "peak_gpu_mb": 4176.0,
+      "peak_rss_mb": 206.65234375,
+      "tokens_in_mean": 2882.5,
+      "tokens_out_mean": 1672.54,
+      "usage_source": "api_usage",
+      "cost_per_item_mean": 0.02494530971888483,
+      "cost_token_in": null,
+      "cost_token_out": null,
+      "cost_local": 0.02494530971888483,
+      "egress_bytes": 0,
+      "egress_destinations": [
+        "127.0.0.1"
+      ]
+    },
+    "cloud_flagship": {
+      "n_items": 100,
+      "n_records": 300,
+      "n_valid": 300,
+      "n_failed": 0,
+      "n_repeats": 3,
+      "model_version": "qwen3-max",
+      "rouge_l": {
+        "mean": 0.006206568331645137,
+        "sd": 0.0059458155624929395,
+        "n": 300
+      },
+      "bertscore": {
+        "mean": 0.5799289055665334,
+        "sd": 0.01646747448182127,
+        "n": 300
+      },
+      "bertscore_head": {
+        "mean": 0.6021733554204305,
+        "sd": 0.01771748734566787,
+        "n": 300
+      },
+      "entity_f1": {
+        "mean": 0.40881689794144593,
+        "sd": 0.1816975058192094,
+        "n": 294
+      },
+      "rouge_l_head": {
+        "mean": 0.013644266707835365,
+        "sd": 0.011621309163728019,
+        "n": 300
+      },
+      "entity_f1_ref": {
+        "mean": 0.17508394623446527,
+        "sd": 0.20425783432980738,
+        "n": 102
+      },
+      "human": null,
+      "latency_p50": 31.772,
+      "latency_p95": 39.05124,
+      "latency_mean": 31.778657000000003,
+      "throughput_per_min": {
+        "mean": 1.8866666666666667,
+        "sd": 0.020816659994661257,
+        "n": 3
+      },
+      "peak_gpu_mb": null,
+      "peak_rss_mb": 225.64453125,
+      "tokens_in_mean": 2882.5,
+      "tokens_out_mean": 1580.65,
+      "usage_source": "recount_proxy",
+      "cost_per_item_mean": 0.023012750000000002,
+      "cost_token_in": 0.00720625,
+      "cost_token_out": 0.0158065,
+      "cost_local": null,
+      "egress_bytes": 85048,
+      "egress_destinations": [
+        "dashscope.aliyuncs.com"
+      ]
+    },
+    "cloud_light": {
+      "n_items": 100,
+      "n_records": 300,
+      "n_valid": 300,
+      "n_failed": 0,
+      "n_repeats": 3,
+      "model_version": "qwen-plus",
+      "rouge_l": {
+        "mean": 0.005969493638955811,
+        "sd": 0.005428090907158607,
+        "n": 300
+      },
+      "bertscore": {
+        "mean": 0.5787274052699407,
+        "sd": 0.01781623921720338,
+        "n": 300
+      },
+      "bertscore_head": {
+        "mean": 0.6009066540002823,
+        "sd": 0.0217176091690742,
+        "n": 300
+      },
+      "entity_f1": {
+        "mean": 0.35566267731064544,
+        "sd": 0.1661519907378148,
+        "n": 294
+      },
+      "rouge_l_head": {
+        "mean": 0.016614434587679618,
+        "sd": 0.014567138335779769,
+        "n": 300
+      },
+      "entity_f1_ref": {
+        "mean": 0.15336772700244944,
+        "sd": 0.1762233039748068,
+        "n": 102
+      },
+      "human": null,
+      "latency_p50": 34.63065,
+      "latency_p95": 53.719965,
+      "latency_mean": 36.92527666666667,
+      "throughput_per_min": {
+        "mean": 1.6266666666666667,
+        "sd": 0.020816659994661223,
+        "n": 3
+      },
+      "peak_gpu_mb": null,
+      "peak_rss_mb": 150.75390625,
+      "tokens_in_mean": 2882.5,
+      "tokens_out_mean": 2146.6,
+      "usage_source": "recount_proxy",
+      "cost_per_item_mean": 0.0065991999999999995,
+      "cost_token_in": 0.002306,
+      "cost_token_out": 0.0042932,
+      "cost_local": null,
+      "egress_bytes": 85048,
+      "egress_destinations": [
+        "dashscope.aliyuncs.com"
+      ]
+    },
+    "baseline_keyword": {
+      "n_items": 100,
+      "n_records": 300,
+      "n_valid": 300,
+      "n_failed": 0,
+      "n_repeats": 3,
+      "model_version": "baseline-keyword",
+      "rouge_l": {
+        "mean": 0.13236767081815298,
+        "sd": 0.18986356202180757,
+        "n": 288
+      },
+      "bertscore": {
+        "mean": 0.6585372394571701,
+        "sd": 0.06820760187324452,
+        "n": 288
+      },
+      "bertscore_head": {
+        "mean": 0.6585372394571701,
+        "sd": 0.06820760187324452,
+        "n": 288
+      },
+      "entity_f1": {
+        "mean": 0.20246003524064748,
+        "sd": 0.2608415799115971,
+        "n": 294
+      },
+      "rouge_l_head": {
+        "mean": 0.13236767081815298,
+        "sd": 0.18986356202180757,
+        "n": 288
+      },
+      "entity_f1_ref": {
+        "mean": 0.6666666666666666,
+        "sd": 0.4667138118571357,
+        "n": 102
+      },
+      "human": null,
+      "latency_p50": 0.0004,
+      "latency_p95": 0.002810000000000002,
+      "latency_mean": 0.0007813333333333333,
+      "throughput_per_min": {
+        "mean": 26497.523333333334,
+        "sd": 1146.8554504092194,
+        "n": 3
+      },
+      "peak_gpu_mb": 3139.0,
+      "peak_rss_mb": 39.6640625,
+      "tokens_in_mean": null,
+      "tokens_out_mean": null,
+      "usage_source": "none",
+      "cost_per_item_mean": null,
+      "cost_token_in": null,
+      "cost_token_out": null,
+      "cost_local": null,
+      "egress_bytes": null,
+      "egress_destinations": null
+    },
+    "baseline_textrank": {
+      "n_items": 100,
+      "n_records": 300,
+      "n_valid": 300,
+      "n_failed": 0,
+      "n_repeats": 3,
+      "model_version": "baseline-textrank",
+      "rouge_l": {
+        "mean": 0.12151623327153703,
+        "sd": 0.14437963505629534,
+        "n": 300
+      },
+      "bertscore": {
+        "mean": 0.6499481344223023,
+        "sd": 0.07112963986680848,
+        "n": 300
+      },
+      "bertscore_head": {
+        "mean": 0.6499481344223023,
+        "sd": 0.07112963986680848,
+        "n": 300
+      },
+      "entity_f1": {
+        "mean": 0.2382304361532895,
+        "sd": 0.27746451910405223,
+        "n": 294
+      },
+      "rouge_l_head": {
+        "mean": 0.12151623327153703,
+        "sd": 0.14437963505629534,
+        "n": 300
+      },
+      "entity_f1_ref": {
+        "mean": 0.5980392156862745,
+        "sd": 0.47913158354933594,
+        "n": 102
+      },
+      "human": null,
+      "latency_p50": 0.005,
+      "latency_p95": 0.06868500000000005,
+      "latency_mean": 0.022638333333333333,
+      "throughput_per_min": {
+        "mean": 2994.11,
+        "sd": 1335.202287745194,
+        "n": 3
+      },
+      "peak_gpu_mb": 3139.0,
+      "peak_rss_mb": 213.6015625,
+      "tokens_in_mean": null,
+      "tokens_out_mean": null,
+      "usage_source": "none",
+      "cost_per_item_mean": null,
+      "cost_token_in": null,
+      "cost_token_out": null,
+      "cost_local": null,
+      "egress_bytes": null,
+      "egress_destinations": null
+    },
+    "baseline_tfidf": {
+      "n_items": 100,
+      "n_records": 300,
+      "n_valid": 300,
+      "n_failed": 0,
+      "n_repeats": 3,
+      "model_version": "baseline-tfidf",
+      "rouge_l": {
+        "mean": 0.1404904399799607,
+        "sd": 0.16962734986110192,
+        "n": 300
+      },
+      "bertscore": {
+        "mean": 0.674500727057457,
+        "sd": 0.06293434125230563,
+        "n": 300
+      },
+      "bertscore_head": {
+        "mean": 0.674500727057457,
+        "sd": 0.06293434125230563,
+        "n": 300
+      },
+      "entity_f1": {
+        "mean": 0.17302279997358028,
+        "sd": 0.24538611983745776,
+        "n": 294
+      },
+      "rouge_l_head": {
+        "mean": 0.1404904399799607,
+        "sd": 0.16962734986110192,
+        "n": 300
+      },
+      "entity_f1_ref": {
+        "mean": 0.5,
+        "sd": 0.5024691508189856,
+        "n": 102
+      },
+      "human": null,
+      "latency_p50": 0.007350000000000001,
+      "latency_p95": 0.23264500000000005,
+      "latency_mean": 0.037525333333333334,
+      "throughput_per_min": {
+        "mean": 1526.926666666667,
+        "sd": 9.570080111124149,
+        "n": 3
+      },
+      "peak_gpu_mb": 3139.0,
+      "peak_rss_mb": 207.19921875,
+      "tokens_in_mean": null,
+      "tokens_out_mean": null,
+      "usage_source": "none",
+      "cost_per_item_mean": null,
+      "cost_token_in": null,
+      "cost_token_out": null,
+      "cost_local": null,
+      "egress_bytes": null,
+      "egress_destinations": null
+    }
+  },
+  "groups": {
+    "qwen3:8b": "local",
+    "cloud_flagship": "cloud",
+    "cloud_light": "cloud",
+    "baseline_keyword": "baseline",
+    "baseline_textrank": "baseline",
+    "baseline_tfidf": "baseline"
+  },
+  "comparisons": [
+    {
+      "config_a": "qwen3:8b",
+      "config_b": "cloud_flagship",
+      "metric": "rouge_l",
+      "n_pairs": 300,
+      "statistic": 11646.0,
+      "p_value": 6.559602350955405e-08,
+      "method": "scipy.wilcoxon",
+      "cliffs_delta": 0.19930000000000003,
+      "p_adj": 6.559602350955405e-08,
+      "significant": true
+    },
+    {
+      "config_a": "qwen3:8b",
+      "config_b": "cloud_flagship",
+      "metric": "entity_f1",
+      "n_pairs": 294,
+      "statistic": 4572.5,
+      "p_value": 2.7478949985786687e-27,
+      "method": "scipy.wilcoxon",
+      "cliffs_delta": -0.5013188949049008,
+      "p_adj": 8.243684995736007e-27,
+      "significant": true
+    },
+    {
+      "config_a": "qwen3:8b",
+      "config_b": "cloud_flagship",
+      "metric": "human",
+      "n_pairs": 0,
+      "statistic": null,
+      "p_value": null,
+      "cliffs_delta": null,
+      "note": "该指标未实测",
+      "p_adj": null,
+      "significant": null
+    },
+    {
+      "config_a": "qwen3:8b",
+      "config_b": "cloud_flagship",
+      "metric": "latency_p95",
+      "n_pairs": 300,
+      "statistic": 0.0,
+      "p_value": 6.083559849691437e-51,
+      "method": "scipy.wilcoxon",
+      "cliffs_delta": 1.0,
+      "p_adj": 2.4334239398765747e-50,
+      "significant": true
+    },
+    {
+      "config_a": "qwen3:8b",
+      "config_b": "cloud_flagship",
+      "metric": "cost_per_item",
+      "n_pairs": 300,
+      "statistic": 13895.0,
+      "p_value": 7.822548605351205e-09,
+      "method": "scipy.wilcoxon",
+      "cliffs_delta": 0.2714888888888889,
+      "p_adj": 1.564509721070241e-08,
+      "significant": true
+    },
+    {
+      "config_a": "qwen3:8b",
+      "config_b": "cloud_flagship",
+      "metric": "egress_bytes",
+      "n_pairs": 0,
+      "statistic": null,
+      "p_value": null,
+      "cliffs_delta": null,
+      "note": "该指标未实测",
+      "p_adj": null,
+      "significant": null
+    },
+    {
+      "config_a": "cloud_flagship",
+      "config_b": "cloud_light",
+      "metric": "human",
+      "n_pairs": 0,
+      "statistic": null,
+      "p_value": null,
+      "cliffs_delta": null,
+      "note": "该指标未实测",
+      "p_adj": null,
+      "significant": null
+    },
+    {
+      "config_a": "cloud_flagship",
+      "config_b": "baseline_textrank",
+      "metric": "human",
+      "n_pairs": 0,
+      "statistic": null,
+      "p_value": null,
+      "cliffs_delta": null,
+      "note": "该指标未实测",
+      "p_adj": null,
+      "significant": null
+    }
+  ],
+  "human_alpha": null,
+  "primary_metric": "entity_f1",
+  "token_usage": {
+    "applied": 600,
+    "runs": 6,
+    "available": true,
+    "by_source": {
+      "recount_proxy": 600
+    },
+    "tokenizer": "Qwen/Qwen3-8B"
+  },
+  "metric_availability": {
+    "rouge_l": true,
+    "bertscore": true,
+    "bertscore_head": true,
+    "entity_f1": true,
+    "entity_f1_ref": true,
+    "human": false
+  }
+}

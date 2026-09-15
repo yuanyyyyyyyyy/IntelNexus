@@ -1,0 +1,70 @@
+# 成本折算参数（R5 / 表5）
+# ---------------------------------------------------------------------------
+# 纪律：单价与硬件参数必须来自官方定价页面或实测，禁止用估算值顶替**未测项**。
+# 场景参数（电价/购置成本/寿命/利用率）不是被测对象，而是折算假设，
+# 必须显式声明为假设并给出敏感性区间——本文件的 source_note 与 sensitivity 即为此。
+#
+# 填写记录：
+#   2026-09-15  云端单价取自阿里云百炼官方定价页（华北2 北京地域，模型调用原价）
+#   2026-09-15  P_avg_watt 为实测（reports/power_probe.json）
+#   2026-09-15  p_e / C_hw / T_life / D 为场景假设，作者可按实际情况替换
+
+currency: CNY
+retrieved_at: "2026-09-15"
+
+cloud:
+  # 计价口径：按「单次请求输入 Token 总量」落档，该请求全部 Token 按落档单价结算。
+  # 本实验统一输入上限 8000 字符（实测 tokens_in 中位数 2 574，最大 4 658），
+  # 全部落在最低档（qwen3-max ≤32K；qwen-plus ≤128K），故取最低档单价。
+  # token 用量由官方分词器重算（批量运行未采集 API usage），
+  # 依据与限制见 reports/token_recount.json。
+  qwen:
+    flagship:
+      model: "qwen3-max"
+      input_per_1m_tokens: 2.5          # 元/百万 Token（0<Token≤32K 档）
+      output_per_1m_tokens: 10.0        # 元/百万 Token（思维链+回答合并计价）
+      tier_note: "0<Token≤32K 档；32K<Token≤128K 为 4/16，128K<Token≤256K 为 7/28"
+      source_url: "https://help.aliyun.com/zh/model-studio/model-pricing"
+      retrieved_at: "2026-09-15"
+    light:
+      model: "qwen-plus"
+      input_per_1m_tokens: 0.8          # 元/百万 Token（输入≤128K 档，输入不区分思考模式）
+      output_per_1m_tokens: 2.0         # 元/百万 Token（非思考模式）
+      output_per_1m_tokens_thinking: 8.0  # 思考模式（思维链+回答）单价，供校准后择一
+      tier_note: "输入≤128K 档；128K<Token≤256K 为 2.4/20，256K<Token≤1M 为 4.8/48"
+      source_url: "https://help.aliyun.com/zh/model-studio/qwen-plus"
+      retrieved_at: "2026-09-15"
+  deepseek:
+    # 敏感性对照（6.4 节）未运行，单价留空；不参与表5
+    flagship:
+      model: null
+      input_per_1m_tokens: null
+      output_per_1m_tokens: null
+      source_url: "https://api-docs.deepseek.com/zh-cn/quick_start/pricing"
+      retrieved_at: null
+
+local:
+  # 式(1)：C_local = P_avg/1000 × T × p_e + C_hw × T / (T_life × 365 × 24 × D)
+  # T 为单次推理时长（小时），由实测 latency_s 换算。
+  P_avg_watt: 38.7             # 实测：CPU 封装 17.40 W + GPU 21.33 W（整机功耗**下界**）
+  P_avg_measured: true
+  p_e_yuan_per_kwh: 0.49       # 场景假设：居民阶梯电价第一档量级
+  C_hw_yuan: 7000              # 场景假设：该配置级别整机市场价
+  T_life_years: 5              # 场景假设：标称寿命
+  D_utilization: 0.25          # 场景假设：日均利用率（≈6 h/天）
+  source_note: >-
+    P_avg_watt 为实测下界（experiments/reports/power_probe.json：推理期间
+    CPU 封装 17.40 W + GPU 21.33 W，未含屏幕/内存/芯片组/存储）。
+    p_e、C_hw、T_life、D 为**场景假设而非实测**：p_e 取居民阶梯电价第一档量级、
+    C_hw 取该配置级别整机市场价、T_life 取 5 年、D 取 0.25（日均 6 小时）。
+    作者可按所在地电价与实际购置价替换；替换后重跑 aggregate 与 figure 即全表更新。
+    折旧项在本折算中占主导（电费项占比不足 3%），故 5.3 节对 C_hw 与 D 的敏感性
+    分析是结论稳健性的关键。
+
+sensitivity:
+  # 5.3 节敏感性分析：对每个参数取低/高值，观察结论是否翻转
+  P_avg_watt: [38.7, 77.4]
+  p_e_yuan_per_kwh: [0.49, 1.0]
+  C_hw_yuan: [5000, 12000]
+  T_life_years: [3, 8]
+  D_utilization: [0.1, 0.5]

@@ -1,0 +1,890 @@
+{
+  "generated_from": "D:\\Edge\\信息安全与通信保密期刊－20260911\\_build\\content",
+  "total_slots": 98,
+  "bound": 94,
+  "unbound": 4,
+  "slots": {
+    "04_expdesign.md:3:1": {
+      "source": "dataset",
+      "path": [
+        "totals",
+        "kept"
+      ],
+      "fmt": "int"
+    },
+    "04_expdesign.md:7:2": {
+      "source": "dataset",
+      "path": [
+        "table1_by_category",
+        "漏洞公告",
+        "raw_count"
+      ],
+      "fmt": "int"
+    },
+    "04_expdesign.md:7:3": {
+      "source": "dataset",
+      "path": [
+        "table1_by_category",
+        "漏洞公告",
+        "span"
+      ],
+      "fmt": "str"
+    },
+    "04_expdesign.md:7:4": {
+      "source": "dataset",
+      "path": [
+        "table1_by_category",
+        "漏洞公告",
+        "dedup_count"
+      ],
+      "fmt": "int"
+    },
+    "04_expdesign.md:8:5": {
+      "source": "dataset",
+      "path": [
+        "table1_by_category",
+        "厂商安全公告",
+        "representative"
+      ],
+      "fmt": "str"
+    },
+    "04_expdesign.md:8:6": {
+      "source": "dataset",
+      "path": [
+        "table1_by_category",
+        "厂商安全公告",
+        "raw_count"
+      ],
+      "fmt": "int"
+    },
+    "04_expdesign.md:8:7": {
+      "source": "dataset",
+      "path": [
+        "table1_by_category",
+        "厂商安全公告",
+        "span"
+      ],
+      "fmt": "str"
+    },
+    "04_expdesign.md:8:8": {
+      "source": "dataset",
+      "path": [
+        "table1_by_category",
+        "厂商安全公告",
+        "dedup_count"
+      ],
+      "fmt": "int"
+    },
+    "04_expdesign.md:9:9": {
+      "source": "dataset",
+      "path": [
+        "table1_by_category",
+        "公开威胁通告",
+        "representative"
+      ],
+      "fmt": "str"
+    },
+    "04_expdesign.md:9:10": {
+      "source": "dataset",
+      "path": [
+        "table1_by_category",
+        "公开威胁通告",
+        "raw_count"
+      ],
+      "fmt": "int"
+    },
+    "04_expdesign.md:9:11": {
+      "source": "dataset",
+      "path": [
+        "table1_by_category",
+        "公开威胁通告",
+        "span"
+      ],
+      "fmt": "str"
+    },
+    "04_expdesign.md:9:12": {
+      "source": "dataset",
+      "path": [
+        "table1_by_category",
+        "公开威胁通告",
+        "dedup_count"
+      ],
+      "fmt": "int"
+    },
+    "04_expdesign.md:10:13": {
+      "source": "dataset",
+      "path": [
+        "totals",
+        "collected"
+      ],
+      "fmt": "int"
+    },
+    "04_expdesign.md:10:14": {
+      "source": "dataset",
+      "path": [
+        "overall_span"
+      ],
+      "fmt": "str"
+    },
+    "04_expdesign.md:10:15": {
+      "source": "dataset",
+      "path": [
+        "totals",
+        "kept"
+      ],
+      "fmt": "int"
+    },
+    "04_expdesign.md:31:1": {
+      "source": "pricing",
+      "path": [
+        "local",
+        "P_avg_watt"
+      ],
+      "fmt": "float",
+      "digits": 1
+    },
+    "04_expdesign.md:31:2": {
+      "source": "pricing",
+      "path": [
+        "local",
+        "p_e_yuan_per_kwh"
+      ],
+      "fmt": "float",
+      "digits": 2
+    },
+    "04_expdesign.md:31:3": {
+      "source": "pricing",
+      "path": [
+        "local",
+        "D_utilization"
+      ],
+      "fmt": "float",
+      "digits": 2
+    },
+    "04_expdesign.md:34:1": {
+      "source": "env",
+      "path": [
+        "local_hardware_context"
+      ],
+      "fmt": "str"
+    },
+    "04_expdesign.md:34:2": {
+      "source": "env",
+      "path": [
+        "local_hardware_context"
+      ],
+      "fmt": "str"
+    },
+    "04_expdesign.md:34:3": {
+      "source": "env",
+      "path": [
+        "local_hardware_context"
+      ],
+      "fmt": "str"
+    },
+    "04_expdesign.md:34:4": {
+      "source": "env",
+      "path": [
+        "local_hardware_context"
+      ],
+      "fmt": "str"
+    },
+    "05_results.md:4:1": {
+      "source": "aggregate",
+      "path": [
+        "n_quality_items"
+      ],
+      "fmt": "int"
+    },
+    "05_results.md:5:1": {
+      "source": "aggregate",
+      "path": [
+        "n_quality_items"
+      ],
+      "fmt": "int"
+    },
+    "05_results.md:8:4": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "qwen3:8b",
+        "rouge_l"
+      ],
+      "fmt": "mean_sd",
+      "digits": 3
+    },
+    "05_results.md:8:5": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "qwen3:8b",
+        "bertscore"
+      ],
+      "fmt": "mean_sd",
+      "digits": 3
+    },
+    "05_results.md:8:6": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "qwen3:8b",
+        "entity_f1"
+      ],
+      "fmt": "mean_sd",
+      "digits": 3
+    },
+    "05_results.md:8:7": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "qwen3:8b",
+        "human"
+      ],
+      "fmt": "mean_sd",
+      "digits": 3
+    },
+    "05_results.md:9:8": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "cloud_flagship",
+        "rouge_l"
+      ],
+      "fmt": "mean_sd",
+      "digits": 3
+    },
+    "05_results.md:9:9": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "cloud_flagship",
+        "bertscore"
+      ],
+      "fmt": "mean_sd",
+      "digits": 3
+    },
+    "05_results.md:9:10": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "cloud_flagship",
+        "entity_f1"
+      ],
+      "fmt": "mean_sd",
+      "digits": 3
+    },
+    "05_results.md:9:11": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "cloud_flagship",
+        "human"
+      ],
+      "fmt": "mean_sd",
+      "digits": 3
+    },
+    "05_results.md:10:12": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "cloud_light",
+        "rouge_l"
+      ],
+      "fmt": "mean_sd",
+      "digits": 3
+    },
+    "05_results.md:10:13": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "cloud_light",
+        "bertscore"
+      ],
+      "fmt": "mean_sd",
+      "digits": 3
+    },
+    "05_results.md:10:14": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "cloud_light",
+        "entity_f1"
+      ],
+      "fmt": "mean_sd",
+      "digits": 3
+    },
+    "05_results.md:10:15": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "cloud_light",
+        "human"
+      ],
+      "fmt": "mean_sd",
+      "digits": 3
+    },
+    "05_results.md:11:16": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "baseline_keyword",
+        "rouge_l"
+      ],
+      "fmt": "mean_sd",
+      "digits": 3
+    },
+    "05_results.md:11:17": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "baseline_keyword",
+        "bertscore"
+      ],
+      "fmt": "mean_sd",
+      "digits": 3
+    },
+    "05_results.md:11:18": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "baseline_keyword",
+        "entity_f1"
+      ],
+      "fmt": "mean_sd",
+      "digits": 3
+    },
+    "05_results.md:11:19": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "baseline_keyword",
+        "human"
+      ],
+      "fmt": "mean_sd",
+      "digits": 3
+    },
+    "05_results.md:12:20": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "baseline_textrank",
+        "rouge_l"
+      ],
+      "fmt": "mean_sd",
+      "digits": 3
+    },
+    "05_results.md:12:21": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "baseline_textrank",
+        "bertscore"
+      ],
+      "fmt": "mean_sd",
+      "digits": 3
+    },
+    "05_results.md:12:22": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "baseline_textrank",
+        "entity_f1"
+      ],
+      "fmt": "mean_sd",
+      "digits": 3
+    },
+    "05_results.md:12:23": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "baseline_textrank",
+        "human"
+      ],
+      "fmt": "mean_sd",
+      "digits": 3
+    },
+    "05_results.md:13:24": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "baseline_tfidf",
+        "rouge_l"
+      ],
+      "fmt": "mean_sd",
+      "digits": 3
+    },
+    "05_results.md:13:25": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "baseline_tfidf",
+        "bertscore"
+      ],
+      "fmt": "mean_sd",
+      "digits": 3
+    },
+    "05_results.md:13:26": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "baseline_tfidf",
+        "entity_f1"
+      ],
+      "fmt": "mean_sd",
+      "digits": 3
+    },
+    "05_results.md:13:27": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "baseline_tfidf",
+        "human"
+      ],
+      "fmt": "mean_sd",
+      "digits": 3
+    },
+    "05_results.md:21:29": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "qwen3:8b",
+        "latency_p50"
+      ],
+      "fmt": "float",
+      "digits": 2
+    },
+    "05_results.md:21:30": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "qwen3:8b",
+        "latency_p95"
+      ],
+      "fmt": "float",
+      "digits": 2
+    },
+    "05_results.md:21:31": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "qwen3:8b",
+        "throughput_per_min"
+      ],
+      "fmt": "mean_sd",
+      "digits": 2
+    },
+    "05_results.md:21:32": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "qwen3:8b",
+        "peak_gpu_mb"
+      ],
+      "fmt": "int",
+      "digits": 0
+    },
+    "05_results.md:22:33": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "cloud_flagship",
+        "latency_p50"
+      ],
+      "fmt": "float",
+      "digits": 2
+    },
+    "05_results.md:22:34": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "cloud_flagship",
+        "latency_p95"
+      ],
+      "fmt": "float",
+      "digits": 2
+    },
+    "05_results.md:22:35": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "cloud_flagship",
+        "throughput_per_min"
+      ],
+      "fmt": "mean_sd",
+      "digits": 2
+    },
+    "05_results.md:23:36": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "cloud_light",
+        "latency_p50"
+      ],
+      "fmt": "float",
+      "digits": 2
+    },
+    "05_results.md:23:37": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "cloud_light",
+        "latency_p95"
+      ],
+      "fmt": "float",
+      "digits": 2
+    },
+    "05_results.md:23:38": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "cloud_light",
+        "throughput_per_min"
+      ],
+      "fmt": "mean_sd",
+      "digits": 2
+    },
+    "05_results.md:28:39": {
+      "source": "aggregate",
+      "path": [
+        "local_cost_summary",
+        "cost_local"
+      ],
+      "fmt": "money",
+      "digits": 6
+    },
+    "05_results.md:28:40": {
+      "source": "aggregate",
+      "path": [
+        "local_cost_summary",
+        "cost_per_item"
+      ],
+      "fmt": "money",
+      "digits": 6
+    },
+    "05_results.md:29:41": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "cloud_flagship",
+        "cost_token_in"
+      ],
+      "fmt": "money",
+      "digits": 6
+    },
+    "05_results.md:29:42": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "cloud_flagship",
+        "cost_token_out"
+      ],
+      "fmt": "money",
+      "digits": 6
+    },
+    "05_results.md:29:43": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "cloud_flagship",
+        "cost_per_item_mean"
+      ],
+      "fmt": "money",
+      "digits": 6
+    },
+    "05_results.md:30:44": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "cloud_light",
+        "cost_token_in"
+      ],
+      "fmt": "money",
+      "digits": 6
+    },
+    "05_results.md:30:45": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "cloud_light",
+        "cost_token_out"
+      ],
+      "fmt": "money",
+      "digits": 6
+    },
+    "05_results.md:30:46": {
+      "source": "aggregate",
+      "path": [
+        "configs",
+        "cloud_light",
+        "cost_per_item_mean"
+      ],
+      "fmt": "money",
+      "digits": 6
+    },
+    "05_results.md:37:47": {
+      "source": "privacy",
+      "path": [
+        "qwen3:8b",
+        "bytes_per_item"
+      ],
+      "fmt": "bytes"
+    },
+    "05_results.md:37:48": {
+      "source": "privacy",
+      "path": [
+        "qwen3:8b",
+        "external_destination_count"
+      ],
+      "fmt": "int"
+    },
+    "05_results.md:37:49": {
+      "source": "scan",
+      "path": [
+        "total_hits"
+      ],
+      "fmt": "int"
+    },
+    "05_results.md:38:50": {
+      "source": "privacy",
+      "path": [
+        "cloud_flagship",
+        "bytes_per_item"
+      ],
+      "fmt": "bytes"
+    },
+    "05_results.md:38:51": {
+      "source": "privacy",
+      "path": [
+        "cloud_flagship",
+        "external_destination_count"
+      ],
+      "fmt": "int"
+    },
+    "05_results.md:39:52": {
+      "source": "privacy",
+      "path": [
+        "cloud_light",
+        "bytes_per_item"
+      ],
+      "fmt": "bytes"
+    },
+    "05_results.md:39:53": {
+      "source": "privacy",
+      "path": [
+        "cloud_light",
+        "external_destination_count"
+      ],
+      "fmt": "int"
+    },
+    "05_results.md:45:54": {
+      "source": "aggregate",
+      "path": [
+        "comparisons",
+        "0",
+        "statistic"
+      ],
+      "fmt": "float",
+      "digits": 1
+    },
+    "05_results.md:45:55": {
+      "source": "aggregate",
+      "path": [
+        "comparisons",
+        "0",
+        "cliffs_delta"
+      ],
+      "fmt": "float",
+      "digits": 3
+    },
+    "05_results.md:45:56": {
+      "source": "aggregate",
+      "path": [
+        "comparisons",
+        "0",
+        "p_adj"
+      ],
+      "fmt": "holm",
+      "digits": 0
+    },
+    "05_results.md:46:57": {
+      "source": "aggregate",
+      "path": [
+        "comparisons",
+        "1",
+        "statistic"
+      ],
+      "fmt": "float",
+      "digits": 1
+    },
+    "05_results.md:46:58": {
+      "source": "aggregate",
+      "path": [
+        "comparisons",
+        "1",
+        "cliffs_delta"
+      ],
+      "fmt": "float",
+      "digits": 3
+    },
+    "05_results.md:46:59": {
+      "source": "aggregate",
+      "path": [
+        "comparisons",
+        "1",
+        "p_adj"
+      ],
+      "fmt": "holm",
+      "digits": 0
+    },
+    "05_results.md:47:60": {
+      "source": "aggregate",
+      "path": [
+        "comparisons",
+        "2",
+        "statistic"
+      ],
+      "fmt": "float",
+      "digits": 1
+    },
+    "05_results.md:47:61": {
+      "source": "aggregate",
+      "path": [
+        "comparisons",
+        "2",
+        "cliffs_delta"
+      ],
+      "fmt": "float",
+      "digits": 3
+    },
+    "05_results.md:47:62": {
+      "source": "aggregate",
+      "path": [
+        "comparisons",
+        "2",
+        "p_adj"
+      ],
+      "fmt": "holm",
+      "digits": 0
+    },
+    "05_results.md:48:63": {
+      "source": "aggregate",
+      "path": [
+        "comparisons",
+        "3",
+        "statistic"
+      ],
+      "fmt": "float",
+      "digits": 1
+    },
+    "05_results.md:48:64": {
+      "source": "aggregate",
+      "path": [
+        "comparisons",
+        "3",
+        "cliffs_delta"
+      ],
+      "fmt": "float",
+      "digits": 3
+    },
+    "05_results.md:48:65": {
+      "source": "aggregate",
+      "path": [
+        "comparisons",
+        "3",
+        "p_adj"
+      ],
+      "fmt": "holm",
+      "digits": 0
+    },
+    "05_results.md:49:66": {
+      "source": "aggregate",
+      "path": [
+        "comparisons",
+        "4",
+        "statistic"
+      ],
+      "fmt": "float",
+      "digits": 1
+    },
+    "05_results.md:49:67": {
+      "source": "aggregate",
+      "path": [
+        "comparisons",
+        "4",
+        "cliffs_delta"
+      ],
+      "fmt": "float",
+      "digits": 3
+    },
+    "05_results.md:49:68": {
+      "source": "aggregate",
+      "path": [
+        "comparisons",
+        "4",
+        "p_adj"
+      ],
+      "fmt": "holm",
+      "digits": 0
+    },
+    "05_results.md:51:69": {
+      "source": "aggregate",
+      "path": [
+        "comparisons",
+        "5",
+        "statistic"
+      ],
+      "fmt": "float",
+      "digits": 1
+    },
+    "05_results.md:51:70": {
+      "source": "aggregate",
+      "path": [
+        "comparisons",
+        "5",
+        "cliffs_delta"
+      ],
+      "fmt": "float",
+      "digits": 3
+    },
+    "05_results.md:51:71": {
+      "source": "aggregate",
+      "path": [
+        "comparisons",
+        "5",
+        "p_adj"
+      ],
+      "fmt": "holm",
+      "digits": 0
+    },
+    "05_results.md:52:72": {
+      "source": "aggregate",
+      "path": [
+        "comparisons",
+        "6",
+        "statistic"
+      ],
+      "fmt": "float",
+      "digits": 1
+    },
+    "05_results.md:52:73": {
+      "source": "aggregate",
+      "path": [
+        "comparisons",
+        "6",
+        "cliffs_delta"
+      ],
+      "fmt": "float",
+      "digits": 3
+    },
+    "05_results.md:52:74": {
+      "source": "aggregate",
+      "path": [
+        "comparisons",
+        "6",
+        "p_adj"
+      ],
+      "fmt": "holm",
+      "digits": 0
+    }
+  }
+}
