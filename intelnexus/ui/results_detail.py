@@ -4,6 +4,8 @@ import re
 import streamlit as st
 from intelnexus.ui.i18n import get_text
 from intelnexus.ui.icons import icon
+# 复用 results.py 的 URL 安全处理，使「查看原文」链接与证据链链接共用同一套防护
+from intelnexus.ui.results import _safe_md_url
 from intelnexus.config.briefing_drafts import add_draft, get_drafts
 
 
@@ -88,16 +90,29 @@ def _render_save_to_kb_button(item: dict, key_suffix: str):
             st.rerun()
 
 
-def render_results_detail():
+def render_results_detail(view=None, key_prefix: str = "", page_key: str = "result_page"):
     """渲染分页搜索结果列表。
 
     只要搜索已完成（search_completed）即渲染：即便无结果也展示明确的空结果提示，
     不再因缺少 streamed_summary 或 filtered 为空而整片留白。
-    """
-    if not st.session_state.get("search_completed", False):
-        return
 
-    filtered = st.session_state.get("filtered", [])
+    Args:
+        view: 结果数据源（``ResultsView``）。为 None 时读取 ``st.session_state``
+            （实时搜索结果路径）。
+        key_prefix: widget key 前缀，历史回放传 ``hist_<entry_id>_`` 隔离命名空间。
+        page_key: 分页游标在 session_state 中的键。历史回放使用独立键，
+            避免把历史页码写进实时结果页。
+    """
+    if view is not None:
+        if not view.enabled:
+            return
+        _get = view.get
+    else:
+        if not st.session_state.get("search_completed", False):
+            return
+        _get = st.session_state.get
+
+    filtered = _get("filtered", []) or []
     if len(filtered) == 0:
         st.markdown("---")
         st.info(get_text("no_results"))
@@ -105,8 +120,8 @@ def render_results_detail():
 
     st.markdown("---")
 
-    if "result_page" not in st.session_state:
-        st.session_state.result_page = 1
+    if page_key not in st.session_state:
+        st.session_state[page_key] = 1
 
     all_results = filtered
     total_results = len(all_results)
@@ -120,19 +135,19 @@ def render_results_detail():
     with col2:
         page_cols = st.columns([1, 1, 1])
         with page_cols[0]:
-            if st.session_state.result_page > 1:
-                if st.button(get_text("prev_page"), key="prev_page"):
-                    st.session_state.result_page -= 1
+            if st.session_state[page_key] > 1:
+                if st.button(get_text("prev_page"), key=f"{key_prefix}prev_page"):
+                    st.session_state[page_key] -= 1
                     st.rerun()
         with page_cols[1]:
-            st.markdown(f"**{st.session_state.result_page}/{total_pages}**")
+            st.markdown(f"**{st.session_state[page_key]}/{total_pages}**")
         with page_cols[2]:
-            if st.session_state.result_page < total_pages:
-                if st.button(get_text("next_page"), key="next_page"):
-                    st.session_state.result_page += 1
+            if st.session_state[page_key] < total_pages:
+                if st.button(get_text("next_page"), key=f"{key_prefix}next_page"):
+                    st.session_state[page_key] += 1
                     st.rerun()
 
-    start_idx = (st.session_state.result_page - 1) * ITEMS_PER_PAGE
+    start_idx = (st.session_state[page_key] - 1) * ITEMS_PER_PAGE
     end_idx = min(start_idx + ITEMS_PER_PAGE, total_results)
     page_results = all_results[start_idx:end_idx]
 
@@ -158,23 +173,29 @@ def render_results_detail():
                     st.markdown(f"{icon('note', 'sm', 'lavender')} {safe_summary[:500]}...", unsafe_allow_html=True)
                 if item.get('link') or item.get('url'):
                     link = item.get('link') or item.get('url')
-                    st.markdown(get_text("view_original").format(link=link))
+                    # 外部 URL 可能是伪协议或含破坏 markdown 链接语法的字符：
+                    # 先过安全处理，不合法则降级为转义纯文本（与证据链链接口径一致）
+                    safe_link = _safe_md_url(link)
+                    if safe_link:
+                        st.markdown(get_text("view_original").format(link=safe_link))
+                    else:
+                        st.markdown(_safe_text(link))
                 # 收藏到简报草稿（搜→报飞轮闭环）
                 # key 必须全局唯一：i 是组内索引会重复，故用 source+全局序号组合
                 # 三个按钮横向同行，避免各占一整行；.result-btn-row 控制紧凑间距
                 st.markdown('<div class="result-btn-row">', unsafe_allow_html=True)
                 _btn_cols = st.columns(3)
                 with _btn_cols[0]:
-                    _render_collect_button(item, f"{source}_{actual_idx}")
+                    _render_collect_button(item, f"{key_prefix}{source}_{actual_idx}")
                 with _btn_cols[1]:
-                    _render_useful_button(item, f"{source}_{actual_idx}")
+                    _render_useful_button(item, f"{key_prefix}{source}_{actual_idx}")
                 with _btn_cols[2]:
-                    _render_save_to_kb_button(item, f"{source}_{actual_idx}")
+                    _render_save_to_kb_button(item, f"{key_prefix}{source}_{actual_idx}")
                 st.markdown('</div>', unsafe_allow_html=True)
                 st.markdown("---")
 
     # 弱相关结果（被语义相关性过滤降权，不进报告/KG 主干，但保留可追溯）
-    _all_results = st.session_state.get("results", []) or []
+    _all_results = _get("results", []) or []
     weak_items = [r for r in _all_results if r.get("weak_related", False)]
     if weak_items:
         with st.expander(
@@ -195,15 +216,21 @@ def render_results_detail():
                     st.markdown(f"{icon('note', 'sm', 'lavender')} {safe_summary[:500]}...", unsafe_allow_html=True)
                 if item.get('link') or item.get('url'):
                     link = item.get('link') or item.get('url')
-                    st.markdown(get_text("view_original").format(link=link))
+                    # 外部 URL 可能是伪协议或含破坏 markdown 链接语法的字符：
+                    # 先过安全处理，不合法则降级为转义纯文本（与证据链链接口径一致）
+                    safe_link = _safe_md_url(link)
+                    if safe_link:
+                        st.markdown(get_text("view_original").format(link=safe_link))
+                    else:
+                        st.markdown(_safe_text(link))
                 # key 加 weak_ 前缀，与主列表的 source_actual_idx 区分，避免 DuplicateWidgetID
                 st.markdown('<div class="result-btn-row">', unsafe_allow_html=True)
                 _wbtn_cols = st.columns(3)
                 with _wbtn_cols[0]:
-                    _render_collect_button(item, f"weak_{wkey}")
+                    _render_collect_button(item, f"{key_prefix}weak_{wkey}")
                 with _wbtn_cols[1]:
-                    _render_useful_button(item, f"weak_{wkey}")
+                    _render_useful_button(item, f"{key_prefix}weak_{wkey}")
                 with _wbtn_cols[2]:
-                    _render_save_to_kb_button(item, f"weak_{wkey}")
+                    _render_save_to_kb_button(item, f"{key_prefix}weak_{wkey}")
                 st.markdown('</div>', unsafe_allow_html=True)
                 st.markdown("---")

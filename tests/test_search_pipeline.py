@@ -161,6 +161,14 @@ class _SessionStateStub:
     def __contains__(self, name):
         return name in self._data
 
+    # 真实 Streamlit SessionStateProxy 同时支持属性与下标访问；
+    # 渲染函数的分页游标使用动态 key（st.session_state[page_key]），故补齐下标协议。
+    def __getitem__(self, name):
+        return self._data[name]
+
+    def __setitem__(self, name, value):
+        self._data[name] = value
+
 
 class TestPartialRendering:
     def test_results_detail_renders_without_summary(self):

@@ -152,7 +152,7 @@ def run_search_computation(
     from intelnexus.analysis import warm_up_models
     warm_up_models()
     llm = get_llm(model)
-    # 真·LLM 改写：失败/超时返回 [] 时回退规则式 expand_query，检索不中断。
+    # LLM 改写：失败/超时返回 [] 时回退规则式 expand_query，检索不中断。
     query_variants = llm_expand_query(llm, query)
     if not query_variants:
         query_variants = expand_query(query)
@@ -616,23 +616,29 @@ def run_search_computation(
         logger.warning(f"结构化报告组装失败，回退到 LLM 原始输出: {e}")
         # 回退：保持 streamed_summary 为 LLM 原始输出
 
-    # 记录搜索历史
+    # 报告时间戳：须在记录历史之前生成，使历史快照也能带上（历史详情下载区据此命名文件）
+    result["report_timestamp"] = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+    # 记录搜索历史（含完整结果快照，供历史详情页还原搜索结果页的全部内容）
     try:
         from intelnexus.config.history import get_history_manager
+        history_mgr = get_history_manager()
         ranked_results = result.get("results", [])
         top_url = ""
         if ranked_results:
             top = ranked_results[0]
             top_url = top.get("url") or top.get("link") or ""
-        get_history_manager().add_search(
+        history_mgr.add_search(
             query, search_mode, results_count, model or "",
             selected_url=top_url,
             report_content=result.get("streamed_summary", ""),
+            # 此刻组装快照：KG HTML 刚落盘且必然还在 temp/ 中
+            # （prune_kg_html 只清理更早的文件），快照会复制持久副本
+            snapshot=history_mgr.build_snapshot(result),
         )
     except Exception as e:
         logger.debug(f"记录搜索历史失败: {e}")
 
-    result["report_timestamp"] = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     result["success"] = True
     progress_callback("done", "完成", 1.0)
     return result

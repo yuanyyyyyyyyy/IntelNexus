@@ -9,9 +9,12 @@ from datetime import datetime
 
 import streamlit as st
 
+from intelnexus.core.logger import get_logger
 from intelnexus.ui.i18n import get_text
 from intelnexus.ui.icons import icon
 from intelnexus.ui import main_tabs
+
+logger = get_logger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -105,6 +108,24 @@ def _parse_timestamp(ts: str):
 
 
 # ---------------------------------------------------------------------------
+# 辅助：历史回放状态
+# ---------------------------------------------------------------------------
+
+def _clear_replay_state(entry_id: str = ""):
+    """清理历史回放遗留的 widget 状态（分页游标 / 下载格式选择等）。
+
+    传 ``entry_id`` 时保留该条目的状态（分页游标需在渲染期间存活），
+    仅清理其它条目遗留；不传则清空全部 ``hist_`` 前缀键（关闭预览时用）。
+    避免 session_state 随查看过的条目数无限累积。
+    """
+    keep = f"hist_{entry_id}_" if entry_id else ""
+    for key in [k for k in st.session_state.keys() if str(k).startswith("hist_")]:
+        if keep and str(key).startswith(keep):
+            continue
+        st.session_state.pop(key, None)
+
+
+# ---------------------------------------------------------------------------
 # 预览渲染（对齐简报中心 render_briefing_preview）
 # ---------------------------------------------------------------------------
 
@@ -118,66 +139,101 @@ def render_search_preview():
     if not view:
         return
 
+    entry_id = view.get("id", "")
+
+    # 切换条目时清理上一条目遗留的回放状态（保留当前条目，分页游标需存活）
+    _clear_replay_state(entry_id)
+
     header_cols = st.columns([5, 1])
     with header_cols[0]:
         st.markdown(f'<div class="sh-output__header">{get_text("search_history_preview")}</div>', unsafe_allow_html=True)
     with header_cols[1]:
         if st.button(get_text("close"), key="sh_preview_close", use_container_width=True):
             st.session_state.current_search_view = None
+            _clear_replay_state()
             st.rerun()
 
-    report_content = view.get("report_content", "")
+    rendered = False
 
-    with st.container(key="sh-output"):
-        if report_content:
-            # 显示完整报告内容（对齐简报中心 st.markdown(current_briefing)）
-            st.markdown(report_content)
-        else:
-            # 旧记录无报告内容，回退显示元数据
-            query_text = view.get("query", "")
-            mode_lbl = _mode_label(view.get("mode", ""))
-            model = view.get("model", "")
-            count = view.get("results_count", 0)
-            ts = view.get("timestamp", "")
-            date_str, time_str = _parse_timestamp(ts)
-            rel_time = _relative_time(ts)
+    # 有完整快照时，还原搜索当时页面上的全部内容
+    # （查询卡/统计条/报告+TL;DR/可信度/摘要/冲突/图谱/证据链/行动项/下载/结果列表）
+    if view.get("has_snapshot"):
+        # 延迟 import：results_view 反向依赖多个结果渲染模块，避免模块级环依赖
+        from intelnexus.ui.results_view import render_history_snapshot
+        try:
+            from intelnexus.config.history import get_history_manager
+            snapshot = get_history_manager().get_snapshot(entry_id)
+        except Exception:
+            logger.exception(f"读取搜索快照失败: {entry_id}")
+            snapshot = None
+        if snapshot:
+            # key_prefix 隔离 widget 命名空间：历史详情与实时结果可能同页共存。
+            # 快照是磁盘上的持久文件（可能被手改/半写入），渲染同样兜底：
+            # 异常时降级为报告文本，避免整页报错。
+            try:
+                with st.container(key="sh-output"):
+                    rendered = render_history_snapshot(
+                        snapshot, key_prefix=f"hist_{entry_id}_")
+            except Exception:
+                logger.exception(f"历史快照渲染失败，降级为报告文本: {entry_id}")
+                rendered = False
+        if not rendered:
+            # 快照缺失/损坏/渲染失败：提示后降级为报告文本
+            st.caption(get_text("search_history_snapshot_missing"))
 
-            st.markdown(
-                f'<div class="sh-preview__row">'
-                f'<span class="sh-preview__label">{get_text("search_history_query")}:</span>'
-                f'<span class="sh-preview__value">{html.escape(query_text)}</span>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
-            st.markdown(
-                f'<div class="sh-preview__row">'
-                f'<span class="sh-preview__label">{get_text("search_history_mode")}:</span>'
-                f'<span class="sh-preview__badge">{html.escape(mode_lbl)}</span>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
-            if model:
+    if not rendered:
+        report_content = view.get("report_content", "")
+
+        with st.container(key="sh-output"):
+            if report_content:
+                # 显示完整报告内容（对齐简报中心 st.markdown(current_briefing)）
+                st.markdown(report_content)
+            else:
+                # 旧记录无报告内容，回退显示元数据
+                query_text = view.get("query", "")
+                mode_lbl = _mode_label(view.get("mode", ""))
+                model = view.get("model", "")
+                count = view.get("results_count", 0)
+                ts = view.get("timestamp", "")
+                date_str, time_str = _parse_timestamp(ts)
+                rel_time = _relative_time(ts)
+
                 st.markdown(
                     f'<div class="sh-preview__row">'
-                    f'<span class="sh-preview__label">{get_text("search_history_model")}:</span>'
-                    f'<span class="sh-preview__value">{html.escape(model)}</span>'
+                    f'<span class="sh-preview__label">{get_text("search_history_query")}:</span>'
+                    f'<span class="sh-preview__value">{html.escape(query_text)}</span>'
                     f'</div>',
                     unsafe_allow_html=True,
                 )
-            st.markdown(
-                f'<div class="sh-preview__row">'
-                f'<span class="sh-preview__label">{get_text("search_history_time")}:</span>'
-                f'<span class="sh-preview__value">{date_str} {time_str} ({html.escape(rel_time)})</span>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
-            st.markdown(
-                f'<div class="sh-preview__row">'
-                f'<span class="sh-preview__label">{get_text("search_history_results_label")}:</span>'
-                f'<span class="sh-preview__value">{count}</span>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
+                st.markdown(
+                    f'<div class="sh-preview__row">'
+                    f'<span class="sh-preview__label">{get_text("search_history_mode")}:</span>'
+                    f'<span class="sh-preview__badge">{html.escape(mode_lbl)}</span>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+                if model:
+                    st.markdown(
+                        f'<div class="sh-preview__row">'
+                        f'<span class="sh-preview__label">{get_text("search_history_model")}:</span>'
+                        f'<span class="sh-preview__value">{html.escape(model)}</span>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+                st.markdown(
+                    f'<div class="sh-preview__row">'
+                    f'<span class="sh-preview__label">{get_text("search_history_time")}:</span>'
+                    f'<span class="sh-preview__value">{date_str} {time_str} ({html.escape(rel_time)})</span>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+                st.markdown(
+                    f'<div class="sh-preview__row">'
+                    f'<span class="sh-preview__label">{get_text("search_history_results_label")}:</span>'
+                    f'<span class="sh-preview__value">{count}</span>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
 
         # 操作按钮：重新搜索（不再放关闭按钮，头部已有关闭）
         btn_cols = st.columns(2)

@@ -35,11 +35,11 @@ from config import (
 )
 from intelnexus.ui.sidebar import render_sidebar
 from intelnexus.ui.icons import icon
-from intelnexus.ui.search_pipeline import run_search_pipeline, _search_progress_fragment, render_search_report
+from intelnexus.ui.search_pipeline import (
+    run_search_pipeline, _search_progress_fragment,
+)
 from intelnexus.ui.search_history import render_search_history
-from intelnexus.ui.results import render_results_panels
-from intelnexus.ui.download import render_download_section
-from intelnexus.ui.results_detail import render_results_detail
+from intelnexus.ui.results_view import ResultsView, render_full_results
 from intelnexus.ui.briefing_viewer import render_briefing_center
 from intelnexus.ui.onboarding import render_onboarding
 from intelnexus.ui.knowledge_base import render_knowledge_base
@@ -317,10 +317,11 @@ if not onboarding_active:
 
         # 结果面板（session_state 有数据时渲染，由 fragment 完成后写入）
         if st.session_state.get("filtered") is not None:
-            render_search_report()          # 报告/TL;DR/完成提示（从 session_state 持久渲染）
-            render_results_panels()
-            render_download_section()
-            render_results_detail()
+            # 统一编排：实时结果与历史详情复用同一套渲染
+            # （results_view.render_full_results），保证「历史回放 = 搜索当时的页面」。
+            # include_query_stats=True：查询优化卡/结果统计卡/数据源完整性提示
+            # 由主页面持久渲染（完成态 fragment 渲染后立即整页 rerun，内容不保留）
+            render_full_results(ResultsView.live(), include_query_stats=True)
 
             # 搜→报飞轮：一键将当前全部搜索结果存入简报草稿
             _render_bulk_collect_button()

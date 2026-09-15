@@ -175,7 +175,10 @@ def _apply_search_results(result: dict):
     """
     if result.get("success"):
         # 写入搜索结果到 session_state
-        for key in ["refined", "results", "filtered", "scraped", "streamed_summary",
+        # 含 query：持久渲染的查询优化卡需要「原始查询」文案
+        # （完成态 fragment 渲染的内容会随随后的整页 rerun 丢弃，故查询卡由
+        # 主页面 render_full_results 持久渲染，见 ui.py）
+        for key in ["query", "refined", "results", "filtered", "scraped", "streamed_summary",
                      "credibility_data", "conflicts", "kg_entities", "kg_relations",
                      "kg_html_path", "kg_context", "evidence_data", "action_items",
                      "source_stats", "report_timestamp", "credibility_radar_chart",
@@ -206,58 +209,10 @@ def _render_search_results_ui(result: dict):
             st.error(result["error"])
         return
 
-    query = result.get("query", "")
-    results = result.get("results", [])
-    results_count = len(results)
-    source_info = result.get("source_info", "")
-    source_stats = result.get("source_stats", {})
-
-    # 查询优化展示：透明化检索范围 —— 原始查询 / 实际检索串 / 变体列表
-    search_query = result.get("search_query", query) or query
-    query_variants = result.get("query_variants", []) or []
-    variants_html = "".join(
-        f'<div class="result-subtitle">· {html.escape(v)}</div>'
-        for v in query_variants
-    )
-    st.markdown(f"""
-    <div class="result-card">
-        <div class="section-header">{get_text("refined_query")}</div>
-        <div class="result-title">{get_text("original_query")} {html.escape(query)}</div>
-        <div class="result-title">{get_text("search_query_label")} {html.escape(search_query)}</div>
-        {variants_html}
-    </div>
-    """, unsafe_allow_html=True)
-
-    # 结果统计卡
-    st.markdown(f"""
-    <div class="result-card">
-        <div class="result-stats">
-            <div class="stat-item">
-                <div class="stat-value">{results_count}</div>
-                <div class="stat-label">{get_text("results_count")}</div>
-            </div>
-        </div>
-        <div class="stat-label" style="margin-top: 10px;">{get_text("data_source_label")} {html.escape(source_info)}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # 源完整性透明度条
-    if source_stats:
-        ok_sources = [n for n, s in source_stats.items() if s.get("status") == "ok"]
-        skipped = [(n, s.get("status")) for n, s in source_stats.items()
-                   if s.get("status") != "ok"]
-        if skipped:
-            reason_map = {"timeout": get_text("src_skip_timeout"),
-                          "no_proxy": get_text("src_skip_no_proxy"),
-                          "error": get_text("src_skip_error"),
-                          "skipped": get_text("src_skip_skipped")}
-            detail = ", ".join(f"{n} ({reason_map.get(s, s)})"
-                               for n, s in skipped)
-            st.info(get_text("source_integrity").format(
-                ok=len(ok_sources), skip=len(skipped)) +
-                f" <sub>{html.escape(detail[:200])}</sub>")
-        else:
-            st.success(get_text("all_sources_ok").format(ok=len(ok_sources)))
+    # 查询优化卡 / 结果统计卡 / 数据源完整性条：与历史回放共用同一实现
+    # （抽取到 results_view.render_query_stats_cards，保证两处呈现完全一致）
+    from intelnexus.ui.results_view import ResultsView, render_query_stats_cards
+    render_query_stats_cards(ResultsView(result))
 
     # 零结果处理
     if result.get("zero_results"):
@@ -278,16 +233,26 @@ def _render_search_results_ui(result: dict):
                     f"({html.escape(str(wr.get('source', '')))})")
 
 
-def render_search_report():
+def render_search_report(view=None):
     """在主页面持久渲染搜索报告、TL;DR 速览卡与完成提示。
 
     从 session_state 读取数据，确保 fragment rerun 后内容不消失。
     必须在 render_results_panels() 之前调用，保证报告在可视化面板上方。
-    """
-    if not st.session_state.get("search_completed", False):
-        return
 
-    report = st.session_state.get("streamed_summary", "")
+    Args:
+        view: 结果数据源（``ResultsView``）。为 None 时读取 ``st.session_state``
+            （实时搜索结果路径）；传入快照视图时用于历史详情回放。
+    """
+    if view is not None:
+        if not view.enabled:
+            return
+        _get = view.get
+    else:
+        if not st.session_state.get("search_completed", False):
+            return
+        _get = st.session_state.get
+
+    report = _get("streamed_summary", "")
     if not report:
         return
 
@@ -302,7 +267,7 @@ def render_search_report():
     st.markdown(report)
 
     # TL;DR 速览卡
-    tldr = st.session_state.get("tldr_card", "")
+    tldr = _get("tldr_card", "")
     if tldr:
         _escaped = html.escape(tldr)
         _escaped = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", _escaped)

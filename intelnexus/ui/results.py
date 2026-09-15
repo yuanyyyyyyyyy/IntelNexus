@@ -40,20 +40,30 @@ def _cred_label(score: float) -> str:
     return get_text("level_low")
 
 
-def render_results_panels():
+def render_results_panels(view=None):
     """渲染所有结果可视化面板。
+
+    Args:
+        view: 结果数据源（``ResultsView``）。为 None 时读取 ``st.session_state``
+            （实时搜索结果路径）；传入快照视图时从历史快照取数，用于历史详情回放。
 
     只要有搜索产物（search_completed）即可渲染；各子面板（可信度 / 冲突 /
     知识图谱 / 证据链）独立判断自身数据是否存在，报告生成失败时仍展示其他分析。
     排版（F5）：重内容（KG iframe、逐条证据）折叠进 expander，指标摘要保持可见，
     避免长报告滚动地狱。
     """
-    if not st.session_state.get("search_completed", False):
-        return
+    if view is not None:
+        if not view.enabled:
+            return
+        _get = view.get
+    else:
+        if not st.session_state.get("search_completed", False):
+            return
+        _get = st.session_state.get
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    cred = st.session_state.get("credibility_data")
+    cred = _get("credibility_data")
     if cred:
         st.markdown("---")
         st.markdown(f"## {icon('chart', 'lg', 'blue')} {get_text('results_credibility_title')}", unsafe_allow_html=True)
@@ -64,7 +74,7 @@ def render_results_panels():
         col4.metric(get_text("metric_consistency"), f"{cred['overall_consistency']:.2f}")
 
         # 可信度雷达图
-        radar_chart = st.session_state.get("credibility_radar_chart")
+        radar_chart = _get("credibility_radar_chart")
         if radar_chart:
             st.markdown(
                 f'<img src="data:image/png;base64,{radar_chart}" '
@@ -83,7 +93,7 @@ def render_results_panels():
             st.markdown(header + "\n" + "\n".join(rows))
 
     # 结构化摘要（事实/分析/推测）
-    structured = st.session_state.get("structured_summary")
+    structured = _get("structured_summary")
     if structured:
         st.markdown("---")
         st.markdown(f"## {icon('summary', 'lg', 'blue')} {get_text('results_structured_summary_title')}", unsafe_allow_html=True)
@@ -92,7 +102,7 @@ def render_results_panels():
         if md:
             st.markdown(md)
 
-    conflicts = st.session_state.get("conflicts", [])
+    conflicts = _get("conflicts", [])
     if conflicts:
         st.markdown("---")
         st.markdown(f"## {icon('warning', 'lg', 'warning')} {get_text('results_conflict_title')}", unsafe_allow_html=True)
@@ -107,11 +117,11 @@ def render_results_panels():
                     val = src.get('value', '')
                     st.markdown(f"- {_esc(src.get('name', '?'))}: _{_esc(val)}_")
 
-    kg_path = st.session_state.get("kg_html_path", "")
+    kg_path = _get("kg_html_path", "")
     if kg_path and os.path.exists(kg_path):
         st.markdown("---")
         st.markdown(f"## {icon('knowledge', 'lg', 'lavender')} {get_text('results_kg_title')}", unsafe_allow_html=True)
-        entities = st.session_state.get("kg_entities", [])
+        entities = _get("kg_entities", [])
         if entities:
             st.markdown(f"**{get_text('label_key_entities')}**: " +
                         ", ".join([f"{_esc(e['name'])}({_esc(e['type'])})" for e in entities[:8]]))
@@ -121,7 +131,7 @@ def render_results_panels():
         with st.expander(get_text("kg_details_expander")):
             st.iframe(Path(kg_path), height=600)
 
-    ev = st.session_state.get("evidence_data")
+    ev = _get("evidence_data")
     if ev and ev.get("claims"):
         st.markdown("---")
         st.markdown(f"## {icon('link', 'lg', 'terracotta')} {get_text('results_evidence_title')}", unsafe_allow_html=True)
@@ -146,7 +156,7 @@ def render_results_panels():
                                 f"{link_part}")
 
     # 行动项清单面板
-    actions = st.session_state.get("action_items", [])
+    actions = _get("action_items", [])
     if actions:
         st.markdown("---")
         st.markdown(f"## {icon('checklist', 'lg', 'blue')} {get_text('results_actions_title')}", unsafe_allow_html=True)
