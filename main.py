@@ -207,7 +207,15 @@ def _register_search_commands():
         click.echo(f"[3/4] Keeping all {len(search_filtered)} results")
 
         click.echo("[4/4] Scraping content...")
-        scraped_results = scrape_multiple(search_filtered, max_workers=threads)
+        resolved_map = {}
+        scraped_results = scrape_multiple(search_filtered, max_workers=threads,
+                                          resolved_map=resolved_map)
+        # 抓取时解析出的真实地址要同步回写结果条目：scraped 已按真实地址换键，
+        # 结果仍停留在 baidu/link 壳会导致可信度与冲突检测按 URL 匹配全部落空
+        for _r in search_filtered:
+            _resolved = _r.pop("resolved_url", None) or resolved_map.get(_r.get("url", ""))
+            if _resolved and _resolved != _r.get("url"):
+                _r["url"] = _resolved
         click.echo("    Done")
 
         credibility_context = ""

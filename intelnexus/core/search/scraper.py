@@ -1,9 +1,12 @@
 import random
+import re
 import ipaddress
-from urllib.parse import urlparse
+from html import unescape
+from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from intelnexus.core.settings.cache import get_cached, set_cached
+# get_cached 保留导入：既有调用方与测试按名 patch 它，读取统一走 get_cached_entry
+from intelnexus.core.settings.cache import get_cached, get_cached_entry, set_cached  # noqa: F401
 
 from intelnexus.core.logger import get_logger
 from intelnexus.core.search import USER_AGENTS, get_http_proxies, get_session, get_shared_tor_session
@@ -59,6 +62,55 @@ def _extract_main_text(html_text: str) -> str:
     return (extracted or "").strip() if extracted and len(extracted) >= 100 else ""
 
 
+# 服务端未跟随重定向时（百度部分出口返回 200 + 脚本/meta 跳转），真实地址
+# 只能从已下载的 HTML 里取；再发请求探测会翻倍耗时且触发风控，故离线解析。
+_META_REFRESH_RE = re.compile(
+    r'<meta[^>]+http-equiv=["\']?refresh["\']?[^>]*content=["\'][^"\']*?url=([^"\'>]+)',
+    re.IGNORECASE)
+_JS_REDIRECT_RE = re.compile(
+    r'(?:window\.)?location(?:\.href)?\s*=\s*["\']([^"\']+)["\']'
+    r'|location\.replace\(\s*["\']([^"\']+)["\']',
+    re.IGNORECASE)
+
+
+def _is_wrapper_url(url: str) -> bool:
+    """是否为搜索引擎跳转包装域（名单复用 core.search.web，延迟导入避循环）。"""
+    try:
+        from intelnexus.core.search.web import is_wrapper_url
+        return is_wrapper_url(url)
+    except Exception:
+        return False
+
+
+def _resolve_wrapper_target(final_url: str, html: str, limit: int = 20000) -> str:
+    """从页面 HTML 解析跳转目标（meta refresh / JS location 赋值）。
+
+    仅在最终 URL 仍落在搜索引擎包装域时调用；返回空串表示未解析到可用目标。
+    解析出的目标同样要过 SSRF 校验——页面可伪造跳转把抓取引向内网。
+    """
+    if not html:
+        return ""
+    head = html[:limit]
+    candidates = []
+    m = _META_REFRESH_RE.search(head)
+    if m:
+        candidates.append(unescape(m.group(1).strip()))
+    m = _JS_REDIRECT_RE.search(head)
+    if m:
+        candidates.append(unescape((m.group(1) or m.group(2) or "").strip()))
+
+    for cand in candidates:
+        if not cand:
+            continue
+        try:
+            target = urljoin(final_url, cand) if not cand.startswith("http") else cand
+        except Exception:
+            continue
+        if target.startswith("http") and is_safe_scrape_target(target):
+            return target
+    return ""
+
+
 def is_safe_scrape_target(url: str) -> bool:
     """抓取目标防护（SSRF 第一层）：仅允许 http(s)，拒绝内网/环回地址。
 
@@ -104,9 +156,16 @@ def scrape_single(url_data, rotate=False, rotate_interval=5, control_port=9051, 
         logger.warning(f"跳过不安全抓取目标: {url[:120]}")
         return url, ''
 
-    cached = get_cached(url)
-    if cached is not None:
-        return (url, cached)
+    entry = get_cached_entry(url)
+    if entry is not None:
+        cached = entry.get("content")
+        if cached is not None:
+            # 命中缓存时同样回填真实地址：包装链接的真实地址只在抓取时解析得到，
+            # 不回写的话二次检索会重新变成 url=... 的壳，去重与证据溯源全部失效。
+            resolved = entry.get("resolved_url")
+            if resolved:
+                url_data['resolved_url'] = resolved
+            return (url, cached)
 
     if url.lower().endswith('.pdf') or '.pdf?' in url.lower():
         return (url, f"{url_data['title']} - [PDF文件，请直接下载查看]")
@@ -151,14 +210,18 @@ def scrape_single(url_data, rotate=False, rotate_interval=5, control_port=9051, 
                 text = main_text
 
             # 包装 URL（如 baidu.com/link?url=）无法离线解码，抓取时跟随
-            # 重定向后把真实地址回写到结果条目，供去重/评分/证据库使用
+            # 重定向后把真实地址回写到结果条目，供去重/评分/证据库使用。
+            # 最终 URL 仍在包装域时（服务端返回脚本/meta 跳转），再从已下载
+            # 的 HTML 离线解析一次，避免为解析地址额外发请求。
             try:
-                req_host = urlparse(url).netloc.lower()
-                if any(h in req_host for h in ('baidu.com', 'bing.com', 'google.com')) \
-                        and response.url and response.url != url:
-                    url_data['resolved_url'] = response.url
+                final_url = response.url or url
+                resolved = final_url if final_url != url else ""
+                if not resolved or _is_wrapper_url(final_url):
+                    resolved = _resolve_wrapper_target(final_url, response.text)
+                if resolved and resolved != url and is_safe_scrape_target(resolved):
+                    url_data['resolved_url'] = resolved
             except Exception:
-                pass
+                logger.debug(f"真实地址解析失败（不影响正文）: {url[:120]}")
 
             if len(text) < 100:
                 scraped_text = url_data['title']
@@ -171,9 +234,18 @@ def scrape_single(url_data, rotate=False, rotate_interval=5, control_port=9051, 
 
     return url, scraped_text
 
-def scrape_multiple(urls_data, max_workers=5):
+def scrape_multiple(urls_data, max_workers=5, resolved_map=None):
     """
     Scrapes multiple URLs concurrently using a thread pool.
+
+    Args:
+        urls_data: 结果条目列表（dict，含 url/link 与 title）。
+        max_workers: 并发线程数。
+        resolved_map: 可选输出字典，收集 {原始(包装)URL: 真实地址}，供调用方
+            同步换键（结果条目与抓取字典的键必须一致，否则可信度评估会错位）。
+
+    Returns:
+        {URL: 抓取内容}；解析出真实地址时键为真实地址。
     """
     results = {}
     max_chars = 3000
@@ -184,12 +256,20 @@ def scrape_multiple(urls_data, max_workers=5):
             for url_data in urls_data
         }
         for future in as_completed(future_to_url):
+            url_data = future_to_url[future]
             try:
                 url, content = future.result()
+                if not url:
+                    continue
                 if len(content) > max_chars:
                     content = content[:max_chars] + "...(truncated)"
-                results[url] = content
-                set_cached(url, content)
+                resolved = url_data.get('resolved_url') if isinstance(url_data, dict) else None
+                final_url = resolved or url
+                results[final_url] = content
+                if resolved and isinstance(resolved_map, dict):
+                    resolved_map[url] = resolved
+                # 缓存键仍是原始 URL：下次抓取请求的是包装链接，真实地址随条目回写
+                set_cached(url, content, resolved_url=resolved)
             except Exception:
                 continue
 

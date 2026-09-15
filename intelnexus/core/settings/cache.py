@@ -21,7 +21,13 @@ def _cache_path(url: str) -> str:
     return os.path.join(CACHE_DIR, f"{_url_hash(url)}.json")
 
 
-def get_cached(url: str) -> str | None:
+def get_cached_entry(url: str) -> dict | None:
+    """读取完整缓存条目（正文 + 解析出的真实地址等元数据）。
+
+    与 get_cached 的区别：返回整个 entry 字典，供抓取层回填 resolved_url
+    （包装链接的真实地址在抓取时才能得到，缓存命中后必须能读回，否则
+    每次命中缓存都会丢失真实地址，去重与证据溯源永远失效）。
+    """
     path = _cache_path(url)
     try:
         if not os.path.exists(path):
@@ -31,18 +37,25 @@ def get_cached(url: str) -> str | None:
         if time.time() > entry.get("expires_at", 0):
             os.remove(path)
             return None
-        return entry.get("content")
+        return entry
     except Exception:
         return None
 
 
-def set_cached(url: str, content: str, ttl: int = CACHE_TTL):
+def get_cached(url: str) -> str | None:
+    entry = get_cached_entry(url)
+    return entry.get("content") if entry else None
+
+
+def set_cached(url: str, content: str, ttl: int = CACHE_TTL, resolved_url: str | None = None):
     _ensure_cache_dir()
     path = _cache_path(url)
     try:
         entry = {
             "url": url,
             "content": content,
+            # 跟随重定向后得到的真实地址（包装链接如 baidu.com/link?url= 才有值）
+            "resolved_url": resolved_url,
             "cached_at": time.time(),
             "expires_at": time.time() + ttl,
         }

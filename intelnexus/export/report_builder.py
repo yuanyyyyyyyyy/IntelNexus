@@ -95,7 +95,9 @@ def compute_heat_level(results: List[dict], source_count: int = 0) -> int:
     """
     unique_urls = set()
     for r in results or []:
-        u = r.get("resolved_url") or r.get("link") or r.get("url", "")
+        # 归一化后字段是 url，link/resolved_url 仅为兼容旧结构：回填完成后
+        # url 已是真实地址，取错键会让热度按空集兜底为原始条数（虚高）
+        u = r.get("url") or r.get("resolved_url") or r.get("link") or ""
         if not u:
             continue
         try:
@@ -263,42 +265,68 @@ def build_event_profile(results: List[dict], llm_sections: Dict[str, str], query
 def build_source_analysis(source_counts: Dict[str, int],
                           source_stats: Dict[str, dict],
                           credibility_data: Optional[dict] = None) -> str:
-    """板块 04：来源分析（程序化生成）。"""
+    """板块 04：来源分析（程序化生成）。
+
+    分两个维度呈现：**检索渠道**（Bing/Baidu/RSS 等，回答「从哪找到的」）与
+    **出版方**（ctrip.com/zhihu.com 等，回答「谁说的」）。旧实现把引擎名当
+    出版方，导致可信度评分打在 www.baidu.com 上，真实出版方被完全遮蔽。
+    """
     total = sum(source_counts.values()) if source_counts else 0
+
+    scores = (credibility_data or {}).get("scores") or []
+    # 只有在评分条目携带出版方字段时才切换为双维度口径；
+    # 旧缓存/旧调用方未提供该字段时保持原样，避免破坏既有导出。
+    has_publisher_data = any("publisher" in s for s in scores)
 
     lines = ["## 四、来源分析", ""]
 
-    # 来源分布表
-    lines.append("### 4.1 来源分布")
+    # 4.1 检索渠道分布
+    lines.append("### 4.1 检索渠道分布" if has_publisher_data else "### 4.1 来源分布")
     lines.append("")
     if source_counts:
-        lines.append("| 来源 | 数量 | 占比 | 角色 |")
+        head = "检索渠道" if has_publisher_data else "来源"
+        lines.append(f"| {head} | 数量 | 占比 | 角色 |")
         lines.append("|------|------|------|------|")
         for src, count in sorted(source_counts.items(), key=lambda x: -x[1]):
             pct = f"{count / total * 100:.0f}%" if total > 0 else "0%"
             role = _get_source_role(src)
             lines.append(f"| {src} | {count} | {pct} | {role} |")
+        if has_publisher_data:
+            lines.append("")
+            lines.append("> 检索渠道仅表示「从哪个引擎/订阅源找到」，不代表内容出版方；"
+                         "可信度按下方出版方计分。")
     else:
         lines.append("> 无有效来源数据")
     lines.append("")
 
-    # 来源质量评分
-    lines.append("### 4.2 来源质量评分")
+    # 4.2 质量评分（出版方维度 / 兼容旧的来源维度）
+    if has_publisher_data:
+        lines.append("### 4.2 出版方质量评分")
+    else:
+        lines.append("### 4.2 来源质量评分")
     lines.append("")
-    if credibility_data and credibility_data.get("scores"):
-        scores = credibility_data["scores"]
-        domain_scores = {}
-        for s in scores:
-            name = s.get("name", "Unknown")
-            score = s.get("score", 0.5)
-            if name not in domain_scores or score > domain_scores[name]:
-                domain_scores[name] = score
 
-        sorted_sources = sorted(domain_scores.items(), key=lambda x: -x[1])[:10]
+    if scores:
+        grouped: Dict[str, float] = {}
+        for s in scores:
+            score = s.get("score", 0.5)
+            if has_publisher_data:
+                publisher = (s.get("publisher") or "").strip()
+                # 出版方未解析时显式标注，禁止用引擎名冒充出版方
+                label = publisher or f"出版方未解析（{s.get('engine') or s.get('name', 'Unknown')}）"
+            else:
+                label = s.get("name", "Unknown")
+            if label not in grouped or score > grouped[label]:
+                grouped[label] = score
+
+        sorted_sources = sorted(grouped.items(), key=lambda x: -x[1])[:10]
         for name, score in sorted_sources:
             stars = _score_to_stars(score)
-            role = _get_source_role(name)
-            lines.append(f"- **{name}**：{stars} ({score:.0%}) [{role}]")
+            if name.startswith("出版方未解析"):
+                lines.append(f"- **{name}**：{stars} ({score:.0%}) "
+                             f"[跳转未解析，按检索渠道回退计分]")
+            else:
+                lines.append(f"- **{name}**：{stars} ({score:.0%}) [{_get_source_role(name)}]")
     else:
         lines.append("> 无可信度评分数据")
     lines.append("")
@@ -560,6 +588,7 @@ def build_entity_graph(kg_entities: List[dict],
         "TECHNOLOGY": "技术", "LOCATION": "地点", "EVENT": "事件",
         "GPE": "地缘政治实体", "NORP": "群体/民族", "LAW": "法律",
         "DATE": "时间", "MONEY": "金额", "OTHER": "其他",
+        "UNKNOWN": "未分类（类型未识别）",
     }
 
     for etype, entities in sorted(by_type.items(), key=lambda x: -len(x[1])):
@@ -572,14 +601,33 @@ def build_entity_graph(kg_entities: List[dict],
         lines.append("")
 
     if kg_relations:
-        lines.append("### 主要关系")
-        lines.append("")
-        for rel in kg_relations[:10]:
-            src = rel.get("source", rel.get("subject_id", "?"))
-            tgt = rel.get("target", rel.get("object_id", "?"))
+        # 关系两端渲染为实体名，并只保留两侧都出现在本板块的实体 ——
+        # 旧实现直接打印实体 id，且不检查该实体是否已被 TopN 截断，
+        # 于是出现「关系里的实体在实体清单中不存在」的悬空引用。
+        name_by_id = {e.get("id"): e.get("name") for e in kg_entities if e.get("id")}
+        displayed_ids = {e.get("id") for e in sorted_entities if e.get("id")}
+
+        rendered = []
+        for rel in kg_relations:
+            src_id = rel.get("subject_id")
+            tgt_id = rel.get("object_id")
+            src = name_by_id.get(src_id, rel.get("source"))
+            tgt = name_by_id.get(tgt_id, rel.get("target"))
+            if not src or not tgt:
+                continue
+            if src_id is not None and tgt_id is not None:
+                if src_id not in displayed_ids or tgt_id not in displayed_ids:
+                    continue
             rel_type = rel.get("type", rel.get("predicate", "关联"))
-            lines.append(f"- {src} → {rel_type} → {tgt}")
-        lines.append("")
+            rendered.append(f"- {src} → {rel_type} → {tgt}")
+            if len(rendered) >= 10:
+                break
+
+        if rendered:
+            lines.append("### 主要关系")
+            lines.append("")
+            lines.extend(rendered)
+            lines.append("")
 
     return "\n".join(lines)
 
@@ -887,43 +935,130 @@ def build_event_history(event_changes: Optional[dict] = None,
     return "\n".join(lines)
 
 
+_MAX_EVIDENCE_ITEMS = 30
+
+
+def _evidence_url_key(url: str) -> str:
+    """证据去重键：域名 + 路径（忽略 scheme、查询串与末尾斜杠）。
+
+    同一篇文章可能以 http/https、带 utm 参数、带尾斜杠等多种形态出现，
+    按域名+路径归一后只保留一条证据。
+    """
+    try:
+        parsed = urlparse(url or "")
+        return f"{parsed.netloc.lower()}{parsed.path}".rstrip("/")
+    except Exception:
+        return url or ""
+
+
+def _evidence_domain(url: str) -> str:
+    """展示用来源域名（去掉 www 前缀）。"""
+    try:
+        host = (urlparse(url or "").netloc or "").lower()
+    except Exception:
+        return ""
+    return host[4:] if host.startswith("www.") else host
+
+
+def _is_unresolved_wrapper(url: str) -> bool:
+    """URL 是否仍是搜索引擎跳转包装壳（真实地址未解析出来）。"""
+    try:
+        from intelnexus.core.search.web import is_wrapper_url
+        return is_wrapper_url(url)
+    except Exception:
+        return False
+
+
+def _evidence_fallback_title(text: str, max_len: int = 40) -> str:
+    """降级标题：抓取正文常为「标题 - 正文」形态，取首段作为标题。"""
+    flat = " ".join((text or "").split())
+    if not flat:
+        return ""
+    head = flat.split(" - ", 1)[0].strip(" -") or flat
+    if len(head) > max_len:
+        return head[:max_len].rstrip() + "…"
+    return head
+
+
 def build_evidence_appendix(scraped: Dict[str, str],
                             results: List[dict] = None) -> str:
-    """板块 14：原始证据（程序化生成）。"""
+    """板块 14：原始证据（程序化生成）。
+
+    条目以「标题」为主行（来源域名次之，URL 单列可复制）：URL 只是溯源
+    地址，顶到标题位会让人看不出这条证据是什么。
+    """
     lines = ["## 十五、原始证据", ""]
 
     if not scraped and not results:
         lines.append("> 无可用证据材料")
         return "\n".join(lines)
 
-    sources = []
-    if scraped:
-        for url in list(scraped.keys())[:30]:
-            sources.append({"url": url, "title": "", "has_content": True})
+    # URL → 标题/来源 索引。结果归一化后字段是 url，link 仅为兼容旧结构。
+    meta_by_key: Dict[str, dict] = {}
+    for r in results or []:
+        u = r.get("url") or r.get("link") or ""
+        key = _evidence_url_key(u)
+        if not key:
+            continue
+        if key not in meta_by_key or not meta_by_key[key].get("title"):
+            meta_by_key[key] = {
+                "title": r.get("title", ""),
+                "source": r.get("source", ""),
+                "snippet": r.get("description", ""),
+            }
 
-    if results and len(sources) < 30:
+    sources: List[dict] = []
+    seen: set = set()
+
+    for url, content in (scraped or {}).items():
+        key = _evidence_url_key(url)
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        meta = meta_by_key.get(key, {})
+        sources.append({
+            "url": url,
+            "title": meta.get("title", ""),
+            "source": meta.get("source", ""),
+            "fallback": _evidence_fallback_title(content) or _evidence_fallback_title(meta.get("snippet", "")),
+            "has_content": True,
+        })
+        if len(sources) >= _MAX_EVIDENCE_ITEMS:
+            break
+
+    if results and len(sources) < _MAX_EVIDENCE_ITEMS:
         for r in results:
-            link = r.get("link", "")
-            if link and link not in [s["url"] for s in sources]:
-                sources.append({
-                    "url": link,
-                    "title": r.get("title", ""),
-                    "has_content": False,
-                })
-                if len(sources) >= 30:
-                    break
+            u = r.get("url") or r.get("link") or ""
+            key = _evidence_url_key(u)
+            if not u or key in seen:
+                continue
+            seen.add(key)
+            sources.append({
+                "url": u,
+                "title": r.get("title", ""),
+                "source": r.get("source", ""),
+                "fallback": _evidence_fallback_title(r.get("description", "")),
+                "has_content": False,
+            })
+            if len(sources) >= _MAX_EVIDENCE_ITEMS:
+                break
 
     if not sources:
         lines.append("> 无可用证据材料")
         return "\n".join(lines)
 
     for idx, src in enumerate(sources, 1):
-        lines.append(f"[{idx}] **{src['title'] or src['url']}**")
-        lines.append(f"- URL：{src['url']}")
-        if src.get("has_content"):
-            lines.append("- 状态：已抓取全文")
-        else:
-            lines.append("- 状态：仅元数据")
+        url = src["url"]
+        domain = _evidence_domain(url)
+        title = src["title"] or src["fallback"] or domain or "未命名来源"
+        lines.append(f"[{idx}] **{title}**")
+        if domain:
+            suffix = f"（{src['source']}）" if src["source"] else ""
+            lines.append(f"- 来源：{domain}{suffix}")
+        # 完整链接优先保留在 URL 行（可复制），解析不出真实地址的包装壳显式标注
+        flag = "（跳转包装，未解析）" if _is_unresolved_wrapper(url) else ""
+        lines.append(f"- URL：`{url}`{flag}")
+        lines.append("- 状态：已抓取全文" if src["has_content"] else "- 状态：仅元数据")
         lines.append("")
 
     return "\n".join(lines)

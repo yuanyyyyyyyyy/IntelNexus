@@ -225,7 +225,11 @@ def run_search_computation(
     # ---- 5. 内容抓取 ----
     progress_callback("scraping", "抓取网页内容...", 0.3)
     from intelnexus.core.search.scraper import scrape_multiple
-    scraped = scrape_multiple(result["filtered"], max_workers=threads)
+    # resolved_map 收集抓取时解析出的真实地址：scrape_multiple 已按真实地址换键，
+    # 这里再据此同步 results 的 url，保证两侧键一致（错位会让可信度评估落空）
+    resolved_map = {}
+    scraped = scrape_multiple(result["filtered"], max_workers=threads,
+                              resolved_map=resolved_map)
     result["scraped"] = scraped
 
     # ---- 5.5 重定向 URL 回填（baidu/link 等包装在抓取时才解析出真实地址）----
@@ -234,7 +238,10 @@ def run_search_computation(
         from intelnexus.core.search.web import canonical_result_url
         _remap = {}
         for _r in result.get("results", []):
-            _resolved = _r.pop("resolved_url", None) or canonical_result_url(_r.get("url", ""))
+            _url = _r.get("url", "")
+            _resolved = (_r.pop("resolved_url", None)
+                         or resolved_map.get(_url)
+                         or canonical_result_url(_url))
             if _resolved and _resolved != _r.get("url"):
                 _remap[_r.get("url", "")] = _resolved
                 _r["url"] = _resolved
@@ -284,6 +291,10 @@ def run_search_computation(
                 d = r.get("credibility_details", {})
                 scores_list.append({
                     "name": r.get("source", "Unknown"),
+                    # 出版方与检索渠道分离：name/source 是渠道，publisher 才是内容来源
+                    "engine": d.get("engine") or r.get("source", "Unknown"),
+                    "publisher": r.get("publisher") or d.get("publisher", ""),
+                    "publisher_resolved": d.get("publisher_resolved", False),
                     "score": r.get("credibility_score", 0.5),
                     "reason": d.get("reason", ""),
                     "domain": d.get("domain_score", 0),

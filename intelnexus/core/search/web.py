@@ -224,6 +224,20 @@ _WRAPPER_HOSTS = (
 )
 
 
+def is_wrapper_url(url: str) -> bool:
+    """判断 URL 是否仍是搜索引擎跳转包装（未解析出真实地址）。
+
+    供抓取层与报告层共用：包装壳本身不是可溯源地址，展示时必须标注。
+    """
+    if not url or '://' not in url:
+        return False
+    try:
+        host = urlparse(url).netloc.lower()
+    except Exception:
+        return False
+    return host in _WRAPPER_HOSTS
+
+
 def canonical_result_url(url: str) -> str:
     """解析搜索结果中的重定向包装，返回真实目标 URL（无法解析时原样返回）。"""
     if not url or '://' not in url:
