@@ -280,7 +280,135 @@ def _render_source_health():
                                  use_container_width=True):
                         h.reset()
                         save_health(h)
+                        # 必须一并失效健康缓存：否则 st.rerun() 后面板仍显示旧的
+                        # degraded/down，用户会以为「重置没生效」
+                        _invalidate_health_caches()
                         st.rerun()
+
+
+#: 各站内检索 Provider 对应的凭证字段（用于掩码展示「到底存上了没有」）
+_SITE_SEARCH_CREDENTIAL_FIELDS = {
+    "bocha": ("bocha_api_key",),
+    "brave": ("brave_api_key",),
+    "google_cse": ("google_cse_api_key", "google_cse_id"),
+}
+
+
+def _mask_secret(value: str) -> str:
+    """掩码密钥：只留首尾各 4 位。
+
+    界面与日志**绝不回显明文**——密码框恒为空白（不回填），用户只能从掩码串
+    确认凭证是否已保存。
+
+    长度阈值取 12：短凭证（如 Google CSE 的 cx、自挂 Provider 的短 token）
+    若仍留首尾各 4 位，掩码后几乎等于明文，故一律只显示 ``****``。
+    """
+    v = (value or "").strip()
+    if not v:
+        return ""
+    if len(v) <= 12:
+        return "****"
+    return f"{v[:4]}****{v[-4:]}"
+
+
+def _site_search_masked(cfg: dict, provider: str) -> str:
+    """返回该 Provider 已保存凭证的掩码串；未配置返回空串。"""
+    vals = [str(cfg.get(f, "") or "").strip()
+            for f in _SITE_SEARCH_CREDENTIAL_FIELDS.get(provider, ())]
+    vals = [v for v in vals if v]
+    return " / ".join(_mask_secret(v) for v in vals) if vals else ""
+
+
+def _site_scoped_sources():
+    """返回依赖「站内检索后端」的源实例列表（取不到时返回空列表，不阻塞 UI）。"""
+    try:
+        from intelnexus.ui._caches import cached_registry
+        from intelnexus.config.search_settings import get_news_api_key
+        from intelnexus.core.search.sources.site_scoped_source import SiteScopedSource
+        reg = cached_registry(news_api_key=get_news_api_key())
+        return [s for s in reg.all_sources() if isinstance(s, SiteScopedSource)]
+    except Exception as e:
+        logger.warning(f"获取站内源失败: {e}")
+        return []
+
+
+def _site_scoped_source_names():
+    """依赖站内检索后端的源名列表。"""
+    return [s.name for s in _site_scoped_sources()]
+
+
+def _site_scoped_probe_domain():
+    """自检目标域名：用站内源**自己的**域名，而不是通用占位域。
+
+    若拿 ``example.com`` 自检却把结论记在「小红书」名下，那么「include 限定
+    失效 / 该站点被后端限制」这类**只在召回层可见**的故障会被系统性掩盖——
+    源会一直显示 healthy 却始终取不到站内内容。
+    """
+    for src in _site_scoped_sources():
+        for dom in (getattr(src, "domains", ()) or ()):
+            if dom:
+                return dom
+    return ""
+
+
+def _invalidate_health_caches():
+    """健康状态已变更：失效 UI 缓存，否则面板仍显示旧状态。"""
+    try:
+        from intelnexus.ui._caches import cached_all_health
+        from intelnexus.ui.status_metrics import invalidate_status_metrics
+        cached_all_health.clear()
+        invalidate_status_metrics()
+    except Exception as e:
+        logger.warning(f"失效健康缓存失败: {e}")
+
+
+def _reset_site_scoped_health():
+    """重置站内源的健康状态（保存凭证后调用）。
+
+    凭证更新前的失败（「未配置后端」「网络不可达」等）已成**陈旧信号**，不清掉
+    会让源继续挂在 degraded/down，用户明明修好了却仍取不到数据。
+    """
+    try:
+        from intelnexus.core.search.health import reset_health_for
+        names = _site_scoped_source_names()
+        if names and reset_health_for(names):
+            _invalidate_health_caches()
+            logger.info(f"已重置站内源健康状态: {names}")
+    except Exception as e:
+        logger.warning(f"重置站内源健康状态失败: {e}")
+
+
+def _run_site_search_trial(query: str) -> dict:
+    """端到端试搜：真跑一次站内检索，回答「能不能取到站内内容」。
+
+    与 ``probe_site_search`` 分工明确——自检只验证凭证与连通性（便宜），试搜才
+    验证召回（贵，消耗 1 次额度）。两者都由用户显式点击触发，绝不在检索管线里
+    自动加测。
+    """
+    out: dict = {"query": query, "rows": [], "error": "", "raw": 0, "kept": 0}
+    try:
+        from intelnexus.ui._caches import cached_registry
+        from intelnexus.config.search_settings import get_news_api_key
+        from intelnexus.core.search.sources.site_scoped_source import SiteScopedSource
+        reg = cached_registry(news_api_key=get_news_api_key())
+        scoped = [s for s in reg.all_sources() if isinstance(s, SiteScopedSource)]
+        if not scoped:
+            out["error"] = get_text("site_search_trial_no_source")
+            return out
+        raw = 0
+        for src in scoped:
+            out["rows"].extend(list(src.search(query) or []))
+            # 取源的过滤统计：用于区分「后端没返回」与「过滤后没留下」
+            stats = getattr(src, "last_filter_stats", None) or {}
+            raw += int(stats.get("raw") or 0)
+        out["raw"] = raw
+        out["kept"] = len(out["rows"])
+    except Exception as e:
+        logger.warning(f"站内试搜失败: {e}")
+        # 异常文本可能带出 query 中的凭证（Google CSE 的 Key 走 query）
+        from intelnexus.core.search.sitesearch.base import redact_secrets
+        out["error"] = redact_secrets(f"{type(e).__name__}: {e}")
+    return out
 
 
 def _render_search_service_settings():
@@ -327,7 +455,8 @@ def _render_search_service_settings():
         try:
             from intelnexus.config.search_settings import get_site_search_config
             from intelnexus.core.search.sitesearch import (
-                available_providers, reset_site_search_backend)
+                available_providers, reset_site_search_backend, probe_site_search)
+            from intelnexus.core.search.sitesearch.base import redact_secrets
 
             sec_cfg = get_site_search_config()
             _available = available_providers(sec_cfg)
@@ -348,6 +477,14 @@ def _render_search_service_settings():
             _avail_text = " / ".join(_provider_labels[p] for p in _available) \
                 if _available else get_text("site_search_provider_none")
             st.caption(get_text("site_search_provider_hint").format(current=_avail_text))
+
+            # 各 Provider 的凭证状态（掩码）。输入框恒为空白（密码框不回填明文），
+            # 用户只能从这里确认「上次保存的 Key 到底还在不在」。
+            for _p in ("bocha", "brave", "google_cse"):
+                _masked = _site_search_masked(sec_cfg, _p)
+                _state = (get_text("site_search_cfg_configured").format(masked=_masked)
+                          if _masked else get_text("site_search_cfg_unset"))
+                st.caption(f"{_provider_labels[_p]}：{_state}")
 
             _options = [
                 ("auto", get_text("site_search_provider_auto")),
@@ -392,6 +529,9 @@ def _render_search_service_settings():
                         updates["brave_api_key"] = _new_b_key.strip()
                     if save_search_settings(updates):
                         reset_site_search_backend()  # 凭证已变，重建后端实例
+                        # 凭证更新前的失败（未配置/不可达）已成陈旧信号，不清掉
+                        # 会让源继续挂在 degraded，用户明明修好了却仍取不到数据
+                        _reset_site_scoped_health()
                         from intelnexus.ui._caches import cached_registry
                         cached_registry.clear()
                         st.success(get_text("site_search_saved"))
@@ -410,10 +550,112 @@ def _render_search_service_settings():
                                                  "google_cse_id": "",
                                                  "brave_api_key": ""}):
                             reset_site_search_backend()
+                            # 与保存路径对称：清掉陈旧的健康状态与上一次的结论。
+                            # 否则界面会一直显示「连接正常」，而凭证其实已被清除
+                            # ——陈旧的成功结论比没有结论更危险。
+                            _reset_site_scoped_health()
+                            for _k in ("site_search_probe_result",
+                                       "site_search_trial_result"):
+                                st.session_state.pop(_k, None)
                             from intelnexus.ui._caches import cached_registry
                             cached_registry.clear()
                             st.success(get_text("site_search_cleared"))
                             st.rerun()
+
+            # ---- 连通性自检：只回答「后端能不能通、Key 有没有效」----
+            # 不做端到端召回验证（那是下方「试搜」的职责，成本更高）。
+            st.caption(get_text("site_search_test_cost_hint"))
+            if st.button(get_text("site_search_test"), key="site_search_test_btn",
+                         use_container_width=True):
+                with st.spinner(get_text("site_search_testing")):
+                    try:
+                        # 未保存的输入优先纳入探测：用户「填完 Key 直接点测试」
+                        # 时若只读已保存配置，会报「未配置任何后端」，恰好制造
+                        # 「Key 没保存上」的错觉。
+                        _probe_cfg = dict(sec_cfg)
+                        for _f, _v in (("bocha_api_key", _new_bc_key),
+                                       ("google_cse_api_key", _new_g_key),
+                                       ("google_cse_id", _new_g_cx),
+                                       ("brave_api_key", _new_b_key)):
+                            if _v.strip():
+                                _probe_cfg[_f] = _v.strip()
+                        # 用站内源自己的域名自检，避免「占位域可用」被记成
+                        # 「小红书源健康」而掩盖召回层故障
+                        _res = probe_site_search(
+                            _probe_cfg, domain=_site_scoped_probe_domain())
+                    except Exception as _e:
+                        # 自检本身异常不得让面板崩掉：降级为一个 error 结论
+                        _res = {"provider": "", "configured": False, "ok": False,
+                                "kind": "error", "latency_ms": 0.0,
+                                "message": f"{type(_e).__name__}: {_e}"}
+                # 存 session_state：st.rerun() 会丢弃本帧内联渲染，重绘后仍要看到结论
+                st.session_state["site_search_probe_result"] = _res
+                try:
+                    # 复用「用户源批量测试」的探测语义（失败即时降级、成功即恢复）
+                    from intelnexus.core.search.health import record_probe_result
+                    for _n in _site_scoped_source_names():
+                        record_probe_result(_n, bool(_res.get("ok")),
+                                            float(_res.get("latency_ms") or 0),
+                                            _res.get("message") or None)
+                    _invalidate_health_caches()
+                except Exception as _e:
+                    logger.warning(f"写入自检探测结果失败: {_e}")
+                # 健康面板在本帧「搜索服务设置」之前已渲染完，不重跑就看不到
+                # 刚写入的结论（与重置按钮保持一致）
+                st.rerun()
+
+            _probe = st.session_state.get("site_search_probe_result")
+            if _probe:
+                if _probe.get("ok"):
+                    st.success(get_text("site_search_test_ok").format(
+                        provider=_probe.get("provider", ""),
+                        latency=_probe.get("latency_ms", 0)))
+                else:
+                    st.error(get_text("site_search_test_failed").format(
+                        reason=get_text(
+                            f"site_search_err_{_probe.get('kind')}")))
+                    if _probe.get("message"):
+                        # message 已在 probe_site_search 内统一 redact 脱敏
+                        st.caption(str(_probe["message"]))
+
+            # ---- 端到端试搜：确认真能取到小红书站内内容 ----
+            # 与「测试连接」分工：后者只验凭证与连通性，前者才验证召回。
+            st.caption(get_text("site_search_trial_hint"))
+            _trial_q = st.text_input(
+                get_text("site_search_trial_query"), value="",
+                key="site_search_trial_input",
+                placeholder=get_text("site_search_trial_placeholder"))
+            if st.button(get_text("site_search_trial"), key="site_search_trial_btn",
+                         use_container_width=True):
+                with st.spinner(get_text("site_search_testing")):
+                    st.session_state["site_search_trial_result"] = \
+                        _run_site_search_trial(_trial_q.strip() or "数据泄露")
+
+            _trial = st.session_state.get("site_search_trial_result")
+            if _trial:
+                if _trial.get("error"):
+                    st.error(get_text("site_search_trial_failed").format(
+                        # 异常文本可能带出 query 中的凭证（Google CSE 走 query），
+                        # 且要防 Markdown 注入
+                        message=html.escape(redact_secrets(str(
+                            _trial["error"]))[:200])))
+                elif _trial.get("rows"):
+                    st.success(get_text("site_search_trial_ok").format(
+                        n=len(_trial["rows"])))
+                    st.caption(get_text("site_search_trial_stats").format(
+                        raw=_trial.get("raw", 0), kept=_trial.get("kept", 0)))
+                    for _r in _trial["rows"][:5]:
+                        # 标题/URL 来自外部检索结果，用 st.text（原样文本）而非
+                        # st.caption（走 Markdown）：否则标题可构造
+                        # [点我](http://evil) 渲染成可点击链接
+                        st.text(f"- {str(_r.get('title') or '')[:60]}"
+                                f" — {str(_r.get('url') or '')[:80]}")
+                elif int(_trial.get("raw") or 0) > 0:
+                    # 两种「0 条」必须区分：后端有返回却被过滤干净 ≠ 后端没返回
+                    st.warning(get_text("site_search_trial_filtered_all").format(
+                        raw=_trial.get("raw", 0)))
+                else:
+                    st.warning(get_text("site_search_trial_zero"))
 
         # ---- 搜索源开关（F: 源太少问题的 UI 入口）----
         st.markdown("---")

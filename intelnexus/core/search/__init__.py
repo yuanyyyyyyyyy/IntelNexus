@@ -269,6 +269,12 @@ def _calculate_bm25_score(text: str, query_tokens: set, k1: float = 1.5, b: floa
     return min(score / 5.0, 1.0)
 
 
+#: 相关性过滤阈值（0.0~1.0）：网页源（``get_web_results``）与站内检索源
+#: （``SiteScopedSource``）**共用同一常量**。此前阈值写死在评分器内部，新增
+#: 站内源后若各留一份，将来调阈值必然出现两处口径漂移。
+RELEVANCE_THRESHOLD = 0.3
+
+
 def relevance_detail(result: dict, query) -> dict:
     """
     relevance_passes 的明细版：返回评分构成与 token 命中清单。
@@ -333,7 +339,7 @@ def relevance_detail(result: dict, query) -> dict:
     # 综合评分（权重：关键词0.5 + BM250.3 + 时效性）
     total_score = keyword_score * 0.5 + bm25_score * 0.3 + freshness_score
 
-    passed = total_score >= 0.3
+    passed = total_score >= RELEVANCE_THRESHOLD
     detail.update({
         "passed": passed,
         "keyword_score": round(keyword_score, 3),
@@ -352,7 +358,7 @@ def relevance_passes(result: dict, query) -> bool:
     相关性评分：仅用于「按查询检索」的来源。
     - 域名黑名单命中直接丢弃；
     - 结合同义词扩展、BM25评分和时效性评分进行综合评估；
-    - 阈值：综合评分 >= 0.3 视为相关。
+    - 阈值：综合评分 >= RELEVANCE_THRESHOLD（当前 0.3）视为相关。
     返回 False 表示应被过滤。评分构成见 relevance_detail。
     """
     return relevance_detail(result, query)["passed"]

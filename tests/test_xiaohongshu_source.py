@@ -160,7 +160,10 @@ def test_blank_query_returns_empty_without_calling_backend():
 # ---------------------------------------------------------------------------
 
 def test_default_backend_factory_uses_sitesearch_factory():
-    be = _StubBackend([_row("https://www.xiaohongshu.com/explore/1")])
+    # 标题需与查询相关：本用例验证的是「默认工厂是否从 sitesearch 取后端」，
+    # 若用占位标题会被相关性过滤掉，断言就从「接线」变成了「过滤」的附庸
+    be = _StubBackend([_row("https://www.xiaohongshu.com/explore/1",
+                            title="漏洞应急响应笔记")])
     with patch("intelnexus.core.search.sitesearch.get_site_search_backend",
                return_value=be) as mock_get:
         out = XiaohongshuSource().search("漏洞")
