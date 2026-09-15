@@ -5,6 +5,10 @@
   （第三方文档另写 ``api.bochaai.com``；2026-09-15 实测两个域名均返回
   ``401 {"code":"401","message":"Invalid API KEY"}``，此处按官方文档取 ``.cn``）
 - 鉴权：``Authorization: Bearer <API KEY>`` + ``Content-Type: application/json``
+- **响应结构（2026-09-15 实测抓包）**：结果嵌在 ``data`` 层内 ——
+  ``{"code":200,"log_id":...,"msg":null,"data":{"_type":"SearchResponse",
+  "queryContext":{...},"webPages":{"totalEstimatedMatches":N,"value":[...]}}}``。
+  早期实现直接取顶层 ``webPages``（顶层无此字段）→ 恒为 0 条，已修正。
 - 站内限定：``include`` 参数（多域名用 ``|`` 或 ``,`` 分隔）
 - **国内可直连**：``USE_PROXY = False``，不经项目代理（这是相对另两家的决定性优势）
 
@@ -52,17 +56,27 @@ class BochaBackend(SiteSearchBackend):
     def __init__(self, api_key: str = "", **kwargs):
         super().__init__(**kwargs)
         self._api_key = api_key or ""
+        # 实例级摘要开关：自检时临时关闭（summary 显著抬高服务端耗时与成本）
+        self._summary = USE_SUMMARY
 
     def is_configured(self) -> bool:
         return bool(self._api_key)
 
     # ------------------------------------------------------------------
+    def probe(self, domain: str = "") -> list:
+        """博查自检：临时关掉 summary，只取 1 条，把耗时与成本压到最低。"""
+        prev, self._summary = self._summary, False
+        try:
+            return super().probe(domain)
+        finally:
+            self._summary = prev
+
     def _fetch(self, query: str, domain: str, max_results: int) -> list:
         payload = {
             "query": query,
             SITE_INCLUDE_PARAM: domain,
             "count": min(max(1, int(max_results)), RESULT_CAP),
-            "summary": USE_SUMMARY,
+            "summary": self._summary,
         }
         headers = {
             "Authorization": f"Bearer {self._api_key}",
@@ -86,12 +100,33 @@ class BochaBackend(SiteSearchBackend):
             raise self._map_error(resp)
 
         try:
-            data = resp.json() or {}
+            body = resp.json() or {}
         except Exception as e:
             raise SiteSearchError(f"Bocha 响应解析失败: {type(e).__name__}",
                                   kind="error")
+        if not isinstance(body, dict):
+            # list/str 等非常规响应体：早失败并保留 kind，否则后面的 .get()
+            # 会抛 AttributeError，被上层兜底成笼统 error，丢失语义
+            raise SiteSearchError(
+                f"Bocha 响应格式异常（{type(body).__name__}）", kind="error")
 
-        pages = ((data.get("webPages") or {}).get("value")) or []
+        # 业务码优先：HTTP 200 但 body.code != 200 属业务失败。静默按「无结果」处理
+        # 会让上层误判为「站点索引无命中」，把真正的故障藏起来。
+        code = body.get("code")
+        if code is not None and str(code) != "200":
+            msg = str(body.get("msg") or "").strip()
+            raise SiteSearchError(
+                redact_secrets(f"Bocha 业务失败（code={code}"
+                               f"{'，' + msg if msg else ''}")[:200],
+                kind="error")
+
+        # 结果**嵌在 data 层**（2026-09-15 实测抓包）：
+        # {"code":200,"log_id":...,"msg":null,"data":{"_type":"SearchResponse",
+        #  "queryContext":{...},"webPages":{"totalEstimatedMatches":..,"value":[..]}}}
+        # 旧实现直接取顶层 webPages，而顶层并无该字段 → 恒解析出 0 条（小红书源
+        # 配置与凭证都正常却始终取不到数据的根因）。保留顶层回退以兼容无包裹响应。
+        resp_body = body.get("data") if isinstance(body.get("data"), dict) else body
+        pages = ((resp_body.get("webPages") or {}).get("value")) or []
         out = []
         for item in pages:
             out.append(self._unified(

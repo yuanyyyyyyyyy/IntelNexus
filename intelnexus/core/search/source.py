@@ -41,6 +41,11 @@ class BaseSearchSource(ABC):
     enabled: bool = True
     #: 是否需要代理（决定代理收口行为，避免幽灵代理超时）
     requires_proxy: bool = False
+    #: 零结果是否应视为健康。只有源自己知道「空列表」是查询未命中还是静默故障，
+    #: 故由源自述；默认 False 保持既有保守语义（保住 DarkWeb「Tor 未连却刷出
+    #: 100% 成功」的修复不被推翻）。确知空结果＝未命中的源（如站内检索源）置 True，
+    #: 否则连续未命中会让失败计数永不下降、源被永久钉在 degraded。
+    empty_is_healthy: bool = False
 
     def __init__(self, name: str = "", category: str = "", enabled: bool = True,
                  requires_proxy: bool = False):

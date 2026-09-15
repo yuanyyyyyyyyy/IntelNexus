@@ -236,6 +236,17 @@ class SearchSourceRegistry:
     def all_sources(self) -> List[BaseSearchSource]:
         return list(self._builtin) + list(self._user_sources)
 
+    def site_scoped_source_names(self) -> List[str]:
+        """返回依赖「站内检索后端」的源名（当前为小红书，未来可含微博/知乎等）。
+
+        用 ``isinstance`` 判定而非按 category：``custom`` 类别也会被用户源占用，
+        只有 ``SiteScopedSource`` 子类才真正依赖该后端。供「保存凭证后重置健康」
+        与「自检结果写入健康表」使用。
+        """
+        from intelnexus.core.search.sources.site_scoped_source import SiteScopedSource
+        return [s.name for s in self.all_sources()
+                if isinstance(s, SiteScopedSource)]
+
     def get_sources_by_mode(self, mode: str) -> List[BaseSearchSource]:
         """返回该模式下、已启用的源列表（按类别过滤，健康降级排序）。"""
         from intelnexus.core.search.health import get_health
@@ -319,7 +330,19 @@ class SearchSourceRegistry:
                         setattr(src, "last_error", None)
                         logger.warning(f"源 {src.name} 检索失败: {err}")
                         return []
-                    update_health(src.name, 0, elapsed)
+                    # 透传源自述标志：确知「空结果＝未命中」的源（站内检索源）
+                    # 零结果按成功计，避免被永久钉在 degraded/down 且无法自愈
+                    update_health(src.name, 0, elapsed,
+                                  empty_is_healthy=getattr(
+                                      src, "empty_is_healthy", False))
+                    # 观测：正式检索路径上也要能区分「后端没返回」与「被过滤干净」，
+                    # 否则源长期返回 0 条时无法判断是源故障还是过滤太狠（试搜面板
+                    # 已区分，这里补日志留痕）
+                    _stats = getattr(src, "last_filter_stats", None) or {}
+                    if int(_stats.get("raw") or 0) > 0:
+                        logger.info(f"源 {src.name} 后端返回 "
+                                    f"{_stats.get('raw')} 条，过滤后 0 条"
+                                    f"（过滤生效，非源故障）")
                     _mark(src.name, "ok", 0)
                 # 为每个结果添加源名称和权重
                 source_weight = self._source_weights.get(src.name, 1.0)

@@ -29,6 +29,11 @@ from intelnexus.core.search.source import CATEGORY_CUSTOM
 _SENSITIVE_PARAMS = ("key", "cx", "api_key", "apikey", "token", "access_token",
                      "subscription-token")
 
+#: 自检查询词：无业务含义，只用于验证凭证与连通性（不关心命中什么）
+PROBE_QUERY = "test"
+#: 自检默认域名：未指定时的兜底目标，同样无业务含义
+PROBE_DOMAIN = "example.com"
+
 
 def redact_secrets(text: str) -> str:
     """脱敏敏感参数值。
@@ -132,6 +137,25 @@ class SiteSearchBackend(ABC):
         rows = self._fetch(q, d, effective)
         self._set_cached(key, rows)
         return list(rows)
+
+    def probe(self, domain: str = "") -> List[Dict]:
+        """最小成本自检：只回答「凭证是否有效、后端是否可达」。
+
+        与 ``search`` 的差异（两者都对，用途不同，勿互相替代）：
+        - 固定最小载荷（只要 1 条结果），把额度消耗与耗时压到最低；
+        - **绕过缓存**：自检结论必须来自当次真实请求——命中上一次的缓存会把
+          「Key 已被吊销 / 余额已耗尽」误报为成功，而那正是自检要发现的问题。
+
+        失败语义与 ``search`` 一致：抛 ``SiteSearchError``（按 kind 分类），
+        未配置时抛 ``not_configured``。
+        """
+        d = str(domain or "").strip().lower() or PROBE_DOMAIN
+        if not self.is_configured():
+            raise SiteSearchError(
+                f"{self.name or '站内检索后端'} 未配置凭证，请在「搜索服务设置」填写",
+                kind="not_configured")
+        self._throttle()
+        return list(self._fetch(PROBE_QUERY, d, 1) or [])
 
     def clear_cache(self) -> None:
         """清空结果缓存（凭证变更后由工厂失效钩子调用）。"""

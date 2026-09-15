@@ -17,10 +17,13 @@ Provider 选择：
 采集实现（包括需登录态的实现）可借此挂载。
 """
 import threading
+import time
 from typing import Dict, List, Optional
 
 from intelnexus.core.logger import get_logger
-from intelnexus.core.search.sitesearch.base import SiteSearchBackend, SiteSearchError
+from intelnexus.core.search.sitesearch.base import (
+    SiteSearchBackend, SiteSearchError, redact_secrets,
+)
 from intelnexus.core.search.sitesearch.bocha import BochaBackend
 from intelnexus.core.search.sitesearch.brave import BraveBackend
 from intelnexus.core.search.sitesearch.google_cse import GoogleCSEBackend
@@ -31,7 +34,7 @@ __all__ = [
     "SiteSearchBackend", "SiteSearchError",
     "BochaBackend", "GoogleCSEBackend", "BraveBackend",
     "PROVIDER_PRIORITY", "resolve_provider", "available_providers",
-    "get_site_search_backend", "reset_site_search_backend",
+    "get_site_search_backend", "reset_site_search_backend", "probe_site_search",
 ]
 
 #: auto 模式下的选择优先级。
@@ -103,6 +106,52 @@ def get_site_search_backend(cfg: Optional[Dict] = None) -> Optional[SiteSearchBa
         _backend_cache = _build(provider, cfg)
         _backend_cache_key = key
         return _backend_cache
+
+
+def probe_site_search(cfg: Optional[Dict] = None, domain: str = "") -> Dict:
+    """最小成本自检：只回答「后端能不能通、Key 有没有效」。
+
+    Args:
+        domain: 自检目标域名。**强烈建议传站内源自己的域名**（如
+            ``xiaohongshu.com``）：若留空会回落到占位域 ``example.com``，
+            那么「该站点被后端限制 / include 限定失效」这类只在召回层可见的
+            故障会被漏掉——自检照样 ok，源却始终取不到站内内容。
+
+    不做端到端召回验证（那是「试搜」的职责、成本更高）——自检只发一次最小请求
+    （1 条结果、不取摘要），且绕过缓存以保证结论来自当次真实请求。
+
+    Returns:
+        ``{"provider", "configured", "ok", "kind", "latency_ms", "message"}``。
+        ``kind`` 取 ``ok`` / ``unconfigured`` / ``auth`` / ``quota`` / ``config`` /
+        ``network`` / ``error``；``message`` 已 ``redact_secrets`` 脱敏
+        （Google CSE 的 Key 走 query，异常消息会带出完整 URL）。
+
+    成本提示：凭证有效时，博查等充值制后端会**消耗 1 次查询额度**；凭证无效
+    （HTTP 401）不产生有效检索。UI 须在触发前向用户明示。
+    """
+    cfg = _load_config() if cfg is None else cfg
+    provider = resolve_provider(cfg)
+    if not provider:
+        return {"provider": "", "configured": False, "ok": False,
+                "kind": "unconfigured", "latency_ms": 0.0,
+                "message": "未配置任何站内检索后端（博查 / Brave / Google CSE）"}
+
+    def _result(ok: bool, kind: str, message: str, started: float) -> Dict:
+        return {"provider": provider, "configured": True, "ok": ok, "kind": kind,
+                "latency_ms": round((time.monotonic() - started) * 1000, 1),
+                "message": redact_secrets(message)[:200]}
+
+    backend = _build(provider, cfg)
+    t0 = time.monotonic()
+    try:
+        backend.probe(domain)
+    except SiteSearchError as e:
+        logger.info(f"站内检索自检失败({e.kind}): {e}")
+        return _result(False, e.kind, str(e), t0)
+    except Exception as e:
+        logger.warning(f"站内检索自检异常: {e}")
+        return _result(False, "error", f"{type(e).__name__}: {e}", t0)
+    return _result(True, "ok", "", t0)
 
 
 def reset_site_search_backend() -> None:

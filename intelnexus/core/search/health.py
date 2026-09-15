@@ -133,12 +133,20 @@ def get_all_health() -> List[SourceHealth]:
 
 
 def update_health(source_name: str, result_count: int, latency_ms: float,
-                  error: Optional[str] = None):
+                  error: Optional[str] = None, empty_is_healthy: bool = False):
     """统一更新入口：error 非 None 记失败；否则按是否返回结果分级。
 
     修复：result_count == 0 且无 error（源连通但本次查询无结果，如暗网开关开、
     Tor 未连时返回空列表）不再计入 success——旧语义让 DarkWeb 在 Tor 未连接
     时也能刷出 200+ 次"100% 成功"，健康面板失真。
+
+    ``empty_is_healthy``（默认 False）：由源**自述**「零结果是否等于健康」。
+    - False（默认，既有语义）：零结果既不计成功也不计失败，保住上面 DarkWeb
+      的修复不被推翻；
+    - True：零结果按成功计（清零连续失败）。适用于明确知道「空列表＝查询未命中、
+      而非静默故障」的源（如站内检索源 ``SiteScopedSource``）——否则召回天然偏低
+      的源连续几次未命中后，``consecutive_failures`` 永不下降，会被永久钉在
+      degraded，攒到阈值 6 转 down 后还会被停止投递、彻底失去自愈路径。
 
     读-改-写全程持锁（RLock 允许内部 save_health 重入），
     否则并发源线程会互相覆盖计数。
@@ -148,6 +156,9 @@ def update_health(source_name: str, result_count: int, latency_ms: float,
         if error is not None:
             health.record_failure(error)
         elif result_count > 0:
+            health.record_success(latency_ms)
+        elif empty_is_healthy:
+            # 源自述「空结果＝未命中」：按成功计，使故障恢复后能自愈回 healthy
             health.record_success(latency_ms)
         else:
             # 连通但零结果：不计成功也不计失败，仅滑动更新延迟观测
@@ -197,6 +208,44 @@ def record_probe_result(source_name: str, success: bool, latency_ms: float,
             save_health(health)
     except Exception as e:
         logger.warning(f"记录探测结果失败 [{source_name}]: {e}")
+
+
+def reset_health_for(source_names) -> int:
+    """按源名批量重置健康条目并落盘，返回实际重置的条数。
+
+    用于「用户已修好配置」的场景（如保存站内检索 Key、重新启用某源）：此时历史
+    失败已成**陈旧信号**，继续挂着会让源在下次检索前就被判定为 degraded/down。
+
+    只重置**已存在**的条目，不凭空创建——健康面板会渲染表里所有条目，为不存在的
+    源造条目等于制造僵尸行。
+    """
+    names = {n for n in (source_names or ()) if n}
+    if not names:
+        return 0
+    try:
+        with _health_lock:
+            data = _load_health_data()
+            sources = data.get("sources", {})
+            reset = 0
+            for name in names:
+                if name not in sources:
+                    continue
+                health = SourceHealth.from_dict(sources[name])
+                health.reset()
+                sources[name] = health.to_dict()
+                reset += 1
+            if reset:
+                data["sources"] = sources
+                data["updated_at"] = datetime.now().isoformat()
+                # 写盘失败必须让调用方知道：返回 0 使其能提示用户，而不是
+                # 「明明重置了却仍是降级」且无任何反馈
+                if not _save_health_data(data):
+                    logger.error("批量重置健康状态失败：写盘未成功")
+                    return 0
+            return reset
+    except Exception as e:
+        logger.warning(f"批量重置健康状态失败: {e}")
+        return 0
 
 
 def purge_stale_entries(active_source_names) -> int:

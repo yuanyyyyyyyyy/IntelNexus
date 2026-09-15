@@ -546,3 +546,53 @@ def test_bocha_network_error_maps_to_network_without_leaking_key():
     assert "sk-SECRET" not in str(ei.value)
 
 
+# ---------------------------------------------------------------------------
+# 博查响应结构（2026-09-15 真实抓包修正）：结果嵌在 data 层内
+# ---------------------------------------------------------------------------
+
+def test_bocha_parses_results_nested_under_data():
+    """回归（致命）：真实响应为 ``{code, log_id, msg, data:{webPages:{value:[...]}}}``。
+
+    旧代码直接取**顶层** ``webPages``，而顶层根本没有该字段 → 永远解析出 0 条。
+    这是小红书源配置正确、Key 有效、后端连通却始终取不到数据的根因。
+    """
+    body = {"code": 200, "log_id": "abc", "msg": None,
+            "data": _bocha_payload()}
+    session = MagicMock()
+    session.post.return_value = _resp(200, body)
+    with patch("intelnexus.core.search.sitesearch.bocha.get_session",
+               return_value=session):
+        out = BochaBackend(api_key="sk").search("数据泄露", "xiaohongshu.com")
+
+    assert len(out) == 1
+    assert out[0]["url"] == "https://www.xiaohongshu.com/explore/abc"
+    assert out[0]["title"] == "数据泄露应急响应笔记"
+
+
+def test_bocha_still_parses_flat_shape_as_fallback():
+    """兼容：无 data 包裹时仍按顶层解析（历史夹具与该形状一致）。"""
+    session = MagicMock()
+    session.post.return_value = _resp(200, _bocha_payload())
+    with patch("intelnexus.core.search.sitesearch.bocha.get_session",
+               return_value=session):
+        out = BochaBackend(api_key="sk").search("q", "xiaohongshu.com")
+
+    assert len(out) == 1
+
+
+def test_bocha_business_error_code_raises_instead_of_empty():
+    """HTTP 200 但 body.code != 200（业务失败）必须报错，不能静默返回空列表。
+
+    静默返回空会让上层误判为「站点索引无命中」，把真正的业务故障藏起来。
+    """
+    session = MagicMock()
+    session.post.return_value = _resp(200, {"code": 400, "log_id": "x",
+                                            "msg": "bad request", "data": None})
+    with patch("intelnexus.core.search.sitesearch.bocha.get_session",
+               return_value=session):
+        with pytest.raises(SiteSearchError) as ei:
+            BochaBackend(api_key="sk").search("q", "d.com")
+
+    assert "bad request" in str(ei.value)
+
+
