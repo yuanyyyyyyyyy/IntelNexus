@@ -35,9 +35,10 @@ from intelnexus.core.search.sources.arxiv_source import ArxivSource
 from intelnexus.core.search.sources.tech_community_source import TechCommunitySource
 from intelnexus.core.search.sources.huggingface_source import HuggingFaceSource
 from intelnexus.core.search.sources.qianxin_source import QianxinSource
+from intelnexus.core.search.sources.xiaohongshu_source import XiaohongshuSource
 from config import (
     ENABLE_OTX, ENABLE_HN, ENABLE_EXPLOITDB, ENABLE_NVD, ENABLE_CISA_KEV,
-    ENABLE_CNVD, ENABLE_ARXIV, ENABLE_HUGGINGFACE,
+    ENABLE_CNVD, ENABLE_ARXIV, ENABLE_HUGGINGFACE, ENABLE_XIAOHONGSHU,
 )
 
 logger = get_logger(__name__)
@@ -127,31 +128,37 @@ class SearchSourceRegistry:
             self._builtin.append(HackerNewsSource())
         if ENABLE_EXPLOITDB:
             self._builtin.append(ExploitDBSource())
+        if ENABLE_XIAOHONGSHU:
+            self._builtin.append(XiaohongshuSource())
         # 用户源（运行时从 sources.py 加载）
         self._user_sources: List[UserSource] = []
         self._load_user_sources()
 
-        # 源权重配置（权威源权重更高）
+        # 源权重配置（权威源权重更高）。
+        # 键必须与各源实例的 src.name（短名）一致——collect 内以
+        # self._source_weights.get(src.name, 1.0) 取值，用类名作键会恒取默认 1.0。
         self._source_weights = {
             # 权威漏洞库
-            "NVDSearchSource": 2.0,
-            "CISAKEVSource": 2.0,
-            "CNVDSource": 2.0,
+            "NVD": 2.0,
+            "CISA_KEV": 2.0,
+            "CNVD": 2.0,
             # 安全厂商
-            "QianxinSource": 1.5,
+            "Qianxin": 1.5,
             # 安全媒体
-            "SecurityNewsSource": 1.2,
-            "HackerNewsSource": 1.2,
+            "SecRSS": 1.2,
+            "HackerNews": 1.2,
             # 社区/论文
-            "ArxivSource": 1.0,
-            "TechCommunitySource": 1.0,
-            "HuggingFaceSource": 1.0,
+            "arXiv": 1.0,
+            "TechCommunity": 1.0,
+            "HuggingFace": 1.0,
+            # UGC 社区（略低于一手情报源，避免刷屏）
+            "Xiaohongshu": 0.9,
             # 其他
-            "WebSearchSource": 1.0,
-            "NewsSearchSource": 1.0,
-            "DarkWebSource": 1.0,
-            "AlienVaultOTXSource": 1.0,
-            "ExploitDBSource": 1.0,
+            "Web": 1.0,
+            "News": 1.0,
+            "DarkWeb": 1.0,
+            "AlienVault_OTX": 1.0,
+            "ExploitDB": 1.0,
         }
 
     # ------------------------------------------------------------------
@@ -482,8 +489,9 @@ class SearchSourceRegistry:
             return any("\u4e00" <= ch <= "\u9fff" for ch in str(q or ""))
 
         if _is_cjk_query(query):
-            en_only = {"HackerNewsSource", "ArxivSource", "ExploitDBSource",
-                       "HuggingFaceSource", "TechCommunitySource"}
+            # 键同样须用 src.name 短名（与 _source_weights 对齐），否则降权永不生效
+            en_only = {"HackerNews", "arXiv", "ExploitDB",
+                       "HuggingFace", "TechCommunity"}
             for item in unique:
                 if item.get("_source_name") in en_only:
                     item["_source_weight"] = min(

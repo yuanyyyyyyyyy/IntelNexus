@@ -322,6 +322,99 @@ def _render_search_service_settings():
                     cached_registry.clear()  # NewsAPI key 已变，刷新注册表缓存
                     st.rerun()
 
+        # ---- 站内检索后端（小红书等 SiteScopedSource 的取数依赖）----
+        st.markdown("---")
+        try:
+            from intelnexus.config.search_settings import get_site_search_config
+            from intelnexus.core.search.sitesearch import (
+                available_providers, reset_site_search_backend)
+
+            sec_cfg = get_site_search_config()
+            _available = available_providers(sec_cfg)
+        except Exception as e:
+            # try 只覆盖「导入 + 读配置」：渲染期故障应显式暴露，而不是界面空白
+            logger.warning(f"站内检索后端配置不可用: {e}")
+            sec_cfg = None
+
+        if sec_cfg is not None:
+            st.caption(get_text("site_search_section"))
+            st.caption(get_text("site_search_apply_steps"))
+
+            _provider_labels = {
+                "bocha": get_text("site_search_provider_bocha"),
+                "brave": get_text("site_search_provider_brave"),
+                "google_cse": get_text("site_search_provider_google"),
+            }
+            _avail_text = " / ".join(_provider_labels[p] for p in _available) \
+                if _available else get_text("site_search_provider_none")
+            st.caption(get_text("site_search_provider_hint").format(current=_avail_text))
+
+            _options = [
+                ("auto", get_text("site_search_provider_auto")),
+                ("bocha", get_text("site_search_provider_bocha")),
+                ("brave", get_text("site_search_provider_brave")),
+                ("google_cse", get_text("site_search_provider_google")),
+            ]
+            _labels = [label for _k, label in _options]
+            _cur = sec_cfg.get("site_search_provider", "auto")
+            _idx = next((i for i, (k, _l) in enumerate(_options) if k == _cur), 0)
+            _sel = st.selectbox(get_text("site_search_provider"), _labels,
+                                index=_idx, key="site_search_provider_select")
+
+            _new_bc_key = st.text_input(
+                get_text("bocha_api_key"), value="", type="password",
+                key="bocha_api_key_input",
+                placeholder=get_text("site_search_key_placeholder"))
+            _new_g_key = st.text_input(
+                get_text("google_cse_api_key"), value="", type="password",
+                key="google_cse_api_key_input",
+                placeholder=get_text("site_search_key_placeholder"))
+            _new_g_cx = st.text_input(
+                get_text("google_cse_id"), value="", type="password",
+                key="google_cse_id_input",
+                placeholder=get_text("site_search_key_placeholder"))
+            _new_b_key = st.text_input(
+                get_text("brave_api_key"), value="", type="password",
+                key="brave_api_key_input",
+                placeholder=get_text("site_search_key_placeholder"))
+
+            col_sec_save, col_sec_clear = st.columns([1, 1])
+            with col_sec_save:
+                if st.button(get_text("save_changes"), key="site_search_save_btn"):
+                    updates = {"site_search_provider": _options[_labels.index(_sel)][0]}
+                    if _new_bc_key.strip():
+                        updates["bocha_api_key"] = _new_bc_key.strip()
+                    if _new_g_key.strip():
+                        updates["google_cse_api_key"] = _new_g_key.strip()
+                    if _new_g_cx.strip():
+                        updates["google_cse_id"] = _new_g_cx.strip()
+                    if _new_b_key.strip():
+                        updates["brave_api_key"] = _new_b_key.strip()
+                    if save_search_settings(updates):
+                        reset_site_search_backend()  # 凭证已变，重建后端实例
+                        from intelnexus.ui._caches import cached_registry
+                        cached_registry.clear()
+                        st.success(get_text("site_search_saved"))
+                        st.rerun()
+                    else:
+                        # 此处只可能是写盘失败（updates 恒含 provider），
+                        # 不应提示「请填写所有必填字段」
+                        st.error(get_text("site_search_save_failed"))
+            with col_sec_clear:
+                if any(sec_cfg.get(k) for k in
+                       ("bocha_api_key", "google_cse_api_key", "google_cse_id",
+                        "brave_api_key")):
+                    if st.button(get_text("site_search_clear"), key="site_search_clear_btn"):
+                        if save_search_settings({"bocha_api_key": "",
+                                                 "google_cse_api_key": "",
+                                                 "google_cse_id": "",
+                                                 "brave_api_key": ""}):
+                            reset_site_search_backend()
+                            from intelnexus.ui._caches import cached_registry
+                            cached_registry.clear()
+                            st.success(get_text("site_search_cleared"))
+                            st.rerun()
+
         # ---- 搜索源开关（F: 源太少问题的 UI 入口）----
         st.markdown("---")
         try:
@@ -340,6 +433,7 @@ def _render_search_service_settings():
                 "ENABLE_OTX": "AlienVault OTX", 
                 "ENABLE_DARKWEB": "暗网 (Tor)", 
                 "ENABLE_HN": "Hacker News",
+                "ENABLE_XIAOHONGSHU": "小红书 社区笔记",
             }
             new_toggles = {}
             for key, label in labels.items():

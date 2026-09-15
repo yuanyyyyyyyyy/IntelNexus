@@ -52,13 +52,28 @@ TOR_PROXY_PORT = int(os.getenv("TOR_PROXY_PORT", "9150"))
 ENABLE_CREDIBILITY = os.getenv("ENABLE_CREDIBILITY", "true").lower() == "true"
 ENABLE_OTX = os.getenv("ENABLE_OTX", "false").lower() == "true"  # OTX SSL证书异常，暂时禁用
 ENABLE_HN = os.getenv("ENABLE_HN", "true").lower() == "true"
+# 小红书数据源：经「站内检索后端」（博查 Bocha / Brave / Google CSE）按站内限定
+# 语义检索小红书笔记。不直连小红书接口、不模拟登录/签名、不绕过任何反爬。
+# 【实测 2026-09-15】公共网页引擎一律不可用，故必须先配置站内检索后端 Key：
+#   - cn.bing.com 与 bing.com?format=rss 均忽略 site: 算子（不同 site: 查询返回同一结果集）
+#   - www.baidu.com 返回「百度安全验证」反爬页；html.duckduckgo.com 返回 HTTP 202
+# 推荐博查（国内直连免代理，充值制）；Google CSE 官方已「不再向新客户开放」，
+# 仅存量 Key 可用，故其优先级最低。未配置 Key 时本源会给出「未配置站内检索后端」
+# 的明确失败提示（不静默返回空）。默认关闭；在「搜索服务设置」填写 Key 后再开启。
+ENABLE_XIAOHONGSHU = os.getenv("ENABLE_XIAOHONGSHU", "false").lower() == "true"
+# Exploit-DB：经 GitLab raw CSV（约 10MB，本地缓存 24h）。此前因 requires_proxy=True
+# 在未配置代理时被整体跳过，已修正为可直连；默认关闭，可在「搜索服务设置」开启。
 ENABLE_EXPLOITDB = os.getenv("ENABLE_EXPLOITDB", "false").lower() == "true"
 ENABLE_VISUALIZATION = os.getenv("ENABLE_VISUALIZATION", "true").lower() == "true"
-# NVD API查询格式错误（404），暂时禁用
+# NVD 2.0 端点与 keywordSearch 参数实测正常（2026-09-15 HTTP 200）；旧注释
+# 「API查询格式错误（404）」已失效。默认关闭，可在「搜索服务设置」开启；
+# 无 API key 时限速 6s/请求。
 ENABLE_NVD = os.getenv("ENABLE_NVD", "false").lower() == "true"
 # CISA KEV在中国被墙（超时30s），暂时禁用
 ENABLE_CISA_KEV = os.getenv("ENABLE_CISA_KEV", "false").lower() == "true"
-# CNVD连接被拒，暂时禁用
+# CNVD 已修正为官方域名（www.cnvd.org.cn，原 cvd.org.cn 为非官方域名）；
+# 但站点当前启用加速乐 JS 反爬校验（HTTP 521 + __jsl_clearance），纯 HTTP 抓不到
+# 数据，命中校验时优雅降级返回空，故默认关闭。
 ENABLE_CNVD = os.getenv("ENABLE_CNVD", "false").lower() == "true"
 # arXiv在中国不稳定，暂时禁用
 ENABLE_ARXIV = os.getenv("ENABLE_ARXIV", "false").lower() == "true"

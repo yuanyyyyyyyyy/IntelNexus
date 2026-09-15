@@ -27,7 +27,7 @@
 
 | 特性 | 说明 |
 |------|------|
-| **多源并发检索** | 网页(Bing/DDG/Yahoo/Yandex/百度)、新闻、威胁情报(NVD/CISA KEV/OTX/ExploitDB)、RSS 等 16 类数据源统一调度 |
+| **多源并发检索** | 网页(Bing/DDG/Yahoo/Yandex/百度)、新闻、威胁情报(NVD/CISA KEV/CNVD/OTX/ExploitDB)、小红书 UGC、RSS 等数据源统一调度 |
 | **暗网检索** | Ahmia(无需Tor) + OnionLink/TorDex(需Tor) + 自定义.onion站点，默认关闭 |
 | **健康面板** | 数据源可达性实时监控，连续失败的源自动降级，不拖慢整体检索 |
 
@@ -282,8 +282,13 @@ SMTP_PASSWORD=your-password
 # ENABLE_CREDIBILITY=true        # 可信度评估与知识图谱
 # ENABLE_VISUALIZATION=true      # 搜索结果图表可视化
 # ENABLE_OTX=false               # AlienVault OTX 威胁情报
-# ENABLE_NVD=false               # NVD 国家漏洞数据库
+# ENABLE_NVD=false               # NVD 国家漏洞数据库（无 API key 时限速 6s/请求）
+# ENABLE_EXPLOITDB=false         # Exploit-DB 利用代码（首次约 10MB CSV，缓存 24h）
+# ENABLE_CNVD=false              # CNVD 国内漏洞库（站点有反爬校验，常返回空）
+# ENABLE_XIAOHONGSHU=false       # 小红书（需先配置站内检索后端；见「站内检索后端」小节）
 ```
+
+站内检索后端也可用环境变量配置（详见 `.env.example`）：`SITE_SEARCH_PROVIDER`、`BOCHA_API_KEY`、`BRAVE_API_KEY`、`GOOGLE_CSE_API_KEY`、`GOOGLE_CSE_ID`。
 
 完整的环境变量模板见 `.env.example`，包含所有功能开关的默认值。
 
@@ -306,9 +311,46 @@ SMTP_PASSWORD=your-password
 |------|------|
 | 网页 | Bing, DuckDuckGo, Yahoo, Yandex, Baidu |
 | 新闻 | Google News, Bing News, RSS订阅 |
-| 威胁情报 | HackerNews, ExploitDB, OTX, NVD, CISA KEV, 安全社区 |
+| 威胁情报 | HackerNews, ExploitDB, OTX, NVD, CISA KEV, CNVD, 安全社区 |
 | 暗网 | Ahmia (公开访问，无需Tor) + OnionLink/TorDex (高级模式，需Tor) |
-| 自定义 | 用户通过 UI 添加的自定义搜索源 |
+| 自定义 | 小红书（SOCMINT 源，经站内检索后端按站内限定语义取数；需先配置博查 / Brave / Google CSE 的 Key，默认关闭，见下方「站内检索后端」）；用户通过 UI 添加的自定义搜索源 |
+
+### 站内检索后端（小红书等站内源）
+
+小红书源需要「站内检索后端」按站内限定语义取数。实测公共网页引擎全部不可用，因此必须自备 Key：
+
+| 引擎 | 实测结果（2026-09-15） |
+|------|------------------------|
+| `cn.bing.com` | 完全忽略 `site:` 算子（`log4j` / `site:github.com log4j` / `site:csdn.net log4j` 返回同一结果集） |
+| `www.baidu.com` | 返回「百度安全验证」反爬页，解析不到条目 |
+| `html.duckduckgo.com` | HTTP 202 挑战页，0 个结果块 |
+| `bing.com/search?format=rss` | 200 但有 RSS 同样忽略 `site:` |
+
+在侧栏「搜索服务设置」→「站内检索后端」填写即可（也可用环境变量兜底）：
+
+| Provider | 所需凭证 | 额度 / 计费 | 超限表现 | 网络 |
+|----------|----------|-------------|----------|------|
+| **博查 Bocha（推荐）** | `BOCHA_API_KEY` | 充值制（注册后请自行确认赠送额度） | HTTP 403（据第三方资料为 `You do not have enough money`，也可能为权限/策略拒绝）→ 源报「余额不足或权限受限」并降级 | **国内可直连，无需代理** |
+| Brave Web Search API | `BRAVE_API_KEY` | 据第三方资料已改按量计费（约 $5 / 1000 次）且需绑卡 —— **请自行核实** | HTTP 429 → 源报「频率限制」并降级 | 需代理 |
+| Google Custom Search JSON API | `GOOGLE_CSE_API_KEY` + `GOOGLE_CSE_ID`（CX） | **官方已「不再向新客户开放」**，仅存量 Key 可用（存量客户须 2027-01-01 前迁移） | HTTP 403 `dailyLimitExceeded` | 需代理 |
+
+申请步骤：
+
+1. **博查（推荐）**：到 [open.bochaai.com](https://open.bochaai.com/) 注册 → 进入**控制台** → **API KEY 管理** → 创建密钥，填入 `BOCHA_API_KEY`。国内可直连、无需代理；注意为充值制。
+2. **Brave**：到 [api.search.brave.com](https://api.search.brave.com/) 注册并订阅 → 复制令牌填入 `BRAVE_API_KEY`。2026 年起条款有变动，**请在官网核实当前额度与是否需绑卡**。
+3. **Google CSE（仅存量客户）**：Google 官方文档（2026-02 更新）已声明该 API *「不再向新客户开放」*，存量客户须在 **2027-01-01** 前迁移，因此**新用户无法再申请**；本源保留该 Provider 仅为兼容已有 Key。
+
+`SITE_SEARCH_PROVIDER` 可取 `auto`（默认，按 **博查 > Brave > Google CSE** 择一）、`bocha`、`brave`、`google_cse`。三者都未配置时，小红书源会给出「未配置站内检索后端」的明确失败提示，**不会静默返回空**。
+
+> 实现说明：博查的站内限定参数字段名（`include`）、`count`/`summary` 参数与**错误码语义**均来自第三方文档、**官方文档尚未证实**；即使 `include` 不生效，结果仍会被站内域名白名单后置过滤，**正确性不受影响，仅召回量下降**。错误文案刻意不写死单一原因（如 403 只说「余额可能不足或权限受限」，原始 `message` 会一并带出）。
+
+该后端是**通用能力**（输入「域名 + 查询」），后续要接入微博 / 知乎 / CSDN 等站点，只需复用 `SiteScopedSource`（或再叠一个薄子类），无需改动核心系统。
+
+### SOCMINT 定位与合规边界
+
+小红书在本项目中定位为 **SOCMINT（社交媒体情报）数据源**：与 NVD / ExploitDB（技术证据）、新闻与博客（公开报道）并置，由可信度评估（`analysis/credibility.py`）、证据链与知识图谱完成多源交叉印证；小红书结果按「内容平台」计分，来源归因显示为 `Xiaohongshu`。
+
+本项目**不内置**小红书登录态采集：不直连其接口、不模拟登录/签名、不绕过任何反爬，也不内置 MediaCrawler / 浏览器自动化 / 图片 OCR / 评论采集。理由是小红书无面向公开开发者的笔记搜索 API（开放平台面向品牌方与企业授权），第三方采集依赖登录态且违反平台协议，同时会引入 Chromium 等重型依赖、显著抬高打包成本。若确需原生采集，请自行实现 `SiteSearchBackend` 并通过工厂挂载为**外部可选 Provider**，并自行承担合规责任。
 
 ---
 

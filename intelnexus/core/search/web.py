@@ -79,8 +79,9 @@ _shared_session = None
 # 最近一次网页检索各引擎的失败摘要；get_web_results 入口清空，
 # 供适配器在空结果时汇总写入 last_error。读写经 _LAST_WEB_ERRORS_LOCK 保护：
 # clear 与「读取聚合」为原子段（append 在锁内执行）。
-# 已知局限：并发多次调用 get_web_results 时（共享模块级列表），错误文案可能跨检索串味；
-# 当前架构下同一时刻只有一次检索在跑，可接受。
+# 已知局限：并发多次调用 get_web_results 时（共享模块级列表），错误文案可能跨检索串味。
+# WebSearchSource 与 XiaohongshuSource 在 all 模式下会被 registry 并发投递，该前提已不成立；
+# 影响面仅限失败文案（结果列表为调用级局部变量，不受影响），若需彻底隔离应改为调用级返回。
 LAST_WEB_ERRORS: list = []
 _LAST_WEB_ERRORS_LOCK = threading.Lock()
 

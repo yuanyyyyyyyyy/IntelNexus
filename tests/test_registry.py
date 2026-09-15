@@ -135,6 +135,7 @@ def test_last_error_cleared_on_nonempty_results():
 def test_uncollected_sources_marked_timeout(monkeypatch):
     """全局超时后、宽限期内仍未完成的源应标 timeout（而非旧的 skipped）。"""
     import time as _time
+    _patch_healthy(monkeypatch)  # 隔离持久化健康状态，避免历史 down 条目剔除本源
     monkeypatch.setattr("intelnexus.core.search.registry._GRACE_PERIOD", 0.2)
     reg = _make_registry()
     src = reg._builtin[0]
@@ -154,35 +155,115 @@ def test_uncollected_sources_marked_timeout(monkeypatch):
 
 
 def test_grace_harvest_on_loop_timeout_break(monkeypatch):
-    """路径 B：循环体内超时检查触发 break 后仍走宽限收割，晚到成功结果不丢。
+    """全局超时触发后仍走宽限收割：晚到的成功结果不被丢弃，且不重复收割。
 
-    构造：global_timeout 很小，快源完成时已超全局超时（主循环取到其结果后
-    break），慢源在宽限期内很快完成 → 其结果必须被收割；且 collected 去重保证
-    主循环已收的快源结果不重复。
+    契约：快源完成时已超全局超时（主循环随后 break/抛超时），慢源在宽限期内
+    完成 → 其结果必须被收割；collected 去重保证主循环已收的快源结果不重复。
+
+    时序加固：用闸门编排两个源的先后，替代旧的 0.3/0.5/0.9/3 秒紧耦合时长
+    （机器负载高时 sleep 被拉长会随机失效，本用例曾在负载下偶发失败）——
+    快源刻意睡过 global_timeout，慢源等快源结束放行后立即返回。
+
+    注：两条超时退出路径（循环体内超时 break ／ as_completed 抛超时）最终都调用
+    同一个 _harvest()，且循环体内那条需要「future 在提交开销窗口内完成」才可能
+    进入（as_completed 的 timeout 通常先到期），实际几乎总走 as_completed 那条。
+    因此本用例断言的是**宽限收割契约**本身，与命中哪条分支无关。
     """
+    import threading
     import time as _time
-    monkeypatch.setattr("intelnexus.core.search.registry._GRACE_PERIOD", 3)
+    _patch_healthy(monkeypatch)  # 隔离持久化健康状态，避免历史 down 条目剔除本源
+    monkeypatch.setattr("intelnexus.core.search.registry._GRACE_PERIOD", 15)
     reg = _make_registry()
     fast_src, slow_src = reg._builtin[0], reg._builtin[1]
     reg._builtin = [fast_src, slow_src]
 
+    release_slow = threading.Event()
+
     def fast_search(query, max_results=20):
-        _time.sleep(0.5)  # 完成时已超 global_timeout（0.3s）→ 触发路径 B
+        # 睡过 global_timeout(2s)：主循环取到其结果/超时时，慢源必然还在跑
+        _time.sleep(2.5)
+        release_slow.set()  # 快源结束才放行慢源 → 慢源必然「晚于快源」完成
         return [{"title": "fast", "url": "http://fast.example.com/a",
                  "description": "d", "source": "S"}]
 
     def slow_search(query, max_results=20):
-        _time.sleep(0.9)  # 宽限期（3s）内完成 → 应被宽限收割
+        # 不再依赖固定 sleep：等快源放行后立即返回，稳定落在宽限期内
+        release_slow.wait(timeout=30)
         return [{"title": "slow", "url": "http://slow.example.com/a",
                  "description": "d", "source": "S"}]
 
     fast_src.search = fast_search
     slow_src.search = slow_search
-    results = reg.collect("all", "q", max_results=5, threads=2, global_timeout=0.3)
+    results = reg.collect("all", "q", max_results=5, threads=2, global_timeout=2.0)
 
     urls = [r["url"] for r in results]
-    # 慢源晚到结果被宽限收割，不被丢弃（路径 B 与路径 A 口径一致）
+    # 慢源晚到结果被宽限收割，不被丢弃（两条超时退出路径口径一致）
     assert "http://slow.example.com/a" in urls
-    # 快源结果已被主循环收集，不重复收割（各仅一条）
+    # 两源各被收割恰好一次：快源由 _harvest 宽限收割（或主循环直接收集），
+    # collected 集合保证不会重复入库
     assert urls.count("http://fast.example.com/a") == 1
     assert urls.count("http://slow.example.com/a") == 1
+
+
+# ---------------------------------------------------------------------------
+# 小红书源注册 + 源权重键名对齐
+# ---------------------------------------------------------------------------
+
+def _patch_healthy(monkeypatch):
+    """隔离持久化健康状态：全部源视为 healthy，避免历史 down 条目影响用例。"""
+    from intelnexus.core.search.health import SourceHealth
+    monkeypatch.setattr(
+        "intelnexus.core.search.health.get_health",
+        lambda name: SourceHealth(source_name=name))
+
+
+def test_xiaohongshu_source_registered_when_enabled(monkeypatch):
+    monkeypatch.setattr("intelnexus.core.search.registry.ENABLE_XIAOHONGSHU", True)
+    reg = SearchSourceRegistry(news_api_key=None)
+    names = {type(s).__name__ for s in reg.all_sources()}
+    assert "XiaohongshuSource" in names
+    # 归入 custom 类别 → 仅 all 模式命中
+    xhs = next(s for s in reg.all_sources() if type(s).__name__ == "XiaohongshuSource")
+    assert xhs.category == "custom"
+
+
+def test_xiaohongshu_source_absent_when_disabled(monkeypatch):
+    monkeypatch.setattr("intelnexus.core.search.registry.ENABLE_XIAOHONGSHU", False)
+    reg = SearchSourceRegistry(news_api_key=None)
+    names = {type(s).__name__ for s in reg.all_sources()}
+    assert "XiaohongshuSource" not in names
+
+
+def test_source_weight_applied_by_actual_source_name(monkeypatch):
+    """权重键须与 src.name 对齐（回归：曾以类名作键导致 get(name) 恒为 1.0）。"""
+    _patch_healthy(monkeypatch)
+    reg = _make_registry()
+    src = reg._builtin[0]
+    src.name = "NVD"
+    src.search = lambda query, max_results=20: [
+        {"title": "CVE-2025-0001", "url": "http://nvd.example/1",
+         "description": "d", "source": "NVD"}]
+    reg._builtin = [src]
+
+    out = reg.collect("all", "q", max_results=5, threads=1)
+
+    assert len(out) == 1
+    assert out[0]["_source_weight"] == 2.0
+
+
+def test_cjk_query_downweights_en_only_by_actual_name(monkeypatch):
+    """中文查询对英文专属源降权（回归：en_only 曾以类名作键而失效）。"""
+    _patch_healthy(monkeypatch)
+    reg = _make_registry()
+    src = reg._builtin[0]
+    src.name = "HackerNews"
+    src.search = lambda query, max_results=20: [
+        {"title": "English Security Post", "url": "http://hn.example/1",
+         "description": "d", "source": "HackerNews"}]
+    reg._builtin = [src]
+
+    out = reg.collect("all", "漏洞", max_results=5, threads=1)
+
+    assert len(out) == 1
+    assert out[0]["_source_weight"] == 0.7
+

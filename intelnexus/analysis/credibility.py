@@ -98,6 +98,9 @@ class SourceScorer:
         'technode.com': 0.7, 'scmp.com': 0.8, 'binance.com': 0.5,
         'youtube.com': 0.5, 'twitter.com': 0.5, 'x.com': 0.5,
         'facebook.com': 0.5, 'ycombinator.com': 0.75,
+        # UGC / 社交媒体（SOCMINT 源）：按内容平台自身权重计分，而非落
+        # 「可识别但未收录域名」的 0.45 保守分（小红书主站与短链）
+        'xiaohongshu.com': 0.5, 'xhslink.com': 0.5,
     }
 
     NEWS_SOURCES = {'Google News', 'Bing News', 'Yahoo News',

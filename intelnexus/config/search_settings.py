@@ -24,11 +24,24 @@ SEARCH_SETTINGS_FILE = os.path.join(
 
 _DEFAULTS: Dict = {
     "news_api_key": "",
+    # 站内定向检索后端（供小红书等 SiteScopedSource 使用）：
+    #   site_search_provider: auto（按 博查 > Brave > Google CSE 择一）
+    #                         | bocha | brave | google_cse
+    "site_search_provider": "auto",
+    "bocha_api_key": "",
+    "google_cse_api_key": "",
+    "google_cse_id": "",
+    "brave_api_key": "",
 }
 
 # 环境变量 → 字段映射（兼容原 config.py 的 NEWS_API_KEY 命名）
 _ENV_MAP = {
     "news_api_key": "NEWS_API_KEY",
+    "site_search_provider": "SITE_SEARCH_PROVIDER",
+    "bocha_api_key": "BOCHA_API_KEY",
+    "google_cse_api_key": "GOOGLE_CSE_API_KEY",
+    "google_cse_id": "GOOGLE_CSE_ID",
+    "brave_api_key": "BRAVE_API_KEY",
 }
 
 
@@ -91,6 +104,22 @@ def get_news_api_key() -> str:
     return get_search_settings()["news_api_key"]
 
 
+def get_site_search_config() -> Dict:
+    """站内检索后端配置（供 ``core.search.sitesearch`` 工厂与 UI 使用）。
+
+    字段沿用设置文件的原始命名：``site_search_provider`` / ``bocha_api_key`` /
+    ``google_cse_api_key`` / ``google_cse_id`` / ``brave_api_key``。
+    """
+    cfg = get_search_settings()
+    return {
+        "site_search_provider": cfg.get("site_search_provider", "auto") or "auto",
+        "bocha_api_key": cfg.get("bocha_api_key", ""),
+        "google_cse_api_key": cfg.get("google_cse_api_key", ""),
+        "google_cse_id": cfg.get("google_cse_id", ""),
+        "brave_api_key": cfg.get("brave_api_key", ""),
+    }
+
+
 # ============================================================================
 # 搜索源开关（source toggles）
 # ============================================================================
@@ -106,6 +135,7 @@ _SOURCE_TOGGLE_DEFAULTS: Dict = {
     "ENABLE_OTX": False,
     "ENABLE_DARKWEB": False,
     "ENABLE_HN": True,
+    "ENABLE_XIAOHONGSHU": False,
 }
 
 

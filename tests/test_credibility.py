@@ -252,3 +252,14 @@ class TestConflictDetector:
             assert "claim" in c
             assert "description" in c
             assert "sources" in c
+
+
+def test_ugc_platform_domains_scored_as_platform(scorer):
+    """小红书按内容平台计分（PLATFORM_DOMAINS），不落「未收录域名」0.45 保守分。"""
+    assert scorer._domain_authority(
+        "https://www.xiaohongshu.com/explore/abc", "Xiaohongshu") == 0.5
+    assert scorer._domain_authority(
+        "https://xhslink.com/xyz", "Xiaohongshu") == 0.5
+    # 对照：同样未收录的真实域名仍走保守基准分，确认改动未放宽整体口径
+    assert scorer._domain_authority(
+        "https://unknown-brand.io/x", "Unknown") == 0.45

@@ -19,6 +19,8 @@ from intelnexus.core.search.sources.arxiv_source import ArxivSource
 from intelnexus.core.search.sources.tech_community_source import TechCommunitySource
 from intelnexus.core.search.sources.huggingface_source import HuggingFaceSource
 from intelnexus.core.search.sources.qianxin_source import QianxinSource
+from intelnexus.core.search.sources.site_scoped_source import SiteScopedSource
+from intelnexus.core.search.sources.xiaohongshu_source import XiaohongshuSource
 
 __all__ = [
     "WebSearchSource",
@@ -36,4 +38,6 @@ __all__ = [
     "TechCommunitySource",
     "HuggingFaceSource",
     "QianxinSource",
+    "SiteScopedSource",
+    "XiaohongshuSource",
 ]
