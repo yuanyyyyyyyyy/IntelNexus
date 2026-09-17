@@ -31,6 +31,15 @@ RSS_BUDGET = 45
 LAST_NEWS_ERRORS: list = []
 _LAST_NEWS_ERRORS_LOCK = threading.Lock()
 
+# 最近一次 RSS 检索被相关性/主题过滤剔除的来源名（预留观测口）。
+# 并发语义：_fetch_one 在 6 个子线程里把剔除项 append 到本次调用的
+# 局部列表 rejected（线程内顺序 append，无需锁），调用结束时在锁内
+# **整体替换** LAST_RSS_REJECTED —— 并发多次调用时后完成者覆盖前者的
+# 快照（last-writer-wins），读侧拿到的是「某一次调用的完整快照」而非混杂数据。
+# 只存来源名，不存正文，避免日志与内存膨胀。
+LAST_RSS_REJECTED: list = []
+_LAST_RSS_REJECTED_LOCK = threading.Lock()
+
 RSS_SOURCES = [
     # ---- 国内可直连、无需代理（高质量订阅源，不过滤相关性，仅域名黑名单）----
     {"name": "Bing News", "url": "https://www.bing.com/news/search?q={query}&format=rss", "requires_proxy": False},
@@ -54,7 +63,6 @@ RSS_SOURCES = [
     {"name": "Wired", "url": "https://www.wired.com/feed/rss", "requires_proxy": True},
     {"name": "BBC", "url": "http://feeds.bbci.co.uk/news/technology/rss.xml", "requires_proxy": True},
     {"name": "CNN", "url": "http://rss.cnn.com/rss/edition.rss", "requires_proxy": True},
-    {"name": "Hacker News", "url": "https://hnrss.org/newest?q=AI+OR+LLM+OR+GPT+OR+deep+learning", "requires_proxy": True},
 ]
 
 
@@ -155,10 +163,11 @@ class NewsSearch:
         raise last_err
 
     def search_rss(self, query: str, max_results: int = 10) -> List[Dict]:
+        global LAST_RSS_REJECTED
         results = []
-
-        query_lower = query.lower()
-        query_tokens = set(query_lower.split())
+        with _LAST_RSS_REJECTED_LOCK:
+            LAST_RSS_REJECTED = []
+        rejected: list = []
 
         # 安全相关关键词（用于过滤非安全类RSS源的无关内容）
         SECURITY_KEYWORDS = [
@@ -213,21 +222,7 @@ class NewsSearch:
 
                         if title and link_text:
                             title_text = title.get_text(strip=True) if hasattr(title, 'get_text') else str(title)
-
-                            title_lower = title_text.lower()
                             desc_text = (desc.get_text(strip=True) if desc and hasattr(desc, 'get_text') else "").lower()
-                            combined_text = f"{title_lower} {desc_text}"
-
-                            # 1. 查询token匹配（至少匹配1个）
-                            has_query_match = any(token in combined_text for token in query_tokens)
-                            if not has_query_match:
-                                continue
-
-                            # 2. 非安全类源：要求标题包含安全相关关键词
-                            if source["name"] in NON_SECURITY_SOURCES:
-                                has_security_keyword = any(kw.lower() in combined_text for kw in SECURITY_KEYWORDS)
-                                if not has_security_keyword:
-                                    continue
 
                             item = {
                                 "title": title_text,
@@ -242,6 +237,25 @@ class NewsSearch:
 
                             if is_blocked_domain(item["url"]):
                                 continue
+
+                            # 1. 查询相关性：与网页源共用同一口径（分词 + BM25 + 时效性，
+                            #    阈值 RELEVANCE_THRESHOLD）。旧实现按空白切词 + 子串匹配，
+                            #    中文整句（无空格）会塌成 1 个 token 必然漏召回；查询扩展后
+                            #    产生的短英文 token（如 "ai"）又会子串误命中，导致无关 RSS
+                            #    最新条目混入结果（实测占比可达 27%）。
+                            if not relevance_passes(item, query):
+                                # rejected 是本次调用的局部聚合：单线程内 append
+                                # 即可，跨调用隔离由末尾的「锁内整体替换」保证
+                                rejected.append(source["name"])
+                                continue
+
+                            # 2. 非安全类源：要求标题/摘要包含安全相关关键词
+                            if source["name"] in NON_SECURITY_SOURCES:
+                                combined_text = f"{title_text.lower()} {desc_text}"
+                                has_security_keyword = any(kw.lower() in combined_text for kw in SECURITY_KEYWORDS)
+                                if not has_security_keyword:
+                                    rejected.append(source["name"])
+                                    continue
 
                             source_results.append(item)
             except Exception as e:
@@ -296,6 +310,15 @@ class NewsSearch:
                             f.cancel()
             finally:
                 executor.shutdown(wait=False, cancel_futures=True)
+
+        if rejected:
+            # 只记数量与来源名，不打印正文
+            by_source: dict = {}
+            for name in rejected:
+                by_source[name] = by_source.get(name, 0) + 1
+            logger.info(f"RSS 相关性/主题过滤剔除 {len(rejected)} 条：{by_source}")
+            with _LAST_RSS_REJECTED_LOCK:
+                LAST_RSS_REJECTED = list(rejected)
 
         return results[:max_results]
 

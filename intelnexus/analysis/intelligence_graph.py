@@ -117,9 +117,48 @@ _NOISE_PATTERNS = [
     re.compile(r'^[a-z0-9]+(?:_[a-z0-9]+)+$'),  # 下划线 slug（网站导航/URL 残片，如 about_get、try_now）
     re.compile(r'^(首次|这种|这类|该项|这些|那些|其次|此外|本次|相关|有关|你的|我们的|我的|我们|他们|它们的|您)'),  # 中文指示词/代词所有格开头的伪实体（如「首次」「你的密钥」）
     re.compile(r'^(?:后|再|然后|接着|最后|首先|先)?(?:点击|进入|打开|选择|前往|返回|输入|滑动|拖动|勾选|登录|注册)'),  # 中文操作指令短语（页面 UI 文案，如「点击右上角的用户中心」）
+    # 7-11 字的中文片段若含 ≥2 个不同虚词/动词，基本是正则跨句截取产物。
+    # 字符类刻意不含「和/用/有/现/实/位/提/供」等构词常用字——「用友政务软件
+    # 有限公司」「杭州现代联合市场」都会中招；只留最强虚词信号，
+    # 且由 _has_fragment_markers 要求命中 ≥2 个不同字。
+    re.compile(
+        r'^(?=[\u4e00-\u9fff]{7,11}$)'
+        r'[\u4e00-\u9fff]*'
+        r'[的了仅含个是带们这那就都也又并且所如若使让]'
+        r'[\u4e00-\u9fff]*$'
+    ),
     re.compile(r'^(you are|system|assistant|human)\b', re.I),  # prompt 残片
     re.compile(r'^(miwn|mshale|jzkv|freiburg)', re.I),  # Google News 注入的随机标签
+    # 中文句子片段前缀：多字虚词/动词开头（「同时提供免费无线网络」
+    # 「探索精神带到了市中心」「位于华盛顿特区」）。刻意不含单字
+    # 「和/及/与/或/于」——那是真实机构名的常见首字（和利时、及成科技），
+    # 这类单字前缀由下方要求「后接 ≥5 个汉字」的规则处理。
+    re.compile(
+        r'^(?:在|同时|此外|并且|以及|因此|所以|但是|然而|目前|近日|其中|'
+        r'由于|通过|为了|随着|针对|关于|对于|探索|提供|包括|位于|拥有|'
+        r'支持|采用|实现|带来|成为|称为)'
+    ),
+    # 单字介词/连词前缀只有在接了长串正文时才是片段信号。
+    # 阈值取 7：「和硕联合科技」（后接 5 字）是真实企业名，
+    # 而「于华盛顿华盛顿市中心」（后接 9 字）才是句子片段。
+    re.compile(r'^(?:于|与|和|及|或)[\u4e00-\u9fff]{7,}$'),
+    # 通用设施/方位词结尾的复合词（不是具名实体）。
+    # 前置 .* 是必需的：_NOISE_PATTERNS 以 re.match 从位置 0 起判，
+    # 只写 $ 锚定的后缀规则永远不会命中。
+    re.compile(
+        r'.*(?:市中心|媒体中心|健身中心|遗址中心|购物中心|服务中心|数据中心|'
+        r'体验中心|展示中心|会议中心|娱乐中心|文化中心|商务中心|活动中心)$'
+    ),
+    # 含连词 + 机构后缀：中文后缀正则跨句截取的产物（如「媒体中心与遗址中心」）
+    re.compile(r'.*(?:与|和|及|或|、).*(?:公司|集团|中心|研究院|实验室)$'),
+    # 同一名称内出现两次「中心」：同样是跨句截取
+    re.compile(r'.*中心.*中心.*'),
 ]
+
+
+#: 实体总数超过该值时，才允许剪除「单次提及 + 类型未识别」的实体。
+#: 低于阈值说明语料本身很短，剪枝会把整张图谱清空。
+MIN_ENTITIES_FOR_PRUNE = 5
 
 
 def get_entity_extractor():
@@ -180,8 +219,22 @@ class EntityExtractor:
         self._nlp_en = None
 
     @staticmethod
-    def _is_noise_entity(name: str) -> bool:
+    def _has_fragment_markers(name: str) -> bool:
+        """中文片段强信号：≥2 个不同虚词/动词字。"""
+        markers = {'的', '了', '仅', '含', '个', '是', '带', '们', '这', '那',
+                   '就', '都', '也', '又', '并', '且', '所', '如', '若', '使',
+                   '让'}
+        return len({ch for ch in name if ch in markers}) >= 2
+
+    @staticmethod
+    def _is_noise_entity(name: str, ner_confirmed: bool = False) -> bool:
         """判断实体名是否为噪声（网页结构词 / JSON 字段 / 程序变量 / 停用词）。
+
+        Args:
+            ner_confirmed: 该名称是否来自 NER（spaCy）识别。中文片段类规则
+                只针对正则兜底路径的「跨句截取」，对 NER 已判定为
+                ORG/PERSON/GPE 的实体不适用 —— 否则「和利时」「及成科技」
+                这类真实机构名会被静默清除。
 
         返回 True 表示应过滤掉该实体。
         """
@@ -204,6 +257,9 @@ class EntityExtractor:
         # 正则模式匹配
         for pat in _NOISE_PATTERNS:
             if pat.match(clean):
+                return True
+        if has_chinese and not ner_confirmed and 7 <= len(clean) <= 11:
+            if EntityExtractor._has_fragment_markers(clean):
                 return True
         return False
 
@@ -302,6 +358,23 @@ class EntityExtractor:
         for e in all_entities.values():
             e["name"] = self._normalize_entity_name(e["name"])
 
+        # 单次提及 + 类型未识别的实体噪声率极高（页面 UI 词、句子片段），
+        # 仅在实体总量足够时剪除，避免短语料的图谱被清空。
+        if len(all_entities) > MIN_ENTITIES_FOR_PRUNE:
+            pruned_ids = {
+                eid for eid, e in all_entities.items()
+                if len(e["mentions"]) <= 1 and e.get("type") == "UNKNOWN"
+            }
+            if pruned_ids and len(pruned_ids) < len(all_entities):
+                for eid in pruned_ids:
+                    del all_entities[eid]
+                # 同步剔除引用了被剪实体两端的关系，避免悬空引用
+                unique_rels = [
+                    r for r in unique_rels
+                    if r["subject_id"] not in pruned_ids
+                    and r["object_id"] not in pruned_ids
+                ]
+
         max_mentions = max(
             (len(e["mentions"]) for e in all_entities.values()), default=1
         )
@@ -322,7 +395,8 @@ class EntityExtractor:
         for ent in doc.ents:
             if ent.label_ in ('PERSON', 'ORG', 'GPE', 'LOC', 'EVENT',
                               'DATE', 'PRODUCT', 'MONEY', 'NORP', 'LAW'):
-                if self._is_noise_entity(ent.text):
+                # NER 已确认的实体跳过中文片段类规则，只做结构/黑名单过滤
+                if self._is_noise_entity(ent.text, ner_confirmed=True):
                     continue
                 eid = self._canonical_id(ent.text)
                 if eid not in all_entities:
@@ -416,9 +490,11 @@ class EntityExtractor:
                     continue
                 eid = self._canonical_id(name)
                 if eid not in all_entities:
-                    etype = "ORG" if "公司" in name or "集团" in name else "PRODUCT"
+                    # 不再默认猜 PRODUCT：类型无法判断时标 UNKNOWN，
+                    # 避免把句子片段伪装成「产品」实体
                     all_entities[eid] = {
-                        "id": eid, "name": name, "type": etype,
+                        "id": eid, "name": name,
+                        "type": self._guess_entity_type(name),
                         "mentions": [{"source_url": url, "context": "", "sentence": ""}],
                         "importance": 0
                     }
@@ -451,16 +527,20 @@ class EntityExtractor:
             })
 
     def _guess_entity_type(self, name: str) -> str:
-        """Guess entity type from name patterns."""
+        """按名称特征猜测实体类型。
+
+        猜不出来时返回 ``UNKNOWN`` —— 旧实现默认猜成 ``ORG``，把
+        「探索精神带到了市中心」这类片段也标成组织/产品，图谱因而不可能可信。
+        """
         org_suffixes = ('Inc', 'Corp', 'Ltd', 'LLC', 'Company', 'Group',
-                        '公司', '集团', '科技', '实验室')
+                        '公司', '集团', '科技', '实验室', '研究院')
         if any(name.endswith(s) for s in org_suffixes):
             return "ORG"
-        if any(kw in name for kw in ('AI', 'Model', 'OS', 'API', 'SDK', 'GPT', 'LLM')):
-            return "PRODUCT"
         if any(kw in name for kw in ('漏洞', '攻击', 'CVE', 'exploit')):
             return "EVENT"
-        return "ORG"  # Default to ORG for capitalized phrases
+        if any(kw in name for kw in ('AI', 'Model', 'OS', 'API', 'SDK', 'GPT', 'LLM')):
+            return "PRODUCT"
+        return "UNKNOWN"
 
     def _infer_relation_type(self, context: str) -> str:
         """从上下文推断关系类型。

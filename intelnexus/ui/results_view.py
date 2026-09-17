@@ -15,6 +15,7 @@ import html
 
 import streamlit as st
 
+from intelnexus.core.search.source_meta import summarize_empty_channels
 from intelnexus.ui.i18n import get_text
 
 
@@ -102,23 +103,35 @@ def render_query_stats_cards(view: ResultsView, key_prefix: str = "") -> None:
     </div>
     """, unsafe_allow_html=True)
 
+    # 授权状态提示（P0-3 合规闸门）：实时结果与历史回放共用此处
+    authorization = view.get("authorization", {}) or {}
+    if authorization.get("requires_authorization"):
+        scope_note = authorization.get("scope_note") or ""
+        if authorization.get("authorized"):
+            st.info(f"**{get_text('auth_state_declared')}**"
+                    + (f" · {html.escape(scope_note)}" if scope_note else ""))
+        else:
+            st.warning(f"**{get_text('auth_state_undeclared')}**"
+                       + (f" · {html.escape(scope_note)}" if scope_note else ""))
+
     # 源完整性透明度条
     if source_stats:
         ok_sources = [n for n, s in source_stats.items() if s.get("status") == "ok"]
         skipped = [(n, s.get("status")) for n, s in source_stats.items()
                    if s.get("status") != "ok"]
         if skipped:
-            reason_map = {"timeout": get_text("src_skip_timeout"),
-                          "no_proxy": get_text("src_skip_no_proxy"),
-                          "error": get_text("src_skip_error"),
-                          "skipped": get_text("src_skip_skipped")}
-            detail = ", ".join(f"{n} ({reason_map.get(s, s)})"
-                               for n, s in skipped)
             st.info(get_text("source_integrity").format(
-                ok=len(ok_sources), skip=len(skipped)) +
-                f" <sub>{html.escape(detail[:200])}</sub>")
+                ok=len(ok_sources), skip=len(skipped)))
         else:
             st.success(get_text("all_sources_ok").format(ok=len(ok_sources)))
+
+        # 透明度补充：揭示「已检索但未产出相关结果」的渠道（含 ok 过滤剔除 / error /
+        # timeout / 无代理跳过），与报告 4.1 段口径一致，避免读者误判为单渠道配置。
+        # 以 summarize_empty_channels 为单一信息来源（中文标签 + 原因），不改动统计口径。
+        empty_notes = summarize_empty_channels(source_stats)
+        if empty_notes:
+            st.info(get_text("retrieved_no_results").format(n=len(empty_notes))
+                    + " " + "、".join(empty_notes))
 
 
 def render_full_results(view: ResultsView, key_prefix: str = "",

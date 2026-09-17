@@ -47,6 +47,11 @@ _DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 _STORE_PATH = _DATA_DIR / "event_store.json"
 _store_lock = threading.Lock()
 
+#: 与 analysis.risk_level.LEVEL_INSUFFICIENT 同值。此处刻意不 import ——
+#: event_store 是纯存储层，不希望被风险计算模块的依赖牵连；改由
+#: tests/test_risk_level.py 断言两边取值一致。
+_INSUFFICIENT_LEVEL = "证据不足"
+
 
 def _normalize_topic(topic: str) -> str:
     """将查询主题归一化为存储键（小写、去空格、去标点）。
@@ -204,11 +209,17 @@ class EventStore:
             sign = "+" if heat_diff > 0 else ""
             changes["heat_change"] = f"{sign}{heat_diff}"
 
-        # 风险等级变化
+        # 风险等级变化。
+        # 「证据不足」与「低/中/高」不同量纲：一方无证据可定级时，
+        # old→new 表达的是「证据到位了」而非「风险升高了」，
+        # 记为风险升降会被误读，因此改记到 risk_evidence_change。
         old_risk = latest.get("risk_level", "低")
         new_risk = new_snapshot.get("risk_level", "低")
         if old_risk != new_risk:
-            changes["risk_change"] = f"{old_risk} → {new_risk}"
+            if _INSUFFICIENT_LEVEL in (old_risk, new_risk):
+                changes["risk_evidence_change"] = f"{old_risk} → {new_risk}"
+            else:
+                changes["risk_change"] = f"{old_risk} → {new_risk}"
 
         # 新发现（在旧快照中不存在的发现）
         old_findings = set(latest.get("key_findings", []))

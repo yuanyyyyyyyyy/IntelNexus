@@ -28,6 +28,7 @@ MODE_DESCRIPTIONS: Dict[str, str] = {
     "news": "主要来源：新闻资讯",
     "darkweb": "主要来源：暗网资源（.onion 网站）",
     "threat": "威胁情报与漏洞利用代码",
+    "smart_general": "主要来源：网页、新闻与社区（智能路由的通用分支）",
 }
 
 # 向后兼容：旧 main.py 用 {mode: 英文标签} 形式

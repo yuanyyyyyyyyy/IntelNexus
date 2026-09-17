@@ -22,6 +22,7 @@ from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
 from intelnexus.core.logger import get_logger
+from intelnexus.core.search.source_meta import summarize_empty_channels
 from intelnexus.ui.icons import icon
 
 logger = get_logger(__name__)
@@ -87,11 +88,18 @@ def extract_analytical_sections(llm_output: str) -> Dict[str, str]:
 # 各板块生成函数
 # ============================================================================
 
-def compute_heat_level(results: List[dict], source_count: int = 0) -> int:
+def compute_heat_level(results: List[dict], source_count: int = 0,
+                       relevance_ratio: Optional[float] = None) -> int:
     """热度估算（0-100）：去重后的独立文章数 ×4 + 跨源广度加成。
 
     多个搜索引擎会收录同一篇文章（旧实现按原始条数 ×2 计），同一篇文章
     最多被重复计 5 次，导致热度虚高；此处按归一化 URL 去重后再计。
+
+    Args:
+        relevance_ratio: 相关结果占比（0-1）。传入时按其折算文章基数 ——
+            热度原本是纯音量指标，一批全部弱相关的噪声同样能刷出高分，
+            与「首次发现：未知 / 状态：信息不足」并排显示自相矛盾。
+            不传（None）表示相关率未知，保持原有口径。
     """
     unique_urls = set()
     for r in results or []:
@@ -107,6 +115,9 @@ def compute_heat_level(results: List[dict], source_count: int = 0) -> int:
             key = u
         unique_urls.add(key)
     base = len(unique_urls) or len(results or [])
+    if relevance_ratio is not None:
+        ratio = max(0.0, min(1.0, float(relevance_ratio)))
+        base = int(round(base * ratio))
     if source_count:
         breadth = max(0, source_count - 1)
     else:
@@ -114,21 +125,86 @@ def compute_heat_level(results: List[dict], source_count: int = 0) -> int:
     return min(100, base * 4 + breadth * 5)
 
 
+def compute_snapshot_heat(results: List[dict], source_count: int = 0) -> int:
+    """事件快照用热度 —— 与 :func:`build_event_profile` 完全同口径。
+
+    事件历史里的「热度变化」要与报告里展示的热度可对表，两边必须用
+    同一函数、同一输入（相关结果子集 + 相关率折算）。抽出来是因为
+    ``search_worker`` 在保存快照时也要用，避免口径分叉后注释声称
+    「一致」而实现早已漂移。
+    """
+    if not results:
+        return 0
+    relevant, _ = _select_relevant(results)
+    try:
+        from intelnexus.analysis.relevance import relevant_ratio as _relevant_ratio
+        ratio = _relevant_ratio(list(results))
+    except Exception:  # pragma: no cover
+        ratio = None
+    return compute_heat_level(relevant or results, source_count,
+                              relevance_ratio=ratio)
+
+
+def _select_relevant(results: List[dict]) -> tuple:
+    """按 ``weak_related`` 标记挑出相关结果。
+
+    报告侧统一走这里，不再各自按空白切词匹配查询关键词 —— 中文查询整句
+    会塌成 1 个关键词而零命中，随后「无匹配就用全量」的兜底会把噪声全量
+    放进统计（热度/可信度/时间线无一幸免）。
+
+    Returns:
+        ``(items, note)``：``note`` 为空串表示正常按相关性过滤；否则是一句
+        面向读者的降级说明，必须渲染到报告中，不允许静默回退。
+    """
+    if not results:
+        return [], ""
+    try:
+        from intelnexus.analysis.relevance import split_relevant
+    except Exception as e:  # pragma: no cover - 相关性模块缺失不应阻断报告
+        logger.warning(f"相关性模块不可用，本板块未做相关性过滤: {e}")
+        return list(results), (
+            "> ⚠️ 相关性模块不可用，本板块未做相关性过滤，"
+            "统计口径包含全部检索结果。"
+        )
+
+    relevant, available = split_relevant(results)
+    if not available:
+        return list(results), (
+            "> ⚠️ 相关性评估不可用（嵌入模型未就绪），本板块未做相关性过滤，"
+            "统计口径包含全部检索结果。"
+        )
+    if not relevant:
+        return [], (
+            "> ⚠️ 本次检索结果全部被判定为弱相关，本板块无有效样本；"
+            "结论不应基于该查询的现有语料得出。"
+        )
+    return relevant, ""
+
+
 def build_report_overview(query: str, search_mode: str, model: str,
                           source_counts: Dict[str, int] = None,
                           result_count: int = 0,
-                          report_id: str = None) -> str:
+                          report_id: str = None,
+                          authorization: Optional[dict] = None) -> str:
     """板块 01：报告概览（程序化生成）。"""
     now = datetime.now()
-    mode_labels = {
-        "all": "全源搜索", "web": "网页搜索", "news": "新闻",
-        "darkweb": "暗网", "threat": "威胁情报", "smart": "智能路由",
-    }
-    mode_label = mode_labels.get(search_mode, search_mode)
+    # 模式中文名的唯一事实来源是 SEARCH_MODES —— 旧实现local 维护了一份副本，
+    # 漏登记 resolve_mode 实际返回的 "smart_general"，导致报告头部直接打印内部模式名。
+    mode_label = search_mode
+    try:
+        from intelnexus.core.search.modes import SEARCH_MODES
+        entry = SEARCH_MODES.get(search_mode)
+        if entry and len(entry) > 1 and entry[1]:
+            mode_label = entry[1]
+    except Exception:  # pragma: no cover - 取不到就原样展示
+        pass
     total_sources = len(source_counts) if source_counts else 0
 
     lines = [
         "# IntelNexus 情报搜索分析报告",
+        "",
+        # 旧版缺失该标题，导致正文从「二、核心摘要」起编，章节号断档
+        "## 一、报告概览",
         "",
         f"**报告编号**：{report_id or _gen_report_id(now)}",
         "",
@@ -146,8 +222,21 @@ def build_report_overview(query: str, search_mode: str, model: str,
         "",
         f"**报告生成时间**：{now.strftime('%Y-%m-%d %H:%M')}",
         "",
-        "---",
     ]
+
+    # 授权状态：针对具名实体的侦察请求必须显式声明，否则读者无法判断
+    # 报告中的安全内容是否可以据以开展主动测试。
+    if authorization:
+        if authorization.get("requires_authorization"):
+            state = "已声明授权" if authorization.get("authorized") else "未声明授权"
+            lines.append(f"**授权状态**：{state}")
+            lines.append("")
+            note = authorization.get("scope_note") or ""
+            if note:
+                lines.append(f"> {note}")
+                lines.append("")
+
+    lines.append("---")
     return "\n".join(lines)
 
 
@@ -172,7 +261,7 @@ def build_event_profile(results: List[dict], llm_sections: Dict[str, str], query
     """板块 03：事件画像（程序化 + LLM 辅助）。
 
     从搜索结果中提取事件基本信息，形成事件卡片。
-    只统计与查询主题相关的结果（标题或摘要包含查询关键词）。
+    只统计与查询主题相关的结果（消费检索阶段产出的 weak_related 标记）。
     """
     lines = ["## 三、事件画像", ""]
 
@@ -180,20 +269,15 @@ def build_event_profile(results: List[dict], llm_sections: Dict[str, str], query
         lines.append("> 无有效数据生成事件画像")
         return "\n".join(lines)
 
-    # 过滤相关结果（标题或摘要包含查询关键词）
-    if query:
-        query_lower = query.lower()
-        query_keywords = set(query_lower.split())
-        relevant_results = []
-        for r in results:
-            title = r.get("title", "").lower()
-            snippet = r.get("snippet", "").lower()
-            # 至少有一个关键词匹配
-            if any(kw in title or kw in snippet for kw in query_keywords if len(kw) >= 2):
-                relevant_results.append(r)
-        # 如果没有匹配结果，使用全部结果（避免空数据）
-        if relevant_results:
-            results = relevant_results
+    # 过滤相关结果：统一消费 weak_related，禁止「零命中就回退全量」
+    all_results = list(results)
+    results, relevance_note = _select_relevant(results)
+    if relevance_note:
+        lines.append(relevance_note)
+        lines.append("")
+    if not results:
+        lines.append("> 无有效数据生成事件画像")
+        return "\n".join(lines)
 
     # 提取时间范围（只取标准日期格式 YYYY-MM-DD）
     dates = []
@@ -223,7 +307,13 @@ def build_event_profile(results: List[dict], llm_sections: Dict[str, str], query
     sources = set(r.get("source", "") for r in results if r.get("source"))
 
     # 计算热度（去重独立文章数 + 跨源广度，详见 compute_heat_level）
-    heat_level = compute_heat_level(results)
+    # 相关率按「过滤前的全量」计，避免过滤后恒为 100% 而失去惩罚意义
+    try:
+        from intelnexus.analysis.relevance import relevant_ratio as _relevant_ratio
+        _ratio = _relevant_ratio(all_results)
+    except Exception:  # pragma: no cover
+        _ratio = None
+    heat_level = compute_heat_level(results, relevance_ratio=_ratio)
     heat_bar = "█" * (heat_level // 10) + "░" * (10 - heat_level // 10)
 
     # 计算可信度
@@ -235,7 +325,9 @@ def build_event_profile(results: List[dict], llm_sections: Dict[str, str], query
     lines.append("")
     lines.append(f"**最新变化**：{last_seen}")
     lines.append("")
-    lines.append(f"**持续时间**：{duration} 天")
+    # duration 为「未知」时不能拼单位，否则渲染成「未知 天」
+    duration_text = duration if duration == "未知" else f"{duration} 天"
+    lines.append(f"**持续时间**：{duration_text}")
     lines.append("")
     lines.append(f"**信息来源**：{len(sources)} 个独立来源")
     lines.append("")
@@ -262,6 +354,24 @@ def build_event_profile(results: List[dict], llm_sections: Dict[str, str], query
     return "\n".join(lines)
 
 
+def _empty_channel_notes(source_stats: Dict[str, dict]) -> List[str]:
+    """依据 source_stats 列出「已检索但未产出相关结果」的渠道（count==0）。
+
+    委托 ``intelnexus.core.search.source_meta.summarize_empty_channels`` 计算
+    渠道标签（单一事实来源，报告与 UI 共用，避免漂移）。仅用于报告透明度展示：
+    帮助读者区分「只配了单渠道」与「多渠道检索后仅部分命中」，不改变
+    ``source_counts`` 口径（热度计算的跨源广度加成依赖其规模，不可因补充空渠道而虚高）。
+    返回可直接 extend 进报告行的 Markdown 片段列表；无空渠道时返回空列表。
+    """
+    notes = summarize_empty_channels(source_stats)
+    if not notes:
+        return []
+    return [
+        "",
+        f"> 另有 {len(notes)} 个渠道已检索但未产出相关结果：{', '.join(notes)}。",
+    ]
+
+
 def build_source_analysis(source_counts: Dict[str, int],
                           source_stats: Dict[str, dict],
                           credibility_data: Optional[dict] = None) -> str:
@@ -274,8 +384,8 @@ def build_source_analysis(source_counts: Dict[str, int],
     total = sum(source_counts.values()) if source_counts else 0
 
     scores = (credibility_data or {}).get("scores") or []
-    # 只有在评分条目携带出版方字段时才切换为双维度口径；
-    # 旧缓存/旧调用方未提供该字段时保持原样，避免破坏既有导出。
+    # 只有评分条目携带出版方字段时才切换为双维度口径；
+    # 旧缓存 / 旧调用方未提供该字段时保持原样，避免破坏既有导出。
     has_publisher_data = any("publisher" in s for s in scores)
 
     lines = ["## 四、来源分析", ""]
@@ -293,17 +403,19 @@ def build_source_analysis(source_counts: Dict[str, int],
             lines.append(f"| {src} | {count} | {pct} | {role} |")
         if has_publisher_data:
             lines.append("")
-            lines.append("> 检索渠道仅表示「从哪个引擎/订阅源找到」，不代表内容出版方；"
+            lines.append("> 检索渠道只表示「从哪个引擎/订阅源找到」，不代表内容出版方；"
                          "可信度按下方出版方计分。")
     else:
         lines.append("> 无有效来源数据")
     lines.append("")
 
+    # 透明度补充：揭示「已检索但未产出相关结果」的渠道，避免读者误判为单渠道配置。
+    # 不改动 source_counts，热度跨源广度加成口径保持不变。
+    lines.extend(_empty_channel_notes(source_stats))
+
     # 4.2 质量评分（出版方维度 / 兼容旧的来源维度）
-    if has_publisher_data:
-        lines.append("### 4.2 出版方质量评分")
-    else:
-        lines.append("### 4.2 来源质量评分")
+    lines.append("### 4.2 出版方质量评分" if has_publisher_data
+                 else "### 4.2 来源质量评分")
     lines.append("")
 
     if scores:
@@ -326,7 +438,8 @@ def build_source_analysis(source_counts: Dict[str, int],
                 lines.append(f"- **{name}**：{stars} ({score:.0%}) "
                              f"[跳转未解析，按检索渠道回退计分]")
             else:
-                lines.append(f"- **{name}**：{stars} ({score:.0%}) [{_get_source_role(name)}]")
+                lines.append(f"- **{name}**：{stars} ({score:.0%}) "
+                             f"[{_get_source_role(name)}]")
     else:
         lines.append("> 无可信度评分数据")
     lines.append("")
@@ -401,11 +514,30 @@ def build_key_intelligence(results: List[dict],
         lines.append("> 无有效情报条目")
         return "\n".join(lines)
 
+    # 先剔除弱相关条目，再按「相关度优先、可信度次之」排序。
+    # 旧实现只按 credibility_score 排序 —— 与主题无关的条目只要来源权威就会
+    # 顶到榜首（如订阅源最新条目），是噪声登上关键情报的直接原因。
+    pool, relevance_note = _select_relevant(results)
+    if relevance_note:
+        lines.append(relevance_note)
+        lines.append("")
+
+    if not pool:
+        lines.append("> 无有效情报条目（全部结果被判定为弱相关）")
+        return "\n".join(lines)
+
     sorted_results = sorted(
-        results,
-        key=lambda r: r.get("credibility_score", 0.5),
+        pool,
+        key=lambda r: (r.get("relevance_score", 0.0), r.get("credibility_score", 0.5)),
         reverse=True,
     )[:top_n]
+
+    if len(pool) > len(sorted_results):
+        lines.append(
+            f"> 按相关度与可信度展示前 {len(sorted_results)} 条"
+            f"（相关结果共 {len(pool)} 条，采集总量 {len(results)} 条）"
+        )
+        lines.append("")
 
     for idx, item in enumerate(sorted_results, 1):
         title = item.get("title", "无标题")
@@ -482,6 +614,46 @@ def _postprocess_llm_text(text: str) -> str:
     return text
 
 
+#: 证据链中「（来源：XXX，来源等级：…）」形式的引用
+_CITED_SOURCE_RE = re.compile(r'来源[：:]\s*([^，,、；;（()）\[\]|\n]{2,40})')
+
+
+def _known_source_names(results: List[dict]) -> set:
+    """本次检索中可核验的来源名集合（渠道名 + 出版方 + 域名，全部小写）。"""
+    names = set()
+    for r in results or []:
+        for key in ("source", "publisher"):
+            val = (r.get(key) or "").strip().lower()
+            if val:
+                names.add(val)
+        host = _evidence_domain(r.get("url") or r.get("link") or "")
+        if host:
+            names.add(host.lower())
+    return names
+
+
+def _unverifiable_citations(text: str, known: set) -> List[str]:
+    """找出无法在原始证据清单中定位的引用来源。
+
+    仅对纯 ASCII 引用名做判定：中文品牌名与域名之间无法自动比对
+    （「携程酒店」 vs ``hotels.ctrip.com``），宁可漏报也不误报 ——
+    误报会训练读者忽略告警。
+    """
+    if not text or not known:
+        return []
+    unknown: List[str] = []
+    for m in _CITED_SOURCE_RE.finditer(text):
+        cited = m.group(1).strip().strip('*` 　')
+        if not cited or not cited.isascii():
+            continue
+        low = cited.lower()
+        if any(low in k or k in low for k in known):
+            continue
+        if low not in [u.lower() for u in unknown]:
+            unknown.append(cited)
+    return unknown
+
+
 def build_evidence_chain(results: List[dict],
                          credibility_data: Optional[dict] = None,
                          conflicts: List[dict] = None,
@@ -503,6 +675,20 @@ def build_evidence_chain(results: List[dict],
         llm_evidence = _postprocess_llm_text(llm_evidence)
         lines.append(llm_evidence.strip())
         lines.append("")
+
+        # 引用存在性校验：LLM 可能引用本次检索中根本不存在的外部来源
+        # （审计实锤：E2 引用 Expedia，但原始证据清单里没有任何 Expedia URL），
+        # 这类引用必须显式标注，不能无声地当成已证实证据。
+        unverified = _unverifiable_citations(llm_evidence, _known_source_names(results))
+        if unverified:
+            lines.append("### 引用来源可核验性")
+            lines.append("")
+            for name in unverified[:10]:
+                lines.append(f"- ⚠️ **{name}**：未核验 —— 该来源未出现在本次原始证据清单中")
+            lines.append("")
+            lines.append("> 「未核验」表示无法从本次检索结果回溯该引用，"
+                         "其支持度不应作为已证实证据采信。")
+            lines.append("")
     else:
         # 降级：无可信度数据时提示
         if not credibility_data:
@@ -570,6 +756,21 @@ def build_entity_graph(kg_entities: List[dict],
         lines.append("- 搜索结果以短文本为主，难以提取有效实体")
         return "\n".join(lines)
 
+    # 噪声实体在渲染层再拦一次：KG 可能来自历史快照或缓存产物，
+    # 抽取层的过滤未必覆盖到，这里是读者看到的最后一道防线。
+    try:
+        from intelnexus.analysis.intelligence_graph import EntityExtractor
+        kg_entities = [
+            e for e in kg_entities
+            if not EntityExtractor._is_noise_entity(e.get("name", ""))
+        ]
+    except Exception:  # pragma: no cover - 过滤失败不应阻断报告
+        pass
+
+    if not kg_entities:
+        lines.append("> 未提取到有效实体（候选实体均在降噪阶段被过滤）")
+        return "\n".join(lines)
+
     sorted_entities = sorted(
         kg_entities,
         key=lambda e: e.get("importance", 0),
@@ -601,8 +802,8 @@ def build_entity_graph(kg_entities: List[dict],
         lines.append("")
 
     if kg_relations:
-        # 关系两端渲染为实体名，并只保留两侧都出现在本板块的实体 ——
-        # 旧实现直接打印实体 id，且不检查该实体是否已被 TopN 截断，
+        # 关系两端渲染为实体名，且只保留两侧都出现在本板块的实体 ——
+        # 旧实现直接打印实体 id，也不检查实体是否已被 TopN 截断，
         # 于是出现「关系里的实体在实体清单中不存在」的悬空引用。
         name_by_id = {e.get("id"): e.get("name") for e in kg_entities if e.get("id")}
         displayed_ids = {e.get("id") for e in sorted_entities if e.get("id")}
@@ -705,18 +906,14 @@ def build_event_evolution(results: List[dict],
         lines.append("> 无有效时间数据")
         return "\n".join(lines)
 
-    # 过滤相关结果（标题或摘要包含查询关键词）
-    if query:
-        query_lower = query.lower()
-        query_keywords = set(query_lower.split())
-        filtered = []
-        for r in results:
-            title = r.get("title", "").lower()
-            snippet = r.get("snippet", "").lower()
-            if any(kw in title or kw in snippet for kw in query_keywords if len(kw) >= 2):
-                filtered.append(r)
-        if filtered:
-            results = filtered
+    # 过滤相关结果：与事件画像同一口径（消费 weak_related）
+    results, relevance_note = _select_relevant(results)
+    if relevance_note:
+        lines.append(relevance_note)
+        lines.append("")
+    if not results:
+        lines.append("> 无有效时间数据")
+        return "\n".join(lines)
 
     # 标准化日期后收集（只保留可解析的日期）
     dated_items = []
@@ -837,20 +1034,59 @@ def build_impact_assessment(llm_sections: Dict[str, str]) -> str:
     return content.strip()
 
 
-def build_risk_assessment(llm_sections: Dict[str, str]) -> str:
-    """板块 11：风险评估（LLM 可选生成）。"""
+def build_risk_assessment(llm_sections: Dict[str, str],
+                          risk_level: Optional[str] = None,
+                          risk_reason: str = "") -> str:
+    """板块 11：风险评估（程序化定级 + LLM 论述）。
+
+    风险等级由 :mod:`intelnexus.analysis.risk_level` 依据客观威胁证据给出，
+    不接受 LLM 或来源可信度的影响；LLM 只负责论述，不负责定级。
+    """
+    from intelnexus.analysis.risk_level import LEVEL_INSUFFICIENT
+    lines = []
+    if risk_level:
+        lines.append(f"**程序化风险定级**：{risk_level}")
+        lines.append("")
+        if risk_reason:
+            lines.append(f"> 定级依据：{risk_reason}")
+            lines.append("")
+        if risk_level == LEVEL_INSUFFICIENT:
+            lines.append(
+                "> 未采集到漏洞、威胁情报或跨源冲突等客观证据。"
+                "「证据不足」表示本次检索无法支撑风险判断，不等于目标安全。"
+            )
+            lines.append("")
+
     content = llm_sections.get("risk_assessment", "")
     if not content:
-        return "> （本次分析未生成风险评估内容）"
+        if not lines:
+            return "> （本次分析未生成风险评估内容）"
+        return "\n".join(lines).strip()
     # 清理标题
     content = re.sub(r'^##\s*(?:十[、.]?\s*)?风险评估\s*\n', '', content, flags=re.MULTILINE)
     # 后处理：供应链风险→供应链透明风险
     content = _postprocess_llm_text(content)
-    return content.strip()
+    lines.append(content.strip())
+    return "\n".join(lines).strip()
 
 
-def build_attack_surface(llm_sections: Dict[str, str]) -> str:
-    """板块 11.5：攻击面分析（LLM 可选生成）。"""
+def build_attack_surface(llm_sections: Dict[str, str],
+                         authorized: bool = True) -> str:
+    """板块 11.5：攻击面分析（LLM 可选生成，受授权闸门约束）。
+
+    针对具名实体的侦察请求在未声明授权时，本板块替换为合规说明 ——
+    攻击面分层/利用路径可直接用于主动测试，不得在未授权场景下输出。
+    """
+    if not authorized:
+        try:
+            from intelnexus.core.search.authorization import UNAUTHORIZED_NOTICE
+            return UNAUTHORIZED_NOTICE
+        except Exception:  # pragma: no cover - 模块缺失时仍需合规兜底
+            return (
+                "> ⚠️ 本次查询未声明授权，已降级为纯公开信息（OSINT）分析，"
+                "不生成攻击面内容。对目标开展主动测试需事先取得书面授权。"
+            )
+
     content = llm_sections.get("attack_surface", "")
     if not content:
         return "> （本次分析未生成攻击面分析内容）"
@@ -917,6 +1153,16 @@ def build_event_history(event_changes: Optional[dict] = None,
     if risk_change:
         has_changes = True
         lines.append(f"**风险等级变化**：{risk_change}")
+        lines.append("")
+
+    # 「证据不足 ↔ 低/中/高」不同量纲，单独呈现，避免被读成风险升降
+    risk_evidence_change = event_changes.get("risk_evidence_change")
+    if risk_evidence_change:
+        has_changes = True
+        lines.append(f"**风险证据状态变化**：{risk_evidence_change}")
+        lines.append("")
+        lines.append("> 该变化表示威胁证据的完整度改变（此前无法定级 / 现已可定级），"
+                     "不等同于风险等级升高或降低。")
         lines.append("")
 
     new_findings = event_changes.get("new_findings", [])
@@ -1005,6 +1251,9 @@ def build_evidence_appendix(scraped: Dict[str, str],
                 "title": r.get("title", ""),
                 "source": r.get("source", ""),
                 "snippet": r.get("description", ""),
+                # 弱相关条目保留在本板块供溯源，但必须标明「未纳入分析」——
+                # 否则读者看到噪声标题会以为它参与了结论推导
+                "weak": bool(r.get("weak_related", False)),
             }
 
     sources: List[dict] = []
@@ -1022,6 +1271,7 @@ def build_evidence_appendix(scraped: Dict[str, str],
             "source": meta.get("source", ""),
             "fallback": _evidence_fallback_title(content) or _evidence_fallback_title(meta.get("snippet", "")),
             "has_content": True,
+            "weak": meta.get("weak", False),
         })
         if len(sources) >= _MAX_EVIDENCE_ITEMS:
             break
@@ -1039,6 +1289,7 @@ def build_evidence_appendix(scraped: Dict[str, str],
                 "source": r.get("source", ""),
                 "fallback": _evidence_fallback_title(r.get("description", "")),
                 "has_content": False,
+                "weak": bool(r.get("weak_related", False)),
             })
             if len(sources) >= _MAX_EVIDENCE_ITEMS:
                 break
@@ -1058,7 +1309,10 @@ def build_evidence_appendix(scraped: Dict[str, str],
         # 完整链接优先保留在 URL 行（可复制），解析不出真实地址的包装壳显式标注
         flag = "（跳转包装，未解析）" if _is_unresolved_wrapper(url) else ""
         lines.append(f"- URL：`{url}`{flag}")
-        lines.append("- 状态：已抓取全文" if src["has_content"] else "- 状态：仅元数据")
+        status = "已抓取全文" if src["has_content"] else "仅元数据"
+        if src.get("weak"):
+            status += " · 弱相关（未纳入结论推导）"
+        lines.append(f"- 状态：{status}")
         lines.append("")
 
     return "\n".join(lines)
@@ -1084,6 +1338,9 @@ def build_intelligence_report(
     scraped: Dict[str, str] = None,
     report_id: str = None,
     event_changes: Optional[dict] = None,
+    risk_level: Optional[str] = None,
+    risk_reason: str = "",
+    authorization: Optional[dict] = None,
 ) -> str:
     """组装完整的情报搜索报告。
 
@@ -1111,11 +1368,14 @@ def build_intelligence_report(
     llm_sections = extract_analytical_sections(llm_output)
 
     result_count = len(results) if results else 0
+    # 未声明授权时降级为纯 OSINT：不输出攻击面内容
+    authorized = True if not authorization else bool(authorization.get("authorized", True))
 
     # 2. 组装 14 板块
     sections = [
         # 程序化板块
-        build_report_overview(query, search_mode, model, source_counts, result_count, report_id),
+        build_report_overview(query, search_mode, model, source_counts, result_count,
+                              report_id, authorization),
         "",
         # LLM 板块
         "## 二、核心摘要",
@@ -1164,13 +1424,13 @@ def build_intelligence_report(
         "",
         "## 十一、风险评估",
         "",
-        build_risk_assessment(llm_sections),
+        build_risk_assessment(llm_sections, risk_level, risk_reason),
         "",
         "---",
         "",
         "## 十二、攻击面分析",
         "",
-        build_attack_surface(llm_sections),
+        build_attack_surface(llm_sections, authorized=authorized),
         "",
         "---",
         "",

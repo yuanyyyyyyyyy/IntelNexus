@@ -46,6 +46,12 @@ class TestSourceHealth:
         assert h.status == "healthy"
         assert h.consecutive_failures == 0
         assert h.last_error is None
+        # 全新起点：历史计数一并清零，避免「healthy 却低成功率」矛盾展示
+        assert h.success_count == 0
+        assert h.fail_count == 0
+        assert h.avg_latency_ms == 0.0
+        assert h.last_success is None
+        assert h.success_rate == 1.0
 
     def test_success_rate(self):
         h = SourceHealth(source_name="test", success_count=7, fail_count=3)

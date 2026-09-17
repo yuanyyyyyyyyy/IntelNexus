@@ -276,15 +276,24 @@ _ADAPTIVE_DIMENSIONS = """
 """
 
 
-def _build_system_prompt(query, search_mode):
+_ATTACK_SURFACE_HEADING = "## 十二、攻击面分析"
+_ATTACK_SURFACE_NEXT_HEADING = "## 十三、情报判断与后续关注"
+
+
+def _build_system_prompt(query, search_mode, authorized: bool = True):
     """统一的 LLM system prompt。
 
     不再区分 general/security 双模板，改为一个统一 prompt：
     - 5 个必选板块（所有查询都生成：TL;DR、核心摘要、证据链、舆情趋势、影响评估）
     - 3 个可选板块（仅安全/风险话题生成：风险评估、攻击面分析、情报判断）
+
+    Args:
+        authorized: 是否已声明对目标资产的测试授权。针对具名实体的侦察请求
+            在未声明授权时必须为 ``False``，此时会剔除攻击面分析板块并追加
+            纯 OSINT 的合规边界约束（见 ``core.search.authorization``）。
     """
     mode_desc = _get_mode_description(search_mode)
-    return f"""
+    prompt = f"""
 你是一位高级信息分析师。基于以下搜索结果和分析数据，请生成一份分析报告的**核心分析板块**。
 
 查询主题：{query}
@@ -350,6 +359,14 @@ def _build_system_prompt(query, search_mode):
 **总体舆情**：[正面偏积极 / 中性偏积极 / 中性 / 中性偏消极 / 负面]（一句话总结）
 
 （必须基于搜索结果中的实际表述，不得编造不存在的观点；比例必须量化）
+
+**样本归属要求（强制）**：观点必须指向查询目标的同一主体。
+- 若某条观点指向的是名称相近或地理位置相关的**其他主体**（同名酒店、
+  异地同名机构、同区域的另一家机构等），该条观点**不得计入比例分母**，
+  只能作为「同名/近似主体辨析」单列说明；
+- 在计算比例前先剔除上述条目，样本规模须为剔除后的实际条数；
+- 若剔除后样本不足 5 条，须直接声明「样本不足，舆情比例不具统计意义」，
+  而不是给出看似精确的百分比。
 
 
 ## 九、影响评估
@@ -443,6 +460,22 @@ def _build_system_prompt(query, search_mode):
 搜索结果内容将在用户消息中提供。请直接生成上述板块，不要有任何对话或提问。
 """
 
+    if not authorized:
+        from intelnexus.core.search.authorization import osint_only_system_addendum
+        # 未授权：剔除攻击面板块 + 追加纯 OSINT 合规边界。
+        # 整段删除而非改写指令，避免模型在残留标题下继续补写攻击面内容。
+        start = prompt.find(_ATTACK_SURFACE_HEADING)
+        end = prompt.find(_ATTACK_SURFACE_NEXT_HEADING)
+        if start != -1 and end != -1 and end > start:
+            prompt = prompt[:start] + prompt[end:]
+        else:
+            # 模板被改动后标题可能找不到 —— 防线静默失效比失效更危险
+            logger.warning("未授权降级：prompt 中未定位到攻击面板块标题，"
+                           "裁剪未生效（报告层仍会替换该章节）")
+        prompt += "\n" + osint_only_system_addendum()
+
+    return prompt
+
 
 def _build_augmented_content(content, credibility_context="", kg_context="", conflicts_context="", kb_context=""):
     """Build the augmented content string with context from analysis modules."""
@@ -511,13 +544,17 @@ def _validate_llm_output(output: str) -> int:
     return sum(1 for s in required_sections if s in output)
 
 
-def _build_simplified_prompt(query, search_mode):
+def _build_simplified_prompt(query, search_mode, authorized: bool = True):
     """构建简化版 prompt（用于重试）。
-    
+
     当模型无法遵循复杂的多板块指令时，使用更简单的格式要求。
     包含全部必选板块（证据链用最简格式），不包含可选板块。
     """
     mode_desc = _get_mode_description(search_mode)
+    osint_addendum = ""
+    if not authorized:
+        from intelnexus.core.search.authorization import osint_only_system_addendum
+        osint_addendum = "\n" + osint_only_system_addendum()
     return f"""
 你是情报分析师。基于搜索结果，生成情报分析报告。
 
@@ -550,12 +587,18 @@ def _build_simplified_prompt(query, search_mode):
 **综合置信度**：[高/中/低]
 
 直接输出，不要提问。
-"""
+{osint_addendum}"""
 
 
 def generate_summary(llm, query, content, search_mode="all",
-                     credibility_context="", kg_context="", conflicts_context="", kb_context=""):
-    """生成情报报告，根据搜索模式调整分析重点"""
+                     credibility_context="", kg_context="", conflicts_context="", kb_context="",
+                     authorized: bool = True):
+    """生成情报报告，根据搜索模式调整分析重点
+
+    Args:
+        authorized: 是否已声明对目标资产的测试授权；``False`` 时移除攻击面
+            分析板块并追加纯 OSINT 合规边界（详见 P0-3 授权闸门）。
+    """
 
     logger.info(f"[generate_summary] 开始生成报告: query='{query[:50]}...', mode={search_mode}, llm={type(llm).__name__}")
     
@@ -581,7 +624,7 @@ def generate_summary(llm, query, content, search_mode="all",
     if is_small:
         logger.info(f"检测到小模型 '{model_name}'，启用简化模式（截断输入）")
 
-    system_prompt = _build_system_prompt(query, search_mode)
+    system_prompt = _build_system_prompt(query, search_mode, authorized=authorized)
     # LangChain ChatPromptTemplate 默认使用 f-string 模板格式，
     # 会将 system_prompt 中的 { } 误认为模板变量。需要转义为 {{ }}。
     system_prompt_escaped = system_prompt.replace("{", "{{").replace("}", "}}")
@@ -615,7 +658,8 @@ def generate_summary(llm, query, content, search_mode="all",
         
         # 小模型重试时也截断输入
         retry_content = _truncate_augmented_content(augmented_content, 20000) if is_small else augmented_content
-        simplified_prompt = _build_simplified_prompt(query, search_mode)
+        simplified_prompt = _build_simplified_prompt(query, search_mode,
+                                                    authorized=authorized)
         simplified_prompt_escaped = simplified_prompt.replace("{", "{{").replace("}", "}}")
         retry_template = ChatPromptTemplate(
             [("system", simplified_prompt_escaped), ("user", "搜索结果内容:\n{content}")]

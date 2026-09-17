@@ -45,6 +45,9 @@ def _start_search_task(query: str, search_mode: str, model: str, threads: int):
     advanced_mode = st.session_state.get("advanced_mode", False)
     tor_port = st.session_state.get("tor_port", 9050)
     ui_sites = st.session_state.get("custom_onion_sites", [])
+    # 授权声明（P0-3 合规闸门的用户入口，sidebar._render_authorization_settings 写入）
+    authorization_declared = bool(st.session_state.get("authorization_declared", False))
+    authorization_scope = str(st.session_state.get("authorization_scope", "") or "")
 
     from intelnexus.ui.search_worker import run_search_computation
 
@@ -56,6 +59,8 @@ def _start_search_task(query: str, search_mode: str, model: str, threads: int):
         "advanced_mode": advanced_mode,
         "tor_port": tor_port,
         "ui_sites": ui_sites,
+        "authorization_declared": authorization_declared,
+        "authorization_scope": authorization_scope,
     })
 
     if ok:
@@ -182,7 +187,8 @@ def _apply_search_results(result: dict):
                      "credibility_data", "conflicts", "kg_entities", "kg_relations",
                      "kg_html_path", "kg_context", "evidence_data", "action_items",
                      "source_stats", "report_timestamp", "credibility_radar_chart",
-                     "tldr_card", "structured_summary", "query_variants", "search_query"]:
+                     "tldr_card", "structured_summary", "query_variants", "search_query",
+                     "authorization", "risk_level", "risk_reason"]:
             if key in result and result[key] is not None:
                 st.session_state[key] = result[key]
 

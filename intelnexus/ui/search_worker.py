@@ -78,6 +78,69 @@ def _zero_results_is_failure(stats) -> bool:
     return not any((s or {}).get("status") == "ok" for s in stats.values())
 
 
+#: 授权闸门异常时的兜底结果（fail-closed）
+_AUTH_GATE_FALLBACK = {
+    "requires_authorization": True,
+    "authorized": False,
+    "scope_note": "授权闸门评估异常，已按未声明授权降级为纯 OSINT 处理。",
+    "matched_intent": "",
+    "target_indicator": "",
+    "topic": "",
+}
+
+
+def _assess_authorization_safe(query: str,
+                               llm=None,
+                               authorization_declared: bool = False,
+                               authorization_scope: str = "") -> dict:
+    """授权闸门的安全封装。
+
+    合规闸门故障时必须 fail-closed：宁可按未授权降级（只影响攻击面板块的
+    生成），也不能在闸门失效时默认放行。检索本身不受影响。
+
+    Args:
+        llm: 已就绪的 LLM 实例（可为 None）。仅在规则层识别到进攻性意图
+            但未命中具名目标时，才用它做一次「是否针对具名在营实体」的
+            二级判定（只收紧、不放宽）。
+        authorization_declared: 用户是否已声明授权（UI 勾选 / CLI 选项）
+        authorization_scope: 用户填写的授权范围描述
+    """
+    try:
+        from intelnexus.core.search import authorization as _auth
+        gate = _auth.assess_authorization(
+            query,
+            authorization_declared=authorization_declared,
+            authorization_scope=authorization_scope,
+        )
+        # LLM 兜底：仅在「有意图词但规则未命中目标」的窄路径下调用。
+        # 只允许收紧（None→True），不允许放宽（True→False），保持 fail-closed。
+        # 闸门被环境变量整体关闭（enabled=False）时 requires 恒 False，
+        # 兜底结果必然被压制，此时不值得白花一次 LLM 调用。
+        if (llm is not None and not gate.get("requires_authorization")
+                and gate.get("matched_intent") and _auth._env_enabled()):
+            hint = _auth.llm_target_check(llm, query)
+            if hint is True:
+                logger.warning("LLM 兜底判定：查询疑似针对具名在营实体，"
+                               "按未声明授权处理")
+                gate = _auth.assess_authorization(
+                    query,
+                    authorization_declared=authorization_declared,
+                    authorization_scope=authorization_scope,
+                    llm_target_hint=True,
+                )
+    except Exception as e:
+        logger.warning(f"授权闸门评估失败，按未授权降级处理: {e}")
+        return dict(_AUTH_GATE_FALLBACK)
+
+    if gate.get("requires_authorization"):
+        logger.warning(
+            f"检测到针对性侦察意图（目标指示：{gate.get('target_indicator')}，"
+            f"意图词：{gate.get('matched_intent')}），"
+            f"授权状态：{'已声明' if gate.get('authorized') else '未声明'}"
+        )
+    return gate
+
+
 def run_search_computation(
     progress_callback: ProgressCallback,
     *,
@@ -88,6 +151,8 @@ def run_search_computation(
     advanced_mode: bool = False,
     tor_port: int = 9050,
     ui_sites: list = None,
+    authorization_declared: bool = False,
+    authorization_scope: str = "",
 ) -> Dict[str, Any]:
     """搜索管线纯计算入口（后台线程安全）。
 
@@ -164,6 +229,19 @@ def run_search_computation(
     result["refined"] = search_query          # 改存实际检索串（修复原仅存原 query 的缺陷）
     result["refined_display"] = search_query
 
+    # ---- 2.5 授权闸门（P0-3）----
+    # 针对具名实体的「漏洞/渗透/攻击面」侦察请求，未声明授权时降级为纯 OSINT：
+    # LLM 侧剔除攻击面板块并追加合规边界，报告侧用合规说明替换该章节。
+    authorization = _assess_authorization_safe(
+        query,
+        llm=llm,
+        authorization_declared=authorization_declared,
+        authorization_scope=authorization_scope,
+    )
+    result["authorization"] = authorization
+    authorized = bool(authorization.get("authorized", True))
+
+
     # ---- 3. 多源检索 ----
     progress_callback("searching", "检索多源数据...", 0.1)
     from intelnexus.core.search.registry import get_registry
@@ -214,8 +292,16 @@ def run_search_computation(
         result["results"] = ranked
         result["filtered"] = [r for r in ranked if not r.get("weak_related", False)][:20]
         weak_count = sum(1 for r in ranked if r.get("weak_related", False))
+        result["relevance_available"] = True
     else:
+        # 降级路径必须可观测：嵌入模型不可用时结果未经任何相关性过滤，
+        # 若静默沿用全量，后续报告会把噪声当成相关语料统计（热度/时间线/关键情报）。
         result["filtered"] = search_results[:20]
+        result["relevance_available"] = False
+        logger.warning(
+            "相关性排序不可用（嵌入模型缺失或超时），检索结果未经相关性过滤，"
+            "报告中会显式标注降级说明"
+        )
 
     # 弱相关条目
     result["weak_results"] = [
@@ -436,6 +522,7 @@ def run_search_computation(
             kg_context=kg_context,
             conflicts_context=conflicts_context,
             kb_context=kb_context,
+            authorized=authorized,
         )
         # 保存 LLM 原始输出（供证据链追踪、行动项提取、TL;DR 提取使用）
         result["llm_raw_output"] = generated or ""
@@ -525,8 +612,6 @@ def run_search_computation(
 
         # 构建快照
         results_list = result.get("results", [])
-        scores = [r.get("credibility_score", 0.5) for r in results_list if r.get("credibility_score")]
-        avg_score = sum(scores) / len(scores) if scores else 0.5
 
         # 从 LLM 输出推断身份状态（LLM 空白时回退到搜索结果标题/摘要）
         llm_out = result.get("llm_raw_output", "").lower()
@@ -548,19 +633,36 @@ def run_search_computation(
         else:
             identity_status = "unknown"
 
-        # 风险等级
-        risk_level = "低"
-        if avg_score < 0.4:
-            risk_level = "高"
-        elif avg_score < 0.6:
-            risk_level = "中"
+        # 风险等级：只由客观威胁证据决定（KEV/CVE/公开利用/威胁情报源命中、
+        # 跨源冲突严重度）。旧实现由来源平均可信度反推（avg<0.4→高、<0.6→中），
+        # 把「资料质量差」呈现成「目标有中等风险」，且资料越权威风险越低。
+        risk_evidence: dict = {}
+        risk_reason = ""
+        try:
+            from intelnexus.analysis.risk_level import (
+                collect_risk_evidence, compute_risk_level, LEVEL_INSUFFICIENT,
+            )
+            risk_evidence = collect_risk_evidence(
+                results_list, result.get("conflicts") or [])
+            risk_level, risk_reason = compute_risk_level(risk_evidence)
+        except Exception as e:  # pragma: no cover - 防御性
+            logger.warning(f"风险等级计算失败，按证据不足处理: {e}")
+            risk_level, risk_reason = LEVEL_INSUFFICIENT, "威胁证据采集失败"
+        result["risk_level"] = risk_level
+        result["risk_evidence"] = risk_evidence
+        result["risk_reason"] = risk_reason
+        logger.info(f"风险等级：{risk_level}（{risk_reason}）")
 
-        # 热度口径与报告事件画像一致（去重独立文章数 + 跨源广度）
-        from intelnexus.export.report_builder import compute_heat_level
+        # 热度口径与报告事件画像完全一致（同一函数、同一输入：相关结果子集
+        # + 相关率折算）。此前快照用全量结果、报告用过滤后子集，两边数字
+        # 对不上，「热度变化」也就无从对表。
+        from intelnexus.export.report_builder import compute_snapshot_heat
         snapshot = {
             "identity_status": identity_status,
-            "heat_level": compute_heat_level(results_list, len(result.get("source_counts", {}))),
+            "heat_level": compute_snapshot_heat(results_list,
+                                                len(result.get("source_counts", {}))),
             "risk_level": risk_level,
+            "risk_reason": risk_reason,
             "key_findings": [r.get("title", "") for r in results_list[:5] if r.get("title")],
             "source_count": len(result.get("source_counts", {})),
             "result_count": len(results_list),
@@ -621,6 +723,9 @@ def run_search_computation(
             scraped=result.get("scraped", {}),
             event_changes=result.get("event_changes"),
             report_id=report_id,
+            risk_level=result.get("risk_level"),
+            risk_reason=result.get("risk_reason", ""),
+            authorization=result.get("authorization"),
         )
         result["streamed_summary"] = assembled
     except Exception as e:

@@ -113,6 +113,13 @@ def test_reset_health_for_resets_and_persists(health_file):
     assert n == 1
     assert get_health("Xiaohongshu").status == "healthy"
     assert get_health("Xiaohongshu").consecutive_failures == 0
+    # 全新起点：历史计数一并清零（success_rate 回到 1.0，不再「healthy 却低成功率」）
+    xhs = get_health("Xiaohongshu")
+    assert xhs.fail_count == 0
+    assert xhs.success_count == 0
+    assert xhs.avg_latency_ms == 0.0
+    assert xhs.last_success is None
+    assert xhs.success_rate == 1.0
     # 不误伤未点名的源
     assert get_health("Other").status == "degraded"
     # 必须落盘（跨进程可见），否则重启后又变回 degraded

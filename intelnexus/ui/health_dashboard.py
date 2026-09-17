@@ -47,10 +47,20 @@ def render_health_overview():
         </div>
     ''', unsafe_allow_html=True)
 
-    # ---- 操作层：刷新检查（只失效缓存 + rerun，严禁发起任何网络探测）----
+    # ---- 操作层：刷新（清理失效源 + 失效缓存 + rerun，严禁发起任何网络探测）----
     if st.button(get_text("health_refresh"), key="hc_refresh_check"):
+        try:
+            from intelnexus.core.search.health import purge_stale_entries
+            from intelnexus.core.search.registry import get_registry
+            from intelnexus.config.search_settings import get_news_api_key
+            active_names = [s.name for s in get_registry(
+                news_api_key=get_news_api_key()).all_sources()]
+            purge_stale_entries(active_names)
+        except Exception:
+            pass
         invalidate_status_metrics()
         st.rerun()
+    st.caption(get_text("health_refresh_hint"))
 
     # ---- 聚合层：3 张指标卡（共享口径 get_health_summary_cached）----
     try:
@@ -94,6 +104,7 @@ def render_health_overview():
         all_health,
         key=lambda h: _SEVERITY_ORDER.get(getattr(h, "status", ""), 3))
 
+    st.caption(get_text("health_reset_hint"))
     for h in ordered:
         # 白名单校验：注册表不存在的源名（异常写入/残留）不渲染，只记日志。
         # 注：active_names 为 None（注册表构建失败）时跳过校验，避免静默整个面板。

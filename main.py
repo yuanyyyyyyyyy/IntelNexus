@@ -176,11 +176,33 @@ def _register_search_commands():
     @click.option("--threads", "-t", default=5, show_default=True, type=int, help="Number of threads")
     @click.option("--output", "-o", type=str, help="Output filename")
     @click.option("--no-credibility", is_flag=True, help="Disable credibility assessment & knowledge graph")
-    def search(model, query, mode, threads, output, no_credibility):
+    @click.option("--authorized", is_flag=True, default=False,
+                  help="Declare written authorization for targeted-scan queries "
+                       "(vulnerability/pentest/attack-surface). A declaration may "
+                       "also be included in the query text (e.g. '已获书面授权'). "
+                       "Without either, the run degrades to OSINT-only and omits "
+                       "the attack-surface section.")
+    @click.option("--scope", default="", type=str,
+                  help="Authorization scope (targets, IP ranges, time window); shown in the report.")
+    def search(model, query, mode, threads, output, no_credibility, authorized, scope):
         """Run multi-source intelligence search."""
         click.echo(f"IntelNexus - {SEARCH_MODES.get(mode, mode)} Mode")
         click.echo(f"Model: {model}")
         click.echo(f"Query: {query}")
+
+        # 授权闸门（P0-3）：CLI 与 UI 走同一规则，未声明授权时降级为纯 OSINT。
+        # gate_authorized 是闸门结论（用户声明 or 查询文本中的声明标记），
+        # 不覆盖 click 参数 authorized，后者始终表示「用户显式传了 --authorized」。
+        from intelnexus.core.search.authorization import assess_authorization
+        gate = assess_authorization(
+            query,
+            authorization_declared=authorized,
+            authorization_scope=scope,
+        )
+        gate_authorized = bool(gate.get("authorized", True))
+        if gate.get("requires_authorization"):
+            click.echo(f"Authorization: {'DECLARED' if gate_authorized else 'NOT DECLARED'}")
+            click.echo(f"    {gate.get('scope_note', '')}")
 
         try:
             llm = get_llm(model)
@@ -258,7 +280,8 @@ def _register_search_commands():
         summary = generate_summary(llm, query, scraped_results,
                                    credibility_context=credibility_context,
                                    kg_context=kg_context,
-                                   conflicts_context=conflicts_context)
+                                   conflicts_context=conflicts_context,
+                                   authorized=gate_authorized)
 
         if not output:
             now = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")

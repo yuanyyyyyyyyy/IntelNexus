@@ -86,3 +86,45 @@ def _normalize(mat: "np.ndarray") -> "np.ndarray":
     norms = np.linalg.norm(mat, axis=1, keepdims=True)
     norms[norms == 0] = 1.0
     return mat / norms
+
+
+# ============================================================================
+# 相关性消费（报告层 / 统计层的唯一入口）
+# ============================================================================
+
+def relevance_available(items: List[Dict]) -> bool:
+    """这批结果是否经过相关性评估（即带 ``weak_related`` 标记）。
+
+    相关性排序依赖嵌入模型；模型不可用时 ``compute_query_relevance`` 返回
+    ``None``，结果条目上不会有任何相关性字段。此时统计「相关结果数/相关率」
+    是没有意义的 —— 调用方必须区分「评估过且全部弱相关」与「根本没评估过」，
+    而不是把全量结果当成相关结果使用。
+    """
+    if not items:
+        return False
+    return any("weak_related" in it for it in items)
+
+
+def split_relevant(items: List[Dict]) -> Tuple[List[Dict], bool]:
+    """按 ``weak_related`` 标记拆分出相关结果。
+
+    Returns:
+        ``(relevant, available)``：
+        - ``available=True``：结果经过相关性评估，``relevant`` 为剔除弱相关后的子集
+          （可能为空，表示全部弱相关）；
+        - ``available=False``：结果未经相关性评估，``relevant`` 为空列表，
+          调用方须显式提示，禁止静默把全量结果当作相关结果。
+    """
+    if not items:
+        return [], False
+    if not relevance_available(items):
+        return [], False
+    return [it for it in items if not it.get("weak_related", False)], True
+
+
+def relevant_ratio(items: List[Dict]) -> Optional[float]:
+    """相关结果占比（0-1）；未经相关性评估时返回 ``None``。"""
+    relevant, available = split_relevant(items)
+    if not available or not items:
+        return None
+    return len(relevant) / len(items)

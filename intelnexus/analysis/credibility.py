@@ -96,6 +96,12 @@ class SourceScorer:
         'wikipedia.org': 0.75, 'medium.com': 0.65, 'substack.com': 0.65,
         'solidot.org': 0.6, '36kr.com': 0.6, 'ithome.com': 0.6,
         'technode.com': 0.7, 'scmp.com': 0.8, 'binance.com': 0.5,
+        # 预订/OTA 平台：解析出真实出版方后必须有对应权重，否则会落到
+        # 「未收录域名」的 0.45 保守分，低于旧的引擎回退分（0.5），
+        # 出现「真实出版方评分反而更低」的倒挂
+        'ctrip.com': 0.6, 'trip.com': 0.6, 'qunar.com': 0.6,
+        'agoda.com': 0.6, 'booking.com': 0.6, 'expedia.com': 0.6,
+        'hotels.com': 0.6, 'priceline.com': 0.6, 'meituan.com': 0.55,
         'youtube.com': 0.5, 'twitter.com': 0.5, 'x.com': 0.5,
         'facebook.com': 0.5, 'ycombinator.com': 0.75,
         # UGC / 社交媒体（SOCMINT 源）：按内容平台自身权重计分，而非落
@@ -144,11 +150,15 @@ class SourceScorer:
         pairwise_sim = self._precompute_pairwise_similarity(emb_cache)
 
         for r in results:
-            url = r.get("link") or r.get("url", "")
+            # 优先用解析后的真实地址：搜索引擎跳转壳（baidu/link?url=…）本身
+            # 不是出版方，拿它打分等于把「携程页面」按 www.baidu.com 计分。
+            url = r.get("resolved_url") or r.get("url") or r.get("link", "")
             source_name = r.get("source", "Unknown")
             detail = self._build_detail(url, source_name, scraped_content, emb_cache, pairwise_sim, r)
             r["credibility_score"] = detail["final_score"]
             r["credibility_details"] = detail
+            # 出版方对外可见，供报告分层展示（渠道 ≠ 出版方）
+            r["publisher"] = detail["publisher"]
 
         return results
 
@@ -169,7 +179,31 @@ class SourceScorer:
         avg_sims = sim_matrix.sum(axis=1) / max(n - 1, 1)
         return {u: float(avg_sims[i]) for i, u in enumerate(urls)}
 
+    def _publisher_from_url(self, url) -> tuple:
+        """从 URL 提取真实出版方域名。
+
+        Returns:
+            ``(publisher, resolved)``。URL 仍是搜索引擎跳转壳 / 无法解析时
+            返回 ``("", False)`` —— 此时不得退回用引擎名冒充出版方，
+            由展示层显式标注「出版方未解析」。
+        """
+        if not url or not isinstance(url, str):
+            return "", False
+        try:
+            host = (urlparse(url).netloc or "").lower()
+        except Exception:
+            return "", False
+        if not host or host in ("localhost", "127.0.0.1"):
+            return "", False
+        host = host.split("@")[-1].split(":")[0]
+        if host.startswith("www."):
+            host = host[4:]
+        if host in self.REDIRECT_HOSTS:
+            return "", False
+        return host, True
+
     def _build_detail(self, url, source_name, scraped, emb_cache, pairwise_sim, result=None):
+        publisher, publisher_resolved = self._publisher_from_url(url)
         domain_score = self._domain_authority(url, source_name)
         freshness_score = self._freshness(source_name, result)
         depth_score = self._content_depth(url, scraped)
@@ -206,6 +240,9 @@ class SourceScorer:
             "consistency_score": round(consis_score, 3),
             "final_score": round(final, 3),
             "source_reliability": source_reliability,
+            "publisher": publisher,
+            "publisher_resolved": publisher_resolved,
+            "engine": source_name,
             "reason": ", ".join(parts) if parts else "无明显特征"
         }
 

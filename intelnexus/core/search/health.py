@@ -65,9 +65,22 @@ class SourceHealth:
         self._update_status()
 
     def reset(self):
+        """手动解除降级：清零失败链与全部历史计数，回到全新起点。
+
+        不只清零 ``consecutive_failures`` / ``last_error``，还一并清零
+        ``success_count``、``fail_count``、``avg_latency_ms``、``last_success``：
+        否则重置后 ``status`` 已是 healthy，``success_rate`` 却仍反映旧失败
+        （如 33%），出现「绿色正常却低成功率」的矛盾展示。
+
+        不含任何网络探测——仅清除陈旧信号，下次实际检索失败仍会重新降级。
+        """
         self.consecutive_failures = 0
         self.last_error = None
         self.status = "healthy"
+        self.success_count = 0
+        self.fail_count = 0
+        self.avg_latency_ms = 0.0
+        self.last_success = None
 
     def _update_status(self):
         if self.consecutive_failures >= DOWN_THRESHOLD:

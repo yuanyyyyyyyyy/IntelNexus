@@ -229,7 +229,7 @@ def _render_source_health():
         except Exception:
             pass
 
-        # 刷新按钮：清理僵尸条目 + 失效缓存，不发起网络探测
+        # 刷新按钮：清理僵尸条目 + 失效缓存并重读（不发起网络探测）
         if st.button(get_text("health_refresh"), key="sb_health_refresh",
                      use_container_width=True):
             try:
@@ -240,11 +240,13 @@ def _render_source_health():
             except Exception:
                 pass
             st.rerun()
+        st.caption(get_text("health_refresh_hint"))
 
         if not all_health:
             st.markdown(f"_{get_text('no_sources')}_")
             return
 
+        st.caption(get_text("health_reset_hint"))
         for h in all_health:
             # 白名单校验：注册表不存在的源名（异常写入/残留）不渲染，只记日志。
             # purge 已清理大部分僵尸条目，此处是二次防御。
@@ -1380,6 +1382,28 @@ def _render_task_status_indicator():
         )
 
 
+def _render_authorization_settings():
+    """授权声明设置（P0-3 授权闸门的用户入口）。
+
+    针对具名实体的「漏洞/渗透/攻击面」类查询需要显式声明授权；
+    未声明时系统降级为纯 OSINT 并禁用攻击面章节。控件写入
+    session_state（key: authorization_declared / authorization_scope），
+    由 ``search_pipeline._start_search_task`` 读取并传入闸门。
+    """
+    declared = st.checkbox(
+        get_text("authorization_declared"),
+        help=get_text("authorization_declared_help"),
+        key="authorization_declared",
+    )
+    if declared:
+        st.text_area(
+            get_text("authorization_scope"),
+            help=get_text("authorization_scope_help"),
+            key="authorization_scope",
+            height=68,
+        )
+
+
 def render_sidebar():
     """
     Sidebar: cold-gray workbench style.
@@ -1398,6 +1422,9 @@ def render_sidebar():
 
         # Core: Search Mode
         search_mode = _render_search_mode()
+
+        # Authorization declaration (合规闸门入口)
+        _render_authorization_settings()
 
         # Source Health Panel
         _render_source_health()
