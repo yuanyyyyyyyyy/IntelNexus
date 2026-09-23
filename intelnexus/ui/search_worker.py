@@ -141,6 +141,31 @@ def _assess_authorization_safe(query: str,
     return gate
 
 
+def apply_evidence_anchors(result: dict) -> bool:
+    """把证据角标注入最终报告文本（必须在结构化组装之后调用）。
+
+    build_intelligence_report 会用组装结果整体覆盖 streamed_summary，而下载与
+    历史详情读取的正是 streamed_summary；若在覆盖前注入，结论句末的 <sup> 角标
+    与文末「证据参考」会被一并丢掉。
+
+    Returns:
+        是否实际写入了带角标的文本。
+    """
+    if not (result.get("evidence_data") and result.get("streamed_summary")):
+        return False
+    try:
+        from intelnexus.analysis.evidence_annotator import annotate_report
+        before = result["streamed_summary"]
+        annotated = annotate_report(before, result["evidence_data"])
+        if annotated == before:
+            return False
+        result["streamed_summary"] = annotated
+        return True
+    except Exception as e:
+        logger.warning(f"证据角标注入失败: {e}")
+        return False
+
+
 def run_search_computation(
     progress_callback: ProgressCallback,
     *,
@@ -549,15 +574,8 @@ def run_search_computation(
     # ---- 10. 后处理（阶段八·角标/可视化/行动项/TL;DR）----
     progress_callback("finalizing", "后处理...", 0.92)
 
-    # 证据角标注入
-    try:
-        if result.get("evidence_data") and result.get("streamed_summary"):
-            from intelnexus.analysis.evidence_annotator import annotate_report
-            annotated = annotate_report(result["streamed_summary"], result["evidence_data"])
-            if annotated != result["streamed_summary"]:
-                result["streamed_summary"] = annotated
-    except Exception as e:
-        logger.warning(f"证据角标注入失败: {e}")
+    # 证据角标注入延后到结构化报告组装之后（见 apply_evidence_anchors），
+    # 否则会被下面的组装结果整体覆盖掉。
 
     # 可视化图表注入
     try:
@@ -731,6 +749,9 @@ def run_search_computation(
     except Exception as e:
         logger.warning(f"结构化报告组装失败，回退到 LLM 原始输出: {e}")
         # 回退：保持 streamed_summary 为 LLM 原始输出
+
+    # 证据角标注入：对组装后（或回退后）的最终报告文本生效
+    apply_evidence_anchors(result)
 
     # 报告时间戳：须在记录历史之前生成，使历史快照也能带上（历史详情下载区据此命名文件）
     result["report_timestamp"] = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
