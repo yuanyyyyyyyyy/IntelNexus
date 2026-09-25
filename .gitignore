@@ -17,6 +17,9 @@ unpacked_intelnexus/
 *.spec
 temp/
 
+# 本地备份工具与脚本（restic 配置说明见 backup/README.md，不入库）
+backup/
+
 # Virtual environments
 .venv/
 venv/
