@@ -10,7 +10,9 @@ from typing import Dict, List, Optional
 from pathlib import Path
 
 from intelnexus.core.logger import get_logger
-from intelnexus.core.settings.file_lock import safe_read_json, safe_write_json
+from intelnexus.core.settings.file_lock import (
+    read_for_update, safe_read_json, safe_write_json,
+)
 
 logger = get_logger(__name__)
 
@@ -123,7 +125,11 @@ def add_custom_model(name: str, model_type: str, config: Dict) -> bool:
 
     _ensure_custom_models_file()
 
-    data = safe_read_json(CUSTOM_MODELS_FILE)
+    # 读失败落到「新建空表」会把已有模型（含 API key）全部抹掉
+    data = read_for_update(CUSTOM_MODELS_FILE)
+    if data is None:
+        logger.warning("读取 custom_models.json 失败，放弃添加模型（防止已有模型被覆盖）")
+        return False
     if not data:
         data = {"models": []}
 
@@ -540,7 +546,11 @@ def add_custom_provider(
 
     _ensure_custom_providers_file()
 
-    data = safe_read_json(CUSTOM_PROVIDERS_FILE)
+    # 读失败落到「新建空表」会把已有供应商（含 API key）全部抹掉
+    data = read_for_update(CUSTOM_PROVIDERS_FILE)
+    if data is None:
+        logger.warning("读取 custom_providers.json 失败，放弃添加供应商（防止已有供应商被覆盖）")
+        return False
     if not data:
         data = {"providers": []}
 

@@ -47,6 +47,18 @@ logger = get_logger(__name__)
 # 避免 shutdown(cancel_futures=True) 直接丢弃即将完成的检索。
 _GRACE_PERIOD = 8
 
+# stale（待复核）源的试探预算（秒）。
+#
+# stale 源只是「旧结论可能已过期，再试一次」——它的结果是**加分项**，不是
+# 本次检索的必要组成。若与正常源同池无限等待，一个挂死 15s 的死源就会把整次
+# 检索从 5s 拖到 20s（15 个源 / threads=5 时实测如此）。
+#
+# 因此：当未完成的 future **只剩** stale 源时，最多再等这么久就收工。
+# 放弃的源线程仍在后台跑完并照常写健康表（成功即自愈，失败即重新冷却），
+# 只是不再拖住本次返回。取 3s：足够覆盖「刚恢复的源首个请求」的常见耗时，
+# 又不会让用户明显感到卡顿。
+_STALE_PROBE_BUDGET = 3
+
 # 模块级注册表实例缓存（按构造参数维度），避免每次 collect 都重建并读盘
 _registry_cache: Dict[tuple, "SearchSourceRegistry"] = {}
 _registry_cache_lock = None
@@ -100,6 +112,12 @@ class SearchSourceRegistry:
         self.tor_port = tor_port
         self.ui_sites = ui_sites or []
         self.web_threads = web_threads
+        #: 上一次 get_sources_by_mode 因健康状态 down 被剔除的源名，
+        #: 供 collect() 写入 source_stats，让结果页能解释「这个源为什么没结果」
+        self.last_skipped_down: List[str] = []
+        #: 上一次 get_sources_by_mode 判定为 stale（待复核）的源名。
+        #: 它们只是试探，collect() 据此限制等待时长，不让慢的试探源拖住正常结果。
+        self.last_stale_sources: List[str] = []
 
         # 内置源
         self._builtin: List[BaseSearchSource] = [
@@ -248,23 +266,55 @@ class SearchSourceRegistry:
                 if isinstance(s, SiteScopedSource)]
 
     def get_sources_by_mode(self, mode: str) -> List[BaseSearchSource]:
-        """返回该模式下、已启用的源列表（按类别过滤，健康降级排序）。"""
-        from intelnexus.core.search.health import get_health
+        """返回该模式下、已启用的源列表（按类别过滤，健康状态排序）。
+
+        排序：``healthy → degraded → stale``，被剔除的 ``down`` 不入列表。
+
+        时间维度（见 ``health.view_status``）：
+        - ``down`` 只在其冷却期（``DOWN_COOLDOWN_MINUTES``）内被剔除。冷却到期后
+          该源转为 ``stale`` 并被放行——否则 down 就是**终态**：被剔除 → 永不执行
+          → 永不成功 → 永远 down，唯一的出口是用户手动点「清除标记」。
+        - ``stale`` 排在最后：旧判定已过期，值得再试一次，但不该抢占正常源的位置。
+
+        健康状态为 ``down`` 的源名记录在 ``self.last_skipped_down``：``collect()``
+        据此把它们写进 ``source_stats``（status="down"），否则结果页的「源完整性」
+        会漏报，出现「健康面板说 4 个源不可用、结果页却说全部源正常」的自相矛盾。
+
+        ``stale`` 源名另记在 ``self.last_stale_sources``：它们只是**试探**，
+        ``collect()`` 据此给它们单独的等待预算，不让慢的试探源拖住正常结果
+        （见 ``_STALE_PROBE_BUDGET``）。
+
+        性能：整表**一次**读取（``get_health_map``），不再对每个源各调一次
+        ``get_health``（22 个源时 33.5ms → 1.5ms）。
+        """
+        from intelnexus.core.search.health import get_health_map, view_status
+
         categories = set(get_mode_categories(mode))
-        healthy, degraded = [], []
-        for src in self.all_sources():
-            if not src.enabled:
-                continue
-            if src.category in categories:
-                h = get_health(src.name)
-                if h.status == "down":
-                    logger.info(f"源 {src.name} 状态为 down，跳过")
-                    continue
-                elif h.status == "degraded":
-                    degraded.append(src)
-                else:
-                    healthy.append(src)
-        return healthy + degraded
+        candidates = [
+            src for src in self.all_sources()
+            if src.enabled and src.category in categories
+        ]
+        health_map = get_health_map(src.name for src in candidates)
+
+        healthy: List[BaseSearchSource] = []
+        degraded: List[BaseSearchSource] = []
+        stale: List[BaseSearchSource] = []
+        skipped_down: List[str] = []
+        for src in candidates:
+            state = view_status(health_map[src.name])
+            if state == "down":
+                logger.info(f"源 {src.name} 状态为 down（冷却期内），跳过")
+                skipped_down.append(src.name)
+            elif state == "degraded":
+                degraded.append(src)
+            elif state == "stale":
+                logger.info(f"源 {src.name} 健康判定已过期，按低优先级放行重试")
+                stale.append(src)
+            else:
+                healthy.append(src)
+        self.last_skipped_down = skipped_down
+        self.last_stale_sources = [s.name for s in stale]
+        return healthy + degraded + stale
 
     # ------------------------------------------------------------------
     # 执行 + 出口收口
@@ -281,16 +331,36 @@ class SearchSourceRegistry:
             threads: 并发线程数
             global_timeout: 全局搜索超时（秒）
         """
-        from intelnexus.core.search.health import update_health
-        sources = self.get_sources_by_mode(mode)
-        raw: List[Dict] = []
-        t0 = time.time()
+        from intelnexus.core.search.health import HealthBatch, update_health
 
         # F6 源级统计：本次检索各源的成败/跳过情况，供 UI 透明度条展示
         source_stats: Dict[str, Dict] = {}
 
         def _mark(name, status, count=0):
             source_stats[name] = {"status": status, "count": count}
+
+        sources = self.get_sources_by_mode(mode)
+        # 因健康状态 down 被剔除的源不会进入 sources，但必须出现在本次统计里：
+        # 结果页「源完整性」与报告 4.1 段据此解释「为什么这个源一条都没返回」。
+        # 紧接调用后立刻取用，缩短与并发检索共享该属性的窗口。
+        for _down_name in self.last_skipped_down:
+            _mark(_down_name, "down")
+
+        #: 本次检索的 stale 源名（试探源）：等待预算与正常源不同
+        probation = set(self.last_stale_sources)
+        #: 健康观测缓冲：15 个源各写一次 ≈ 150ms 串行 IO，合并成一次写盘
+        health_batch = HealthBatch()
+
+        def _record_health(name, result_count, latency_ms,
+                           error=None, empty_is_healthy=False):
+            """记录一条观测：优先并入批量写；缓冲已关闭则退回单条写（不丢信号）。"""
+            if not health_batch.record(name, result_count, latency_ms,
+                                       error=error, empty_is_healthy=empty_is_healthy):
+                update_health(name, result_count, latency_ms,
+                              error=error, empty_is_healthy=empty_is_healthy)
+
+        raw: List[Dict] = []
+        t0 = time.time()
 
         def _timed_search(src, q, mr):
             # 检查全局超时
@@ -308,8 +378,10 @@ class SearchSourceRegistry:
 
             t_start = time.time()
             try:
-                # 单源超时 = 全局剩余时间的一半
-                remaining = max(5, int((global_timeout - (time.time() - t0)) / 2))
+                # 注意：此处**没有**单源超时——Python 无法中断正在跑的线程，
+                # 真正的时限由各源自己的 requests timeout 决定（10～30s），
+                # 全局兜底是 global_timeout + _GRACE_PERIOD。
+                # 旧代码在这里算了 remaining 却从未使用，注释与行为不符，已删。
                 # 先清残留失败信号：保证随后读到的 last_error 只属于本次调用，
                 # 防上一轮超时后台线程晚归写入的信号被本轮误消费（桩可能无此属性）。
                 setattr(src, "last_error", None)
@@ -318,23 +390,23 @@ class SearchSourceRegistry:
                 if results:
                     # 非空结果路径：成功，同时清掉残留的失败信号（桩可能无此属性，setattr 防御）
                     setattr(src, "last_error", None)
-                    update_health(src.name, len(results), elapsed)
+                    _record_health(src.name, len(results), elapsed)
                     _mark(src.name, "ok", len(results))
                 else:
                     # 空结果 + last_error 非空 → 判定为失败：适配器吞异常返回 []
                     # 时既有错误边界永不触发，靠失败信号通道补记健康统计。
                     err = getattr(src, "last_error", None)
                     if err:
-                        update_health(src.name, 0, elapsed, error=err)
+                        _record_health(src.name, 0, elapsed, error=err)
                         _mark(src.name, "error")
                         setattr(src, "last_error", None)
                         logger.warning(f"源 {src.name} 检索失败: {err}")
                         return []
                     # 透传源自述标志：确知「空结果＝未命中」的源（站内检索源）
                     # 零结果按成功计，避免被永久钉在 degraded/down 且无法自愈
-                    update_health(src.name, 0, elapsed,
-                                  empty_is_healthy=getattr(
-                                      src, "empty_is_healthy", False))
+                    _record_health(src.name, 0, elapsed,
+                                   empty_is_healthy=getattr(
+                                       src, "empty_is_healthy", False))
                     # 观测：正式检索路径上也要能区分「后端没返回」与「被过滤干净」，
                     # 否则源长期返回 0 条时无法判断是源故障还是过滤太狠（试搜面板
                     # 已区分，这里补日志留痕）
@@ -352,7 +424,7 @@ class SearchSourceRegistry:
                         r["_source_weight"] = source_weight
                 return results or []
             except Exception as e:
-                update_health(src.name, 0, 0, error=str(e))
+                _record_health(src.name, 0, 0, error=str(e))
                 logger.warning(f"源 {src.name} 检索异常: {e}")
                 _mark(src.name, "error")
                 # 异常边界同样清残留信号，保持失败信号通道的单轮生命周期语义
@@ -396,6 +468,15 @@ class SearchSourceRegistry:
                 except FuturesTimeoutError:
                     logger.info(f"宽限期 ({_GRACE_PERIOD}s) 超时，放弃收割未完成的源")
 
+        def _only_probation_pending() -> bool:
+            """未完成的 future 是否**只剩** stale 试探源。"""
+            for f in future_map:
+                if f in collected or f.done():
+                    continue
+                if future_map[f].name not in probation:
+                    return False
+            return True
+
         try:
             for f in as_completed(future_map, timeout=global_timeout):
                 collected.add(f)
@@ -409,6 +490,28 @@ class SearchSourceRegistry:
                     logger.info(f"全局超时，停止收集剩余结果")
                     _harvest()
                     break
+
+                # 试探预算：正常源都已完成、只剩 stale 源时，改为**有界等待**后收工。
+                # 不能只在循环体里记 deadline——as_completed 只在 future 完成时才
+                # yield，若剩下的唯一 future 就是那个挂死的试探源，循环体根本不会
+                # 再被执行，deadline 永远不会被检查。必须换成带 timeout 的 as_completed。
+                if probation and _only_probation_pending():
+                    pending = [pf for pf in future_map if pf not in collected]
+                    if pending:
+                        logger.info(f"正常源已全部返回，{len(probation)} 个试探源"
+                                    f"最多再等 {_STALE_PROBE_BUDGET}s")
+                        try:
+                            for pf in as_completed(pending,
+                                                   timeout=_STALE_PROBE_BUDGET):
+                                collected.add(pf)
+                                try:
+                                    raw.extend(pf.result() or [])
+                                except Exception as e:
+                                    logger.warning(f"试探源收割异常: {e}")
+                        except FuturesTimeoutError:
+                            logger.info(f"试探源超出 {_STALE_PROBE_BUDGET}s 预算，"
+                                        f"先返回已有结果（其健康观测仍会在后台写入）")
+                    break
         except FuturesTimeoutError:
             logger.info(f"全局超时 ({global_timeout}s)，收集已完成的结果")
             # 路径 A：与路径 B 共用同一收割逻辑，口径一致且不重复收集。
@@ -418,6 +521,13 @@ class SearchSourceRegistry:
             # 全局超时形同虚设（调用方墙钟时间被最慢单源拖满）。
             # cancel_futures 撤销尚未启动的任务；运行中的任务由各自请求超时兜底。
             executor.shutdown(wait=False, cancel_futures=True)
+            # 健康观测合并写盘：15 个源各写一次约 150ms，合并后约 10ms。
+            # 必须放在 shutdown 之后：仍在跑的线程若在 flush 后才记录，
+            # HealthBatch.record 会返回 False 并退回单条写，信号不丢。
+            try:
+                health_batch.flush()
+            except Exception as e:
+                logger.warning(f"健康观测批量写盘失败: {e}")
 
         # F6：未被收集到的源（撤销/超时未完成）标记 timeout，避免统计缺口；
         # 与 _timed_search 内全局超时跳过分支的语义对齐，供 UI 透明度条展示。

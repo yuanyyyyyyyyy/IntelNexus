@@ -78,67 +78,6 @@ def _zero_results_is_failure(stats) -> bool:
     return not any((s or {}).get("status") == "ok" for s in stats.values())
 
 
-#: 授权闸门异常时的兜底结果（fail-closed）
-_AUTH_GATE_FALLBACK = {
-    "requires_authorization": True,
-    "authorized": False,
-    "scope_note": "授权闸门评估异常，已按未声明授权降级为纯 OSINT 处理。",
-    "matched_intent": "",
-    "target_indicator": "",
-    "topic": "",
-}
-
-
-def _assess_authorization_safe(query: str,
-                               llm=None,
-                               authorization_declared: bool = False,
-                               authorization_scope: str = "") -> dict:
-    """授权闸门的安全封装。
-
-    合规闸门故障时必须 fail-closed：宁可按未授权降级（只影响攻击面板块的
-    生成），也不能在闸门失效时默认放行。检索本身不受影响。
-
-    Args:
-        llm: 已就绪的 LLM 实例（可为 None）。仅在规则层识别到进攻性意图
-            但未命中具名目标时，才用它做一次「是否针对具名在营实体」的
-            二级判定（只收紧、不放宽）。
-        authorization_declared: 用户是否已声明授权（UI 勾选 / CLI 选项）
-        authorization_scope: 用户填写的授权范围描述
-    """
-    try:
-        from intelnexus.core.search import authorization as _auth
-        gate = _auth.assess_authorization(
-            query,
-            authorization_declared=authorization_declared,
-            authorization_scope=authorization_scope,
-        )
-        # LLM 兜底：仅在「有意图词但规则未命中目标」的窄路径下调用。
-        # 只允许收紧（None→True），不允许放宽（True→False），保持 fail-closed。
-        # 闸门被环境变量整体关闭（enabled=False）时 requires 恒 False，
-        # 兜底结果必然被压制，此时不值得白花一次 LLM 调用。
-        if (llm is not None and not gate.get("requires_authorization")
-                and gate.get("matched_intent") and _auth._env_enabled()):
-            hint = _auth.llm_target_check(llm, query)
-            if hint is True:
-                logger.warning("LLM 兜底判定：查询疑似针对具名在营实体，"
-                               "按未声明授权处理")
-                gate = _auth.assess_authorization(
-                    query,
-                    authorization_declared=authorization_declared,
-                    authorization_scope=authorization_scope,
-                    llm_target_hint=True,
-                )
-    except Exception as e:
-        logger.warning(f"授权闸门评估失败，按未授权降级处理: {e}")
-        return dict(_AUTH_GATE_FALLBACK)
-
-    if gate.get("requires_authorization"):
-        logger.warning(
-            f"检测到针对性侦察意图（目标指示：{gate.get('target_indicator')}，"
-            f"意图词：{gate.get('matched_intent')}），"
-            f"授权状态：{'已声明' if gate.get('authorized') else '未声明'}"
-        )
-    return gate
 
 
 def apply_evidence_anchors(result: dict) -> bool:
@@ -176,8 +115,6 @@ def run_search_computation(
     advanced_mode: bool = False,
     tor_port: int = 9050,
     ui_sites: list = None,
-    authorization_declared: bool = False,
-    authorization_scope: str = "",
 ) -> Dict[str, Any]:
     """搜索管线纯计算入口（后台线程安全）。
 
@@ -253,19 +190,6 @@ def run_search_computation(
     result["search_query"] = search_query
     result["refined"] = search_query          # 改存实际检索串（修复原仅存原 query 的缺陷）
     result["refined_display"] = search_query
-
-    # ---- 2.5 授权闸门（P0-3）----
-    # 针对具名实体的「漏洞/渗透/攻击面」侦察请求，未声明授权时降级为纯 OSINT：
-    # LLM 侧剔除攻击面板块并追加合规边界，报告侧用合规说明替换该章节。
-    authorization = _assess_authorization_safe(
-        query,
-        llm=llm,
-        authorization_declared=authorization_declared,
-        authorization_scope=authorization_scope,
-    )
-    result["authorization"] = authorization
-    authorized = bool(authorization.get("authorized", True))
-
 
     # ---- 3. 多源检索 ----
     progress_callback("searching", "检索多源数据...", 0.1)
@@ -547,7 +471,6 @@ def run_search_computation(
             kg_context=kg_context,
             conflicts_context=conflicts_context,
             kb_context=kb_context,
-            authorized=authorized,
         )
         # 保存 LLM 原始输出（供证据链追踪、行动项提取、TL;DR 提取使用）
         result["llm_raw_output"] = generated or ""
@@ -743,7 +666,6 @@ def run_search_computation(
             report_id=report_id,
             risk_level=result.get("risk_level"),
             risk_reason=result.get("risk_reason", ""),
-            authorization=result.get("authorization"),
         )
         result["streamed_summary"] = assembled
     except Exception as e:

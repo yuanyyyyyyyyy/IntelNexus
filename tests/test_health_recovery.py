@@ -194,3 +194,42 @@ def test_registry_zero_result_keeps_plain_source_degraded(health_file):
     reg.collect("all", "q", max_results=5, threads=1)
 
     assert get_health("Plain").status == "degraded"
+
+
+# ---------------------------------------------------------------------------
+# down 源的统计口径（审计：结果页「源完整性」漏报被剔除的源）
+# ---------------------------------------------------------------------------
+
+def test_down_source_appears_in_source_stats(health_file):
+    """被健康检查剔除的源必须出现在本次 source_stats 里。
+
+    旧实现 ``get_sources_by_mode`` 遇到 down 直接 ``continue``，该源既不在
+    检索列表、也不在 source_stats 中 —— 结果页显示「全部源正常」，而健康面板
+    同时显示「N 个源不可用」，两处自相矛盾。
+    """
+    _seed("Dead", 6)  # 连续失败 6 次 → down
+
+    class _DeadSrc(BaseSearchSource):
+        name = "Dead"
+        category = "custom"
+
+        def search(self, query, max_results=20):  # pragma: no cover - 不应被调用
+            raise AssertionError("down 源不应进入检索")
+
+    reg = SearchSourceRegistry(news_api_key=None)
+    reg._builtin = [_DeadSrc()]
+    reg._user_sources = []
+
+    out = reg.collect("all", "q", max_results=5, threads=1)
+
+    assert out == []
+    assert reg.last_search_stats["Dead"]["status"] == "down"
+    assert reg.last_search_stats["Dead"]["count"] == 0
+
+
+def test_down_reason_is_rendered_by_summarizer(health_file):
+    """source_meta 里预置的 ``down`` 原因文案必须真的被用上（此前是死映射）。"""
+    from intelnexus.core.search.source_meta import summarize_empty_channels
+
+    notes = summarize_empty_channels({"Dead": {"status": "down", "count": 0}})
+    assert notes == ["Dead（源不可用）"]

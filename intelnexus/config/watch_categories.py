@@ -10,10 +10,12 @@ data/watch_categories.json 中覆盖或追加。本模块做 thin-wrapper：
 """
 
 import os
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from intelnexus.core.logger import get_logger
-from intelnexus.core.settings.file_lock import safe_read_json, safe_write_json
+from intelnexus.core.settings.file_lock import (
+    read_for_update, safe_read_json, safe_write_json,
+)
 
 logger = get_logger(__name__)
 
@@ -81,12 +83,28 @@ def get_category(cid: str) -> Dict:
     return get_all_categories().get(cid)
 
 
+def _load_overrides() -> Optional[Dict]:
+    """读-改-写路径的用户覆盖表读取。
+
+    返回 None 表示读取失败（被占用 / 损坏 / 无法加锁）。此时绝不能写回——
+    否则用户配置会被抹成只剩本次修改的一条。只读路径（get_all_categories 等）
+    请继续用 ``safe_read_json(...) or {}``。
+    """
+    data = read_for_update(WATCH_CATEGORIES_FILE)
+    if data is None:
+        return None
+    return data if isinstance(data, dict) else {}
+
+
 def add_category(cid: str, cfg: Dict) -> bool:
     """新增或覆盖一个关注点。cfg 至少需要 name / search_queries 字段。"""
     if not cid or not isinstance(cfg, dict):
         return False
     _ensure_file()
-    overrides = safe_read_json(WATCH_CATEGORIES_FILE) or {}
+    overrides = _load_overrides()
+    if overrides is None:
+        logger.warning("读取 watch_categories.json 失败，放弃新增关注点（防止覆盖）")
+        return False
     cfg = dict(cfg)
     cfg["enabled"] = cfg.get("enabled", True)
     overrides[cid] = cfg
@@ -98,7 +116,10 @@ def update_category(cid: str, cfg: Dict) -> bool:
     if not cid:
         return False
     _ensure_file()
-    overrides = safe_read_json(WATCH_CATEGORIES_FILE) or {}
+    overrides = _load_overrides()
+    if overrides is None:
+        logger.warning("读取 watch_categories.json 失败，放弃更新关注点（防止覆盖）")
+        return False
     existing = overrides.get(cid, {})
     if not isinstance(existing, dict):
         existing = {}
@@ -110,7 +131,10 @@ def update_category(cid: str, cfg: Dict) -> bool:
 def remove_category(cid: str) -> bool:
     """移除用户覆盖（恢复默认，或彻底删除自定义类目）。"""
     _ensure_file()
-    overrides = safe_read_json(WATCH_CATEGORIES_FILE) or {}
+    overrides = _load_overrides()
+    if overrides is None:
+        logger.warning("读取 watch_categories.json 失败，放弃移除关注点（防止覆盖）")
+        return False
     if cid in overrides:
         del overrides[cid]
     else:
@@ -141,7 +165,10 @@ def restore_default(cid: str) -> bool:
     if cid not in _default_categories():
         return False
     _ensure_file()
-    overrides = safe_read_json(WATCH_CATEGORIES_FILE) or {}
+    overrides = _load_overrides()
+    if overrides is None:
+        logger.warning("读取 watch_categories.json 失败，放弃恢复默认（防止覆盖）")
+        return False
     if cid in overrides:
         del overrides[cid]
     return safe_write_json(WATCH_CATEGORIES_FILE, overrides)

@@ -13,11 +13,27 @@ def _html_response(text, status=200):
     return resp
 
 
+# Ahmia 2026 改版后的真实结果结构：标题在 h4>a，真实地址藏在站方跳转包装的
+# redirect_url 参数里，摘要在 h4 之后的 <p>。
 AHMIA_HTML = """
 <html><body>
-<a href="http://exampleonion1abcd.onion/page1">Leaked Database</a>
-<a href="http://exampleonion2efgh.onion/page2">Forum Thread</a>
-<a href="http://notonion.com/plain">Skip me</a>
+<h4><a href="/search/redirect?redirect_url=http%3A%2F%2Fexampleonion1abcd.onion%2Fpage1">Leaked Database</a></h4>
+<p>Dump of credentials from a breached forum.</p>
+<h4><a href="/search/redirect?redirect_url=http%3A%2F%2Fexampleonion2efgh.onion%2Fpage2">Forum Thread</a></h4>
+<p>Discussion thread about the leak.</p>
+<h4><a href="http://notonion.com/plain">Skip me</a></h4>
+<p>clearnet link, must be filtered</p>
+</body></html>
+"""
+
+# 壳页：无 h4 结果，只有反爬隐藏 token
+AHMIA_SHELL_HTML = """
+<html><body>
+<form id="searchForm" action="/search/">
+  <input type="hidden" name="f119ab" value="156abb">
+  <input type="text" name="q">
+</form>
+<p>we have not deployed non-JavaScript version yet</p>
 </body></html>
 """
 
@@ -90,14 +106,17 @@ def test_get_darkweb_results_list_query(monkeypatch):
 def test_fetch_ahmia_parses_onion_links(monkeypatch):
     monkeypatch.setattr(dw, "ENABLE_DARKWEB", True)
     resp = _html_response(AHMIA_HTML)
-    with patch.object(dw, "requests") as req:
-        req.get.return_value = resp
+    # 实现用 requests.Session()（需保持 cookie 跨两次请求），故 patch Session 而非模块级 get
+    with patch.object(dw.requests, "Session") as session_cls:
+        session_cls.return_value.get.return_value = resp
         results = dw.fetch_ahmia_results("leak")
     links = [r["link"] for r in results]
     assert "http://exampleonion1abcd.onion/page1" in links
     assert "http://exampleonion2efgh.onion/page2" in links
     # 非 .onion 链接应被过滤
     assert not any("notonion" in l for l in links)
+    # 摘要应被带出，供相关性评分使用
+    assert results[0]["description"].startswith("Dump of credentials")
 
 
 def test_fetch_ahmia_encodes_query(monkeypatch):
@@ -108,10 +127,28 @@ def test_fetch_ahmia_encodes_query(monkeypatch):
         captured["url"] = url
         return _html_response(AHMIA_HTML)
 
-    with patch.object(dw, "requests") as req:
-        req.get.side_effect = fake_get
+    with patch.object(dw.requests, "Session") as session_cls:
+        session_cls.return_value.get.side_effect = fake_get
         dw.fetch_ahmia_results("data breach test")
     assert "data%20breach%20test" in captured["url"]
+
+
+def test_fetch_ahmia_retries_with_hidden_token(monkeypatch):
+    """壳页无结果时应提取隐藏 token 二次请求，并解析出真实 onion 地址。"""
+    monkeypatch.setattr(dw, "ENABLE_DARKWEB", True)
+    calls = []
+
+    def fake_get(url, **kwargs):
+        calls.append((url, kwargs.get("params")))
+        return _html_response(AHMIA_SHELL_HTML if len(calls) == 1 else AHMIA_HTML)
+
+    with patch.object(dw.requests, "Session") as session_cls:
+        session_cls.return_value.get.side_effect = fake_get
+        results = dw.fetch_ahmia_results("leak")
+
+    assert len(calls) == 2, "壳页无结果时必须带 token 再请求一次"
+    assert calls[1][1] == {"q": "leak", "f119ab": "156abb"}
+    assert len(results) == 2
 
 
 def test_advanced_mode_calls_tor_engines(monkeypatch):
@@ -163,7 +200,7 @@ def test_search_custom_onion_site_decodes_b64_password(monkeypatch):
     resp = _html_response(html)
     captured = {}
 
-    def fake_fetch(url, auth=None):
+    def fake_fetch(url, auth=None, tor_port=None):
         captured["auth"] = auth
         return resp
 

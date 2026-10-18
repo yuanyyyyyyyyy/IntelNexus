@@ -1,6 +1,6 @@
 """源健康状态模块测试。"""
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 
 from intelnexus.core.search import health as health_mod
 from intelnexus.core.search.health import (
@@ -62,29 +62,63 @@ class TestSourceHealth:
 
 
 class TestHealthPersistence:
-    @patch("intelnexus.core.search.health.save_health")
-    @patch("intelnexus.core.search.health.get_health")
-    def test_update_health_success(self, mock_get, mock_save):
-        mock_h = MagicMock()
-        mock_get.return_value = mock_h
-        update_health("src", result_count=5, latency_ms=120.0)
-        mock_h.record_success.assert_called_once_with(120.0)
-        mock_save.assert_called_once_with(mock_h)
+    def test_update_health_success(self, tmp_health_file):
+        """成功一次：落盘计数、状态、延迟与观测时间戳。
 
-    @patch("intelnexus.core.search.health.save_health")
-    @patch("intelnexus.core.search.health.get_health")
-    def test_update_health_failure(self, mock_get, mock_save):
-        mock_h = MagicMock()
-        mock_get.return_value = mock_h
+        注：本用例原先 patch ``get_health`` / ``save_health`` 断言调用次数，
+        但那只是实现细节——``update_health`` 现在直接做一次读-改-写
+        （旧实现经这两个函数各读一次文件）。改为断言真实落盘结果，更强。
+        """
+        update_health("src", result_count=5, latency_ms=120.0)
+        h = get_health("src")
+        assert h.success_count == 1
+        assert h.consecutive_failures == 0
+        assert h.status == "healthy"
+        assert h.avg_latency_ms == pytest.approx(120.0)
+        # 时间维度：任何观测都要刷新 last_attempt，否则会被误判为「信号过期」
+        assert h.last_attempt is not None
+
+    def test_update_health_failure(self, tmp_health_file):
         update_health("src", result_count=0, latency_ms=0, error="timeout")
-        mock_h.record_failure.assert_called_once_with("timeout")
-        mock_save.assert_called_once_with(mock_h)
+        h = get_health("src")
+        assert h.fail_count == 1
+        assert h.consecutive_failures == 1
+        assert h.last_error == "timeout"
+        assert h.last_attempt is not None
+
+    def test_update_health_zero_result_refreshes_attempt_but_not_counts(
+            self, tmp_health_file):
+        """连通但零结果：不计成功也不计失败，但必须刷新 last_attempt。
+
+        否则刚观测过的源会因为「没有时间戳」被 view_status 反复判为 stale。
+        """
+        update_health("src", result_count=0, latency_ms=80.0)
+        h = get_health("src")
+        assert h.success_count == 0
+        assert h.fail_count == 0
+        assert h.consecutive_failures == 0
+        assert h.last_attempt is not None
+
+    def test_update_health_single_read_per_call(self, tmp_health_file, monkeypatch):
+        """回归：一次 update_health 只读一次文件（旧实现读两次：get + save）。"""
+        calls = {"n": 0}
+        real = health_mod._load_health_data
+
+        def _counting(*args, **kwargs):
+            calls["n"] += 1
+            return real(*args, **kwargs)
+
+        monkeypatch.setattr(health_mod, "_load_health_data", _counting)
+        update_health("src", result_count=3, latency_ms=50.0)
+        assert calls["n"] == 1
 
     def test_from_dict_ignores_extra_fields(self):
         data = {"source_name": "x", "status": "down", "unknown_field": 123}
         h = SourceHealth.from_dict(data)
         assert h.source_name == "x"
         assert h.status == "down"
+        # 旧版健康表没有该字段：默认 None，不应抛错
+        assert h.last_attempt is None
 
 
 @pytest.fixture

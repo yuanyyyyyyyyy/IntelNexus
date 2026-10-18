@@ -17,8 +17,11 @@ from datetime import datetime
 
 import streamlit as st
 
+from intelnexus.core.logger import get_logger
 from intelnexus.ui.i18n import get_text
 from intelnexus.ui import main_tabs
+
+logger = get_logger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -193,41 +196,32 @@ def _render_metric_cards(metrics: "dict | None") -> None:
 # 数据源状态点阵
 # ---------------------------------------------------------------------------
 
-_STATUS_DOT_cls = {"healthy": "active", "degraded": "warning", "down": "error"}
-
-
 def _render_source_status_bar() -> None:
-    """首页数据源状态点阵：一行彩色圆点 + 短名称，快速定位故障源。"""
+    """首页数据源状态点阵：一行彩色圆点 + 短名称，快速定位故障源。
+
+    修复（审计）：旧实现用 ``s.__class__.__name__`` 取白名单，而源名是
+    ``s.name``（"Web" vs "WebSearchSource"），二者永不相交 → 过滤后恒为空，
+    点阵**从未显示过**，且被 ``except: pass`` + ``if not items: return`` 双重静默。
+    现在与侧边栏/简报中心共用 ``health_view.build_snapshot`` 的过滤与排序口径。
+    """
     try:
         from intelnexus.ui._caches import cached_all_health, cached_registry
+        from intelnexus.config.search_settings import get_news_api_key
+        from intelnexus.ui.health_view import build_snapshot, dot_class, status_of
 
-        all_health = cached_all_health()
-        registry = cached_registry()
-        active_names = (
-            {s.__class__.__name__ for s in registry.all_sources()}
-            if registry else None
-        )
-
-        items = []
-        for h in all_health:
-            if active_names is not None and h.source_name not in active_names:
-                continue
-            items.append(h)
-        items.sort(
-            key=lambda h: {"down": 0, "degraded": 1, "healthy": 2}.get(h.status, 3)
-        )
-
-        if not items:
+        registry = cached_registry(news_api_key=get_news_api_key())
+        active_names = [s.name for s in registry.all_sources()] if registry else None
+        snapshot = build_snapshot(cached_all_health(), active_names)
+        if snapshot.is_empty:
             return
 
         dots = []
-        for h in items:
-            dot_cls = _STATUS_DOT_cls.get(h.status, "error")
-            short = h.source_name.replace("Source", "").replace("Search", "")
+        for h in snapshot.entries:
+            label = html.escape(h.source_name)
             dots.append(
-                f'<span class="ov-status-dot" title="{html.escape(h.source_name)}">'
-                f'<span class="status-dot {dot_cls}"></span>'
-                f'<span class="ov-status-label">{html.escape(short)}</span>'
+                f'<span class="ov-status-dot" title="{label}">'
+                f'<span class="status-dot {dot_class(h)}"></span>'
+                f'<span class="ov-status-label">{label}</span>'
                 f'</span>'
             )
 
@@ -235,8 +229,9 @@ def _render_source_status_bar() -> None:
             f'<div class="ov-status-bar">{"".join(dots)}</div>',
             unsafe_allow_html=True,
         )
-    except Exception:
-        pass
+    except Exception as e:
+        # 不再静默：首页点阵缺失时至少能在日志里查到原因
+        logger.warning(f"首页数据源状态点阵渲染失败: {e}")
 
 
 # ---------------------------------------------------------------------------

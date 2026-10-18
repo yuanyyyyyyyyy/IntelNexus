@@ -185,107 +185,27 @@ def _render_darkweb_settings():
     return int(st.session_state.get("tor_port", DEFAULT_TOR_PORT))
 
 def _render_source_health():
-    """数据源健康状态面板（只读展示；写副作用移到刷新按钮与会话一次性守卫）。
+    """数据源健康状态面板（侧边栏紧凑入口）。
 
-    旧实现每帧都调用 purge_stale_entries()（写盘）+ invalidate_status_metrics()，
-    既浪费又把 15s 运行指标缓存每帧失效（等于废掉缓存），且每次切 Tab 都写盘。
-    现改为：会话首帧自动清理一次 + 刷新按钮手动清理，平时只走只读缓存。
+    数据推导与渲染统一在 ``ui.health_dashboard`` / ``ui.health_view``，本函数
+    只做三件事：取快照、会话首帧清理僵尸条目、用带异常计数的标题开 expander。
+
+    历史包袱（已解决）：旧实现在这里自己算一套明细（5 列挤压、无失败原因、
+    不排序、按 JSON 插入序），与简报中心面板各算一套，口径与顺序都不一致。
     """
     try:
-        from intelnexus.core.search.health import save_health
-        from intelnexus.ui._caches import cached_registry, cached_all_health
-        from intelnexus.ui.status_metrics import (
-            invalidate_status_metrics, get_health_summary_cached)
-        from intelnexus.config.search_settings import get_news_api_key as NEWS_API_KEY
-        registry = cached_registry(news_api_key=NEWS_API_KEY())
-        active_names = [s.name for s in registry.all_sources()]
-    except Exception:
+        from intelnexus.ui.health_dashboard import (
+            compact_title, load_snapshot, purge_once, render_health_compact)
+        snapshot = load_snapshot()
+    except Exception as e:
+        logger.warning(f"侧边栏健康面板不可用: {e}")
         return
 
-    # 会话首帧一次性清理测试残留/已删源的僵尸条目（写操作只发生一次，不阻塞切 Tab）
-    if not st.session_state.get("_health_purged_once", False):
-        try:
-            from intelnexus.core.search.health import purge_stale_entries
-            purge_stale_entries(active_names)
-            invalidate_status_metrics()
-            cached_all_health.clear()
-        except Exception:
-            pass
-        st.session_state["_health_purged_once"] = True
+    # 会话首帧一次性清理测试残留/已删源的僵尸条目（与简报中心面板共用旗标）
+    purge_once(snapshot.active_names)
 
-    try:
-        all_health = cached_all_health()
-    except Exception:
-        return
-
-    with st.expander(get_text("source_health"), expanded=False):
-        # 顶部聚合摘要：与状态栏/健康概览面板共享同一口径（15s 缓存）
-        try:
-            _s = get_health_summary_cached() or {}
-            st.caption(get_text("health_summary_line").format(
-                healthy=int(_s.get("healthy") or 0),
-                degraded=int(_s.get("degraded") or 0),
-                down=int(_s.get("down") or 0)))
-        except Exception:
-            pass
-
-        # 刷新按钮：清理僵尸条目 + 失效缓存并重读（不发起网络探测）
-        if st.button(get_text("health_refresh"), key="sb_health_refresh",
-                     use_container_width=True):
-            try:
-                from intelnexus.core.search.health import purge_stale_entries
-                purge_stale_entries(active_names)
-                invalidate_status_metrics()
-                cached_all_health.clear()
-            except Exception:
-                pass
-            st.rerun()
-        st.caption(get_text("health_refresh_hint"))
-
-        if not all_health:
-            st.markdown(f"_{get_text('no_sources')}_")
-            return
-
-        st.caption(get_text("health_reset_hint"))
-        for h in all_health:
-            # 白名单校验：注册表不存在的源名（异常写入/残留）不渲染，只记日志。
-            # purge 已清理大部分僵尸条目，此处是二次防御。
-            if h.source_name not in active_names:
-                logger.warning(
-                    f"sidebar health: skipping entry for unknown source "
-                    f"{h.source_name!r} (not in active registry)")
-                continue
-            if h.status == "healthy":
-                dot = '<span class="status-dot active"></span>'
-            elif h.status == "degraded":
-                dot = '<span class="status-dot warning"></span>'
-            else:
-                dot = '<span class="status-dot error"></span>'
-
-            rate = f"{h.success_rate:.0%}"
-            latency = f"{h.avg_latency_ms:.0f}ms" if h.avg_latency_ms > 0 else "-"
-
-            col_name, col_stat, col_rate, col_latency, col_action = st.columns([3, 1.2, 1, 1, 1.5])
-            with col_name:
-                # source_name 用户可控（自定义源名），拼入 HTML 前必须转义防 XSS
-                st.markdown(f"{dot} **{html.escape(h.source_name)}**", unsafe_allow_html=True)
-            with col_stat:
-                label = get_text(f"source_{h.status}")
-                st.caption(label)
-            with col_rate:
-                st.caption(rate)
-            with col_latency:
-                st.caption(latency)
-            with col_action:
-                if h.status in ("degraded", "down"):
-                    if st.button(get_text("source_reset"), key=f"reset_{h.source_name}",
-                                 use_container_width=True):
-                        h.reset()
-                        save_health(h)
-                        # 必须一并失效健康缓存：否则 st.rerun() 后面板仍显示旧的
-                        # degraded/down，用户会以为「重置没生效」
-                        _invalidate_health_caches()
-                        st.rerun()
+    with st.expander(compact_title(snapshot), expanded=False):
+        render_health_compact(snapshot)
 
 
 #: 各站内检索 Provider 对应的凭证字段（用于掩码展示「到底存上了没有」）
@@ -698,6 +618,29 @@ def _render_search_service_settings():
             logger.warning(f"源开关面板不可用: {e}")
 
 
+def _load_ui_settings_for_persist(ui_settings_file: str):
+    """读取 ui_settings.json，返回 (settings, allow_persist)。
+
+    读失败（文件被占用 / 锁竞争 / 内容损坏）返回 read_for_update 的 None，
+    此时绝不能就地新建空 dict 让上层写回——那会把文件里其它字段一起抹掉
+    （当前只有 last_model，但字段只会越加越多，先把洞堵上）。
+    allow_persist=False 即「本次不得持久化」。
+
+    独立成纯函数是为了能脱开 Streamlit 运行时做单测：_render_model_settings
+    里的模型选项来自 cached_model_choices()，带 Ollama HTTP 探测，未运行时
+    约 3s，任何 AppTest 脚本都会被它的执行时限耗死。
+    """
+    from intelnexus.core.settings.file_lock import read_for_update
+
+    ui_settings = read_for_update(ui_settings_file)
+    if ui_settings is None:
+        logger.warning("读取 ui_settings.json 失败，跳过本次模型选择持久化")
+        return {}, False
+    if not isinstance(ui_settings, dict):
+        return {}, True
+    return ui_settings, True
+
+
 def _render_model_settings():
     """模型选择（核心设置）"""
     from intelnexus.ui._caches import cached_model_choices
@@ -712,9 +655,9 @@ def _render_model_settings():
     else:
         # 加载上次选择的模型（持久化到 data/ui_settings.json）
         from intelnexus.config.paths import get_data_dir
-        from intelnexus.core.settings.file_lock import safe_read_json, safe_write_json
+        from intelnexus.core.settings.file_lock import safe_write_json
         ui_settings_file = os.path.join(get_data_dir(), "ui_settings.json")
-        ui_settings = safe_read_json(ui_settings_file) or {}
+        ui_settings, allow_persist = _load_ui_settings_for_persist(ui_settings_file)
         saved_model = ui_settings.get("last_model", "")
         
         # 计算默认索引：优先使用上次选择的模型，否则用第一个
@@ -731,8 +674,8 @@ def _render_model_settings():
             key="model_selectbox",
         )
         
-        # 保存选择（仅当模型变化时）
-        if model != saved_model:
+        # 保存选择（仅当模型变化时；读失败时跳过持久化，避免覆盖）
+        if allow_persist and model != saved_model:
             ui_settings["last_model"] = model
             safe_write_json(ui_settings_file, ui_settings)
         
@@ -1382,28 +1325,6 @@ def _render_task_status_indicator():
         )
 
 
-def _render_authorization_settings():
-    """授权声明设置（P0-3 授权闸门的用户入口）。
-
-    针对具名实体的「漏洞/渗透/攻击面」类查询需要显式声明授权；
-    未声明时系统降级为纯 OSINT 并禁用攻击面章节。控件写入
-    session_state（key: authorization_declared / authorization_scope），
-    由 ``search_pipeline._start_search_task`` 读取并传入闸门。
-    """
-    declared = st.checkbox(
-        get_text("authorization_declared"),
-        help=get_text("authorization_declared_help"),
-        key="authorization_declared",
-    )
-    if declared:
-        st.text_area(
-            get_text("authorization_scope"),
-            help=get_text("authorization_scope_help"),
-            key="authorization_scope",
-            height=68,
-        )
-
-
 def render_sidebar():
     """
     Sidebar: cold-gray workbench style.
@@ -1422,9 +1343,6 @@ def render_sidebar():
 
         # Core: Search Mode
         search_mode = _render_search_mode()
-
-        # Authorization declaration (合规闸门入口)
-        _render_authorization_settings()
 
         # Source Health Panel
         _render_source_health()

@@ -19,6 +19,17 @@ def _safe_text(value) -> str:
     return html.escape(_strip_html_tags(str(value if value is not None else "")))
 
 
+def _is_onion_item(item: dict) -> bool:
+    """判断一条结果是否指向 .onion 站点（暗网结果需要显式标注）。"""
+    link = (item.get("link") or item.get("url") or "")
+    return ".onion" in str(link).lower()
+
+
+def _onion_badge() -> str:
+    """暗网结果徽章。用 span 而非 emoji，避免不同字体下宽度跳动。"""
+    return '<span class="onion-badge">ONION</span>'
+
+
 def _render_collect_button(item: dict, key_suffix: str):
     """为单条搜索结果渲染「收藏到简报」按钮（去重：已收藏则提示）。"""
     url = item.get("url") or item.get("link", "")
@@ -132,6 +143,14 @@ def render_results_detail(view=None, key_prefix: str = "", page_key: str = "resu
     col1, col2 = st.columns([3, 1])
     with col1:
         st.markdown(f'<div class="report-title">{get_text("results_detail_title").format(count=total_results)}</div>', unsafe_allow_html=True)
+        # 暗网覆盖度：明确「本次覆盖几个暗网源、命中多少条 .onion」，
+        # 让暗网能力成为可量化的指标，而不是混在结果总数里看不出来
+        _onion_total = sum(1 for it in all_results if _is_onion_item(it))
+        if _onion_total:
+            _onion_sources = len({(it.get("source") or "Unknown")
+                                  for it in all_results if _is_onion_item(it)})
+            st.caption(get_text("darkweb_coverage").format(
+                sources=_onion_sources, count=_onion_total))
     with col2:
         page_cols = st.columns([1, 1, 1])
         with page_cols[0]:
@@ -159,14 +178,25 @@ def render_results_detail(view=None, key_prefix: str = "", page_key: str = "resu
         source_groups[source].append(item)
 
     for source, items in source_groups.items():
-        with st.expander(get_text("results_from_source").format(source=source, count=len(items)), expanded=False):
+        # 分组标题标注该组内的 .onion 条目数，让暗网来源在折叠态也一眼可见
+        onion_count = sum(1 for it in items if _is_onion_item(it))
+        group_label = get_text("results_from_source").format(source=source, count=len(items))
+        if onion_count:
+            group_label += f" · ONION ×{onion_count}"
+        with st.expander(group_label, expanded=False):
             for i, item in enumerate(items):
                 actual_idx = start_idx + i + 1
                 # 外部源的标题/描述属不可信输入，先剥离 HTML 标签再转义（防存储型 XSS + 避免标签源码暴露）
                 safe_title = _safe_text(item.get('title', '') or '') or get_text("no_title")
                 safe_desc = _safe_text(item.get('description', '') or '')
                 safe_summary = _safe_text(item.get('summary', '') or '')
-                st.markdown(f"**{actual_idx}. {safe_title[:150]}**")
+                # 徽章拼在加粗外层：标题已转义，徽章是本地常量，混排安全
+                _badge = _onion_badge() if _is_onion_item(item) else ""
+                if _badge:
+                    st.markdown(f'{_badge}**{actual_idx}. {safe_title[:150]}**',
+                                unsafe_allow_html=True)
+                else:
+                    st.markdown(f"**{actual_idx}. {safe_title[:150]}**")
                 if item.get('description'):
                     st.markdown(f"{icon('entry', 'sm', 'gray')} {safe_desc[:500]}...", unsafe_allow_html=True)
                 elif item.get('summary'):

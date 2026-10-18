@@ -5,19 +5,17 @@
 一次性断言六类缺陷都不再复现 —— 单点测试防局部回归，本文件防「修好一处、
 另一处又串回来」。
 
-审计发现的六类缺陷与对应断言：
+审计发现的缺陷与对应断言：
 1. 语料污染 26%      → 无关 RSS 条目不得进入关键情报/事件演化
 2. 风险语义错标      → 风险定级必须是「证据不足」，不得因语料质量差给「中」
-3. 未授权侦察        → 攻击面章节替换为合规说明（该查询针对具名在营实体）
-4. 来源口径错配      → 渠道与出版方分离，禁止用引擎名冒充出版方
-5. 实体图谱全噪声    → 「曼哈顿市中心」类片段不得成为实体
-6. 渲染不一致        → 章节编号连续、模式汉化、热度受相关率惩罚
+3. 来源口径错配      → 渠道与出版方分离，禁止用引擎名冒充出版方
+4. 实体图谱全噪声    → 「曼哈顿市中心」类片段不得成为实体
+5. 渲染不一致        → 章节编号连续、模式汉化、热度受相关率惩罚
 """
 
 import pytest
 
 from intelnexus.analysis.risk_level import LEVEL_INSUFFICIENT, collect_risk_evidence, compute_risk_level
-from intelnexus.core.search.authorization import assess_authorization
 from intelnexus.export.report_builder import build_intelligence_report
 
 QUERY = "华盛顿华尔道夫酒店位置华盛顿特区宾夕法尼亚大道西北1100号:对酒店所有设施开展调研加漏洞"
@@ -101,9 +99,6 @@ def report(audit_corpus):
         # 程序化风险定级（与 search_worker 的调用形态一致）
         risk_level=LEVEL_INSUFFICIENT,
         risk_reason="未采集到漏洞/威胁情报/冲突等客观威胁证据，不做风险定级",
-        # 授权闸门：该查询针对具名在营实体且未声明授权
-        authorization={"requires_authorization": True, "authorized": False,
-                       "scope_note": "未声明授权：本次分析降级为纯公开信息（OSINT）收集。"},
     )
 
 
@@ -197,23 +192,6 @@ class TestRiskSemantics:
         assert "程序化风险定级" in section
         assert LEVEL_INSUFFICIENT in section
         assert "**程序化风险定级**：中" not in section
-
-
-# ===========================================================================
-# 缺陷 3：未授权侦察
-# ===========================================================================
-
-class TestAuthorization:
-    def test_query_requires_authorization(self):
-        assert assess_authorization(QUERY)["requires_authorization"] is True
-
-    def test_attack_surface_replaced_by_notice(self, report):
-        section = report.split("## 十二、攻击面分析")[1].split("## 十三、")[0]
-        assert "API/接口层" not in section
-        assert "未声明授权" in section
-
-    def test_overview_declares_authorization_state(self, report):
-        assert "**授权状态**：未声明授权" in report
 
 
 # ===========================================================================

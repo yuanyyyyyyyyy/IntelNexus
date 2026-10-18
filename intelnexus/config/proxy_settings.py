@@ -21,7 +21,9 @@ import sys
 from typing import Dict, Optional
 
 from intelnexus.core.logger import get_logger
-from intelnexus.core.settings.file_lock import safe_read_json, safe_write_json
+from intelnexus.core.settings.file_lock import (
+    read_for_update, safe_read_json, safe_write_json,
+)
 from intelnexus.config.paths import get_data_dir
 
 logger = get_logger(__name__)
@@ -179,7 +181,11 @@ def save_proxy_settings(cfg: Dict) -> bool:
     if not clean:
         return False
 
-    existing = safe_read_json(PROXY_SETTINGS_FILE)
+    existing = read_for_update(PROXY_SETTINGS_FILE)
+    if existing is None:
+        # 读失败时不让 clean 单独落盘，否则已有的代理字段会被抹掉
+        logger.warning("读取 proxy_settings.json 失败，放弃保存代理设置（防止字段被覆盖）")
+        return False
     if isinstance(existing, dict):
         existing.update(clean)
         clean = existing

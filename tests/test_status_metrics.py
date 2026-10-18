@@ -19,8 +19,15 @@ from intelnexus.ui import status_metrics as sm
 # ---------------------------------------------------------------------------
 
 class _FakeHealth:
-    def __init__(self, status):
+    """最小健康条目：只带 view_status 需要的字段。
+
+    ``last_attempt`` 必须给「刚刚」——否则 degraded/down 条目会被
+    ``health.view_status`` 判为信号过期（stale），与用例意图不符。
+    """
+
+    def __init__(self, status, last_attempt=None):
         self.status = status
+        self.last_attempt = last_attempt or datetime.now().isoformat()
 
 
 def test_health_summary_counts(monkeypatch):
@@ -30,14 +37,28 @@ def test_health_summary_counts(monkeypatch):
                  _FakeHealth("degraded"), _FakeHealth("down")],
     )
     assert sm.collect_health_summary() == {
-        "healthy": 2, "degraded": 1, "down": 1, "total": 4,
+        "healthy": 2, "degraded": 1, "down": 1, "stale": 0, "total": 4,
+    }
+
+
+def test_health_summary_counts_stale_separately(monkeypatch):
+    """失败判定过期（24h 无观测）单独计入 stale，不再混进 degraded/down。"""
+    old = (datetime.now() - timedelta(days=3)).isoformat()
+    monkeypatch.setattr(
+        "intelnexus.core.search.health.get_all_health",
+        lambda: [_FakeHealth("degraded", last_attempt=old),
+                 _FakeHealth("down", last_attempt=old),
+                 _FakeHealth("healthy")],
+    )
+    assert sm.collect_health_summary() == {
+        "healthy": 1, "degraded": 0, "down": 0, "stale": 2, "total": 3,
     }
 
 
 def test_health_summary_empty_default(monkeypatch):
     monkeypatch.setattr("intelnexus.core.search.health.get_all_health", lambda: [])
     assert sm.collect_health_summary() == {
-        "healthy": 0, "degraded": 0, "down": 0, "total": 0,
+        "healthy": 0, "degraded": 0, "down": 0, "stale": 0, "total": 0,
     }
 
 
@@ -46,7 +67,7 @@ def test_health_summary_exception_returns_default(monkeypatch):
         raise RuntimeError("corrupted source_health.json")
     monkeypatch.setattr("intelnexus.core.search.health.get_all_health", _boom)
     assert sm.collect_health_summary() == {
-        "healthy": 0, "degraded": 0, "down": 0, "total": 0,
+        "healthy": 0, "degraded": 0, "down": 0, "stale": 0, "total": 0,
     }
 
 
@@ -280,5 +301,5 @@ def test_cached_wrappers_callable_and_match_pure_functions(monkeypatch):
     assert sm.get_health_summary_cached()["total"] == 1
     sm.invalidate_status_metrics()
     assert sm.get_health_summary_cached() == {
-        "healthy": 1, "degraded": 0, "down": 0, "total": 1,
+        "healthy": 1, "degraded": 0, "down": 0, "stale": 0, "total": 1,
     }

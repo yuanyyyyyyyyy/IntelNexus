@@ -2,6 +2,7 @@
 
 import html
 import inspect
+import re
 from urllib.parse import quote
 
 import pytest
@@ -73,8 +74,13 @@ class TestURLEncoding:
         """darkweb.py should import and use quote."""
         from intelnexus.search_app import darkweb
         src = inspect.getsource(darkweb)
-        assert "from urllib.parse import quote" in src
-        assert "quote(query)" in src
+        # 断言「从 urllib.parse 导入了 quote」而非固定整行文本：
+        # 该行会随新增符号（parse_qs/unquote/urlparse）而变，写死会导致误报
+        m = re.search(r"^from urllib\.parse import (.+)$", src, re.M)
+        assert m, "darkweb.py 未从 urllib.parse 导入"
+        names = [n.strip() for n in m.group(1).split(",")]
+        assert "quote" in names
+        assert "quote(" in src
 
 
 class TestPathTraversal:

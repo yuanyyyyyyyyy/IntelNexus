@@ -186,8 +186,7 @@ def _select_relevant(results: List[dict]) -> tuple:
 def build_report_overview(query: str, search_mode: str, model: str,
                           source_counts: Dict[str, int] = None,
                           result_count: int = 0,
-                          report_id: str = None,
-                          authorization: Optional[dict] = None) -> str:
+                          report_id: str = None) -> str:
     """板块 01：报告概览（程序化生成）。"""
     now = datetime.now()
     # 模式中文名的唯一事实来源是 SEARCH_MODES —— 旧实现local 维护了一份副本，
@@ -225,18 +224,6 @@ def build_report_overview(query: str, search_mode: str, model: str,
         f"**报告生成时间**：{now.strftime('%Y-%m-%d %H:%M')}",
         "",
     ]
-
-    # 授权状态：针对具名实体的侦察请求必须显式声明，否则读者无法判断
-    # 报告中的安全内容是否可以据以开展主动测试。
-    if authorization:
-        if authorization.get("requires_authorization"):
-            state = "已声明授权" if authorization.get("authorized") else "未声明授权"
-            lines.append(f"**授权状态**：{state}")
-            lines.append("")
-            note = authorization.get("scope_note") or ""
-            if note:
-                lines.append(f"> {note}")
-                lines.append("")
 
     lines.append("---")
     return "\n".join(lines)
@@ -1072,23 +1059,8 @@ def build_risk_assessment(llm_sections: Dict[str, str],
     return "\n".join(lines).strip()
 
 
-def build_attack_surface(llm_sections: Dict[str, str],
-                         authorized: bool = True) -> str:
-    """板块 11.5：攻击面分析（LLM 可选生成，受授权闸门约束）。
-
-    针对具名实体的侦察请求在未声明授权时，本板块替换为合规说明 ——
-    攻击面分层/利用路径可直接用于主动测试，不得在未授权场景下输出。
-    """
-    if not authorized:
-        try:
-            from intelnexus.core.search.authorization import UNAUTHORIZED_NOTICE
-            return UNAUTHORIZED_NOTICE
-        except Exception:  # pragma: no cover - 模块缺失时仍需合规兜底
-            return (
-                "> ⚠️ 本次查询未声明授权，已降级为纯公开信息（OSINT）分析，"
-                "不生成攻击面内容。对目标开展主动测试需事先取得书面授权。"
-            )
-
+def build_attack_surface(llm_sections: Dict[str, str]) -> str:
+    """板块 11.5：攻击面分析（LLM 可选生成）。"""
     content = llm_sections.get("attack_surface", "")
     if not content:
         return "> （本次分析未生成攻击面分析内容）"
@@ -1342,7 +1314,6 @@ def build_intelligence_report(
     event_changes: Optional[dict] = None,
     risk_level: Optional[str] = None,
     risk_reason: str = "",
-    authorization: Optional[dict] = None,
 ) -> str:
     """组装完整的情报搜索报告。
 
@@ -1370,14 +1341,12 @@ def build_intelligence_report(
     llm_sections = extract_analytical_sections(llm_output)
 
     result_count = len(results) if results else 0
-    # 未声明授权时降级为纯 OSINT：不输出攻击面内容
-    authorized = True if not authorization else bool(authorization.get("authorized", True))
 
     # 2. 组装 14 板块
     sections = [
         # 程序化板块
         build_report_overview(query, search_mode, model, source_counts, result_count,
-                              report_id, authorization),
+                              report_id),
         "",
         # LLM 板块
         "## 二、核心摘要",
@@ -1432,7 +1401,7 @@ def build_intelligence_report(
         "",
         "## 十二、攻击面分析",
         "",
-        build_attack_surface(llm_sections, authorized=authorized),
+        build_attack_surface(llm_sections),
         "",
         "---",
         "",

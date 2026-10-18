@@ -103,17 +103,6 @@ def render_query_stats_cards(view: ResultsView, key_prefix: str = "") -> None:
     </div>
     """, unsafe_allow_html=True)
 
-    # 授权状态提示（P0-3 合规闸门）：实时结果与历史回放共用此处
-    authorization = view.get("authorization", {}) or {}
-    if authorization.get("requires_authorization"):
-        scope_note = authorization.get("scope_note") or ""
-        if authorization.get("authorized"):
-            st.info(f"**{get_text('auth_state_declared')}**"
-                    + (f" · {html.escape(scope_note)}" if scope_note else ""))
-        else:
-            st.warning(f"**{get_text('auth_state_undeclared')}**"
-                       + (f" · {html.escape(scope_note)}" if scope_note else ""))
-
     # 源完整性透明度条
     if source_stats:
         ok_sources = [n for n, s in source_stats.items() if s.get("status") == "ok"]

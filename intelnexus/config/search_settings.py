@@ -12,7 +12,9 @@ import os
 from typing import Dict
 
 from intelnexus.core.logger import get_logger
-from intelnexus.core.settings.file_lock import safe_read_json, safe_write_json
+from intelnexus.core.settings.file_lock import (
+    read_for_update, safe_read_json, safe_write_json,
+)
 from intelnexus.config.paths import get_data_dir
 
 logger = get_logger(__name__)
@@ -83,7 +85,12 @@ def save_search_settings(cfg: Dict) -> bool:
     if not clean:
         return False
 
-    existing = safe_read_json(SEARCH_SETTINGS_FILE)
+    existing = read_for_update(SEARCH_SETTINGS_FILE)
+    if existing is None:
+        # 读失败时不让 clean 单独落盘，否则同文件里的 news_api_key /
+        # site_search_provider / bocha_api_key 会被一并抹掉
+        logger.warning("读取 search_settings.json 失败，放弃保存搜索配置（防止字段被覆盖）")
+        return False
     if isinstance(existing, dict):
         existing.update(clean)
         clean = existing
@@ -163,7 +170,13 @@ def get_source_toggles() -> Dict:
 
 def save_source_toggles(toggles: Dict) -> bool:
     """保存源开关到配置文件（仅写入与默认值不同的项，保持文件精简）。"""
-    data = safe_read_json(SEARCH_SETTINGS_FILE)
+    # 本函数会把整份设置文件写回，读失败绝不能就地新建一个只含
+    # source_toggles 的文件——那会连带抹掉 news_api_key / site_search_provider
+    # / bocha_api_key（且没有 password 字段提示，用户毫无察觉）。
+    data = read_for_update(SEARCH_SETTINGS_FILE)
+    if data is None:
+        logger.warning("读取 search_settings.json 失败，放弃保存源开关（防止 API key 被覆盖）")
+        return False
     if not isinstance(data, dict):
         data = {}
     clean = {}

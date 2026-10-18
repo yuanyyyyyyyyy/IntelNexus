@@ -5,6 +5,9 @@
 # HTTP请求与解析
 requests>=2.31.0
 urllib3>=2.0.0
+# SOCKS 代理支持（暗网源经 Tor 的 socks5h:// 请求必需；缺失时请求直接抛
+# InvalidSchema 且被暗网模块静默吞掉，表现为「爬不到」）
+PySocks>=1.7.1
 beautifulsoup4>=4.12.0
 lxml>=4.9.0
 

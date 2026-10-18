@@ -23,7 +23,9 @@ import streamlit as st
 _METRICS_TTL = 15
 
 # 安全默认值：任何异常/缺失数据的返回形态（测试与下游渲染以此为契约）
-_HEALTH_DEFAULT = {"healthy": 0, "degraded": 0, "down": 0, "total": 0}
+# stale（待复核）= 失败判定已过期（超过 STALE_AFTER_HOURS 无观测）或 down 源
+# 冷却到期，由 health.view_status 派生，不落盘。
+_HEALTH_DEFAULT = {"healthy": 0, "degraded": 0, "down": 0, "stale": 0, "total": 0}
 _SCHEDULER_DEFAULT = {"running": False, "job_count": 0, "next_run_str": None}
 _TODAY_DEFAULT = {
     "briefings_today": 0,
@@ -38,17 +40,21 @@ _TODAY_DEFAULT = {
 # ---------------------------------------------------------------------------
 
 def collect_health_summary() -> dict:
-    """采集数据源健康汇总：{"healthy": n, "degraded": n, "down": n, "total": n}。
+    """采集数据源健康汇总：{"healthy": n, "degraded": n, "down": n, "stale": n, "total": n}。
 
     仅调用 get_all_health()（只读）。严禁调用 purge_stale_entries——
     那是写操作，必须留在侧边栏原调用点。
+
+    状态一律经 ``health.view_status`` 派生（含时间维度），不直接读 ``.status``：
+    否则同一批数据在「健康面板显示 4 项待复核」时，这里仍会报 4 项异常。
     """
     try:
-        from intelnexus.core.search.health import get_all_health
+        from intelnexus.core.search.health import get_all_health, view_status
         entries = get_all_health() or []
-        counts = {"healthy": 0, "degraded": 0, "down": 0, "total": len(entries)}
+        counts = dict(_HEALTH_DEFAULT)
+        counts["total"] = len(entries)
         for h in entries:
-            status = getattr(h, "status", None)
+            status = view_status(h)
             if status in counts:
                 counts[status] += 1
         return counts

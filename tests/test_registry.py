@@ -89,10 +89,12 @@ def test_mode_categories_known():
 
 
 def test_last_error_empty_result_marks_error_and_updates_health():
-    """桩源在调用期间写 last_error 且返回 [] → 统计记 error，update_health 收到 error 参数。
+    """桩源在调用期间写 last_error 且返回 [] → 统计记 error，健康观测带 error 落盘。
 
-    注：_timed_search 在调用 src.search 前会清残留信号（单轮生命周期语义），
+    注：``_timed_search`` 在调用 src.search 前会清残留信号（单轮生命周期语义），
     因此桩必须在调用期间写入失败信号，调用前预设的残留会被清除。
+    健康观测现已合并成一次写盘（``apply_health_updates``），故断言批量入参
+    而非 ``update_health`` 的调用。
     """
     reg = _make_registry()
     src = reg._builtin[0]
@@ -104,16 +106,49 @@ def test_last_error_empty_result_marks_error_and_updates_health():
 
     src.search = _search
 
-    with patch("intelnexus.core.search.health.update_health") as mock_uh:
+    with patch("intelnexus.core.search.health.apply_health_updates") as mock_apply:
         results = reg.collect("all", "q", max_results=5, threads=1)
 
     assert results == []
     assert reg.last_search_stats[src.name]["status"] == "error"
-    assert mock_uh.called
-    # update_health 的 error 参数非空（函数内 import，patch 模块属性生效）
-    assert any(c.kwargs.get("error") for c in mock_uh.call_args_list)
+    assert mock_apply.called
+    items = mock_apply.call_args[0][0]
+    assert any(it[0] == src.name and it[3] for it in items), items
     # 失败信号被消费后应清空，避免下一轮误判
     assert src.last_error is None
+
+
+def test_collect_writes_health_once_per_search():
+    """回归：一次检索的健康观测合并成**一次**写盘（旧实现每源一次，15 源≈150ms）。"""
+    from intelnexus.core.search import health as health_mod
+
+    reg = _make_registry()
+
+    def _make_search(name):
+        # 显式绑定 name：循环变量晚绑定会让所有桩都用最后一个源名
+        def _search(query, max_results=20):
+            return [{"title": f"{name}-t", "url": f"http://x.example/{name}",
+                     "description": "d", "source": name}]
+        return _search
+
+    for s in reg._builtin:
+        s.search = _make_search(s.name)
+    reg._user_sources = []
+    n_sources = len(reg._builtin)
+
+    calls = {"n": 0}
+    real_save = health_mod._save_health_data
+
+    def _counting(data):
+        calls["n"] += 1
+        return real_save(data)
+
+    with patch.object(health_mod, "_save_health_data", _counting):
+        out = reg.collect("all", "q", max_results=5, threads=3)
+
+    assert out, "检索应至少返回一条结果"
+    assert n_sources > 1
+    assert calls["n"] == 1, f"{n_sources} 个源只应写 1 次，实际 {calls['n']} 次"
 
 
 def test_last_error_cleared_on_nonempty_results():
@@ -210,11 +245,18 @@ def test_grace_harvest_on_loop_timeout_break(monkeypatch):
 # ---------------------------------------------------------------------------
 
 def _patch_healthy(monkeypatch):
-    """隔离持久化健康状态：全部源视为 healthy，避免历史 down 条目影响用例。"""
+    """隔离持久化健康状态：全部源视为 healthy，避免历史 down 条目影响用例。
+
+    注：``get_sources_by_mode`` 已改为一次 ``get_health_map`` 批量读取
+    （不再逐源调 ``get_health``），因此这里 patch 的是批量入口。
+    """
     from intelnexus.core.search.health import SourceHealth
+
+    def _fake_map(names=None):
+        return {n: SourceHealth(source_name=n) for n in (names or ())}
+
     monkeypatch.setattr(
-        "intelnexus.core.search.health.get_health",
-        lambda name: SourceHealth(source_name=name))
+        "intelnexus.core.search.health.get_health_map", _fake_map)
 
 
 def test_xiaohongshu_source_registered_when_enabled(monkeypatch):

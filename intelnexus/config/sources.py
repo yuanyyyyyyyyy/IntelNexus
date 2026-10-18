@@ -10,7 +10,9 @@ from pathlib import Path
 from datetime import datetime
 
 from intelnexus.core.logger import get_logger
-from intelnexus.core.settings.file_lock import safe_read_json, safe_write_json
+from intelnexus.core.settings.file_lock import (
+    read_for_update, safe_read_json, safe_write_json,
+)
 
 logger = get_logger(__name__)
 
@@ -98,7 +100,12 @@ def add_source(source_type: str, name: str, url: str, category: str,
         logger.warning(f"禁止添加内网地址: {url}")
         return False
 
-    data = safe_read_json(SOURCES_FILE)
+    # 读失败时绝不能落到下方「新建空结构」分支——那会把已有的
+    # subscription_sources / custom_sources 全部抹掉，只剩刚加的这一条。
+    data = read_for_update(SOURCES_FILE)
+    if data is None:
+        logger.warning("读取 sources.json 失败，放弃添加数据源（防止已有源被覆盖）")
+        return False
     if not data:
         data = {"subscription_sources": [], "custom_sources": []}
 

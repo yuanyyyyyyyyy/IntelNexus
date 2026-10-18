@@ -20,7 +20,9 @@ import os
 from typing import Dict, Optional
 
 from intelnexus.core.logger import get_logger
-from intelnexus.core.settings.file_lock import safe_read_json, safe_write_json
+from intelnexus.core.settings.file_lock import (
+    read_for_update, safe_read_json, safe_write_json,
+)
 from intelnexus.config.paths import get_data_dir
 
 logger = get_logger(__name__)
@@ -106,7 +108,12 @@ def save_email_settings(cfg: Dict) -> bool:
         else:
             clean[key] = str(cfg[key] or "")
 
-    existing = safe_read_json(EMAIL_SETTINGS_FILE)
+    existing = read_for_update(EMAIL_SETTINGS_FILE)
+    if existing is None:
+        # 读失败时绝不让 clean（只含本次字段）单独落盘——那会把其它字段抹掉。
+        # SMTP 密码丢失会导致简报推送静默失效，最难排查。
+        logger.warning("读取 email_settings.json 失败，放弃保存邮件配置（防止字段被覆盖）")
+        return False
     if isinstance(existing, dict):
         existing.update(clean)
         clean = existing

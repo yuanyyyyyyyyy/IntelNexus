@@ -21,7 +21,7 @@ import os
 from typing import Dict, List, Optional
 
 from intelnexus.core.logger import get_logger
-from intelnexus.core.settings.file_lock import safe_read_json, safe_write_json
+from intelnexus.core.settings.file_lock import read_for_update, safe_read_json, safe_write_json
 
 logger = get_logger(__name__)
 
@@ -39,6 +39,18 @@ def _ensure_file():
             logger.warning(f"创建 briefing_drafts.json 失败: {e}")
 
 
+def _load_drafts_for_update() -> Optional[List[Dict]]:
+    """读-改-写路径的草稿读取：None 表示读取失败，必须放弃写回。
+
+    与旧写法 ``safe_read_json(DRAFTS_FILE) or []`` 的区别：旧写法把
+    「读取失败」伪装成空列表，随后 append 一条再写回，等于把全部草稿抹掉。
+    """
+    data = read_for_update(DRAFTS_FILE)
+    if data is None:
+        return None
+    return data if isinstance(data, list) else []
+
+
 def add_draft(item: Dict) -> bool:
     """追加一条收藏草稿。item 应含 title/url/content/source 等字段。
 
@@ -47,7 +59,10 @@ def add_draft(item: Dict) -> bool:
     if not item or not item.get("url"):
         return False
     _ensure_file()
-    drafts = safe_read_json(DRAFTS_FILE) or []
+    drafts = _load_drafts_for_update()
+    if drafts is None:
+        logger.warning("读取 briefing_drafts.json 失败，放弃收藏（防止草稿被覆盖）")
+        return False
     if any(d.get("url") == item.get("url") for d in drafts):
         return False
 
@@ -77,7 +92,10 @@ def get_drafts(limit: int = 200) -> List[Dict]:
 def remove_draft(draft_id: str) -> bool:
     """删除指定草稿。"""
     _ensure_file()
-    drafts = safe_read_json(DRAFTS_FILE) or []
+    drafts = _load_drafts_for_update()
+    if drafts is None:
+        logger.warning("读取 briefing_drafts.json 失败，放弃删除草稿（防止覆盖）")
+        return False
     new_drafts = [d for d in drafts if d.get("id") != draft_id]
     if len(new_drafts) == len(drafts):
         return False

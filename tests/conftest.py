@@ -9,6 +9,22 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "slow: 需要真实模型或长耗时（如加载 BERTScore 多语言基座）")
 
+    # 会话级永久重定向源健康表：**不是** monkeypatch，因此不会在用例结束时撤销。
+    #
+    # 为什么必须这样做（实测踩过两次）：
+    # registry.collect() 在超时后会 shutdown(wait=False) 放弃慢源线程，该线程
+    # 仍会在若干秒后完成并调用 update_health 写盘。若只用函数级 monkeypatch
+    # 隔离，这个「迟到线程」会在 teardown 之后才写，此时 HEALTH_FILE 已恢复成
+    # 真实路径 → 直接写进开发机的 data/source_health.json（实测把 arXiv / CNVD
+    # 的 fail_count 从 9 推到 19，并反复刷新 updated_at）。
+    #
+    # 会话级重定向把「基线」本身改成临时目录，迟到线程无论何时写都落在临时目录；
+    # 需要独立路径的用例仍可用 monkeypatch 覆盖（撤销后回到这里的基线）。
+    import tempfile
+    from intelnexus.core.search import health as _health_mod
+    _health_dir = tempfile.mkdtemp(prefix="intelnexus-health-")
+    _health_mod.HEALTH_FILE = os.path.join(_health_dir, "source_health.json")
+
 
 # Add project root first (so `import config` resolves to root config.py,
 # and the single intelnexus package is importable without sys.path hacks).
@@ -209,3 +225,41 @@ def mock_llm():
             return other
 
     return MockLLM()
+
+
+@pytest.fixture(autouse=True)
+def _isolate_health_file(tmp_path, monkeypatch):
+    """把源健康表重定向到临时目录，禁止任何测试写真实 data/source_health.json。
+
+    回归：``test_registry.py`` 会真实跑 ``registry.collect()``，其中每个源结束
+    都会调 ``update_health`` → 直接落盘到开发机上的真实健康表。实测跑一次
+    全量测试就把 arXiv / CNVD / HuggingFace / AlienVault_OTX 的 ``fail_count``
+    从 9 推到 18，并给它们盖上「刚刚失败」的时间戳——等于用测试数据伪造了
+    生产状态，还会让这些源在 30 分钟冷却期内被排除出检索。
+
+    需要自定义路径的用例（如 ``tmp_health_file``）在自己的 fixture 里再
+    ``monkeypatch.setattr`` 一次即可覆盖本默认值。
+    """
+    from intelnexus.core.search import health as health_mod
+    monkeypatch.setattr(
+        health_mod, "HEALTH_FILE",
+        str(tmp_path / "source_health.json"), raising=True)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_health_file(tmp_path, monkeypatch):
+    """把源健康表重定向到临时目录，禁止任何测试写真实 data/source_health.json。
+
+    回归：``test_registry.py`` 会真实跑 ``registry.collect()``，其中每个源结束
+    都会调 ``update_health`` → 直接落盘到开发机上的真实健康表。实测跑一次
+    全量测试就把 arXiv / CNVD / HuggingFace / AlienVault_OTX 的 ``fail_count``
+    从 9 推到 18，并给它们盖上「刚刚失败」的时间戳——等于用测试数据伪造了
+    生产状态，还会让这些源在 30 分钟冷却期内被排除出检索。
+
+    需要自定义路径的用例（如 ``tmp_health_file``）在自己的 fixture 里再
+    ``monkeypatch.setattr`` 一次即可覆盖本默认值。
+    """
+    from intelnexus.core.search import health as health_mod
+    monkeypatch.setattr(
+        health_mod, "HEALTH_FILE",
+        str(tmp_path / "source_health.json"), raising=True)

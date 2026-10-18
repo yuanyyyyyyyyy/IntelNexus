@@ -9,7 +9,7 @@ import os
 from typing import Dict, List, Optional
 
 from intelnexus.core.logger import get_logger
-from intelnexus.core.settings.file_lock import safe_read_json, safe_write_json
+from intelnexus.core.settings.file_lock import read_for_update, safe_read_json, safe_write_json
 from intelnexus.topics.registry import Topic, topic_from_category
 
 logger = get_logger(__name__)
@@ -34,8 +34,18 @@ def _ensure_store():
         _write_topics({})
 
 
-def _read_topics() -> Dict[str, dict]:
+def _read_topics(strict: bool = False) -> Optional[Dict[str, dict]]:
+    """读取 Topic 持久化表。
+
+    ``strict=True`` 专供读-改-写路径（add/update/remove）：读取失败时返回
+    ``None``，调用方必须放弃写回。否则一次失败的读加一次成功的写会把用户
+    搜索沉淀出来的整张 Topic 表抹成只剩一条。
+    只读路径（get_all_topics / get_topic 等）不传 strict，失败按空表处理。
+    """
     _ensure_store()
+    if strict:
+        data = read_for_update(TOPICS_FILE)
+        return data if isinstance(data, dict) else (None if data is None else {})
     data = safe_read_json(TOPICS_FILE) or {}
     if not isinstance(data, dict):
         return {}
@@ -72,13 +82,19 @@ def add_topic(topic: Topic) -> bool:
     """新增或覆盖一个 Topic（用户搜索固化时调用）。"""
     if not topic or not topic.id:
         return False
-    data = _read_topics()
+    data = _read_topics(strict=True)
+    if data is None:
+        logger.warning("读取 topics.json 失败，放弃新增 Topic（防止整表被覆盖）")
+        return False
     data[topic.id] = topic.to_dict()
     return _write_topics(data)
 
 
 def update_topic(topic_id: str, updates: Dict) -> bool:
-    data = _read_topics()
+    data = _read_topics(strict=True)
+    if data is None:
+        logger.warning("读取 topics.json 失败，放弃更新 Topic（防止整表被覆盖）")
+        return False
     if topic_id not in data:
         return False
     data[topic_id].update(updates)
@@ -86,7 +102,10 @@ def update_topic(topic_id: str, updates: Dict) -> bool:
 
 
 def remove_topic(topic_id: str) -> bool:
-    data = _read_topics()
+    data = _read_topics(strict=True)
+    if data is None:
+        logger.warning("读取 topics.json 失败，放弃删除 Topic（防止整表被覆盖）")
+        return False
     if topic_id in data:
         del data[topic_id]
         return _write_topics(data)

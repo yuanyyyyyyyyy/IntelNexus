@@ -703,6 +703,12 @@ def render_hermes_theme_css():
         background-color: var(--accent-red) !important;
         box-shadow: 0 0 6px rgba(239,83,80,0.4) !important;
     }
+    /* stale（待复核）：灰点。既不是绿的「没问题」，也不是红的「已确认故障」 */
+    .status-dot.muted {
+        background-color: var(--text-tertiary) !important;
+        box-shadow: none !important;
+        opacity: 0.75;
+    }
 
     /* ============================================================
        SIDEBAR SECTION TITLES
@@ -1479,6 +1485,27 @@ def render_hermes_theme_css():
         font-size: 12px !important;
         white-space: nowrap !important;
     }
+    /* --- 5b-3. 暗网结果标记 ---
+       暗网源结果此前与普通源混排，界面上无法区分「这条来自 .onion」。
+       用浅底深字的徽章，在明/暗主题下都能保持可读。 */
+    .onion-badge {
+        display: inline-block;
+        padding: 1px 6px;
+        margin-right: 6px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        line-height: 1.5;
+        color: #6b3fa0;
+        background: #f2e9fb;
+        border: 1px solid #d6c0ee;
+        border-radius: 4px;
+        vertical-align: middle;
+    }
+    .onion-badge--group {
+        margin-left: 4px;
+        font-weight: 600;
+    }
     section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
         margin-top: 0 !important;
         margin-bottom: 0 !important;
@@ -2186,6 +2213,14 @@ def render_workbench_css():
     .hc-card--healthy { border-left-color: rgba(74,222,128,0.35); }
     .hc-card--degraded { border-left-color: rgba(251,146,60,0.35); }
     .hc-card--down { border-left-color: rgba(239,68,68,0.35); }
+    .hc-card--stale { border-left-color: rgba(154,160,166,0.45); }
+    /* 侧边栏「正常源」行内指标：弱化、不换行，避免撑高紧凑列表 */
+    .hc-inline-metric {
+        font-size: 11px;
+        color: var(--text-tertiary);
+        margin-left: 6px;
+        white-space: nowrap;
+    }
     section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .hc-card {
         background: var(--wb-surface);
         border-color: var(--wb-border);
@@ -2194,6 +2229,7 @@ def render_workbench_css():
     section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .hc-card--healthy { border-left-color: rgba(74,222,128,0.35); }
     section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .hc-card--degraded { border-left-color: rgba(251,146,60,0.35); }
     section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .hc-card--down { border-left-color: rgba(239,68,68,0.35); }
+    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .hc-card--stale { border-left-color: rgba(154,160,166,0.45); }
 
     /* ============================================================
        今日概览首页（任务5 · intelnexus/ui/overview.py）
@@ -2488,7 +2524,7 @@ def render_status_bar(metrics: "dict | None" = None):
             _h = metrics.get("health") or {}
             if int(_h.get("down") or 0) > 0:
                 dot_color = "var(--accent-red)"
-            elif int(_h.get("degraded") or 0) > 0:
+            elif int(_h.get("degraded") or 0) > 0 or int(_h.get("stale") or 0) > 0:
                 dot_color = "var(--accent-orange)"
         except Exception:
             dot_color = "var(--accent-green)"
@@ -2506,16 +2542,17 @@ def render_status_bar(metrics: "dict | None" = None):
             segs = []
 
             # 数据源健康段：全正常时只显示「● N 正常」（降噪），
-            # 有降级/异常时追加对应颜色的「▲ N 降级」「✕ N 异常」
+            # 有降级/待复核/异常时追加对应颜色的「▲ / ◌ / ✕」
             try:
                 h = metrics.get("health") or {}
                 total = int(h.get("total") or 0)
                 healthy = int(h.get("healthy") or 0)
                 degraded = int(h.get("degraded") or 0)
+                stale = int(h.get("stale") or 0)
                 down = int(h.get("down") or 0)
                 if total > 0:
                     parts = []
-                    if healthy > 0 or (degraded == 0 and down == 0):
+                    if healthy > 0 or (degraded == 0 and stale == 0 and down == 0):
                         parts.append(
                             '<span style="color: var(--accent-green);">● '
                             + get_text("sb_health_ok").format(n=healthy) + "</span>"
@@ -2524,6 +2561,11 @@ def render_status_bar(metrics: "dict | None" = None):
                         parts.append(
                             '<span style="color: var(--accent-orange);">▲ '
                             + get_text("sb_health_degraded").format(n=degraded) + "</span>"
+                        )
+                    if stale > 0:
+                        parts.append(
+                            '<span style="color: var(--text-tertiary);">◌ '
+                            + get_text("sb_health_stale").format(n=stale) + "</span>"
                         )
                     if down > 0:
                         parts.append(

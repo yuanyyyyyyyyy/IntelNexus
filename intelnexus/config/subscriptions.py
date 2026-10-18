@@ -10,7 +10,9 @@ from pathlib import Path
 from datetime import datetime
 
 from intelnexus.core.logger import get_logger
-from intelnexus.core.settings.file_lock import safe_read_json, safe_write_json
+from intelnexus.core.settings.file_lock import (
+    read_for_update, safe_read_json, safe_write_json,
+)
 
 logger = get_logger(__name__)
 
@@ -70,7 +72,12 @@ def add_subscriber(
     if not name or not email:
         return None
 
-    data = safe_read_json(SUBSCRIPTIONS_FILE)
+    data = read_for_update(SUBSCRIPTIONS_FILE)
+    if data is None:
+        # 读失败时新建空表会把已有订阅者全部抹掉——订阅者是 PII，
+        # 且用户不会收到任何「少了 N 个订阅者」的提示
+        logger.warning("读取 subscriptions.json 失败，放弃新增订阅者（防止已有订阅者被覆盖）")
+        return None
     if not data:
         data = {"subscribers": []}
 
