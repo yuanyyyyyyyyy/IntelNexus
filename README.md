@@ -91,10 +91,16 @@ IntelNexus/
 │   └── ui/                     # 统一壳：首页概览/搜索/简报中心/知识库/侧边栏/图标
 │
 ├── static/fonts/               # 自托管 Web 字体（Inter/Playfair/Noto Serif SC 等）
-├── lib/                        # 前端库（vis-network/tom-select）
 ├── presets/                    # 预设数据（OPML 订阅源）
 ├── hooks/                      # PyInstaller 运行时钩子
 ├── tests/                      # 测试套件（60+ 测试文件）
+├── scripts/                    # 构建 / 发布 / 演示脚本（均以仓库根为 ROOT）
+│   ├── build_exe.py            #   PyInstaller 打包 EXE
+│   ├── make_release.bat        #   打干净的源码分发 zip
+│   ├── preflight_demo.py       #   演示前链路自检
+│   ├── check_demo.bat          #   ↑ 的一键入口
+│   ├── start_tor.py            #   启动 Tor 并等待引导完成
+│   └── start_tor.bat           #   ↑ 的一键入口
 │
 └── data/                       # 数据目录（JSON 持久化，.gitignore 忽略）
     ├── sources.json            # 数据源配置
@@ -168,14 +174,14 @@ python main.py ui                       # 启动 Web 界面（自动打开浏览
 
 ### 分发给别人
 
-**EXE 分发**（推荐）：从 Releases 下载构建好的 EXE 包，或本地运行 `python build_exe.py` 构建。接收者双击 `launcher.bat` 即可使用。
+**EXE 分发**（推荐）：从 Releases 下载构建好的 EXE 包，或本地运行 `python scripts/build_exe.py` 构建。接收者双击 `launcher.bat` 即可使用。
 
-**源码分发**：运行 `make_release.bat` 生成干净的源码 zip——自动排除 `.env`（密钥）、`data/`（隐私数据）、`.venv`、`.git`，校验关键资源完整性，并在打包前扫描密钥泄露。接收者双击 `start.bat` 一键启动。
+**源码分发**：运行 `scripts\make_release.bat` 生成干净的源码 zip——自动排除 `.env`（密钥）、`data/`（隐私数据）、`temp/`（本地工作区）、`tools/`（Tor 插件二进制）、`.venv`、`.git`，校验关键资源完整性，并在打包前扫描密钥泄露。接收者双击 `start.bat` 一键启动。
 
 ### 安全说明
 
 - `data/` 目录包含凭据与用户数据（API key、SMTP 密码、订阅者信息、历史简报等），已通过 `.gitignore` 整目录忽略，请勿手动提交入库或随包分发。
-- `.env` 同样含密钥，仅保留在本地；分发请优先使用 `make_release.bat`（自动排除敏感文件并扫描密钥泄露）。
+- `.env` 同样含密钥，仅保留在本地；分发请优先使用 `scripts\make_release.bat`（自动排除敏感文件并扫描密钥泄露）。
 - 自定义数据源/暗网站点/模型端点等 URL 入库时会进行协议与目标地址校验，拒绝非 http/https 协议及指向回环/内网/链路本地的地址（本地模型端点如 Ollama 除外）。
 
 ---

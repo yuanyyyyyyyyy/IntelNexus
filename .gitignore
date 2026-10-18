@@ -85,6 +85,10 @@ test_*.py
 .claude/
 # Mimosa 安全扫描产物（会话级扫描状态与基线哈希）
 .mimosa/
+# Hermes / WorkBuddy 会话产物与工作记忆（内部笔记与计划，不入库）
+.hermes/
+.workbuddy/
+.workbuddy-ai/
 
 # 文档/学习资料：docs 全目录不入库（论文、开题报告与插图仅留本地，历史记录已清理）
 docs/
@@ -109,6 +113,11 @@ intelnexus/data/result_cache/
 paper_A/
 paperA/
 
+# 论文评审产物（一轮/二轮共 36.5 MB）。已归档至 docs/review/，
+# 此处保留根级忽略作为兜底，防止误在根目录重建后被 git add . 吞进历史。
+review_results/
+review_results_r2/
+
 # ---------------------------------------------------------------------------
 # 论文 A 实验管线产物（experiments/）
 # 运行记录含云端原始响应与模型输出，仓库公开，一律不入库；
@@ -124,3 +133,6 @@ experiments/data/bert_base_multilingual_cased/
 experiments/data/qwen_tokenizer/
 # BERTScore 逐条分数缓存（可由 aggregate 重算，非事实源）
 experiments/reports/bertscore_cache.jsonl
+
+# Tor obfs4 混淆插件（18 MB 二进制，随环境重新获取，不入库）
+tools/tor/

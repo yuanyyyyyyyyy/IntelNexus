@@ -47,7 +47,7 @@ jobs:
           echo "Building version: $ver"
 
       - name: Build EXE
-        run: python build_exe.py
+        run: python scripts/build_exe.py
 
       - name: Create EXE ZIP archive
         run: |

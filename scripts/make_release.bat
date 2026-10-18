@@ -4,30 +4,39 @@ setlocal enabledelayedexpansion
 REM ============================================================
 REM  make_release.bat - build a CLEAN distributable source zip
 REM  Excludes: .env (your keys), data/ (subscriber PII + history),
-REM            .venv, .git, caches, docs.
+REM            .venv, .git, caches, docs, temp/ (460MB workspace),
+REM            tools/ (Tor plugin binaries), backup/, paperA/,
+REM            review_results*, experiments/{runs,reports-raw},
+REM            以及各 AI 工具会话目录。
 REM  Output: dist\IntelNexus-Source-<version>.zip
+REM
+REM  注意 1：本脚本位于 scripts\，仓库根是 %~dp0..
+REM  注意 2：robocopy 的 /XD 按「目录名」全树匹配，不带路径前缀的条目
+REM           （data、paperA、runs）会作用于任意层级——这是有意的：
+REM          experiments\data、experiments\paperA、experiments\runs 都是
+REM          本地跑批产物（.gitignore 已忽略），不应进分发包。
 REM ============================================================
 
 REM ---- Determine version ----
 set "VERSION="
 for /f "tokens=*" %%t in ('git describe --tags --always 2^>nul') do set "VERSION=%%t"
 if not defined VERSION (
-    for /f "tokens=3" %%v in ('findstr /C:"version" pyproject.toml 2^>nul') do set "VERSION=%%v"
-)
-if not defined VERSION (
     set "VERSION=%date:~0,4%%date:~5,2%%date:~8,2%"
 )
 echo [IntelNexus] Version: %VERSION%
 
-set "OUT_DIR=%~dp0dist"
+set "PROJ_ROOT=%~dp0.."
+set "OUT_DIR=%PROJ_ROOT%\dist"
 set "STAGE=%TEMP%\intelnexus-release-%RANDOM%"
 set "ZIP_NAME=IntelNexus-Source-%VERSION%.zip"
 
 echo [IntelNexus] Staging a clean copy...
 mkdir "%STAGE%" >nul
 
-robocopy "%~dp0." "%STAGE%" /E ^
-  /XD .git .venv __pycache__ .pytest_cache dist data docs node_modules .codebuddy .opencode .qoder ^
+robocopy "%PROJ_ROOT%" "%STAGE%" /E ^
+  /XD .git .venv __pycache__ .pytest_cache dist build data docs temp tools backup paperA ^
+      node_modules .codebuddy .opencode .qoder .hermes .workbuddy .workbuddy-ai ^
+      review_results review_results_r2 runs ^
   /XF .env .env.local *.pyc .DS_Store >nul
 if errorlevel 8 (
     echo [IntelNexus] ERROR: staging copy failed.

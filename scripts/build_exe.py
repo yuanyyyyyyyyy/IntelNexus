@@ -3,9 +3,12 @@ PyInstaller 打包脚本
 ==================
 将 IntelNexus 打包为 Windows 可分发的目录（--onedir）。
 
+本脚本位于 scripts/ 下，ROOT 指向仓库根（即 scripts/ 的父目录），
+所有数据文件路径、spec 生成路径、dist/build 输出路径均相对 ROOT 解析。
+
 用法:
-    python build_exe.py          # 默认打包
-    python build_exe.py --clean  # 清理后重新打包
+    python scripts/build_exe.py          # 默认打包
+    python scripts/build_exe.py --clean  # 清理后重新打包
 
 输出: dist/IntelNexus/ 目录（含 IntelNexus.exe）
 """
@@ -17,7 +20,8 @@ import subprocess
 import argparse
 from pathlib import Path
 
-ROOT = Path(__file__).parent
+# scripts/ 的父目录即仓库根
+ROOT = Path(__file__).resolve().parent.parent
 DIST_DIR = ROOT / "dist"
 BUILD_DIR = ROOT / "build"
 SPEC_FILE = ROOT / "intelnexus.spec"
@@ -32,8 +36,6 @@ DATA_FILES = [
     ("intelnexus/assets/fonts", "intelnexus/assets/fonts"),
     # Streamlit 配置
     (".streamlit/config.toml", ".streamlit"),
-    # 前端库
-    ("lib", "lib"),
     # 预设数据
     ("presets", "presets"),
     # 默认数据文件（首次运行的初始状态）
