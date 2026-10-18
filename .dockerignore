@@ -32,9 +32,15 @@ docs/
 # ===== 构建产物 =====
 build/
 dist/
-*.spec
+**/*.spec                       # packaging/intelnexus.spec（PyInstaller 产物，含本机绝对路径）
 unpacked_intelnexus/
 temp/
+
+# ===== 部署 / 打包资产（应用镜像用不到）=====
+# deploy/ 由 docker-compose 从宿主机挂载进 nginx 容器；
+# packaging/（spec + runtime hook）只服务于 PyInstaller 打 EXE。
+deploy/
+packaging/
 
 # ===== 前端依赖（本项目无 node 构建，保留以防） =====
 node_modules/

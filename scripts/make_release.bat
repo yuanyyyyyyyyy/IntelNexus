@@ -7,6 +7,7 @@ REM  Excludes: .env (your keys), data/ (subscriber PII + history),
 REM            .venv, .git, caches, docs, temp/ (460MB workspace),
 REM            tools/ (Tor plugin binaries), backup/, paperA/,
 REM            review_results*, experiments/{runs,reports-raw},
+REM            *.spec（PyInstaller 构建产物，含本机绝对路径，接收方自行重生成）
 REM            以及各 AI 工具会话目录。
 REM  Output: dist\IntelNexus-Source-<version>.zip
 REM
@@ -37,7 +38,7 @@ robocopy "%PROJ_ROOT%" "%STAGE%" /E ^
   /XD .git .venv __pycache__ .pytest_cache dist build data docs temp tools backup paperA ^
       node_modules .codebuddy .opencode .qoder .hermes .workbuddy .workbuddy-ai ^
       review_results review_results_r2 runs ^
-  /XF .env .env.local *.pyc .DS_Store >nul
+  /XF .env .env.local *.pyc .DS_Store *.spec >nul
 if errorlevel 8 (
     echo [IntelNexus] ERROR: staging copy failed.
     pause
@@ -60,6 +61,15 @@ if not exist "%STAGE%\static\fonts\inter" (
 )
 if not exist "%STAGE%\intelnexus\assets\fonts" (
     echo   MISSING: intelnexus/assets/fonts (PDF export will have no CJK fonts!)
+    set "MISSING=1"
+)
+REM Verify deploy / packaging assets (档 C 分层后的新位置，防止将来再被移动而无人发现)
+if not exist "%STAGE%\deploy\nginx\nginx.conf" (
+    echo   MISSING: deploy/nginx/nginx.conf ^(Docker deployers would get no reverse-proxy config!^)
+    set "MISSING=1"
+)
+if not exist "%STAGE%\packaging\hooks\rthook_streamlit_metadata.py" (
+    echo   MISSING: packaging/hooks/rthook_streamlit_metadata.py ^(PyInstaller builds would lose the runtime hook!^)
     set "MISSING=1"
 )
 if "!MISSING!"=="1" (

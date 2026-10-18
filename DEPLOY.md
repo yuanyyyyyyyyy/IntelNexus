@@ -33,7 +33,7 @@ nano .env            # 填 OPENROUTER_API_KEY / GOOGLE_API_KEY / SMTP_* 等
 
 # 2) 准备 basic auth 账号（nginx 用）
 sudo apt-get install -y apache2-utils
-htpasswd -c ./nginx/htpasswd admin     # 按提示输入密码，可再加其他账号去掉 -c
+htpasswd -c ./deploy/nginx/htpasswd admin     # 按提示输入密码，可再加其他账号去掉 -c
 
 # 3) 创建证书与 webroot 目录
 mkdir -p ./certs/webroot
@@ -73,10 +73,10 @@ sudo cp -rL /etc/letsencrypt/live/你的域名 ./certs/live/你的域名
 ## 4. 替换 nginx 配置中的域名占位符
 
 ```bash
-sed -i 's/__DOMAIN__/你的域名/g' ./nginx/nginx.conf
+sed -i 's/__DOMAIN__/你的域名/g' ./deploy/nginx/nginx.conf
 ```
 
-确认 `./nginx/nginx.conf` 中 `server_name` 与两条 `ssl_certificate*` 路径已变为真实域名。
+确认 `./deploy/nginx/nginx.conf` 中 `server_name` 与两条 `ssl_certificate*` 路径已变为真实域名。
 
 ## 5. 构建并启动
 

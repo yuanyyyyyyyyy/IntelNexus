@@ -24,7 +24,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DIST_DIR = ROOT / "dist"
 BUILD_DIR = ROOT / "build"
-SPEC_FILE = ROOT / "intelnexus.spec"
+# spec 与运行时钩子归入 packaging/（打包资产与部署资产 deploy/ 对根目录分层，
+# 见 docs/audit/档C_部署与打包分层_2026-10-18.md）。spec 未入 git（.gitignore
+# 的 *.spec 全深度匹配），由本脚本随时重生成。
+PACKAGING_DIR = ROOT / "packaging"
+SPEC_FILE = PACKAGING_DIR / "intelnexus.spec"
 
 # 需要打包的数据文件（相对于项目根）
 DATA_FILES = [
@@ -48,7 +52,7 @@ DATA_FILES = [
 
 # 运行时钩子（修复 PyInstaller 打包后的兼容性问题）
 RUNTIME_HOOKS = [
-    str(ROOT / "hooks" / "rthook_streamlit_metadata.py"),
+    str(PACKAGING_DIR / "hooks" / "rthook_streamlit_metadata.py"),
 ]
 
 # PyInstaller 排除的重型可选依赖（减小包体积）
@@ -195,6 +199,7 @@ coll = COLLECT(
     name='IntelNexus',
 )
 """
+    PACKAGING_DIR.mkdir(parents=True, exist_ok=True)
     SPEC_FILE.write_text(spec_content, encoding="utf-8")
     print(f"Generated spec: {SPEC_FILE}")
     return SPEC_FILE

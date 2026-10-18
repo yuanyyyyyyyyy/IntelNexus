@@ -92,7 +92,11 @@ IntelNexus/
 │
 ├── static/fonts/               # 自托管 Web 字体（Inter/Playfair/Noto Serif SC 等）
 ├── presets/                    # 预设数据（OPML 订阅源）
-├── hooks/                      # PyInstaller 运行时钩子
+├── deploy/                     # 部署资产（nginx 反代配置，由 compose 从宿主机挂载）
+│   └── nginx/nginx.conf
+├── packaging/                  # 打包资产（PyInstaller spec + 运行时钩子）
+│   ├── intelnexus.spec         #   构建产物（未入 git），build_exe.py 一键重生成
+│   └── hooks/                  #   PyInstaller 运行时钩子
 ├── tests/                      # 测试套件（60+ 测试文件）
 ├── scripts/                    # 构建 / 发布 / 演示脚本（均以仓库根为 ROOT）
 │   ├── build_exe.py            #   PyInstaller 打包 EXE

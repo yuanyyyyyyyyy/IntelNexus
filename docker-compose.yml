@@ -36,8 +36,8 @@ services:
       - "80:80"     # 仅用于 Let's Encrypt HTTP-01 验证与 80→443 重定向
       - "443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./nginx/htpasswd:/etc/nginx/htpasswd:ro          # basic auth 账号（deploy 时生成）
+      - ./deploy/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./deploy/nginx/htpasswd:/etc/nginx/htpasswd:ro          # basic auth 账号（deploy 时生成）
       - ./certs:/etc/letsencrypt:ro                       # Let's Encrypt 证书（certbot 生成）
       - ./certs/webroot:/var/www/certbot:ro               # certbot HTTP-01 挑战目录
     # nginx 在 app 不健康时不强行启动；app 重建后 nginx 自动重连
