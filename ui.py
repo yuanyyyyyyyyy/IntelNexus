@@ -124,6 +124,19 @@ def _render_bulk_collect_button():
 from intelnexus.ui._caches import warm_ui_caches
 warm_ui_caches()
 
+# R13（2026-10-20）：后台预热语义模型（sentence-transformers 冷加载 30-60s+，
+# 不预热则首次搜索的相关性排序必降级）。daemon 线程不阻塞首屏渲染。
+import threading as _threading
+
+def _warm_embed_model():
+    try:
+        from intelnexus.analysis import warm_up_models
+        warm_up_models()
+    except Exception:
+        pass
+
+_threading.Thread(target=_warm_embed_model, daemon=True, name="embed-warmup").start()
+
 # --- Render theme ---
 render_hermes_theme_css()
 

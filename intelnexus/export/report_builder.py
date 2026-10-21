@@ -469,9 +469,11 @@ _SOURCE_ROLE_MAP = {
     "Reddit": "Community",
     "Twitter": "Community",
     # Darkweb - 暗网
-    "Ahmia": "Community",
-    "OnionLink": "Community",
-    "TorDex": "Community",
+    "Ahmia": "Darkweb",
+    "OnionLink": "Darkweb",
+    "TorDex": "Darkweb",
+    "OnionLand": "Darkweb",
+    "Tor66": "Darkweb",
 }
 
 
@@ -532,7 +534,8 @@ def build_key_intelligence(results: List[dict],
         title = item.get("title", "无标题")
         source = item.get("source", "未知来源")
         score = item.get("credibility_score", 0.5)
-        link = item.get("link", "")
+        # R10a：管线归一化输出 url 键，旧代码只读 link 导致关键情报永远无链接
+        link = item.get("url") or item.get("link", "")
         published = item.get("published_at", "")
 
         lines.append(f"### {idx:03d}. {title}")
@@ -1060,20 +1063,20 @@ def build_risk_assessment(llm_sections: Dict[str, str],
 
 
 def build_attack_surface(llm_sections: Dict[str, str]) -> str:
-    """板块 11.5：攻击面分析（LLM 可选生成）。"""
+    """板块 11.5：攻击面分析（LLM 可选生成）。R13：未生成时返回空串，调用方整体省略该板块。"""
     content = llm_sections.get("attack_surface", "")
     if not content:
-        return "> （本次分析未生成攻击面分析内容）"
+        return ""
     # 清理标题
     content = re.sub(r'^##\s*(?:十[、.]?\s*)?攻击面分析\s*\n', '', content, flags=re.MULTILINE)
     return content.strip()
 
 
 def build_intelligence_judgment(llm_sections: Dict[str, str]) -> str:
-    """板块 12：情报判断与后续关注（LLM 可选生成）。"""
+    """板块 12：情报判断与后续关注（LLM 可选生成）。R13：未生成时返回空串，调用方整体省略该板块。"""
     content = llm_sections.get("intelligence_judgment", "")
     if not content:
-        return "> （本次分析未生成情报判断内容）"
+        return ""
     # 清理标题
     content = re.sub(r'^##\s*(?:十一[、.]?\s*)?情报判断(?:与后续关注)?\s*\n', '', content, flags=re.MULTILINE)
     return content.strip()
@@ -1396,18 +1399,10 @@ def build_intelligence_report(
         "## 十一、风险评估",
         "",
         build_risk_assessment(llm_sections, risk_level, risk_reason),
-        "",
-        "---",
-        "",
-        "## 十二、攻击面分析",
-        "",
-        build_attack_surface(llm_sections),
-        "",
-        "---",
-        "",
-        "## 十三、情报判断与后续关注",
-        "",
-        build_intelligence_judgment(llm_sections),
+        *(["", "---", "", "## 十二、攻击面分析", "",
+           build_attack_surface(llm_sections)] if build_attack_surface(llm_sections) else []),
+        *(["", "---", "", "## 十三、情报判断与后续关注", "",
+           build_intelligence_judgment(llm_sections)] if build_intelligence_judgment(llm_sections) else []),
         "",
         "---",
         "",

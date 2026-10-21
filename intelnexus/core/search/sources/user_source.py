@@ -14,7 +14,7 @@ import base64
 import random
 import re
 from typing import Dict, List, Optional
-from urllib.parse import quote
+from urllib.parse import quote, urljoin
 
 import requests
 from bs4 import BeautifulSoup
@@ -215,7 +215,15 @@ class UserSource(BaseSearchSource):
                 if href and len(title) > 2:
                     if ".onion" in href.lower() or \
                             base_url.split("//")[1].split(".")[0] in href:
-                        full = href if href.startswith("http") else f"{base_url}{href}"
+                        # R2：链接归一（与 darkweb.py 同规则），不再手工硬拼坏链
+                        if href.startswith("http"):
+                            full = href
+                        elif href.startswith("//"):
+                            full = f"http:{href}"
+                        elif ".onion" in href.lower():
+                            full = f"http://{href}"
+                        else:
+                            full = urljoin(base_url, href)
                         results.append({"title": title[:100], "url": full})
                 if len(results) >= max_results:
                     break

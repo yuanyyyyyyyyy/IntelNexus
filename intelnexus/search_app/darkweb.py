@@ -15,7 +15,7 @@ import base64
 import requests
 import random
 import json
-from urllib.parse import parse_qs, quote, unquote, urlparse
+from urllib.parse import parse_qs, quote, unquote, urljoin, urlparse
 from bs4 import BeautifulSoup
 
 from intelnexus.core.logger import get_logger
@@ -23,11 +23,34 @@ from intelnexus.core.search_constants import USER_AGENTS
 
 logger = get_logger(__name__)
 
-ENABLE_DARKWEB = os.getenv("ENABLE_DARKWEB", "false").lower() == "true"
+# R6（2026-10-20）：import 顺序陷阱修复。本模块可能先于 config.py 的 load_dotenv()
+# 被导入（ui → sidebar → … → darkweb_source → darkweb 链），import 期读 os.environ
+# 会恒为 false → 应用内暗网源永远静默返回空（CLI/脚本因先加载 .env 一直正常——
+# 无 dotenv 链路导入实验实证 dw.ENABLE_DARKWEB=False）。修复：先触发 config
+# （其 import 即执行 load_dotenv 并应用 search_settings.json 的 source_toggles
+# 覆盖），再读 env（显式设置优先），最后回退 false。
+try:
+    from config import ENABLE_DARKWEB as _CFG_DARKWEB
+except Exception:  # pragma: no cover - 独立脚本无 config 时兜底
+    _CFG_DARKWEB = None
+
+ENABLE_DARKWEB = (
+    os.getenv("ENABLE_DARKWEB").strip().lower() == "true"
+    if os.getenv("ENABLE_DARKWEB") is not None
+    else bool(_CFG_DARKWEB)
+)
+
+logger.info("darkweb gate build: R6-20261020, ENABLE_DARKWEB=%s", ENABLE_DARKWEB)
 
 # 自定义暗网站点配置（支持认证）
 # 格式: {"name": "站点名", "url": "http://xxx.onion", "auth": {"type": "basic", "username": "xxx", "password": "xxx"}}
 CUSTOM_ONION_SITES = os.getenv("CUSTOM_ONION_SITES", "")
+
+# R1：自定义 onion 站点最近一次失败/异常摘要（站点名 -> 原因）。
+# search_custom_onion_site 写入、HTTP 200 且解析出结果时清除；
+# DarkWebSource 收集后拼进 last_error，让「自定义源失败」在侧栏
+# 源健康面板可见，而不是表现为无解释的 0 条结果（2026-10-20）。
+CUSTOM_SITE_LAST_ERRORS = {}
 
 def get_custom_onion_sites(ui_sites=None):
     """获取自定义暗网站点列表
@@ -103,10 +126,11 @@ def fetch_with_auth(url, auth=None, tor_port=None):
 def search_custom_onion_site(site_config, query, tor_port=None):
     """搜索自定义暗网站点"""
     results = []
+    # name 先于 try 提取：site_config 形态异常时 except 里也能归因到站点
+    name = site_config.get("name", "Custom") if isinstance(site_config, dict) else "Custom"
     try:
         base_url = site_config.get("url", "")
         auth = site_config.get("auth")
-        name = site_config.get("name", "Custom")
 
         # Decode base64-encoded password if present
         if auth and isinstance(auth.get("password"), str):
@@ -121,8 +145,14 @@ def search_custom_onion_site(site_config, query, tor_port=None):
 
         response = fetch_with_auth(search_url, auth, tor_port=tor_port)
 
-        if response is not None and response.status_code != 200:
+        # R1：失败原因落 CUSTOM_SITE_LAST_ERRORS（成功即清除），供健康面板归因
+        if response is None:
+            CUSTOM_SITE_LAST_ERRORS[name] = "请求失败（Tor 未运行或建链超时；新站首链可达 60-75 秒，重搜一次即可）"
+        elif response.status_code != 200:
             logger.warning(f"自定义 onion 站点 {name} 返回 HTTP {response.status_code}: {base_url[:80]}")
+            CUSTOM_SITE_LAST_ERRORS[name] = f"HTTP {response.status_code}"
+        else:
+            CUSTOM_SITE_LAST_ERRORS.pop(name, None)
 
         if response and response.status_code == 200:
             soup = BeautifulSoup(response.text, "html.parser")
@@ -136,20 +166,36 @@ def search_custom_onion_site(site_config, query, tor_port=None):
                     if href and len(title) > 2:
                         # 检查是否包含.onion
                         if '.onion' in href.lower() or base_url.split('//')[1].split('.')[0] in href:
+                            # R2：链接归一——带域名缺 scheme 的补 http://，其余交给
+                            # urljoin，不再手工硬拼 f"{base_url}{href}" 出坏链
+                            if href.startswith('http'):
+                                link = href
+                            elif href.startswith('//'):
+                                link = f"http:{href}"
+                            elif '.onion' in href.lower():
+                                link = f"http://{href}"
+                            else:
+                                link = urljoin(base_url, href)
                             results.append({
                                 "title": title[:100] or f"{name} result",
-                                "link": href if href.startswith('http') else f"{base_url}{href}",
+                                "link": link,
                                 "source": name
                             })
                 except Exception:
                     continue
-    except Exception:
-        pass
+
+            if not results:
+                # 站点活着但 0 条：最常见结构性原因是站点不支持 GET ?search=
+                # 查询（索引页/论坛无搜索端点），记软提示供健康面板归因
+                CUSTOM_SITE_LAST_ERRORS[name] = "HTTP 200 但解析到 0 条——站点可能不支持 ?search= 查询形态"
+    except Exception as e:
+        logger.warning(f"自定义 onion 站点 {name} 检索异常: {type(e).__name__}: {e}")
+        CUSTOM_SITE_LAST_ERRORS[name] = f"{type(e).__name__}: {e}"[:200]
     
     return results
 
 # Reference list of known .onion search engines (for documentation / future expansion).
-# Currently active engines used in search: Ahmia (public), OnionLink & TorDex (Tor required).
+# Currently active engines: Ahmia (public) + OnionLink/TorDex/OnionLand/Tor66 (advanced, Tor) + custom .onion sites.
 # To add more engines, uncomment and wire them into get_darkweb_results().
 # _DARKWEB_ENGINE_REFERENCE = [
 #     {"name": "OnionLand", "url": "http://3bbad7fauom4d6sgppalyqddsqbf5u5p56b5k5uk2zxsy3d6ey2jobad.onion/search?q={query}"},
@@ -165,8 +211,12 @@ def search_custom_onion_site(site_config, query, tor_port=None):
 from intelnexus.core.search_constants import get_tor_proxy_port  # noqa: E402
 
 
-def fetch_ahmia_results(query):
+def fetch_ahmia_results(query, proxies=None, trust_env=True):
     """从Ahmia获取暗网搜索结果（无需Tor，明网直连/系统代理均可）。
+
+    R7b（2026-10-20）：proxies/trust_env 供双通道自适应重试使用——主通道按
+    环境代理（trust_env），空结果后备用通道自动切换（env 有代理则直连，
+    反之走本机 Clash 混合端口 7890，与 torrc 的 Socks5Proxy 同源）。
 
     Ahmia 2026 改版后 /search/?q= 返回 JS 壳页（站方自述未部署非 JS 版），
     需先从壳页提取反爬隐藏 token（如 f119ab=156abb）二次请求才返回服务端
@@ -177,6 +227,9 @@ def fetch_ahmia_results(query):
     try:
         headers = {"User-Agent": random.choice(USER_AGENTS)}
         session = requests.Session()
+        session.trust_env = trust_env
+        if proxies:
+            session.proxies.update(proxies)
 
         response = session.get(
             f"https://ahmia.fi/search/?q={quote(query)}",
@@ -300,6 +353,66 @@ def fetch_tordex_search(query, tor_port=None):
     return results
 
 
+def fetch_onionland_search(query, tor_port=None):
+    """从 OnionLand 搜索获取结果（.onion 引擎，经本地 Tor；R10f 实测存活 2026-10-20）。"""
+    results = []
+    try:
+        url = (f"http://3bbad7fauom4d6sgppalyqddsqbf5u5p56b5k5uk2zxsy3d6ey2jobad."
+               f"onion/search?q={quote(query)}")
+        headers = {"User-Agent": random.choice(USER_AGENTS)}
+        port = tor_port or get_tor_proxy_port()
+        response = requests.get(url, headers=headers, timeout=30, proxies={
+            "http": f"socks5h://127.0.0.1:{port}",
+            "https": f"socks5h://127.0.0.1:{port}"
+        })
+        if response.status_code != 200:
+            logger.warning(f"OnionLand 返回 HTTP {response.status_code}")
+            return results
+        soup = BeautifulSoup(response.text, "html.parser")
+        for a in soup.select("a[href]"):
+            href = str(a.get("href", ""))
+            title = a.get_text(strip=True)
+            if ".onion" in href.lower() and len(title) > 2:
+                results.append({
+                    "title": title[:100] or "OnionLand result",
+                    "link": href,
+                    "source": "OnionLand"
+                })
+    except Exception as e:
+        logger.warning(f"OnionLand 检索失败: {type(e).__name__}: {e}")
+    return results
+
+
+def fetch_tor66_search(query, tor_port=None):
+    """从 Tor66 搜索获取结果（.onion 引擎，经本地 Tor；R10f 实测存活 2026-10-20）。"""
+    results = []
+    try:
+        url = (f"http://tor66sewebgixwhcqfnp5inzp5x5uohhdy3kvtnyfxc2e5mxiuh34iid."
+               f"onion/search?q={quote(query)}")
+        headers = {"User-Agent": random.choice(USER_AGENTS)}
+        port = tor_port or get_tor_proxy_port()
+        response = requests.get(url, headers=headers, timeout=30, proxies={
+            "http": f"socks5h://127.0.0.1:{port}",
+            "https": f"socks5h://127.0.0.1:{port}"
+        })
+        if response.status_code != 200:
+            logger.warning(f"Tor66 返回 HTTP {response.status_code}")
+            return results
+        soup = BeautifulSoup(response.text, "html.parser")
+        for a in soup.select("a[href]"):
+            href = str(a.get("href", ""))
+            title = a.get_text(strip=True)
+            if ".onion" in href.lower() and len(title) > 2:
+                results.append({
+                    "title": title[:100] or "Tor66 result",
+                    "link": href,
+                    "source": "Tor66"
+                })
+    except Exception as e:
+        logger.warning(f"Tor66 检索失败: {type(e).__name__}: {e}")
+    return results
+
+
 def is_available():
     """检查暗网搜索是否可用"""
     if not ENABLE_DARKWEB:
@@ -353,26 +466,44 @@ def get_darkweb_results(refined_query, max_workers=5, advanced_mode=False, tor_p
             if search_results:
                 results.extend(search_results)
         except Exception:
-            pass
+            search_results = []
+        # R7b：主通道空结果时自动切换备用网络通道重试一次——env 有代理则改直连
+        # （trust_env=False），env 无代理则走本机 Clash 混合端口 7890。直连 ahmia
+        # 在国内网络下常见 RST/超时抖动，双通道显著降低整轮 0 条的概率。
+        if not search_results:
+            try:
+                if os.getenv("HTTP_PROXY") or os.getenv("HTTPS_PROXY"):
+                    alt_results = fetch_ahmia_results(query, trust_env=False)
+                else:
+                    clash = {"http": "http://127.0.0.1:7890",
+                             "https": "http://127.0.0.1:7890"}
+                    alt_results = fetch_ahmia_results(query, proxies=clash)
+                if alt_results:
+                    results.extend(alt_results)
+            except Exception:
+                pass
         
         # 2. 高级模式：使用Tor代理搜索
+        # R11（2026-10-20）：四引擎并行——墙钟时间=最慢引擎（~30s）而非串行
+        # 累加（~90s）；各引擎自带 12-30s 超时，线程池按提交顺序收割。
         if advanced_mode:
-            # OnionLink搜索（需要Tor）
-            try:
-                search_results = fetch_onionlink_search(query)
-                if search_results:
-                    results.extend(search_results)
-            except Exception:
-                pass
-            
-            # TorDex搜索（需要Tor）
-            try:
-                search_results = fetch_tordex_search(query, tor_port=tor_port)
-                if search_results:
-                    results.extend(search_results)
-            except Exception:
-                pass
+            import concurrent.futures
 
+            engine_jobs = [
+                ("OnionLink", fetch_onionlink_search, (query,)),
+                ("TorDex", fetch_tordex_search, (query, tor_port)),
+                ("OnionLand", fetch_onionland_search, (query, tor_port)),
+                ("Tor66", fetch_tor66_search, (query, tor_port)),
+            ]
+            with concurrent.futures.ThreadPoolExecutor(max_workers=len(engine_jobs)) as _pool:
+                _futures = {_pool.submit(fn, *args): name for name, fn, args in engine_jobs}
+                for _fut in concurrent.futures.as_completed(_futures):
+                    _engine_name = _futures[_fut]
+                    try:
+                        results.extend(_fut.result())
+                    except Exception as e:
+                        logger.warning(f"{_engine_name} 检索失败: {type(e).__name__}: {e}")
+            
         # 3. 自定义暗网站点（支持认证）
         custom_sites = get_custom_onion_sites(ui_sites)
         for site in custom_sites:

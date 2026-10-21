@@ -102,9 +102,11 @@ def render_download_section(view=None, key_prefix: str = ""):
                     pass
 
             else:  # markdown
+                from intelnexus.export.report import sup_to_plain
+                # R12：md 查看器多不渲染 HTML，角标转纯文本 [n]
                 st.download_button(
                     label=get_text("md_ready"),
-                    data=report_text,
+                    data=sup_to_plain(report_text),
                     file_name=f"{filename}.md",
                     mime="text/markdown",
                     key=f"{key_prefix}md_download_now"

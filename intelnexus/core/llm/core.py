@@ -130,7 +130,7 @@ def expand_query_for_search(query_variants):
     return query_variants
 
 
-def llm_expand_query(llm, user_input: str, max_variants: int = 5) -> list[str]:
+def llm_expand_query(llm, user_input: str, max_variants: int = 5, mode: str = "") -> list[str]:
     """用 LLM 把用户输入改写为一组检索变体。
 
     用于阶段二查询优化：相比规则式 ``expand_query``，LLM 能产出更贴近检索意图的
@@ -141,6 +141,7 @@ def llm_expand_query(llm, user_input: str, max_variants: int = 5) -> list[str]:
         llm: 已加载的 LangChain LLM 实例（与报告生成共用同一实例）。
         user_input: 用户原始查询。
         max_variants: 变体上限（默认 5）。
+        mode: 搜索模式；"darkweb" 时切换为威胁情报语境变体（R14，上限 3 条）。
 
     Returns:
         去重、清洗后的检索变体列表；为空时返回 ``[]``。
@@ -155,9 +156,26 @@ def llm_expand_query(llm, user_input: str, max_variants: int = 5) -> list[str]:
         "3) 其余条目做同义改写/术语扩展/中英互补；"
         "4) 不得编造原查询没有的实体或时间范围。"
     )
-    template = ChatPromptTemplate(
-        [("system", system), ("user", "原始查询：{q}\n请输出 {n} 条检索变体：")]
-    )
+    # R14（2026-10-21）：暗网模式覆盖为威胁情报语境提示词——实体名通常不带
+    # 安全词，监测意图由「实体+威胁语境词」变体承载；上限 3 条克制请求量。
+    if mode == "darkweb":
+        max_variants = min(max_variants, 3)
+        system = (
+            "你是暗网威胁情报监测专家。用户要在一个 .onion 搜索引擎上长期监测某个实体/主题的安全威胁。"
+            "把用户查询改写为威胁情报语境的检索式，用于发现该实体相关的泄露、攻击、售卖、凭据 dump 等事件。\n"
+            "要求：1) 每行一条，不要编号、不要引号、不要解释；"
+            "2) 第一条必须保留原始查询（原语言原样）；"
+            "3) 其余条目 = 原实体 + 威胁语境词（leak / dump / breach / attack / hack / sell / "
+            "泄露 / 攻击 / 售卖 / 凭据），并附实体的英文翻译或通用英文名（如适用）；"
+            "4) 只输出检索式，不得编造任何事件或声明。"
+        )
+        template = ChatPromptTemplate(
+            [("system", system), ("user", "实体/主题：{q}\n请输出不超过 3 条暗网监测检索式：")]
+        )
+    else:
+        template = ChatPromptTemplate(
+            [("system", system), ("user", "原始查询：{q}\n请输出 {n} 条检索变体：")]
+        )
     try:
         out = (template | llm | StrOutputParser()).invoke(
             {"q": user_input.strip(), "n": max_variants}
@@ -558,6 +576,7 @@ def _build_simplified_prompt(query, search_mode):
 **结论 1**：[关键结论]
 - E1：[证据]（来源：[来源名]，来源等级：[A/B/C/D]，支持度：[高/中/低]）
 **综合置信度**：[高/中/低]
+来源名纪律：[来源名] 必须使用搜索结果中实际出现的站点名或域名，禁止自创简称或昵称。
 
 直接输出，不要提问。
 """

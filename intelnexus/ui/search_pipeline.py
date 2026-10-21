@@ -34,6 +34,8 @@ def _start_search_task(query: str, search_mode: str, model: str, threads: int):
     """
     runner = get_task_runner()
     if runner.is_running(_SEARCH_TASK_ID):
+        # R10d：重复提交给出可见反馈，避免演示时「点了没反应」的困惑
+        st.toast(get_text("search_already_running"), icon="⏳")
         return  # 已在运行，不重复提交
 
     # 智能路由：sidebar 返回的 "smart" 在此解析
@@ -43,7 +45,16 @@ def _start_search_task(query: str, search_mode: str, model: str, threads: int):
         effective_mode = resolve_mode(query)
 
     advanced_mode = st.session_state.get("advanced_mode", False)
-    tor_port = st.session_state.get("tor_port", 9050)
+    tor_port = st.session_state.get("tor_port_sel", 9050)
+    # R4b：检索提交前按实际监听校正 Tor 端口。侧栏 widget 的值可能残留坏端口
+    # （widget 实例化后 session_state 不可写，UI 侧只能提示不能改值），这里仅在
+    # 提交检索的参数里换成存活端口，保证 TorDex/自定义 onion 源不因坏端口静默失败。
+    from intelnexus.core.ui.helpers import check_tor_status, find_tor_port
+    if not check_tor_status(int(tor_port)):
+        _detected = find_tor_port()
+        if _detected:
+            logger.info(f"Tor 端口 {tor_port} 无监听，本次检索改用检测到的端口 {_detected}")
+            tor_port = _detected
     ui_sites = st.session_state.get("custom_onion_sites", [])
 
     from intelnexus.ui.search_worker import run_search_computation
@@ -265,7 +276,9 @@ def render_search_report(view=None):
     """, unsafe_allow_html=True)
 
     # 报告全文
-    st.markdown(report)
+    # R12（2026-10-20）：开启 unsafe_allow_html——证据角标 <sup>[n]</sup> 渲染为
+    # 上标、可视化注入的 <img> 图表可显示；否则全部以字面「代码串」出现。
+    st.markdown(report, unsafe_allow_html=True)
 
     # TL;DR 速览卡
     tldr = _get("tldr_card", "")

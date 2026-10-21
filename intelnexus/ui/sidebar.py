@@ -8,7 +8,7 @@ from intelnexus.ui.i18n import get_text, localize_llm_test_error
 from intelnexus.ui.icons import icon
 from intelnexus.core.ui.helpers import (
     SEARCH_MODES, DEFAULT_TOR_PORT,
-    find_tor_port, is_tor_running, get_tor_port,
+    check_tor_status, find_tor_port, is_tor_running, get_tor_port,
 )
 from intelnexus.core.llm.utils import get_model_choices, is_vision_model
 from intelnexus.core.llm.models import (
@@ -33,9 +33,9 @@ def _render_search_mode():
     # 「default value but also had its value set via Session State API」政策警告刷屏
     # Tor 端口探测走缓存（ttl=15），避免每次切 Tab 重复探测
     _cached_tor_port, _cached_tor_running = cached_tor_state()
-    if "tor_port" not in st.session_state:
-        # 首次加载默认到探测到的真实 Tor 端口，否则回退 9150
-        st.session_state.tor_port = _cached_tor_port or DEFAULT_TOR_PORT
+    # R8（2026-10-20）：不再用 session 预置端口（浏览器前端残留状态会盖掉它，
+    # 且 widget 实例化后 session 不可改写）。端口输入框改用 value= 显式默认值，
+    # 首次渲染即显示探测到的存活端口——见 _render_darkweb_settings。
     st.markdown(f'<div class="sb-section"><span class="sb-section__label">{_icon("investigate", "sm", "blue")} {get_text("sidebar_mode_label")}</span></div>', unsafe_allow_html=True)
 
     # 方案一（智能路由）：「智能」置顶为默认——按查询主题自动路由，
@@ -79,14 +79,30 @@ def _render_search_mode():
 def _render_darkweb_settings():
     """暗网模式设置面板（Tor 端口/高级选项/自定义 onion 源）。返回所选 Tor 端口。"""
     with st.expander(get_text('darkweb_settings'), expanded=True):
+        # R8：默认值 = 探测到的存活端口 → .env TOR_PROXY_PORT → 9150
+        from intelnexus.core.search_constants import get_tor_proxy_port
+        _detected_port = find_tor_port()
+        _default_port = int(_detected_port or get_tor_proxy_port() or DEFAULT_TOR_PORT)
         tor_port = st.number_input(
             get_text("tor_port"),
             min_value=1,
             max_value=65535,
-            key="tor_port"
+            value=_default_port,
+            key="tor_port_sel"
         )
 
-        tor_running = is_tor_running(preferred=tor_port)
+        # R4b（2026-10-20）：精确端口判定 + 非侵入提示。is_tor_running 会探测
+        # 任意候选端口，「端口填错也显示已运行」会误导。改按所选端口精确探测；
+        # 无监听但 Tor 在其他常见端口存活时给出提示（widget 实例化后
+        # session_state 不可写，此处不改值——检索侧已在 search_pipeline 提交
+        # 参数时自动改用存活端口，见 search_pipeline 的 R4b 补丁）。
+        tor_running = check_tor_status(int(tor_port))
+        if not tor_running:
+            _detected = find_tor_port()
+            if _detected:
+                st.info(get_text("tor_port_autoswitch").format(detected=_detected))
+                tor_port = _detected
+                tor_running = True
         if tor_running:
             st.markdown(f"<span class='status-dot active'></span>{get_text('tor_running')}", unsafe_allow_html=True)
         else:
@@ -118,7 +134,7 @@ def _render_darkweb_settings():
             col_site1, col_site2 = st.columns(2)
             with col_site1:
                 new_site_name = st.text_input(get_text("site_name"), key="new_site_name", placeholder="My Site")
-                new_site_url = st.text_input(get_text("site_url"), key="new_site_url", placeholder="http://xxx.onion/search?q=")
+                new_site_url = st.text_input(get_text("site_url"), key="new_site_url", placeholder="http://xxx.onion/")
             with col_site2:
                 new_site_auth = st.checkbox(get_text("site_need_auth"), key="new_site_auth")
                 new_site_user = ""
@@ -182,7 +198,7 @@ def _render_darkweb_settings():
         else:
             st.markdown(f"_{get_text('no_sites')}_")
 
-    return int(st.session_state.get("tor_port", DEFAULT_TOR_PORT))
+    return int(st.session_state.get("tor_port_sel", DEFAULT_TOR_PORT))
 
 def _render_source_health():
     """数据源健康状态面板（侧边栏紧凑入口）。

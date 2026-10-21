@@ -273,9 +273,13 @@ class EntityExtractor:
         """
         if not name:
             return name
-        
+
+        # R13（2026-10-20）：去掉尾部孤立的连字符/破折号（"July 2023 -" →
+        # "July 2023"），避免噪声实体以残缺形态进入图谱与报告
+        name = re.sub(r'[\s\-\u2013\u2014]+$', '', name.strip())
+
         # 移除重复词（保留首次出现顺序）
-        words = name.strip().split()
+        words = name.split()
         if len(words) > 1:
             seen = set()
             deduped = []
@@ -319,10 +323,13 @@ class EntityExtractor:
                 # Fallback: regex-based entity extraction
                 self._extract_regex(text, url, all_entities, all_relations)
 
-        # 如果抓取内容未找到实体，尝试从搜索结果标题/摘要中抽取
-        if not all_entities and search_results:
-            logger.info("从搜索结果标题/摘要中抽取实体（降级方案）")
-            for r in search_results:
+        # R9（2026-10-20）：搜索结果标题/摘要始终参与抽取（不再只是「抓取为空才
+        # 降级」的兜底）——暗网页面抓取正文常为商品列表/导航词，仅靠正文会得到
+        # 单节点图谱；标题与摘要里的市场名、品类、品牌是更稳定的实体源。
+        # 上限 80 条防止超长列表拖慢分析。
+        if search_results:
+            logger.info("从搜索结果标题/摘要中抽取实体（R9：始终参与）")
+            for r in search_results[:80]:
                 title = r.get('title', '')
                 snippet = r.get('snippet', '')
                 text = f"{title}. {snippet}" if snippet else title

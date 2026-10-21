@@ -180,10 +180,22 @@ def run_search_computation(
     warm_up_models()
     llm = get_llm(model)
     # LLM 改写：失败/超时返回 [] 时回退规则式 expand_query，检索不中断。
-    query_variants = llm_expand_query(llm, query)
-    if not query_variants:
-        query_variants = expand_query(query)
-    query_variants = query_variants[:5]
+    if search_mode == "darkweb":
+        # R14（2026-10-21）：实体中心威胁监测——实体名通常不带安全词（如
+        # 「华盛顿酒店」），但用户意图是监测该实体的安全事件。R5a 的裸单查询
+        # 在该场景下只会命中无关噪声；改为威胁情报语境变体（实体+泄露/攻击/
+        # 售卖等，含英文翻译），上限 3 条控制 Ahmia 请求量（原 5 条连发是触发
+        # 软限流的诱因之一）。LLM 不可用时规则式兜底。
+        query_variants = llm_expand_query(llm, query, mode="darkweb") or []
+        query_variants = [query] + [v for v in query_variants if v and v != query]
+        query_variants = list(dict.fromkeys(query_variants))[:3]
+        if len(query_variants) < 2:
+            query_variants = [query, f"{query} leak", f"{query} 泄露"][:3]
+    else:
+        query_variants = llm_expand_query(llm, query)
+        if not query_variants:
+            query_variants = expand_query(query)
+        query_variants = query_variants[:5]
     # 方案B：仍只用第一条（最贴近原意）变体作为实际检索串。
     search_query = expand_query_for_search(query_variants)
     result["query_variants"] = query_variants
@@ -204,7 +216,12 @@ def run_search_computation(
         ui_sites=ui_sites,
         web_threads=threads,
     )
-    search_results = registry.collect(search_mode, search_query, max_results=25, threads=threads)
+    # R11（2026-10-20）：模式感知全局超时——darkweb/all 模式含 .onion 引擎与
+    # 自定义 onion 源，首次建链实测 20-75s，registry 默认 60s 会截断慢引擎与
+    # 访客自定义源的首轮结果；web/news/threat 维持 60s 不变。
+    _global_timeout = 120 if search_mode in ("darkweb", "all") else 60
+    search_results = registry.collect(search_mode, search_query, max_results=25,
+                                      threads=threads, global_timeout=_global_timeout)
 
     try:
         result["source_stats"] = registry.last_search_stats

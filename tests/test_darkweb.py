@@ -90,7 +90,8 @@ def test_get_darkweb_results_list_query(monkeypatch):
     monkeypatch.setattr(dw, "ENABLE_DARKWEB", True)
     seen = {}
 
-    def fake_ahmia(q):
+    def fake_ahmia(q, *args, **kwargs):
+        # R7b：备用通道会带 trust_env/proxies 等 kwargs 重试
         seen.setdefault(q, 0)
         seen[q] += 1
         return []
@@ -100,7 +101,8 @@ def test_get_darkweb_results_list_query(monkeypatch):
          patch.object(dw, "fetch_tordex_search", return_value=[]), \
          patch.object(dw, "get_custom_onion_sites", return_value=[]):
         dw.get_darkweb_results(["a", "b", "c"])
-    assert seen == {"a": 1, "b": 1, "c": 1}
+    # R7b：空结果会触发备用网络通道重试一次，每个查询共执行两次
+    assert seen == {"a": 2, "b": 2, "c": 2}
 
 
 def test_fetch_ahmia_parses_onion_links(monkeypatch):

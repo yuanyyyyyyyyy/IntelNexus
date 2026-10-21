@@ -60,4 +60,4 @@ def is_tor_running(preferred=None):
 
 
 def get_tor_port():
-    return st.session_state.get("tor_port", DEFAULT_TOR_PORT)
+    return st.session_state.get("tor_port_sel", DEFAULT_TOR_PORT)

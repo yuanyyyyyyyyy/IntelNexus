@@ -64,12 +64,26 @@ def _format_content_for_pdf(content: str) -> str:
     return '\n'.join(formatted_lines)
 
 
+def sup_to_plain(text: str) -> str:
+    """R12（2026-10-20）：md 导出把 HTML 角标转为纯文本 [n]。
+
+    多数 Markdown 查看器不渲染内联 HTML，字面 <sup>[2]</sup> 会显示为
+    「代码串」；证据参考区本身使用 [n] 纯文本编号，正文保持同一风格。
+    """
+    text = re.sub(r'<sup>\[(\d+)\]</sup>', r'[\1]', text)
+    text = re.sub(r'</?sup>', '', text)
+    return text
+
+
 def export_markdown(content: str, query: str, output_path: str) -> str:
     """Export to Markdown format.
 
     如果 content 已经是 10 板块结构化报告（以 "# IntelNexus" 或 "=" 开头），直接写入；
     否则回退到旧版包装格式（向后兼容）。
+
+    R12：导出前把 HTML 角标转为纯文本 [n]（见 sup_to_plain）。
     """
+    content = sup_to_plain(content)
     is_structured = (content.startswith("# IntelNexus") or
                      content.startswith("=") or
                      "## 二、核心摘要" in content[:500] or
@@ -111,7 +125,7 @@ def _clean_markdown_for_word(text: str) -> str:
     # 处理链接
     text = re.sub(r'\[([^\]]+)\]\(([^\)]+)\)', r'\1 (\2)', text)
     # 剥离证据角标与 HTML 残留：<sup>[N]</sup>、<p ...>...</p>、<img ...>、<b>/<br>
-    text = re.sub(r'<sup>\[\d+\]</sup>', '', text)
+    text = re.sub(r'<sup>\[(\d+)\]</sup>', r'[\1]', text)  # R12：保留编号便于溯源
     text = re.sub(r'</?sup>', '', text)
     text = re.sub(r'<img[^>]*>', '', text)
     text = re.sub(r'<p[^>]*>|</p>', '', text)
@@ -259,7 +273,7 @@ def _content_to_pdf_story(content, styles):
     """
     from xml.sax.saxutils import escape as _xml_escape
     # 剥离导出中无意义的 HTML 残留（角标/图表/过渡段落），否则被 escape 成字面量刷屏
-    content = re.sub(r"<sup>\[\d+\]</sup>", "", content)
+    content = re.sub(r"<sup>\[(\d+)\]</sup>", r"[\1]", content)  # R12：保留编号
     content = re.sub(r"</?sup>", "", content)
     content = re.sub(r"<img[^>]*>", "", content)
     content = re.sub(r"<p[^>]*>|</p>", "", content)

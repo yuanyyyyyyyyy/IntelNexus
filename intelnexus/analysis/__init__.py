@@ -12,7 +12,7 @@ _model_load_lock = threading.Lock()
 # ~17s——15s 窗口会让「本地缓存直载」也偶发超时降级，故放宽到 30s。
 # 首次下载（约470MB权重）超过该窗口时本次降级，但下载线程继续断点续传，
 # 后续搜索即可在窗口内完成加载（自愈设计）。
-_MODEL_LOAD_TIMEOUT = 30
+_MODEL_LOAD_TIMEOUT = 60  # R13：30s 在冷加载（torch import ~14s + 权重 + 内存压力）下不够
 
 # sentence-transformer 开关：默认**启用**。历史默认 true 曾让语义排序/弱相关过滤
 # （relevance.py 全链）在所有默认安装下静默失效。国内网络由 ModelScope 离线
@@ -177,10 +177,19 @@ def load_sentence_model():
         result = {}
 
         def _do_load():
+            # R13（2026-10-20）：后台加载成功后必须写回全局单例——原实现只写
+            # 局部 dict，超时返回后结果被丢弃，导致「冷加载超时一次 → 本进程
+            # 相关性排序永久降级」（注释宣称的自愈从未真正生效）。
+            global _shared_model
             try:
-                result["model"] = _build_sentence_model()
+                m = _build_sentence_model()
             except Exception as e:
                 result["error"] = e
+                return
+            with _model_load_lock:
+                if _shared_model is None:
+                    _shared_model = m
+            result["model"] = m
 
         t = threading.Thread(target=_do_load, daemon=True)
         t.start()
