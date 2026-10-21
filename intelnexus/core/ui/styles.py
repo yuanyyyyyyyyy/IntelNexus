@@ -463,25 +463,9 @@ def render_hermes_theme_css():
         min-height: 28px !important;
         line-height: 1.2 !important;
     }
-    /* query 查看按钮：伪装成纯文本链接 */
-    [class*="st-key-sh_view_"] .stButton > button {
-        background: transparent !important;
-        color: var(--text-primary) !important;
-        border: none !important;
-        box-shadow: none !important;
-        padding: 2px 0 !important;
-        font-size: 14px !important;
-        font-weight: 600 !important;
-        text-align: left !important;
-        min-height: auto !important;
-        line-height: 1.4 !important;
-    }
-    [class*="st-key-sh_view_"] .stButton > button:hover {
-        color: var(--accent-orange) !important;
-        background: transparent !important;
-        transform: none !important;
-        box-shadow: none !important;
-    }
+    /* （2026-10-21 移除死代码）原「查看按钮伪装成纯文本链接」规则：
+       specificity (0,2,1) 低于全局主区域按钮规则 (0,2,2)，从未生效；
+       「查看」现与同行「重新搜索 / 删除」统一为紧凑扁平普通按钮。 */
     /* 删除确认区按钮同样紧凑 */
     [class*="st-key-sh_delbtn_"] .stButton > button,
     [class*="st-key-sh_delyes_"] .stButton > button,
@@ -491,13 +475,32 @@ def render_hermes_theme_css():
         min-height: 28px !important;
         line-height: 1.2 !important;
     }
-    /* 知识库条目按钮：紧凑小按钮 */
+    /* 搜索历史面板工具行（清除历史/清理/恢复）：与行内按钮同规格紧凑扁平 */
+    [class*="st-key-sh-history"] .stButton > button {
+        padding: 4px 10px !important;
+        font-size: 12px !important;
+        min-height: 28px !important;
+        line-height: 1.2 !important;
+    }
+    /* 知识库条目按钮：紧凑小按钮；操作行三按钮等宽左对齐等距，末列留白自动伸展 */
     .st-key-kb-items .stButton > button,
-    .st-key-kb-items a.stLinkButton {
+    .st-key-kb-items a.stLinkButton,
+    .st-key-kb-items div[data-testid="stLinkButton"] > a {
         padding: 4px 12px !important;
         font-size: 12px !important;
         min-height: 28px !important;
         line-height: 1.2 !important;
+        width: 100% !important;
+    }
+    .st-key-kb-items [data-testid="stHorizontalBlock"] {
+        gap: 0.5rem !important;
+    }
+    .st-key-kb-items [data-testid="column"] {
+        max-width: 120px !important;
+    }
+    .st-key-kb-items [data-testid="column"]:last-child {
+        max-width: none !important;
+        flex: 1 1 auto !important;
     }
 
     /* ============================================================
@@ -591,16 +594,19 @@ def render_hermes_theme_css():
         font-size: 17px !important;
         font-weight: 600 !important;
         transition: all 0.2s ease !important;
-        box-shadow: 0 4px 12px rgba(0,85,255,0.35) !important;
+        box-shadow: none !important;
     }
     .search-button button:hover {
         background-color: #F5F5F5 !important;
-        box-shadow: 0 4px 16px rgba(0,85,255,0.25) !important;
+        border-color: #CCCCCC !important;
+        box-shadow: none !important;
     }
     .search-button button:active {
         transform: scale(0.98) !important;
     }
-    /* Main area buttons — white bg + blue shadow (exclude sidebar) */
+    /* Main area buttons — 普通扁平：白底灰边、无光晕（exclude sidebar）。
+       蓝色光晕仅保留给主行动按钮（primary / 表单提交，见下方专属规则）；
+       次要/列表行按钮一律扁平（2026-10-21 UI 纪律统一）。 */
     section[data-testid="stMain"] .stButton > button,
     section[data-testid="stMain"] .search-button button {
         background: #FFFFFF !important;
@@ -609,13 +615,14 @@ def render_hermes_theme_css():
         border-radius: 6px !important;
         font-weight: 600 !important;
         font-size: 13px !important;
-        box-shadow: 0 4px 12px rgba(0,85,255,0.35) !important;
+        box-shadow: none !important;
         transition: all 0.2s ease !important;
     }
     section[data-testid="stMain"] .stButton > button:hover,
     section[data-testid="stMain"] .search-button button:hover {
         background: #F5F5F5 !important;
-        box-shadow: 0 4px 16px rgba(0,85,255,0.25) !important;
+        border-color: #CCCCCC !important;
+        box-shadow: none !important;
     }
 
     /* 全局主按钮风格 — 白底深色文字+蓝色阴影（与生成简报一致） */
@@ -1035,26 +1042,16 @@ def render_hermes_theme_css():
     .bf-history-item__org { font-weight: 500; color: var(--text-primary); }
     .bf-history-item__sep { color: var(--border-light); }
 
-    /* History item buttons */
-    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .bf-history-item button {
-        width: 100% !important;
+    /* History item buttons — 简报中心历史行（导出选中/查看/删除/清理/恢复）。
+       原规则用 .bf-history-item 后代选择器，但行按钮与该 markdown div 是兄弟
+       节点，从未命中（死代码）；改用有效的容器 key 选择器（st-key-bf-history），
+       紧凑扁平。光晕已随全局主区域规则移除，无需再覆盖 box-shadow。 */
+    [class*="st-key-bf-history"] .stButton > button {
         min-height: 28px !important;
-        padding: 2px 10px !important;
-        font-size: 13px !important;
-        font-weight: 500 !important;
-        border-radius: 5px !important;
-        background: transparent !important;
-        color: var(--text-secondary) !important;
-        border: 1px solid var(--border-light) !important;
-        box-shadow: none !important;
-        writing-mode: horizontal-tb !important;
-        text-orientation: mixed !important;
+        padding: 4px 10px !important;
+        font-size: 12px !important;
+        line-height: 1.2 !important;
         white-space: nowrap !important;
-    }
-    section[data-testid="stMain"]:has(.bf-workbench-scope) .element-container:has(.app-main-scope) ~ .element-container .bf-history-item button:hover {
-        background: var(--bg-card) !important;
-        color: var(--text-primary) !important;
-        border-color: var(--accent-orange) !important;
     }
 
     /* ============================================================

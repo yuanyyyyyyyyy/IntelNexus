@@ -42,3 +42,27 @@ class TestOTXSource:
             src = AlienVaultOTXSource()
             results = src.search("nothing")
         assert results == []
+
+    def test_correct_endpoint_path_and_key_header(self):
+        """R18：路由必须是 /api/v1/search/pulses，且携带 X-OTX-API-KEY。"""
+        from intelnexus.core.search.sources.otx_source import AlienVaultOTXSource
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"results": []}
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        with patch("intelnexus.core.search.sources.otx_source.get_session",
+                   return_value=mock_session):
+            src = AlienVaultOTXSource()
+            src.search("ransomware")
+        args, kwargs = mock_session.get.call_args
+        assert "/api/v1/search/pulses" in str(args[0])
+        assert kwargs.get("headers", {}).get("X-OTX-API-KEY") == "test-key"
+
+    def test_missing_key_skips_cleanly(self, monkeypatch):
+        """R18：未配 key 时优雅跳过，给出可操作提示而非 404 报错。"""
+        from intelnexus.core.search.sources.otx_source import AlienVaultOTXSource
+        monkeypatch.delenv("OTX_API_KEY", raising=False)
+        src = AlienVaultOTXSource()
+        results = src.search("ransomware")
+        assert results == []
+        assert "OTX_API_KEY" in src.last_error

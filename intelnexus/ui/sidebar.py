@@ -158,7 +158,8 @@ def _render_darkweb_settings():
             col_site1, col_site2 = st.columns(2)
             with col_site1:
                 new_site_name = st.text_input(get_text("site_name"), key="new_site_name", placeholder="My Site")
-                new_site_url = st.text_input(get_text("site_url"), key="new_site_url", placeholder="http://xxx.onion/")
+                new_site_url = st.text_input(get_text("site_url"), key="new_site_url",
+                                             placeholder="http://xxx.onion/search?q={query}")
             with col_site2:
                 new_site_auth = st.checkbox(get_text("site_need_auth"), key="new_site_auth")
                 new_site_user = ""
@@ -166,6 +167,8 @@ def _render_darkweb_settings():
                 if new_site_auth:
                     new_site_user = st.text_input(get_text("breached_username"), key="new_site_user")
                     new_site_pass = st.text_input(get_text("breached_password"), type="password", key="new_site_pass")
+
+            st.caption(get_text("custom_site_url_hint"))
 
             if st.button(get_text("add_site"), key="add_site_btn"):
                 if new_site_name and new_site_url:

@@ -54,15 +54,19 @@ def _render_collect_button(item: dict, key_suffix: str):
         st.rerun()
 
 
-def _render_useful_button(item: dict, key_suffix: str):
-    """为单条搜索结果渲染「有用」标记按钮。"""
+def _render_useful_button(item: dict, key_suffix: str, feedback_map: dict = None):
+    """为单条搜索结果渲染「有用」标记按钮。
+
+    R17：feedback_map 由 render_results_detail 整页预载传入（get_search_feedback_map），
+    避免每条结果各读一次反馈文件；未传时回退逐条读取（防御兼容）。
+    """
     url = item.get("url") or item.get("link", "")
     if not url:
         return
     
     from intelnexus.config.feedback import get_search_feedback, save_search_feedback, track_feedback
     
-    existing = get_search_feedback(url)
+    existing = feedback_map.get(url) if feedback_map is not None else get_search_feedback(url)
     if existing == "useful":
         st.caption(get_text("feedback_marked"))
     else:
@@ -101,6 +105,10 @@ def _render_save_to_kb_button(item: dict, key_suffix: str):
             st.rerun()
 
 
+# 每页条数：主列表与弱相关折叠区共用同一口径（R17，2026-10-21）
+ITEMS_PER_PAGE = 40
+
+
 def render_results_detail(view=None, key_prefix: str = "", page_key: str = "result_page"):
     """渲染分页搜索结果列表。
 
@@ -123,14 +131,52 @@ def render_results_detail(view=None, key_prefix: str = "", page_key: str = "resu
             return
         _get = st.session_state.get
 
+    # R17：反馈索引整页预载——「有用」按钮逐条 get_search_feedback 会把反馈文件
+    # 整读 N 次（弱相关 785 条时 ≈2355 次/页），改为一次读盘建索引后传引用。
+    from intelnexus.config.feedback import get_search_feedback_map
+    _feedback_map = get_search_feedback_map()
+
     def _render_weak_block(weak_items, expanded: bool):
-        """R15：弱相关折叠区渲染（主列表为空时也可独立调用）。"""
+        """R15：弱相关折叠区渲染（主列表为空时也可独立调用）。
+
+        R17：与主列表同口径分页（ITEMS_PER_PAGE 条/页）——china 快照曾一次
+        渲染 785 条弱相关（每条 11 个元素），巨量 delta 流正是历史回放卡墙的
+        主因。游标与按钮 key 派生自 page_key，实时/各历史回放命名空间互不串扰；
+        数据收缩后游标越界则钳回第 1 页。
+        """
+        weak_cursor_key = f"{page_key}_weak"
+        if weak_cursor_key not in st.session_state:
+            st.session_state[weak_cursor_key] = 1
+        if st.session_state[weak_cursor_key] < 1:
+            st.session_state[weak_cursor_key] = 1
+        total_weak = len(weak_items)
+        total_weak_pages = (total_weak + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE
+        if st.session_state[weak_cursor_key] > total_weak_pages:
+            st.session_state[weak_cursor_key] = 1
+        w_start = (st.session_state[weak_cursor_key] - 1) * ITEMS_PER_PAGE
+        w_end = min(w_start + ITEMS_PER_PAGE, total_weak)
+        page_weak = weak_items[w_start:w_end]
+
         with st.expander(
             f"{get_text('weak_related_title').format(count=len(weak_items))}",
             expanded=expanded
         ):
             st.caption(get_text("weak_related_hint"))
-            for wi, item in enumerate(weak_items):
+            if total_weak_pages > 1:
+                w_page_cols = st.columns([1, 1, 1])
+                with w_page_cols[0]:
+                    if st.session_state[weak_cursor_key] > 1:
+                        if st.button(get_text("prev_page"), key=f"{page_key}_weak_prev"):
+                            st.session_state[weak_cursor_key] -= 1
+                            st.rerun()
+                with w_page_cols[1]:
+                    st.markdown(f"**{st.session_state[weak_cursor_key]}/{total_weak_pages}**")
+                with w_page_cols[2]:
+                    if st.session_state[weak_cursor_key] < total_weak_pages:
+                        if st.button(get_text("next_page"), key=f"{page_key}_weak_next"):
+                            st.session_state[weak_cursor_key] += 1
+                            st.rerun()
+            for wi, item in enumerate(page_weak, start=w_start):
                 wkey = f"weak_{wi}"
                 # 不可信外部输入先剥离 HTML 标签再转义（防存储型 XSS + 避免标签源码暴露）
                 safe_title = _safe_text(item.get('title', '') or '') or get_text("no_title")
@@ -156,7 +202,8 @@ def render_results_detail(view=None, key_prefix: str = "", page_key: str = "resu
                 with _wbtn_cols[0]:
                     _render_collect_button(item, f"{key_prefix}weak_{wkey}")
                 with _wbtn_cols[1]:
-                    _render_useful_button(item, f"{key_prefix}weak_{wkey}")
+                    _render_useful_button(item, f"{key_prefix}weak_{wkey}",
+                                          feedback_map=_feedback_map)
                 with _wbtn_cols[2]:
                     _render_save_to_kb_button(item, f"{key_prefix}weak_{wkey}")
                 st.markdown('</div>', unsafe_allow_html=True)
@@ -183,7 +230,6 @@ def render_results_detail(view=None, key_prefix: str = "", page_key: str = "resu
     all_results = filtered
     total_results = len(all_results)
 
-    ITEMS_PER_PAGE = 40
     total_pages = (total_results + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE
 
     col1, col2 = st.columns([3, 1])
@@ -264,47 +310,19 @@ def render_results_detail(view=None, key_prefix: str = "", page_key: str = "resu
                 with _btn_cols[0]:
                     _render_collect_button(item, f"{key_prefix}{source}_{actual_idx}")
                 with _btn_cols[1]:
-                    _render_useful_button(item, f"{key_prefix}{source}_{actual_idx}")
+                    _render_useful_button(item, f"{key_prefix}{source}_{actual_idx}",
+                                          feedback_map=_feedback_map)
                 with _btn_cols[2]:
                     _render_save_to_kb_button(item, f"{key_prefix}{source}_{actual_idx}")
                 st.markdown('</div>', unsafe_allow_html=True)
                 st.markdown("---")
 
-    # 弱相关结果（被语义相关性过滤降权，不进报告/KG 主干，但保留可追溯）
+    # 弱相关结果（被语义相关性过滤降权，不进报告/KG 主干，但保留可追溯）。
+    # R15 重构遗留修复（2026-10-21）：_render_weak_block 落地时旧的内联渲染未删
+    # （if True: 残段），同一批弱相关条目的 收藏/有用/知识库 按钮以相同 key 注册
+    # 两次，弱相关条目一出现即抛 StreamlitDuplicateElementKey(collect_weak_weak_0)。
+    # 现只保留折叠区块一次渲染；提示文案在 expander 内已有，无信息损失。
     _all_results = _get("results", []) or []
     weak_items = [r for r in _all_results if r.get("weak_related", False)]
     if weak_items:
         _render_weak_block(weak_items, expanded=False)
-        if True:
-            st.caption(get_text("weak_related_hint"))
-            for wi, item in enumerate(weak_items):
-                wkey = f"weak_{wi}"
-                # 不可信外部输入先剥离 HTML 标签再转义（防存储型 XSS + 避免标签源码暴露）
-                safe_title = _safe_text(item.get('title', '') or '') or get_text("no_title")
-                safe_desc = _safe_text(item.get('description', '') or '')
-                safe_summary = _safe_text(item.get('summary', '') or '')
-                st.markdown(f"**{safe_title[:150]}**")
-                if item.get('description'):
-                    st.markdown(f"{icon('entry', 'sm', 'gray')} {safe_desc[:500]}...", unsafe_allow_html=True)
-                elif item.get('summary'):
-                    st.markdown(f"{icon('note', 'sm', 'lavender')} {safe_summary[:500]}...", unsafe_allow_html=True)
-                if item.get('link') or item.get('url'):
-                    link = item.get('link') or item.get('url')
-                    # 外部 URL 可能是伪协议或含破坏 markdown 链接语法的字符：
-                    # 先过安全处理，不合法则降级为转义纯文本（与证据链链接口径一致）
-                    safe_link = _safe_md_url(link)
-                    if safe_link:
-                        st.markdown(get_text("view_original").format(link=safe_link))
-                    else:
-                        st.markdown(_safe_text(link))
-                # key 加 weak_ 前缀，与主列表的 source_actual_idx 区分，避免 DuplicateWidgetID
-                st.markdown('<div class="result-btn-row">', unsafe_allow_html=True)
-                _wbtn_cols = st.columns(3)
-                with _wbtn_cols[0]:
-                    _render_collect_button(item, f"{key_prefix}weak_{wkey}")
-                with _wbtn_cols[1]:
-                    _render_useful_button(item, f"{key_prefix}weak_{wkey}")
-                with _wbtn_cols[2]:
-                    _render_save_to_kb_button(item, f"{key_prefix}weak_{wkey}")
-                st.markdown('</div>', unsafe_allow_html=True)
-                st.markdown("---")

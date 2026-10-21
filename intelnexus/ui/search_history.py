@@ -8,6 +8,7 @@ import html
 from datetime import datetime
 
 import streamlit as st
+from streamlit.runtime.scriptrunner import get_script_run_ctx
 
 from intelnexus.core.logger import get_logger
 from intelnexus.ui.i18n import get_text
@@ -15,6 +16,34 @@ from intelnexus.ui.icons import icon
 from intelnexus.ui import main_tabs
 
 logger = get_logger(__name__)
+
+
+def _panel_rerun() -> None:
+    """面板内 rerun：fragment rerun 中只刷面板，整页 run 语境回退整页。
+
+    streamlit 1.62 的 ``st.rerun(scope="fragment")`` 在整页 run 中（包括
+    fragment 函数体随整页内联执行、或点击与表单提交竞态被合并成整页时）会抛
+    StreamlitAPIException，因此按 ``ctx.fragment_ids_this_run`` 判定当前
+    run 类型后再选 scope；AppTest 的模拟 run 对 fragment 无感知，同样回退。
+    """
+    ctx = get_script_run_ctx()
+    if ctx and ctx.fragment_ids_this_run:
+        st.rerun(scope="fragment")
+    st.rerun()
+
+
+@st.cache_data(show_spinner=False, max_entries=16)
+def _load_snapshot_cached(entry_id: str, signature: tuple):
+    """按变更签名缓存快照读取（R17 Phase1）。
+
+    快照 / KG / 雷达图均为写后不改的产物文件：签名（快照路径 + 三个 mtime）
+    不变即命中，免去每次面板交互重复解析约 1MB 快照 JSON（实测 ~29ms/次）。
+    st.cache_data 命中返回深拷贝，渲染侧改写不会污染缓存；max_entries=16
+    以 LRU 限制长会话内存占用。
+    """
+    from intelnexus.config.history import get_history_manager
+
+    return get_history_manager().get_snapshot(entry_id)
 
 
 # ---------------------------------------------------------------------------
@@ -29,7 +58,7 @@ def _delete_with_confirm(key: str, label: str = None, use_container_width: bool 
         if st.button(btn_label, key=f"sh_delbtn_{key}",
                      use_container_width=use_container_width):
             st.session_state[flag] = True
-            st.rerun()
+            _panel_rerun()
         return False
     c_yes, c_no = st.columns(2)
     with c_yes:
@@ -43,7 +72,7 @@ def _delete_with_confirm(key: str, label: str = None, use_container_width: bool 
         return True
     if cancelled:
         st.session_state.pop(flag, None)
-        st.rerun()
+        _panel_rerun()
     return False
 
 
@@ -151,7 +180,7 @@ def render_search_preview():
         if st.button(get_text("close"), key="sh_preview_close", use_container_width=True):
             st.session_state.current_search_view = None
             _clear_replay_state()
-            st.rerun()
+            _panel_rerun()
 
     rendered = False
 
@@ -162,7 +191,10 @@ def render_search_preview():
         from intelnexus.ui.results_view import render_history_snapshot
         try:
             from intelnexus.config.history import get_history_manager
-            snapshot = get_history_manager().get_snapshot(entry_id)
+            _mgr = get_history_manager()
+            _sig = _mgr.snapshot_signature(entry_id)
+            # R17 Phase1：签名不变直接命中缓存，免重复解析约 1MB 快照 JSON
+            snapshot = _load_snapshot_cached(entry_id, _sig) if _sig else None
         except Exception:
             logger.exception(f"读取搜索快照失败: {entry_id}")
             snapshot = None
@@ -256,11 +288,30 @@ def render_search_history():
     """渲染搜索历史面板（对齐简报中心 render_briefing_history）。
 
     守卫条件：st.session_state.show_search_history 为 True
+
+    R17 Phase1 曾将整个面板包进 @st.fragment（面板内交互只 rerun 面板）。
+    Phase1-revert（2026-10-21 演示日下午）：真实浏览器实测发现 fragment
+    rerun 中子树形状剧变（列表↔预览切换、条目数可变）时，1.62 前端 delta
+    重放会把后续元素错放进横向块——历史条目横向流排、按钮挤成一字宽竖排、
+    预览与列表同屏，且定型态不自愈。AppTest 对 fragment 零感知（点击走
+    整页回退路径），故单测无法拦截。演示日稳定性优先，回退整页 rerun；
+    R17 基础修复（预览让位/弱相关分页/反馈预载/快照签名缓存）全部保留，
+    转场混排已压缩到秒级。_panel_rerun 保留（现恒走整页分支），待
+    Streamlit 升级或 Phase 2 重设计后再评估重新启用 fragment。
     """
     if not st.session_state.get("show_search_history"):
         return
 
-    # 先渲染预览（如果有正在查看的条目）
+    # R17：正在查看某条记录时，预览「替换」整张列表——点「查看」应直接呈现
+    # 该记录内容，而不是在其下方继续渲染整张历史列表（58 条 × 十余个 widget）。
+    # 旧行为两个代价：① 点「查看」后的整页 rerun 中，新旧两棵元素树在前端
+    # 原地互叠，铺出一屏排版错乱的「卡墙」；② 每次查看/翻页都要多渲染上千个
+    # 列表元素。点「关闭」返回列表。
+    if st.session_state.get("current_search_view"):
+        render_search_preview()
+        return
+
+    # 无预览时渲染列表（render_search_preview 内部空守卫，保持防御调用）
     render_search_preview()
 
     from intelnexus.config.history import get_history_manager
@@ -350,7 +401,7 @@ def render_search_history():
             if visible and st.button(get_text("search_history_clear"), key="sh_clear_all_btn",
                                      use_container_width=True):
                 st.session_state["_sh_confirm_clear_all"] = True
-                st.rerun()
+                _panel_rerun()
         with purge_col:
             if deleted and st.button(
                 get_text("search_history_purged").format(n=len(deleted)),
@@ -360,7 +411,7 @@ def render_search_history():
                 n = history_mgr.purge_deleted(days=0)
                 if n:
                     st.toast(get_text("search_history_purged").format(n=n))
-                    st.rerun()
+                    _panel_rerun()
 
         # 全量清除二次确认
         if st.session_state.pop("_sh_confirm_clear_all", False):
@@ -371,10 +422,10 @@ def render_search_history():
                              use_container_width=True):
                     history_mgr.clear_history()
                     st.toast(get_text("search_history_cleared"))
-                    st.rerun()
+                    _panel_rerun()
             with col_no:
                 if st.button(get_text("cancel"), key="sh_clear_no", use_container_width=True):
-                    st.rerun()
+                    _panel_rerun()
 
         # ---- 正常列表 ----
         for entry in filtered:
@@ -413,7 +464,7 @@ def render_search_history():
                         if st.button(get_text("view"), key=f"sh_view_{entry_id}",
                                      use_container_width=True):
                             st.session_state.current_search_view = entry
-                            st.rerun()
+                            _panel_rerun()
                     with r_col:
                         if st.button(get_text("search_history_rerun"), key=f"sh_rerun_{entry_id}",
                                      use_container_width=True):
@@ -426,7 +477,7 @@ def render_search_history():
                         if _delete_with_confirm(entry_id, use_container_width=True):
                             history_mgr.delete_entry(entry_id)
                             st.toast(get_text("search_history_deleted"))
-                            st.rerun()
+                            _panel_rerun()
 
         # ---- 已删除条目恢复区 ----
         if deleted:
@@ -448,4 +499,4 @@ def render_search_history():
                                  use_container_width=True):
                         history_mgr.restore_entry(entry_id)
                         st.success(get_text("search_history_restored"))
-                        st.rerun()
+                        _panel_rerun()

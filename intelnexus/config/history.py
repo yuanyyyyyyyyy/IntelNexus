@@ -225,6 +225,37 @@ class SearchHistory:
                 logger.warning(f"读取可信度雷达图失败（{entry_id}）: {e}")
         return snapshot
 
+    def snapshot_signature(self, entry_id: str) -> Optional[tuple]:
+        """快照变更签名（R17 Phase1：读取缓存键用）。
+
+        快照 / 知识图谱 / 雷达图均为写后不改的产物文件，快照路径 + 三个
+        mtime 组成签名：签名不变即内容不变，调用方可安全地按签名做读取
+        缓存（见 search_history._load_snapshot_cached）。
+
+        Returns:
+            (snapshot_path, snapshot_mtime, kg_mtime, radar_mtime)；
+            目录越界或快照不存在时返回 None。
+        """
+        target = self._safe_snapshot_dir(entry_id)
+        if target is None:
+            return None
+        snapshot_file = target / _SNAPSHOT_FILE
+        if not snapshot_file.exists():
+            return None
+
+        def _mtime(path: Path) -> float:
+            try:
+                return path.stat().st_mtime
+            except OSError:
+                return 0.0
+
+        return (
+            str(snapshot_file),
+            _mtime(snapshot_file),
+            _mtime(target / _KG_FILE),
+            _mtime(target / _RADAR_FILE),
+        )
+
     def _remove_snapshot(self, entry_id: str):
         """删除单条历史的快照目录（不存在、路径越界或失败均静默）。"""
         target = self._safe_snapshot_dir(entry_id)

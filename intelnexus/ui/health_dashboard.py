@@ -25,13 +25,20 @@
    现在面板顶部常驻一行规则说明。
 6. **失败原因看不到**：侧边栏旧版只有红点，``last_error`` 只在简报中心可见且
    无上下文。现在两处都显示最近错误 + 连续失败次数 + 最近成功时间。
-7. **状态没有时间维度**（本轮）：持久化状态只有 healthy/degraded/down，一个只在
+7. **状态没有时间维度**：持久化状态只有 healthy/degraded/down，一个只在
    特定 mode 下运行的源一旦降级就永久冻结；``down`` 更因为被检索管线剔除而
    永远无法自愈。现在由 ``health.view_status`` 派生第 4 个状态 ``stale``
    （待复核），四张卡片 / 汇总行 / 点阵 / 底部状态栏口径一致。
+8. **「联网检测」补齐（2026-10-21）**：此前面板只有「重新读取」（纯本地），
+   真正的连通性探测只存在于「数据源管理 → 批量测试」，且那里测的是订阅 URL
+   源、不覆盖注册表搜索引擎——面板上这批源没有任何主动检测入口。现在两处
+   面板各加「联网检测」：并发逐源真实检索一次（``core.search.probe``），
+   结论经 ``record_probe_result`` 落盘，进度用 ``st.status`` + 进度条 + 逐源
+   状态行实时可见；暗网源按 Tor 建链预算单独放宽超时。
 
-写操作纪律：本模块只在**用户点击**（重新读取 / 清除标记）时写盘，渲染路径
-只读；僵尸条目清理按会话一次性执行（``_health_purged_once``），不再每帧写。
+写操作纪律：本模块只在**用户点击**（重新读取 / 联网检测 / 清除标记）时写盘，
+渲染路径只读；僵尸条目清理按会话一次性执行（``_health_purged_once``），
+不再每帧写。
 """
 
 import html
@@ -188,6 +195,159 @@ def _reload_button(key_prefix: str, snapshot, use_container_width: bool = True) 
         st.rerun()
 
 
+# ---------------------------------------------------------------------------
+# 联网检测（主动探测）
+# ---------------------------------------------------------------------------
+
+#: 探测状态 → 既有 status-dot 修饰类（skip 用 muted，与 stale 同视觉语言）
+_PROBE_DOT = {
+    "ok": "active",
+    "empty": "active",
+    "fail": "error",
+    "timeout": "error",
+    "skip_no_proxy": "muted",
+    "skip_disabled": "muted",
+}
+
+#: session_state 键后缀：上次探测结果 / 完成时刻（重绘后仍展示）
+_PROBE_RESULTS_SUFFIX = "_probe_results"
+_PROBE_TS_SUFFIX = "_probe_ts"
+
+
+def _probe_registry():
+    """构造与会话当前配置一致的注册表（联网检测专用）。
+
+    暗网探测必须复用检索页的 advanced_mode / tor_port / ui_sites：否则高级
+    模式引擎或访客自定义 onion 站点在面板里根本不会被探测到，结论会与真实
+    检索链路不一致（“面板说正常、检索却失败”的经典失真）。
+    """
+    from intelnexus.core.search.registry import get_registry
+    from intelnexus.config.search_settings import get_news_api_key
+
+    try:
+        tor_port = int(st.session_state.get("tor_port_sel") or 9150)
+    except (TypeError, ValueError):
+        tor_port = 9150
+    return get_registry(
+        news_api_key=get_news_api_key(),
+        darkweb_advanced=bool(st.session_state.get("advanced_mode", False)),
+        tor_port=tor_port,
+        ui_sites=list(st.session_state.get("custom_onion_sites") or []),
+        web_threads=5,
+    )
+
+
+def _probe_row_html(row: dict) -> str:
+    """单条探测结果行：状态点 + 源名 + 结论 + 耗时 + 错误摘要。"""
+    state = str(row.get("state", "fail"))
+    dot = _PROBE_DOT.get(state, "muted")
+    label = get_text(f"health_probe_state_{state}")
+    try:
+        latency = float(row.get("latency_ms") or 0.0)
+    except (TypeError, ValueError):
+        latency = 0.0
+    lat_text = f"{latency / 1000:.1f}s" if latency > 0 else "—"
+    line = (f'<span class="status-dot {dot}"></span> '
+            f'{html.escape(str(row.get("name", "")))} — {label} · {lat_text}')
+    err = str(row.get("error") or "").strip()
+    if err:
+        line += (f'<br><span class="hc-inline-metric">'
+                 f'{html.escape(err[:110])}</span>')
+    return line
+
+
+def _render_last_probe_results(key_prefix: str, max_rows: int = 6) -> None:
+    """上次联网检测的摘要 + 非连通行（rerun 后仍在，直到下次检测覆盖）。
+
+    只列失败/超时行：连通源的状态、延迟、最近错误已经由上方快照就地展示，
+    逐行重铺 20+ 行只会淹没侧边栏真正需要关注的信息。
+    """
+    rows = st.session_state.get(f"{key_prefix}{_PROBE_RESULTS_SUFFIX}") or []
+    if not rows:
+        return
+    ok = sum(1 for r in rows if r.get("state") in ("ok", "empty"))
+    bad = [r for r in rows if r.get("state") in ("fail", "timeout")]
+    ts = str(st.session_state.get(f"{key_prefix}{_PROBE_TS_SUFFIX}") or "")
+    st.caption(get_text("health_probe_last_summary").format(
+        ts=ts, ok=ok, bad=len(bad), total=len(rows)))
+    for row in bad[:max_rows]:
+        st.markdown(_probe_row_html(row), unsafe_allow_html=True)
+    if len(bad) > max_rows:
+        st.caption(f"+{len(bad) - max_rows}")
+
+
+def _run_online_probe(key_prefix: str) -> None:
+    """联网检测主体：并发逐源真实探测 + 实时进度 + 落盘 + 失效缓存 + 重绘。
+
+    进度可见性：Streamlit 单次脚本运行内可多次更新同一 placeholder，因此
+    每源完成即刷新「进度条 + 逐源状态行」，而不是等全部结束才出结果。
+    探测结论由 ``probe_registry`` 逐条落盘，中途切页也不会丢掉已完成的部分。
+    """
+    from datetime import datetime
+
+    from intelnexus.core.search.probe import probe_registry
+
+    try:
+        registry = _probe_registry()
+        sources = [s for s in registry.all_sources() if getattr(s, "enabled", True)]
+    except Exception as e:
+        logger.warning(f"联网检测：构造注册表失败: {e}")
+        st.error(get_text("health_probe_registry_failed").format(err=e))
+        return
+    total = len(sources)
+    if total == 0:
+        st.warning(get_text("health_probe_no_sources"))
+        return
+
+    order = [s.name for s in sources]
+    rows = {}
+    done = 0
+
+    with st.status(get_text("health_probe_running_title"), expanded=True) as box:
+        progress = st.progress(
+            0.0, text=get_text("health_probe_running").format(done=0, total=total))
+        table = st.empty()
+
+        def _on_result(outcome):
+            nonlocal done
+            done += 1
+            rows[outcome.source_name] = {
+                "name": outcome.source_name,
+                "state": outcome.state,
+                "latency_ms": outcome.latency_ms,
+                "error": outcome.error,
+                "count": outcome.result_count,
+            }
+            progress.progress(
+                min(done / total, 1.0),
+                text=get_text("health_probe_running").format(done=done, total=total))
+            table.markdown(
+                "<br>".join(_probe_row_html(rows[n]) for n in order if n in rows)
+                or "…", unsafe_allow_html=True)
+
+        outcomes = probe_registry(registry, on_result=_on_result)
+        n_bad = sum(1 for o in outcomes if o.state in ("fail", "timeout"))
+        box.update(
+            label=get_text("health_probe_done_title"),
+            state="complete" if n_bad == 0 else "error",
+            expanded=False,
+        )
+
+    # 先存后 rerun：重绘由下方固定渲染点展示本轮结果
+    try:
+        st.session_state[f"{key_prefix}{_PROBE_RESULTS_SUFFIX}"] = [
+            {"name": o.source_name, "state": o.state,
+             "latency_ms": o.latency_ms, "error": o.error,
+             "count": o.result_count} for o in outcomes
+        ]
+        st.session_state[f"{key_prefix}{_PROBE_TS_SUFFIX}"] = \
+            datetime.now().strftime("%H:%M:%S")
+    except Exception:
+        pass
+    _invalidate_caches()
+    st.rerun()
+
+
 def _rule_caption() -> None:
     """状态规则说明：解释 3/6 次阈值、时间维度与 down 的真实后果。"""
     st.caption(get_text("health_state_rule"))
@@ -256,6 +416,13 @@ def render_health_compact(snapshot) -> None:
     _reload_button("sb_health", snapshot)
     st.caption(get_text("health_reload_hint"))
 
+    # 联网检测：真正的连通性刷新（逐源真实检索 + 实时进度）
+    if st.button(get_text("health_probe_btn"), key="sb_health_probe",
+                 help=get_text("health_probe_btn_help"),
+                 use_container_width=True):
+        _run_online_probe("sb_health")
+    _render_last_probe_results("sb_health")
+
     if snapshot.is_empty:
         st.caption(get_text("health_empty"))
         return
@@ -318,7 +485,13 @@ def render_health_overview():
     # ---- 操作层：重新读取（清僵尸 + 失效缓存 + rerun，绝不发起网络探测）----
     _reload_button("hc", snapshot)
     st.caption(get_text("health_reload_hint"))
+
+    # ---- 操作层：联网检测（真正刷新连通性，逐源真实检索）----
+    if st.button(get_text("health_probe_btn"), key="hc_probe",
+                 help=get_text("health_probe_btn_help")):
+        _run_online_probe("hc")
     st.caption(get_text("health_probe_hint"))
+    _render_last_probe_results("hc")
 
     # ---- 聚合层：4 张指标卡（与明细同源，口径恒一致）----
     summary = snapshot.summary

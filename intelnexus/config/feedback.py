@@ -187,6 +187,19 @@ def get_search_feedback(url: str, subscriber_id: str = "anonymous") -> Optional[
     return None
 
 
+def get_search_feedback_map(subscriber_id: str = "anonymous") -> Dict[str, str]:
+    """一次性读取全部搜索反馈（url → feedback）。
+
+    结果列表每条结果的「有用」按钮都要判定反馈状态；逐条调
+    get_search_feedback 会把反馈文件整读 N 次（弱相关 785 条时 ≈2355 次/页），
+    本函数一次读盘建索引，供结果渲染整页预载（R17）。
+    """
+    data = _load_json(FEEDBACK_FILE)
+    return {entry["url"]: entry["feedback"]
+            for entry in data.get("search", [])
+            if entry.get("url") and entry.get("subscriber_id") == subscriber_id}
+
+
 # ============================================
 # 用户行为追踪（简单版）
 # ============================================

@@ -102,6 +102,13 @@ def fetch_with_auth(url, auth=None, tor_port=None):
     session = requests.Session()
     session.headers.update(headers)
 
+    # R17b（2026-10-21）：trust_env=False——.env 经 load_dotenv 注入的
+    # HTTP_PROXY（Clash:7890）按 requests 合并语义（环境代理入请求级桶，
+    # 请求级 > 会话级）会压掉下面的 session.proxies，.onion 请求改走
+    # Clash 必然瞬间 502 空体（OnionLand/Tor66 双站实测复现）。自定义源
+    # 必须经 Tor SOCKS，显式禁用环境代理；同 R7b 对 Ahmia 的处理口径。
+    session.trust_env = False
+
     # 设置代理
     port = tor_port or get_tor_proxy_port()
     session.proxies = {
@@ -143,8 +150,17 @@ def search_custom_onion_site(site_config, query, tor_port=None):
             except Exception:
                 pass
 
-        # 尝试访问站点并搜索
-        search_url = f"{base_url}?search={quote(query)}"
+        # R17b（2026-10-21）：查询 URL 构造升级——
+        # ① URL 含 {query} 占位符时按模板直填（与内置引擎配置同款写法，
+        #    兼容业界主流 ?q= / ?query= 形态：OnionLand/Kaizer/Tornado/Tor66
+        #    均为 ?q=，Torgle/Amnesia 为 ?query=，无一使用 ?search=）；
+        # ② 否则维持 ?search= 追加，但 base_url 自带 query 时用 & 接续——
+        #    此前硬拼会在已有参数后拼出第二个 "?"，search 参数丢失必致 0 条。
+        if "{query}" in base_url:
+            search_url = base_url.replace("{query}", quote(query))
+        else:
+            _sep = "&" if urlparse(base_url).query else "?"
+            search_url = f"{base_url}{_sep}search={quote(query)}"
 
         response = fetch_with_auth(search_url, auth, tor_port=tor_port)
 

@@ -73,3 +73,42 @@ def test_custom_site_relative_onion_link_normalized():
         results = dw.search_custom_onion_site(site, "query")
     # 旧实现会拼出 http://mysite.onionmysite.onion/thread/1
     assert results[0]["link"] == "http://mysite.onion/thread/1"
+
+
+# ---------------------------------------------------------------------------
+# R17b（2026-10-21）：查询 URL 构造——{query} 模板 + 已有 query 的 & 接续
+# （主流 onion 引擎查询形态为 ?q=/ ?query=，无一使用 ?search=；
+#   原硬拼在 base_url 自带 query 时会拼出第二个 ? 必致 0 条）
+# ---------------------------------------------------------------------------
+
+def test_custom_site_search_url_plain_base_uses_search_param():
+    """无 query 的 base_url：维持 ?search= 追加（原有行为不变）。"""
+    site = {"name": "PlainSite", "url": "http://plain.onion", "auth": None}
+    with patch.object(dw, "fetch_with_auth",
+                      return_value=_html_response("<html></html>", status=200)) as mock_fetch:
+        dw.search_custom_onion_site(site, "ransom")
+    url = mock_fetch.call_args.args[0]
+    assert url == "http://plain.onion?search=ransom"
+
+
+def test_custom_site_search_url_merges_existing_query():
+    """base_url 自带 query：用 & 接续，不再拼出第二个 ?。"""
+    site = {"name": "QSite", "url": "http://q.onion/search.php?type=all", "auth": None}
+    with patch.object(dw, "fetch_with_auth",
+                      return_value=_html_response("<html></html>", status=200)) as mock_fetch:
+        dw.search_custom_onion_site(site, "ransom")
+    url = mock_fetch.call_args.args[0]
+    assert url.startswith("http://q.onion/search.php?type=all&search="), url
+    assert url.count("?") == 1, url
+    assert url.endswith("search=ransom"), url
+
+
+def test_custom_site_search_url_template_placeholder():
+    """URL 含 {query} 占位符：按模板直填（兼容 ?q=/?query= 形态）。"""
+    site = {"name": "TplSite",
+            "url": "http://tpl.onion/search?q={query}", "auth": None}
+    with patch.object(dw, "fetch_with_auth",
+                      return_value=_html_response("<html></html>", status=200)) as mock_fetch:
+        dw.search_custom_onion_site(site, "ransom")
+    url = mock_fetch.call_args.args[0]
+    assert url == "http://tpl.onion/search?q=ransom", url
