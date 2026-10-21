@@ -123,10 +123,56 @@ def render_results_detail(view=None, key_prefix: str = "", page_key: str = "resu
             return
         _get = st.session_state.get
 
+    def _render_weak_block(weak_items, expanded: bool):
+        """R15：弱相关折叠区渲染（主列表为空时也可独立调用）。"""
+        with st.expander(
+            f"{get_text('weak_related_title').format(count=len(weak_items))}",
+            expanded=expanded
+        ):
+            st.caption(get_text("weak_related_hint"))
+            for wi, item in enumerate(weak_items):
+                wkey = f"weak_{wi}"
+                # 不可信外部输入先剥离 HTML 标签再转义（防存储型 XSS + 避免标签源码暴露）
+                safe_title = _safe_text(item.get('title', '') or '') or get_text("no_title")
+                safe_desc = _safe_text(item.get('description', '') or '')
+                safe_summary = _safe_text(item.get('summary', '') or '')
+                st.markdown(f"**{safe_title[:150]}**")
+                if item.get('description'):
+                    st.markdown(f"{icon('entry', 'sm', 'gray')} {safe_desc[:500]}...", unsafe_allow_html=True)
+                elif item.get('summary'):
+                    st.markdown(f"{icon('note', 'sm', 'lavender')} {safe_summary[:500]}...", unsafe_allow_html=True)
+                if item.get('link') or item.get('url'):
+                    link = item.get('link') or item.get('url')
+                    # 外部 URL 可能是伪协议或含破坏 markdown 链接语法的字符：
+                    # 先过安全处理，不合法则降级为转义纯文本（与证据链链接口径一致）
+                    safe_link = _safe_md_url(link)
+                    if safe_link:
+                        st.markdown(get_text("view_original").format(link=safe_link))
+                    else:
+                        st.markdown(_safe_text(link))
+                # key 加 weak_ 前缀，与主列表的 source_actual_idx 区分，避免 DuplicateWidgetID
+                st.markdown('<div class="result-btn-row">', unsafe_allow_html=True)
+                _wbtn_cols = st.columns(3)
+                with _wbtn_cols[0]:
+                    _render_collect_button(item, f"{key_prefix}weak_{wkey}")
+                with _wbtn_cols[1]:
+                    _render_useful_button(item, f"{key_prefix}weak_{wkey}")
+                with _wbtn_cols[2]:
+                    _render_save_to_kb_button(item, f"{key_prefix}weak_{wkey}")
+                st.markdown('</div>', unsafe_allow_html=True)
+                st.markdown("---")
+
     filtered = _get("filtered", []) or []
     if len(filtered) == 0:
         st.markdown("---")
-        st.info(get_text("no_results"))
+        # R15（2026-10-21）：主列表 0 条但弱相关有结果时，直接展开弱相关区——
+        # 避免「8 条结果只显示未检索到任何结果」的误导（华盛顿酒店实测）
+        weak_items = [r for r in (_get("results", []) or []) if r.get("weak_related", False)]
+        if weak_items:
+            st.info(get_text("no_results_weak").format(n=len(weak_items)))
+            _render_weak_block(weak_items, expanded=True)
+        else:
+            st.info(get_text("no_results"))
         return
 
     st.markdown("---")
@@ -228,10 +274,8 @@ def render_results_detail(view=None, key_prefix: str = "", page_key: str = "resu
     _all_results = _get("results", []) or []
     weak_items = [r for r in _all_results if r.get("weak_related", False)]
     if weak_items:
-        with st.expander(
-            f"{get_text('weak_related_title').format(count=len(weak_items))}",
-            expanded=False
-        ):
+        _render_weak_block(weak_items, expanded=False)
+        if True:
             st.caption(get_text("weak_related_hint"))
             for wi, item in enumerate(weak_items):
                 wkey = f"weak_{wi}"

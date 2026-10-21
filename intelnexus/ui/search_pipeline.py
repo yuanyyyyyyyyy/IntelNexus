@@ -226,16 +226,19 @@ def _render_search_results_ui(result: dict):
     from intelnexus.ui.results_view import ResultsView, render_query_stats_cards
     render_query_stats_cards(ResultsView(result))
 
-    # 零结果处理
+    # 零结果处理（R15：主列表 0 条但存在弱相关结果时不再提前 return——
+    # 弱相关折叠区照常渲染，提示改为说明弱相关去向）
+    weak_results = result.get("weak_results", [])
     if result.get("zero_results"):
         if result.get("all_failed"):
             st.error(get_text("search_all_failed"))
+            return
+        if weak_results:
+            st.info(get_text("no_results_weak").format(n=len(weak_results)))
         else:
             st.warning(get_text("no_results"))
-        return
 
     # 弱相关折叠展示
-    weak_results = result.get("weak_results", [])
     if weak_results:
         with st.expander(get_text("weak_related_expander").format(n=len(weak_results))):
             for wr in weak_results:
