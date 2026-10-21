@@ -34,13 +34,16 @@ try:
 except Exception:  # pragma: no cover - 独立脚本无 config 时兜底
     _CFG_DARKWEB = None
 
+# R16a（2026-10-21）：config 优先——config.ENABLE_DARKWEB 已按「.env →
+# search_settings.json 覆盖（侧栏「暗网 (Tor)」源开关写的就是 search_settings）」
+# 合并完毕；此前 env 优先会让 UI 开关失效（load_dotenv 之后 env 恒为 true）。
+# 仅在 config 不可用的独立脚本场景才回退读 env。
 ENABLE_DARKWEB = (
-    os.getenv("ENABLE_DARKWEB").strip().lower() == "true"
-    if os.getenv("ENABLE_DARKWEB") is not None
-    else bool(_CFG_DARKWEB)
+    bool(_CFG_DARKWEB) if _CFG_DARKWEB is not None
+    else os.getenv("ENABLE_DARKWEB", "false").strip().lower() == "true"
 )
 
-logger.info("darkweb gate build: R6-20261020, ENABLE_DARKWEB=%s", ENABLE_DARKWEB)
+logger.info("darkweb gate build: R6-20261020/R16a, ENABLE_DARKWEB=%s", ENABLE_DARKWEB)
 
 # 自定义暗网站点配置（支持认证）
 # 格式: {"name": "站点名", "url": "http://xxx.onion", "auth": {"type": "basic", "username": "xxx", "password": "xxx"}}

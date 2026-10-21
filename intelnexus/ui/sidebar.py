@@ -82,6 +82,22 @@ def _render_search_mode():
                 help=get_text("darkweb_boost_hint"))
     if st.session_state.get("darkweb_boost") and not tor_running:
         st.caption(get_text("darkweb_boost_no_tor"))
+
+    # R16b（2026-10-21）：暗网增强的隐含前置条件可视化——全部取自已算状态，
+    # 零网络成本；逐源真实检索的深度验证走 数据源状态 → 联网检测（互补不重复）。
+    if st.session_state.get("darkweb_boost"):
+        try:
+            from intelnexus.search_app import darkweb as _dw
+            _gate_ok = bool(_dw.is_available())
+        except Exception:
+            _gate_ok = False
+        _tor_chip = (f"✓ Tor 已运行:{_cached_tor_port}" if _cached_tor_running
+                     else "✗ Tor 未运行（scripts/start_tor.bat）")
+        _chips = [f"{'✓' if _gate_ok else '✗'} 暗网源开关", _tor_chip]
+        _custom_n = len(st.session_state.get("custom_onion_sites", []) or [])
+        if _custom_n:
+            _chips.append(f"✓ 自定义源 {_custom_n} 个")
+        st.caption("暗网前置条件：" + " · ".join(_chips) + " ｜ 深度验证：数据源状态 → 联网检测")
     return search_mode
 
 def _render_darkweb_settings():
