@@ -46,6 +46,7 @@ def _start_search_task(query: str, search_mode: str, model: str, threads: int):
 
     advanced_mode = st.session_state.get("advanced_mode", False)
     tor_port = st.session_state.get("tor_port_sel", 9050)
+    darkweb_boost = bool(st.session_state.get("darkweb_boost", False))
     # R4b：检索提交前按实际监听校正 Tor 端口。侧栏 widget 的值可能残留坏端口
     # （widget 实例化后 session_state 不可写，UI 侧只能提示不能改值），这里仅在
     # 提交检索的参数里换成存活端口，保证 TorDex/自定义 onion 源不因坏端口静默失败。
@@ -67,6 +68,7 @@ def _start_search_task(query: str, search_mode: str, model: str, threads: int):
         "advanced_mode": advanced_mode,
         "tor_port": tor_port,
         "ui_sites": ui_sites,
+        "darkweb_boost": darkweb_boost,
     })
 
     if ok:

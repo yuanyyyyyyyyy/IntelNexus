@@ -74,6 +74,14 @@ def _render_search_mode():
                     st.error(get_text("darkweb_tor_offline_hint"))
     elif not tor_running:
         st.caption(get_text("smart_hint_no_tor"))
+
+    # R15b（2026-10-21）：暗网增强——开启后智能路由的检索也会并发查询暗网源
+    # （Ahmia 为主，约 +3-5s）。实体名不带安全词的威胁监测场景（如「华盛顿酒店」）
+    # 由此覆盖；默认关闭，不改变智能路由既有行为。手动暗网模式不受影响。
+    st.checkbox(get_text("darkweb_boost"), key="darkweb_boost",
+                help=get_text("darkweb_boost_hint"))
+    if st.session_state.get("darkweb_boost") and not tor_running:
+        st.caption(get_text("darkweb_boost_no_tor"))
     return search_mode
 
 def _render_darkweb_settings():

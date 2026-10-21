@@ -265,7 +265,7 @@ class SearchSourceRegistry:
         return [s.name for s in self.all_sources()
                 if isinstance(s, SiteScopedSource)]
 
-    def get_sources_by_mode(self, mode: str) -> List[BaseSearchSource]:
+    def get_sources_by_mode(self, mode: str, extra_categories=None) -> List[BaseSearchSource]:
         """返回该模式下、已启用的源列表（按类别过滤，健康状态排序）。
 
         排序：``healthy → degraded → stale``，被剔除的 ``down`` 不入列表。
@@ -290,6 +290,10 @@ class SearchSourceRegistry:
         from intelnexus.core.search.health import get_health_map, view_status
 
         categories = set(get_mode_categories(mode))
+        # R15b（2026-10-21）：智能路由「暗网增强」——运行时并入额外类别（如
+        # darkweb），不改变静态路由表与既有模式行为；默认 None 时完全等价旧路径。
+        if extra_categories:
+            categories.update(extra_categories)
         candidates = [
             src for src in self.all_sources()
             if src.enabled and src.category in categories
@@ -320,7 +324,8 @@ class SearchSourceRegistry:
     # 执行 + 出口收口
     # ------------------------------------------------------------------
     def collect(self, mode: str, query, max_results: int = 20,
-                threads: int = 5, global_timeout: int = 60) -> List[Dict]:
+                threads: int = 5, global_timeout: int = 60,
+                extra_categories=None) -> List[Dict]:
         """
         按 mode 并发检索并做跨源去重，返回归一化结果列表。
 
@@ -330,6 +335,8 @@ class SearchSourceRegistry:
             max_results: 每个源的最大结果数
             threads: 并发线程数
             global_timeout: 全局搜索超时（秒）
+            extra_categories: 额外并入的类别（R15b 暗网增强：如 ["darkweb"]），
+                与 get_mode_categories(mode) 取并集；None 时等价旧路径。
         """
         from intelnexus.core.search.health import HealthBatch, update_health
 
@@ -339,7 +346,7 @@ class SearchSourceRegistry:
         def _mark(name, status, count=0):
             source_stats[name] = {"status": status, "count": count}
 
-        sources = self.get_sources_by_mode(mode)
+        sources = self.get_sources_by_mode(mode, extra_categories)
         # 因健康状态 down 被剔除的源不会进入 sources，但必须出现在本次统计里：
         # 结果页「源完整性」与报告 4.1 段据此解释「为什么这个源一条都没返回」。
         # 紧接调用后立刻取用，缩短与并发检索共享该属性的窗口。

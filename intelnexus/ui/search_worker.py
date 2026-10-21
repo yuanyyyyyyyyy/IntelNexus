@@ -115,6 +115,7 @@ def run_search_computation(
     advanced_mode: bool = False,
     tor_port: int = 9050,
     ui_sites: list = None,
+    darkweb_boost: bool = False,
 ) -> Dict[str, Any]:
     """搜索管线纯计算入口（后台线程安全）。
 
@@ -220,8 +221,11 @@ def run_search_computation(
     # 自定义 onion 源，首次建链实测 20-75s，registry 默认 60s 会截断慢引擎与
     # 访客自定义源的首轮结果；web/news/threat 维持 60s 不变。
     _global_timeout = 120 if search_mode in ("darkweb", "all") else 60
+    # R15b：暗网增强——开启后任意路由的检索并发并入 darkweb 类别
+    _extra_categories = ["darkweb"] if darkweb_boost else None
     search_results = registry.collect(search_mode, search_query, max_results=25,
-                                      threads=threads, global_timeout=_global_timeout)
+                                      threads=threads, global_timeout=_global_timeout,
+                                      extra_categories=_extra_categories)
 
     try:
         result["source_stats"] = registry.last_search_stats
